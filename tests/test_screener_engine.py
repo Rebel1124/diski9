@@ -1,0 +1,382 @@
+from __future__ import annotations
+
+import json
+from datetime import timedelta
+
+import pytest
+from sqlalchemy import select, update
+
+from diski9.db.schema import fixtures, screener_results
+from diski9.ingestion.fixtures import store_fixtures
+from diski9.screener import cache
+from diski9.screener.engine import MatchStore, ScreenerConfig, compute_fixture, select_benchmark
+from diski9.screener.rank import rank
+
+from .factories import T0, fixture_item, seed_competition
+
+DAY = timedelta(days=1)
+UPCOMING_ID = 9999
+
+
+class Builder:
+    """Small helper to add completed matches one by one, newest last."""
+
+    def __init__(self, conn, start=T0 - 400 * DAY):
+        self.conn = conn
+        self.t = start
+        self.fid = 1
+        self.items = []
+
+    def add(
+        self,
+        home,
+        away,
+        hg,
+        ag,
+        *,
+        league=39,
+        season=2025,
+        status="FT",
+        round_name="Regular Season - 1",
+        venue_id=None,
+        gap=DAY,
+    ):
+        self.t += gap
+        self.items.append(
+            fixture_item(
+                self.fid,
+                home,
+                away,
+                league=league,
+                season=season,
+                kickoff=self.t,
+                status=status,
+                ft=(hg, ag),
+                round_name=round_name,
+                venue_id=venue_id,
+            )
+        )
+        self.fid += 1
+        return self.fid - 1
+
+    def upcoming(self, home, away, *, league=39, season=2026, kickoff=T0 + 3 * DAY):
+        self.items.append(
+            fixture_item(
+                UPCOMING_ID, home, away, league=league, season=season, kickoff=kickoff, status="NS"
+            )
+        )
+
+    def save(self):
+        store_fixtures(self.conn, self.items, lambda: T0)
+        self.items = []
+
+
+@pytest.fixture
+def db(conn):
+    seed_competition(conn, 39, years=(2023, 2024, 2025, 2026))
+    seed_competition(conn, 40, years=(2024, 2025, 2026), name="Championship")
+    return conn
+
+
+def fx(conn, fid=UPCOMING_ID):
+    return conn.execute(select(fixtures).where(fixtures.c.id == fid)).one()
+
+
+def compute(conn, fid=UPCOMING_ID, as_of=T0, basis="venue", config=None):
+    return compute_fixture(MatchStore(conn), fx(conn, fid), as_of, basis, config)
+
+
+def set_venue(conn, fid, cls):
+    conn.execute(update(fixtures).where(fixtures.c.id == fid).values(venue_classification=cls))
+
+
+def test_venue_windows_use_last_home_and_away_matches(db):
+    b = Builder(db)
+    # team 1: 6 home wins 2-0 (oldest first), interleaved with away losses 0-1
+    for i in range(6):
+        b.add(1, 50 + i, 2, 0)
+        b.add(60 + i, 1, 1, 0)
+    # team 2: away draws
+    for i in range(6):
+        b.add(70 + i, 2, 1, 1)
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db)
+    home = r["teams"]["home"]["form"]
+    assert home["sequence"] == "W-W-W-W-W" and home["display"] == "4.00"
+    assert all(m["venue"] == "H" for m in home["matches"])
+    assert r["teams"]["away"]["form"]["display"] == "1.00"
+    overall = compute(db, basis="overall")
+    assert overall["teams"]["home"]["form"]["sequence"] == "L-W-L-W-L"
+    assert overall["match_result"]["venue_adjusted_difference"] is None  # raw only on overall basis
+
+
+def test_goals_markets_last_ten_and_complements(db):
+    b = Builder(db)
+    for i in range(12):  # newest 10 home: 8 BTTS & over (2-1), 2 not (1-0)
+        b.add(1, 50 + i, 1, 0) if i < 4 else b.add(1, 50 + i, 2, 1)
+    for i in range(10):  # away team: 6 of 10 BTTS (1-1), 4 not (0-1)
+        b.add(70 + i, 2, 1, 1) if i < 6 else b.add(70 + i, 2, 1, 0)
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db)
+    assert r["teams"]["home"]["goals"]["btts"]["display"] == "8/10 (80%)"
+    assert r["teams"]["away"]["goals"]["btts"]["display"] == "6/10 (60%)"
+    assert r["btts"]["yes_display"] == "70%" and r["btts"]["no_display"] == "30%"
+    assert r["teams"]["home"]["goals"]["over_2_5"]["hits"] == 8
+    assert r["teams"]["away"]["goals"]["over_2_5"]["hits"] == 0
+    assert (
+        r["over_under_2_5"]["over_display"] == "40%"
+        and r["over_under_2_5"]["under_display"] == "60%"
+    )
+
+
+def test_excluded_fixtures_never_used(db):
+    b = Builder(db)
+    b.add(1, 50, 5, 0)
+    b.add(1, 51, 3, 0, status="AWD")
+    b.add(1, 52, 0, 0, status="CANC")
+    b.add(1, 53, 4, 0, round_name="Relegation Round - 1")
+    b.add(1, 54, 4, 4, status="PST")
+    b.add(70, 2, 0, 0)
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db)
+    assert r["teams"]["home"]["form"]["breakdown"]["matches"] == 1
+    assert r["teams"]["home"]["form"]["matches"][0]["opponent"] == "Team 50"
+
+
+def test_neutral_excluded_from_venue_windows_and_benchmark_unverified_flagged(db):
+    b = Builder(db)
+    neutral = b.add(1, 50, 3, 0)
+    unverified = b.add(1, 51, 1, 0)
+    b.add(70, 2, 0, 0)
+    b.upcoming(1, 2)
+    b.save()
+    set_venue(db, neutral, "neutral")
+    set_venue(db, unverified, "unverified_venue")
+    r = compute(db)
+    home = r["teams"]["home"]["form"]
+    assert [m["fixture_id"] for m in home["matches"]] == [unverified]
+    assert (
+        home["matches"][0]["unverified_venue"] and home["sample"]["unverified_venue_matches"] == 1
+    )
+    assert (
+        compute(db, basis="overall")["teams"]["home"]["form"]["sample"]["matches"] == 2
+    )  # overall keeps neutral
+    store = MatchStore(db)
+    assert neutral not in {m.fixture_id for m in store.league_matches(39, 2025, T0)}
+
+
+def test_promoted_team_provenance_and_limited_data(db):
+    b = Builder(db)
+    for i in range(8):  # team 3 played last season in the Championship
+        b.add(3, 80 + i, 2, 0, league=40)
+    b.add(3, 90, 1, 1, season=2026, gap=DAY * 100)  # one top-flight home match this season
+    for i in range(6):
+        b.add(70 + i, 2, 0, 1)
+    b.upcoming(3, 2)
+    b.save()
+    r = compute(db)
+    form = r["teams"]["home"]["form"]["sample"]
+    assert form["matches"] == 5 and form["current_division_matches"] == 1
+    assert form["provenance"] == {"current_season_same_division": 1, "other_division": 4}
+    assert form["limited_data_reasons"] == ["fewer_than_3_current_division_matches"]
+    assert form["note"] == "Includes 4 previous-division/other-competition matches"
+    assert r["limited_data"]["form"]
+    assert r["teams"]["home"]["form"]["matches"][1]["competition"] == "Championship"
+
+
+def test_new_club_without_history(db):
+    b = Builder(db)
+    for i in range(6):
+        b.add(70 + i, 2, 0, 1)
+    b.upcoming(777, 2)  # e.g. a club that acquired a league status: no inherited history
+    b.save()
+    r = compute(db)
+    home = r["teams"]["home"]
+    assert home["form"]["score"] is None and home["goals"]["btts"] is None
+    assert home["form"]["sample"]["limited_data_reasons"] == [
+        "fewer_than_3_matches",
+        "fewer_than_3_current_division_matches",
+    ]
+    assert r["match_result"]["raw_difference"] is None and r["btts"]["yes_indicator"] is None
+
+
+def test_small_samples_still_calculated_and_flagged(db):
+    b = Builder(db)
+    for hg, ag in ((2, 0), (1, 1), (1, 0), (0, 1)):
+        b.add(1, 50 + hg * 10 + ag, hg, ag)
+    for i in range(4):
+        b.add(70 + i, 2, 1, 1)
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db)
+    assert r["teams"]["home"]["form"]["display"] == "2.00"
+    assert not r["teams"]["home"]["form"]["sample"]["limited_data"]  # 4 current-division matches
+    assert r["teams"]["home"]["goals"]["btts"]["display"] == "1/4 (25%)"
+    assert r["teams"]["home"]["goals"]["sample"]["limited_data_reasons"] == ["fewer_than_6_matches"]
+
+
+def test_benchmark_current_previous_and_partial(db):
+    b = Builder(db)
+    for i in range(10):
+        b.add(100 + i, 200 + i, 2, 1, season=2025)  # previous season: all home wins
+    for i in range(4):
+        b.add(
+            300 + i, 400 + i, 0, 0, season=2026, gap=DAY * (20 if i == 0 else 1)
+        )  # current: draws
+    b.upcoming(100, 200)
+    b.save()
+    store = MatchStore(db)
+    prev = select_benchmark(store, 39, 2026, T0, ScreenerConfig(benchmark_min_matches=5))
+    assert prev["source"] == "previous_season" and prev["season"] == 2025 and prev["matches"] == 10
+    assert prev["home"]["form_score"] == 3.5 and prev["current_season_matches"] == 4
+    cur = select_benchmark(store, 39, 2026, T0, ScreenerConfig(benchmark_min_matches=4))
+    assert cur["source"] == "current_season" and cur["home"]["form_score"] == 1.0
+    assert cur["draw_rate"] == 1.0
+    assert "2026/27 averages (4 matches)" in cur["label"]
+    # no previous season stored for the Championship -> partial current season, flagged by source
+    b.add(500, 501, 1, 0, league=40, season=2026)
+    b.save()
+    part = select_benchmark(MatchStore(db), 40, 2026, T0, ScreenerConfig(benchmark_min_matches=5))
+    assert part["source"] == "current_season_partial"
+    assert select_benchmark(MatchStore(db), 40, 2024, T0, ScreenerConfig()) is None
+
+
+def test_venue_adjusted_difference_against_benchmark(db):
+    b = Builder(db)
+    for i in range(5):
+        b.add(1, 50 + i, 2, 0)  # home team 4.00 at home
+        b.add(60 + i, 2, 1, 0)  # away team -0.50 away
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db, config=ScreenerConfig(benchmark_min_matches=1000))
+    bench = r["match_result"]["benchmark"]
+    expected = (4.0 - bench["home"]["form_score"]) - (-0.5 - bench["away"]["form_score"])
+    assert r["match_result"]["raw_difference"] == 4.5
+    assert r["match_result"]["venue_adjusted_difference"] == pytest.approx(expected)
+
+
+def test_point_in_time_later_results_do_not_leak(db):
+    b = Builder(db, start=T0 - 30 * DAY)
+    for i in range(5):
+        b.add(1, 50 + i, 1, 1)
+        b.add(60 + i, 2, 1, 1)
+    b.upcoming(1, 2, kickoff=T0)
+    b.save()
+    before = compute(db, as_of=T0 + 10 * DAY)  # cutoff = kickoff
+    # results played after the fixture kickoff are added later
+    late = [
+        fixture_item(5000 + i, 1, 90 + i, kickoff=T0 + (i + 1) * DAY, ft=(5, 0), season=2026)
+        for i in range(5)
+    ]
+    store_fixtures(db, late, lambda: T0)
+    after = compute(db, as_of=T0 + 10 * DAY)
+    assert before["cutoff"] == T0.isoformat()
+    assert before["inputs_hash"] == after["inputs_hash"]
+    assert after["teams"]["home"]["form"]["display"] == "1.00"
+    # but a later fixture does see them
+    db.execute(
+        update(fixtures).where(fixtures.c.id == UPCOMING_ID).values(kickoff_utc=T0 + 9 * DAY)
+    )
+    assert compute(db, as_of=T0 + 10 * DAY)["teams"]["home"]["form"]["display"] == "4.00"
+
+
+def test_as_of_before_kickoff_uses_only_known_results(db):
+    b = Builder(db, start=T0 - 10 * DAY)
+    first = b.add(1, 50, 3, 0)
+    b.add(1, 51, 0, 3)
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db, as_of=fx(db, first).kickoff_utc + timedelta(hours=1))
+    assert r["teams"]["home"]["form"]["breakdown"]["matches"] == 1
+
+
+def test_head_to_head_most_recent_five_without_affecting_indicators(db):
+    b = Builder(db, start=T0 - 1000 * DAY)
+    ids = []
+    for i in range(6):
+        ids.append(
+            b.add(1, 2, i, 0, season=2023 + (i // 3))
+            if i % 2 == 0
+            else b.add(2, 1, 0, i, season=2023 + (i // 3))
+        )
+    b.add(1, 2, 3, 0, status="AWD")  # awarded: not a valid meeting
+    playoff = b.add(2, 1, 1, 1, round_name="Playoffs - 1", season=2025)
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db)
+    h2h = r["head_to_head"]
+    assert len(h2h) == 5 and h2h[0]["fixture_id"] == playoff and h2h[0]["round"] == "Playoffs - 1"
+    assert ids[0] not in [m["fixture_id"] for m in h2h]
+    assert h2h[-1]["older"] is True and h2h[0]["older"] is False
+    # removing H2H meetings from the picture leaves the primary indicators unchanged
+    home_matches = {m["fixture_id"] for m in r["teams"]["home"]["form"]["matches"]}
+    assert playoff not in home_matches
+
+
+def test_cache_refresh_unchanged_superseded_and_point_in_time(db):
+    b = Builder(db)
+    for i in range(5):
+        b.add(1, 50 + i, 1, 0)
+        b.add(60 + i, 2, 0, 0)
+    b.upcoming(1, 2)
+    b.save()
+    t1, t2, t3 = T0, T0 + timedelta(hours=1), T0 + timedelta(hours=2)
+    assert cache.refresh(db, [UPCOMING_ID], t1, t1) == {
+        "inserted": 2,
+        "unchanged": 0,
+        "superseded": 0,
+    }
+    assert cache.refresh(db, [UPCOMING_ID], t2, t2) == {
+        "inserted": 0,
+        "unchanged": 2,
+        "superseded": 0,
+    }
+    # a new result for the home team arrives -> venue-basis result changes
+    store_fixtures(
+        db,
+        [fixture_item(4000, 1, 99, kickoff=T0 - timedelta(hours=3), ft=(0, 4), season=2026)],
+        lambda: t3,
+    )
+    counts = cache.refresh(db, [UPCOMING_ID], t3, t3)
+    assert counts["superseded"] == 2 and counts["inserted"] == 2
+    rows = db.execute(select(screener_results).order_by(screener_results.c.id)).all()
+    assert len(rows) == 4 and rows[0].superseded_at == t3 and rows[0].verified_at == t2
+    now_view = cache.cached(db, "venue")
+    assert len(now_view) == 1 and now_view[0]["teams"]["home"]["form"]["sequence"].startswith("L")
+    past_view = cache.cached(db, "venue", at=t2)
+    assert past_view[0]["teams"]["home"]["form"]["sequence"] == "W-W-W-W-W"
+    assert json.loads(rows[0].payload)["inputs_hash"] == rows[0].inputs_hash
+    assert cache.invalidate(db, t3) == 2
+    assert cache.refresh(db, [UPCOMING_ID], t3, t3)["inserted"] == 2
+
+
+def test_ranking_directions():
+    def res(fid, vad, btts, over):
+        return {
+            "fixture": {"id": fid},
+            "basis": "venue",
+            "match_result": {"venue_adjusted_difference": vad, "raw_difference": vad},
+            "btts": {"yes_indicator": btts},
+            "over_under_2_5": {"over_indicator": over},
+        }
+
+    rs = [
+        res(1, 1.2, 0.7, 0.4),
+        res(2, -0.8, 0.3, 0.8),
+        res(3, 0.05, 0.5, None),
+        res(4, None, None, 0.6),
+    ]
+    ids = lambda xs: [r["fixture"]["id"] for r in xs]  # noqa: E731
+    assert ids(rank(rs, "home_stronger")) == [1, 3, 2]
+    assert ids(rank(rs, "away_stronger")) == [2, 3, 1]
+    assert ids(rank(rs, "evenly_matched")) == [3, 2, 1]
+    assert ids(rank(rs, "btts_yes")) == [1, 3, 2]
+    assert ids(rank(rs, "btts_no")) == [2, 3, 1]
+    assert ids(rank(rs, "over")) == [2, 4, 1]
+    assert ids(rank(rs, "under")) == [1, 4, 2]
+    assert ids(rank(rs, "home_stronger", threshold=0.5)) == [1]
+    assert ids(rank(rs, "evenly_matched", threshold=0.1)) == [3]
+    assert ids(rank(rs, "btts_no", threshold=0.6)) == [2]

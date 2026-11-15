@@ -10,6 +10,7 @@ from sqlalchemy import Connection, select
 
 from diski9.api_football import ApiFootballClient
 from diski9.db.schema import (
+    approved_home_grounds,
     bookmakers,
     competitions,
     neutral_venue_overrides,
@@ -236,6 +237,28 @@ def load_neutral_overrides(
                 fixture_id=int(row["fixture_id"]),
                 classification=row["classification"],
                 note=row.get("note") or None,
+                updated_at=now,
+            )
+        )
+    return len(rows)
+
+
+def load_approved_home_grounds(
+    conn: Connection, config_path: Path | None = None, clock: Clock = utcnow
+) -> int:
+    """Replace ``approved_home_grounds`` with ``config/approved_home_grounds.csv``."""
+    config_path = config_path or CONFIG_DIR / "approved_home_grounds.csv"
+    rows = read_csv(config_path)
+    now = clock()
+    conn.execute(approved_home_grounds.delete())
+    for row in rows:
+        conn.execute(
+            approved_home_grounds.insert().values(
+                team_id=int(row["team_id"]),
+                venue_id=int(row["venue_id"]),
+                valid_from=row["valid_from"],
+                valid_to=row.get("valid_to") or None,
+                evidence=row["evidence"],
                 updated_at=now,
             )
         )

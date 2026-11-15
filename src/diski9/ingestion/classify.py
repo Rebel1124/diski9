@@ -106,26 +106,32 @@ def classify_venue(
     home: TeamGround,
     away: TeamGround,
     override: str | None = None,
+    approved: frozenset[int] = frozenset(),
 ) -> tuple[str, str]:
     """Return (classification, reason).
 
-    * ``home_ground``        venue is the home team's registered or usual ground
-    * ``potential_neutral``  venue known, but not a recognised home ground of the home team
-    * ``neutral``            only via an explicit override
-    * ``unknown``            venue missing, or the home team's grounds are unknown
+    * ``home_ground``       the home team's registered ground, its usual ground that
+                            season, or a ground on the dated approved list
+    * ``unverified_venue``  venue known but not a recognised home ground of the
+                            home team. Flagged, **not** assumed neutral.
+    * ``neutral``           only via an explicit fixture override
+    * ``unknown``           venue missing, or the home team's grounds are unknown
 
+    ``approved`` holds the venue ids approved for the home team on the match date.
     Never invents a classification: missing information yields ``unknown``.
     """
     if override:
         return override, "explicit_override"
     if venue_id is None:
         return "unknown", "venue_missing"
-    if not home.ids:
-        return "unknown", "home_ground_unknown"
     if venue_id in home.ids:
         return "home_ground", (
             "registered_ground" if venue_id == home.registered_venue_id else "usual_ground"
         )
+    if venue_id in approved:
+        return "home_ground", "approved_home_ground"
+    if not home.ids:
+        return "unknown", "home_ground_unknown"
     if venue_id in away.ids:
-        return "potential_neutral", "away_team_ground"
-    return "potential_neutral", "not_home_team_ground"
+        return "unverified_venue", "away_team_ground"
+    return "unverified_venue", "not_home_team_ground"

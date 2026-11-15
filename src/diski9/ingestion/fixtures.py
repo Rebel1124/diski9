@@ -20,7 +20,13 @@ from typing import Any
 from sqlalchemy import Connection, and_, func, or_, select, update
 
 from diski9.api_football import ApiFootballClient
-from diski9.db.schema import fixtures, neutral_venue_overrides, team_seasons, teams
+from diski9.db.schema import (
+    approved_home_grounds,
+    fixtures,
+    neutral_venue_overrides,
+    team_seasons,
+    teams,
+)
 
 from .classify import (
     TeamGround,
@@ -195,10 +201,28 @@ def _team_grounds(conn: Connection, season: int) -> dict[int, TeamGround]:
     return out
 
 
+def _approved_lookup(conn: Connection):
+    """Return f(team_id, kickoff) -> venue ids approved for that team on that date."""
+    by_team: dict[int, list[tuple[str, str | None, int]]] = defaultdict(list)
+    for r in conn.execute(select(approved_home_grounds)):
+        by_team[r.team_id].append((r.valid_from, r.valid_to, r.venue_id))
+
+    def lookup(team_id: int, kickoff) -> frozenset[int]:
+        day = kickoff.date().isoformat()
+        return frozenset(
+            v
+            for start, end, v in by_team.get(team_id, ())
+            if start <= day and (end is None or day <= end)
+        )
+
+    return lookup
+
+
 def refresh_venue_classification(
     conn: Connection, competition_id: int, season: int
 ) -> dict[str, int]:
     grounds = _team_grounds(conn, season)
+    approved = _approved_lookup(conn)
     overrides = {
         r.fixture_id: r.classification
         for r in conn.execute(
@@ -208,7 +232,11 @@ def refresh_venue_classification(
     summary: dict[str, int] = defaultdict(int)
     rows = conn.execute(
         select(
-            fixtures.c.id, fixtures.c.venue_id, fixtures.c.home_team_id, fixtures.c.away_team_id
+            fixtures.c.id,
+            fixtures.c.venue_id,
+            fixtures.c.home_team_id,
+            fixtures.c.away_team_id,
+            fixtures.c.kickoff_utc,
         ).where(fixtures.c.competition_id == competition_id, fixtures.c.season == season)
     ).all()
     for r in rows:
@@ -217,6 +245,7 @@ def refresh_venue_classification(
             grounds.get(r.home_team_id, TeamGround()),
             grounds.get(r.away_team_id, TeamGround()),
             overrides.get(r.id),
+            approved(r.home_team_id, r.kickoff_utc),
         )
         conn.execute(
             update(fixtures)

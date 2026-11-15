@@ -14,8 +14,10 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
 * **Milestone 2** — SQLite schema (SQLAlchemy Core + Alembic), idempotent historical
   results ingestion, on-demand pre-match odds collection, median consensus odds:
   [`docs/milestone2_report.md`](docs/milestone2_report.md)
+* **Milestone 3** — Statistical Screener engine (spec v1.2), approved home grounds,
+  screener cache, odds monitoring trial: [`docs/milestone3_report.md`](docs/milestone3_report.md)
 
-Not yet built: recurring odds schedule, Screener statistics, Dash UI, Challenge.
+Not yet built: Dash UI, Challenge, user accounts.
 
 ## Stack
 
@@ -49,6 +51,8 @@ uv run diski9 sync-reference
 uv run diski9 ingest-fixtures --seasons 2023 2024 2025 2026
 uv run diski9 collect-odds
 uv run diski9 consensus --competition 39
+uv run diski9 screener-refresh --days 14
+uv run diski9 screener-show --direction btts_yes
 ```
 
 The database lives at `data/diski9.sqlite` (git-ignored; `DISKI9_DATABASE_URL`
@@ -72,14 +76,16 @@ src/diski9/
   cli.py                    `diski9` command (on-demand jobs)
   db/                       schema (SQLAlchemy Core), types, engine, migrations helper
   ingestion/                reference data, fixtures/results, classification, quality checks
-  odds/                     odds collection (price episodes) and consensus
+  odds/                     odds collection (price episodes), consensus, monitoring trial
+  screener/                 Form Score, benchmarks, BTTS/OU indicators, ranking, cache
   api_football/
     client.py               HTTP client: envelope, pagination, retries, quota guard
     ratelimit.py            rate-limit header parsing and client-side pacing
     errors.py               exception hierarchy
     markets.py              verified bet-id / outcome mapping, quote extraction
 migrations/                 Alembic migrations
-config/                     bookmakers.csv, neutral_venue_exceptions.csv
+config/                     bookmakers.csv, neutral_venue_exceptions.csv, approved_home_grounds.csv
+monitoring/odds_trial/      raw odds captures from the monitoring trial
 scripts/verify_api_football.py
 tests/                      offline tests (httpx.MockTransport) + trimmed real fixtures
 docs/                       verification report and summary JSON

@@ -9,6 +9,8 @@ from diski9.db.engine import alembic_config
 from diski9.db.schema import metadata
 
 EXPECTED = {
+    "approved_home_grounds",
+    "screener_results",
     "competitions",
     "seasons",
     "venues",

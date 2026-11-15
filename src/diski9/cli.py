@@ -69,6 +69,7 @@ def cmd_ingest_fixtures(args, engine) -> None:
             for season in args.seasons:
                 with engine.begin() as conn:
                     reference.load_neutral_overrides(conn)
+                    reference.load_approved_home_grounds(conn)
                     s = ingest_fixtures(conn, client, cid, season)
                 print(
                     f"{cid}/{season}: +{s.inserted} ~{s.updated} ={s.unchanged} "
@@ -173,6 +174,68 @@ def cmd_analyse_odds_trial(args, engine) -> None:
         print(text)
 
 
+def cmd_screener_refresh(args, engine) -> None:
+    from datetime import timedelta
+
+    from diski9.screener import cache
+
+    now = datetime.now(UTC)
+    as_of = datetime.fromisoformat(args.as_of) if args.as_of else now
+    comps = args.competitions or [c.id for c in COMPETITIONS.values() if c.tier == 1]
+    with engine.begin() as conn:
+        ids = args.fixtures or cache.upcoming_fixture_ids(
+            conn, comps, as_of, as_of + timedelta(days=args.days)
+        )
+        counts = cache.refresh(conn, ids, as_of, now)
+    print(f"{len(ids)} fixtures: {counts}")
+
+
+def cmd_screener_show(args, engine) -> None:
+    from diski9.api_football.markets import Market, Outcome
+    from diski9.screener import cache
+    from diski9.screener.rank import rank
+
+    market_of = {
+        "home_stronger": (Market.MATCH_RESULT, Outcome.HOME),
+        "away_stronger": (Market.MATCH_RESULT, Outcome.AWAY),
+        "evenly_matched": (Market.MATCH_RESULT, Outcome.DRAW),
+        "btts_yes": (Market.BTTS, Outcome.BTTS_YES),
+        "btts_no": (Market.BTTS, Outcome.BTTS_NO),
+        "over": (Market.OVER_UNDER_25, Outcome.OVER_25),
+        "under": (Market.OVER_UNDER_25, Outcome.UNDER_25),
+    }
+    now = datetime.now(UTC)
+    with engine.connect() as conn:
+        results = cache.cached(conn, args.basis)
+        if args.competition:
+            results = [r for r in results if r["fixture"]["competition_id"] == args.competition]
+        ranked = rank(results, args.direction, args.threshold)[: args.limit]
+        books = load_bookmakers(conn)
+        market, outcome = market_of[args.direction]
+        for r in ranked:
+            f, mr = r["fixture"], r["match_result"]
+            odds = fixture_consensus(conn, f["id"], now, books=books)[market]
+            oc = odds.outcomes[outcome]
+            price = f"{oc.consensus_odds} ({odds.sources} src)" if oc.consensus_odds else "-"
+            flag = (
+                " [Limited data]"
+                if r["limited_data"]["form" if market is Market.MATCH_RESULT else "goals"]
+                else ""
+            )
+            forms = (
+                f"form {mr['home_form']:.2f}/{mr['away_form']:.2f} "
+                if mr["home_form"] is not None and mr["away_form"] is not None
+                else "form n/a "
+            )
+            print(
+                f"{f['kickoff'][:16]} {f['home']} v {f['away']}: {forms}"
+                f"raw {mr['raw_difference_display']} "
+                f"adj {mr['venue_adjusted_difference_display']} | "
+                f"BTTS {r['btts']['yes_display']} | O2.5 {r['over_under_2_5']['over_display']} | "
+                f"consensus {outcome.value} {price}{flag}"
+            )
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="diski9")
     p.add_argument("--database-url", default=None)
@@ -208,6 +271,33 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--limit", type=int, default=10)
     s.add_argument("--as-of", default=None)
     s.set_defaults(func=cmd_consensus)
+    s = sub.add_parser("screener-refresh", help="compute and cache screener results")
+    s.add_argument("--competitions", type=int, nargs="+", default=None)
+    s.add_argument("--fixtures", type=int, nargs="*", default=None)
+    s.add_argument("--days", type=int, default=14)
+    s.add_argument("--as-of", default=None)
+    s.set_defaults(func=cmd_screener_refresh)
+
+    s = sub.add_parser("screener-show", help="ranked screener view from the cache")
+    s.add_argument(
+        "--direction",
+        default="home_stronger",
+        choices=[
+            "home_stronger",
+            "away_stronger",
+            "evenly_matched",
+            "btts_yes",
+            "btts_no",
+            "over",
+            "under",
+        ],
+    )
+    s.add_argument("--basis", default="venue", choices=["venue", "overall"])
+    s.add_argument("--competition", type=int, default=None)
+    s.add_argument("--threshold", type=float, default=None)
+    s.add_argument("--limit", type=int, default=10)
+    s.set_defaults(func=cmd_screener_show)
+
     s = sub.add_parser("monitor-odds", help="odds trial: capture one raw odds snapshot")
     s.add_argument("--competitions", type=int, nargs="+", default=None)
     s.add_argument("--season", type=int, default=CURRENT_SEASON)

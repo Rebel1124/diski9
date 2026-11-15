@@ -18,6 +18,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     Column,
+    Float,
     ForeignKey,
     ForeignKeyConstraint,
     Index,
@@ -26,6 +27,7 @@ from sqlalchemy import (
     String,
     Table,
     Text,
+    UniqueConstraint,
     text,
 )
 
@@ -169,7 +171,7 @@ fixtures = Table(
         String(20),
         nullable=False,
         server_default=text("'unknown'"),
-        comment="home_ground | potential_neutral | neutral | unknown",
+        comment="home_ground | unverified_venue | neutral | unknown",
     ),
     Column("venue_classification_reason", String(80), nullable=True),
     Column("content_hash", String(64), nullable=False),
@@ -208,6 +210,19 @@ neutral_venue_overrides = Table(
     CheckConstraint(
         "classification IN ('home_ground','neutral','unknown')", name="valid_classification"
     ),
+)
+
+approved_home_grounds = Table(
+    "approved_home_grounds",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("team_id", Integer, nullable=False, comment="API team id"),
+    Column("venue_id", Integer, nullable=False, comment="API venue id"),
+    Column("valid_from", String(10), nullable=False, comment="YYYY-MM-DD inclusive"),
+    Column("valid_to", String(10), nullable=True, comment="YYYY-MM-DD inclusive; NULL = open"),
+    Column("evidence", Text, nullable=False),
+    Column("updated_at", UTCDateTime, nullable=False),
+    UniqueConstraint("team_id", "venue_id", "valid_from", name="uq_approved_home_grounds_key"),
 )
 
 # ------------------------------------------------------------------------- odds
@@ -310,6 +325,48 @@ Index(
     sqlite_where=odds_quotes.c.ended_at.is_(None),
 )
 Index("ix_odds_quotes_fixture_market", odds_quotes.c.fixture_id, odds_quotes.c.market)
+
+# -------------------------------------------------------------------- screener
+screener_results = Table(
+    "screener_results",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("fixture_id", Integer, ForeignKey("fixtures.id"), nullable=False),
+    Column("basis", String(10), nullable=False, comment="venue | overall"),
+    Column("engine_version", String(20), nullable=False),
+    Column("as_of", UTCDateTime, nullable=False, comment="Reference time requested"),
+    Column(
+        "cutoff",
+        UTCDateTime,
+        nullable=False,
+        comment="Only matches kicking off before this were used (min(as_of, kickoff))",
+    ),
+    Column("calculated_at", UTCDateTime, nullable=False),
+    Column(
+        "verified_at", UTCDateTime, nullable=False, comment="Last refresh confirming the result"
+    ),
+    Column("superseded_at", UTCDateTime, nullable=True, comment="NULL = current cached result"),
+    Column("inputs_hash", String(64), nullable=False),
+    Column("home_form", Float, nullable=True),
+    Column("away_form", Float, nullable=True),
+    Column("raw_difference", Float, nullable=True),
+    Column("venue_adjusted_difference", Float, nullable=True),
+    Column("benchmark_season", Integer, nullable=True),
+    Column("benchmark_source", String(20), nullable=True),
+    Column("benchmark_matches", Integer, nullable=True),
+    Column("btts_yes_indicator", Float, nullable=True),
+    Column("over25_indicator", Float, nullable=True),
+    Column("limited_data", Boolean, nullable=False),
+    Column("payload", Text, nullable=False, comment="Full calculation breakdown (JSON)"),
+)
+Index(
+    "uq_screener_results_active",
+    screener_results.c.fixture_id,
+    screener_results.c.basis,
+    screener_results.c.engine_version,
+    unique=True,
+    sqlite_where=screener_results.c.superseded_at.is_(None),
+)
 
 # -------------------------------------------------------------------- run log
 ingestion_runs = Table(

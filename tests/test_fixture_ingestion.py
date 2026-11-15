@@ -140,7 +140,7 @@ def test_team_seasons_ignore_playoff_only_teams_and_classify_venues(conn):
     assert set(members) == {10, 20, 30, 40}  # 99 played only a play-off
     assert members[10].modal_home_venue_id == 510
     summary = refresh_venue_classification(conn, 39, 2025)
-    assert get(conn, 9002).venue_classification == "potential_neutral"
+    assert get(conn, 9002).venue_classification == "unverified_venue"
     assert get(conn, 9003).venue_classification == "unknown"
     assert get(conn, 1000).venue_classification == "home_ground"
     assert summary["home_ground"] == 13  # 12 round-robin + play-off at team 10's ground
@@ -273,3 +273,44 @@ def test_sync_reference_from_api(conn, make_client, tmp_path):
     assert not b[37].eligible
     ts = conn.execute(select(team_seasons)).one()
     assert (ts.team_id, ts.registered_venue_id) == (42, 494)
+
+
+def test_approved_home_grounds_respect_dates(conn, tmp_path):
+    seed_competition(conn)
+    items = round_robin([10, 20, 30, 40], start=T0 - timedelta(days=200), season=2025)
+    items.append(
+        fixture_item(
+            8001,
+            10,
+            20,
+            season=2025,
+            venue_id=900,
+            kickoff=T0 - timedelta(days=60),
+            round_name="Regular Season - 20",
+        )
+    )
+    items.append(
+        fixture_item(
+            8002,
+            10,
+            30,
+            season=2025,
+            venue_id=900,
+            kickoff=T0 - timedelta(days=10),
+            round_name="Regular Season - 21",
+        )
+    )
+    store_fixtures(conn, items, clock)
+    csv = tmp_path / "hg.csv"
+    day = (T0 - timedelta(days=30)).date().isoformat()
+    csv.write_text(
+        f"# note\nteam_id,venue_id,valid_from,valid_to,evidence\n10,900,{day},,secondary ground\n"
+    )
+    assert reference.load_approved_home_grounds(conn, csv, clock) == 1
+    refresh_team_seasons(conn, 39, 2025, clock)
+    refresh_venue_classification(conn, 39, 2025)
+    assert get(conn, 8001).venue_classification == "unverified_venue"  # before valid_from
+    assert (get(conn, 8002).venue_classification, get(conn, 8002).venue_classification_reason) == (
+        "home_ground",
+        "approved_home_ground",
+    )

@@ -1,0 +1,92 @@
+{
+  "runs": 2,
+  "first_run": "2026-11-15T11:13:17.892323+00:00",
+  "last_run": "2026-11-15T11:21:46.554212+00:00",
+  "provider_update": {
+    "distinct_values_per_run": [
+      2,
+      2
+    ],
+    "distinct_values_total": 2,
+    "fixture_level_changes_between_runs": 0,
+    "fixture_level_comparisons": 20,
+    "median_gap_between_distinct_values_h": 0.0,
+    "max_gap_between_distinct_values_h": 0.0,
+    "median_age_at_retrieval_h": 7.89,
+    "max_age_at_retrieval_h": 7.96
+  },
+  "quotes": {
+    "episodes": 975,
+    "end_reasons": {
+      "null": 975
+    },
+    "distinct_quote_keys": 975,
+    "price_changes": 0,
+    "price_changes_without_provider_update_change": 0
+  },
+  "fetches": [
+    {
+      "competition_id": 39,
+      "retrieved_at": "2026-11-15T11:13:17.892323+00:00",
+      "fixtures_collected": 20,
+      "quotes_seen": 975,
+      "inserted": 975,
+      "price_changed": 0,
+      "disappeared": 0
+    },
+    {
+      "competition_id": 288,
+      "retrieved_at": "2026-11-15T11:13:17.892323+00:00",
+      "fixtures_collected": 0,
+      "quotes_seen": 0,
+      "inserted": 0,
+      "price_changed": 0,
+      "disappeared": 0
+    },
+    {
+      "competition_id": 39,
+      "retrieved_at": "2026-11-15T11:21:46.554212+00:00",
+      "fixtures_collected": 20,
+      "quotes_seen": 975,
+      "inserted": 0,
+      "price_changed": 0,
+      "disappeared": 0
+    },
+    {
+      "competition_id": 288,
+      "retrieved_at": "2026-11-15T11:21:46.554212+00:00",
+      "fixtures_collected": 0,
+      "quotes_seen": 0,
+      "inserted": 0,
+      "price_changed": 0,
+      "disappeared": 0
+    }
+  ],
+  "bookmakers_listed_by_lead_time": {
+    "3-7d": {
+      "observations": 14,
+      "median": 10.0,
+      "min": 10,
+      "max": 10
+    },
+    "7-14d": {
+      "observations": 26,
+      "median": 6.0,
+      "min": 6,
+      "max": 10
+    }
+  },
+  "psl_availability": [
+    {
+      "run_at": "2026-11-15T11:13:17.892323+00:00",
+      "fixtures_with_odds": 0
+    },
+    {
+      "run_at": "2026-11-15T11:21:46.554212+00:00",
+      "fixtures_with_odds": 0
+    }
+  ],
+  "requests_total": 8,
+  "runs_with_errors": 0,
+  "replay_errors": []
+}
