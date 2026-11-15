@@ -1,0 +1,32 @@
+{
+ "get": "odds/bets",
+ "parameters": [],
+ "errors": [],
+ "results": 5,
+ "paging": {
+  "current": 1,
+  "total": 1
+ },
+ "response": [
+  {
+   "id": 1,
+   "name": "Match Winner"
+  },
+  {
+   "id": 2,
+   "name": "Home/Away"
+  },
+  {
+   "id": 5,
+   "name": "Goals Over/Under"
+  },
+  {
+   "id": 8,
+   "name": "Both Teams Score"
+  },
+  {
+   "id": 24,
+   "name": "Results/Both Teams Score"
+  }
+ ]
+}
