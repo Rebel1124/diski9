@@ -1,5 +1,7 @@
 # Milestone 3 — Statistical Screener Engine
 
+> **Note (15 Nov 2026):** Form Scores and league benchmarks in this report use the original −1 to 4 scale. The Screener now uses 0 to 5 (each value + 1); differences and rankings are unchanged. See [setup_fix_and_scale_change.md](setup_fix_and_scale_change.md).
+
 *15 November 2026. Source of truth: Statistical Screener Specification v1.2.*
 
 ## 1. How to run it

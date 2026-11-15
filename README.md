@@ -18,55 +18,112 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   screener cache, odds monitoring trial: [`docs/milestone3_report.md`](docs/milestone3_report.md)
 * **Milestone 4** — Plotly Dash Statistical Screener, official standings, implied
   probabilities, historical sanity check: [`docs/milestone4_report.md`](docs/milestone4_report.md)
+* **Setup fix and Form Score scale (0–5):** [`docs/setup_fix_and_scale_change.md`](docs/setup_fix_and_scale_change.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 
-## Quick start (Screener app)
+## Getting started on a new computer
+
+Requirements: Python 3.12 (uv installs it if needed), [uv](https://docs.astral.sh/uv/),
+git, and an API-Football Pro key.
+
+### 1. Install
 
 ```bash
+git clone https://github.com/Rebel1124/diski9.git
+cd diski9
+git checkout claude/gifted-newton-h6o5hk
 uv sync
-uv run diski9 init-db
-uv run diski9 refresh-data     # fixtures -> official standings -> screener cache
-uv run diski9 serve            # http://127.0.0.1:8050
 ```
+
+### 2. Add your API key
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env` and set `DISKI9_API_FOOTBALL_KEY=<your key>`. The file is
+git-ignored; never commit it. (In Claude Code Cloud the key is injected by the
+network proxy instead, so leave it unset there.)
+
+### 3. First-time setup (one command)
+
+```bash
+uv run diski9 setup --with-odds
+```
+
+This applies the migrations, then, in order:
+
+1. competitions and seasons (the foreign-key parents of fixtures), bookmakers
+2. teams and venues for every competition-season
+3. fixtures and results for **2023–2026** in the EPL, Championship, PSL and
+   PSL 1st Division
+4. venue classification and a check that every required season loaded
+5. official standings, current odds (`--with-odds`)
+6. the Screener cache, calculated **only** if step 4 passed
+
+It takes about 30 seconds and roughly 45 API requests. It is safe to re-run:
+completed historical seasons are skipped (only the current season is
+re-fetched), everything is upserted, and an interrupted setup resumes where it
+stopped. `--force` re-fetches every season.
+
+### 4. Launch the Screener
+
+```bash
+uv run diski9 serve
+```
+
+Open http://127.0.0.1:8050. Options: `--port 8060`, `--tz Europe/London`
+(the default display time zone is Africa/Johannesburg).
+
+### 5. Routine refresh (after new matches)
+
+```bash
+uv run diski9 refresh-data --with-odds
+```
+
+Incremental: current-season fixtures, official standings, current odds and the
+Screener cache (about 10 requests). It never repeats the historical backfill,
+and it refuses with a clear message if `setup` has not completed. Without
+`--with-odds`, consensus odds expire 24 hours after the last odds collection.
+
+Restart `serve` (or wait up to 5 minutes) for the app to show refreshed data.
+
+### Form Score scale
+
+Form Score = 1 + (3W + D)/N + 0.5 × clip((GF − GA)/N, −2, 2), on a **0 to 5**
+scale. This is the Specification v1.2 score plus a constant 1 (decided
+15 Nov 2026). Raw and venue-adjusted differences, and every ranking, are
+identical to the original formula because the constant cancels. League
+benchmarks use the same scale. A team without eligible matches has no Form
+Score (it is shown as unavailable, never as 1). Screener results calculated
+on the previous scale are retired automatically on the next refresh.
 
 ## Stack
 
 Python 3.12 · uv · httpx · pydantic-settings · SQLite · SQLAlchemy Core · Alembic · Plotly Dash · pytest · ruff.
 
-## Setup
+## Development
 
 ```bash
-uv sync
 uv run pytest
 uv run ruff check .
+uv run ruff format --check .
 ```
 
-### API-Football authentication
-
-The client sends `x-apisports-key` **only if** `DISKI9_API_FOOTBALL_KEY` is set.
-
-* **Claude Code Cloud (`diski9` environment):** the key is injected by the
-  environment's network proxy. Leave the variable unset.
-* **Local development:** copy `.env.example` to `.env` (git-ignored) and set
-  `DISKI9_API_FOOTBALL_KEY`.
-
-The key is never logged, never included in `repr()`, and must never be committed.
-
-### Database and jobs
+### Other commands
 
 ```bash
-uv run diski9 init-db
-uv run diski9 sync-reference
-uv run diski9 ingest-fixtures --seasons 2023 2024 2025 2026
-uv run diski9 collect-odds
-uv run diski9 consensus --competition 39
-uv run diski9 screener-refresh --days 14
-uv run diski9 screener-show --direction btts_yes
+uv run diski9 screener-show --direction btts_yes     # ranked view in the terminal
+uv run diski9 consensus --competition 39             # consensus odds
+uv run diski9 quality-report                         # data-quality report
+uv run diski9 ingest-fixtures --seasons 2026         # low-level: one competition-season job
+uv run python scripts/historical_sanity_check.py     # point-in-time integrity check
 ```
 
 The database lives at `data/diski9.sqlite` (git-ignored; `DISKI9_DATABASE_URL`
-overrides). Bookmaker metadata and venue exceptions are edited in `config/`.
+overrides). Bookmaker metadata, venue exceptions and approved home grounds are
+edited in `config/`.
 
 ### Verifying the API
 
@@ -84,6 +141,7 @@ src/diski9/
   config.py                 settings from DISKI9_* env vars / .env
   leagues.py                supported competitions and seasons
   cli.py                    `diski9` command (on-demand jobs)
+  workflow.py               first-time setup and incremental refresh
   db/                       schema (SQLAlchemy Core), types, engine, migrations helper
   ingestion/                reference data, fixtures/results, classification, quality checks
   odds/                     odds collection (price episodes), consensus, monitoring trial

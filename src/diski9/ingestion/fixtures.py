@@ -24,6 +24,7 @@ from diski9.db.schema import (
     approved_home_grounds,
     fixtures,
     neutral_venue_overrides,
+    seasons,
     team_seasons,
     teams,
 )
@@ -36,7 +37,16 @@ from .classify import (
     modal_home_venue,
     stats_exclusion_reason,
 )
-from .common import Clock, RunStats, content_hash, ingestion_run, parse_api_datetime, upsert, utcnow
+from .common import (
+    Clock,
+    MissingReferenceData,
+    RunStats,
+    content_hash,
+    ingestion_run,
+    parse_api_datetime,
+    upsert,
+    utcnow,
+)
 from .reference import ensure_team, ensure_venue
 
 # Columns derived purely from the provider payload (hashed for change detection).
@@ -256,6 +266,20 @@ def refresh_venue_classification(
     return dict(summary)
 
 
+def require_season(conn: Connection, competition_id: int, season: int) -> None:
+    exists = conn.execute(
+        select(seasons.c.year).where(
+            seasons.c.competition_id == competition_id, seasons.c.year == season
+        )
+    ).first()
+    if exists is None:
+        raise MissingReferenceData(
+            f"No seasons row for competition {competition_id}, season {season} "
+            "(fixtures.competition_id/season reference seasons.competition_id/year). "
+            "Run `diski9 setup` to load competitions and seasons first."
+        )
+
+
 def ingest_fixtures(
     conn: Connection,
     client: ApiFootballClient,
@@ -263,7 +287,13 @@ def ingest_fixtures(
     season: int,
     clock: Clock = utcnow,
 ) -> RunStats:
-    """Fetch one competition-season and upsert it (one API request)."""
+    """Fetch one competition-season and upsert it (one API request).
+
+    Fixtures reference ``seasons(competition_id, year)``; that row must exist
+    (created by ``sync_competitions`` / ``diski9 setup``). Checked before the
+    API request so a missing prerequisite costs no quota.
+    """
+    require_season(conn, competition_id, season)
     with ingestion_run(conn, "ingest_fixtures", clock, competition_id, season) as stats:
         resp = client.get("fixtures", {"league": competition_id, "season": season})
         stats.requests += 1

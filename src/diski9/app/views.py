@@ -14,7 +14,8 @@ EXPLAIN = {
     "form": (
         "The Form Score summarises recent results: points per game (3 for a win, 1 for a draw) "
         "plus half the average goal difference, with goal difference capped at ±2 per game. "
-        "It runs from −1 to 4. It is a performance index, not a probability or a rating."
+        "One is then added so the score runs from 0 to 5. "
+        "It is a performance index, not a probability or a rating."
     ),
     "vad": (
         "The venue-adjusted difference compares each team with what is typical for home and "
@@ -135,6 +136,7 @@ def breakdown_table(b: dict | None) -> html.Div:
             f"{b['gd_per_game']:+.2f} → capped {b['capped_gd_per_game']:+.2f}",
         ),
         ("Half of capped GD per game", f"{b['weighted_gd_contribution']:+.2f}"),
+        ("Scale offset", f"{b.get('scale_offset', 0):+.2f}"),
         ("Form Score", b["form_score_display"]),
     ]
     return html.Table(

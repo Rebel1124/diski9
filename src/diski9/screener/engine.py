@@ -46,7 +46,7 @@ from .calc import (
     venue_adjusted_difference,
 )
 
-ENGINE_VERSION = "1.2.0"  # tracks Statistical Screener Specification v1.2
+ENGINE_VERSION = "1.2.1"  # spec v1.2 + Form Score scale 0-5 (+1 offset)
 Basis = Literal["venue", "overall"]
 
 

@@ -103,9 +103,9 @@ def test_venue_windows_use_last_home_and_away_matches(db):
     b.save()
     r = compute(db)
     home = r["teams"]["home"]["form"]
-    assert home["sequence"] == "W-W-W-W-W" and home["display"] == "4.00"
+    assert home["sequence"] == "W-W-W-W-W" and home["display"] == "5.00"
     assert all(m["venue"] == "H" for m in home["matches"])
-    assert r["teams"]["away"]["form"]["display"] == "1.00"
+    assert r["teams"]["away"]["form"]["display"] == "2.00"
     overall = compute(db, basis="overall")
     assert overall["teams"]["home"]["form"]["sequence"] == "L-W-L-W-L"
     assert overall["match_result"]["venue_adjusted_difference"] is None  # raw only on overall basis
@@ -195,7 +195,8 @@ def test_new_club_without_history(db):
     b.save()
     r = compute(db)
     home = r["teams"]["home"]
-    assert home["form"]["score"] is None and home["goals"]["btts"] is None
+    assert home["form"]["score"] is None and home["goals"]["btts"] is None  # never defaults to 1
+    assert home["form"]["display"] is None and home["form"]["breakdown"] is None
     assert home["form"]["sample"]["limited_data_reasons"] == [
         "fewer_than_3_matches",
         "fewer_than_3_current_division_matches",
@@ -212,7 +213,7 @@ def test_small_samples_still_calculated_and_flagged(db):
     b.upcoming(1, 2)
     b.save()
     r = compute(db)
-    assert r["teams"]["home"]["form"]["display"] == "2.00"
+    assert r["teams"]["home"]["form"]["display"] == "3.00"
     assert not r["teams"]["home"]["form"]["sample"]["limited_data"]  # 4 current-division matches
     assert r["teams"]["home"]["goals"]["btts"]["display"] == "1/4 (25%)"
     assert r["teams"]["home"]["goals"]["sample"]["limited_data_reasons"] == ["fewer_than_6_matches"]
@@ -231,9 +232,9 @@ def test_benchmark_current_previous_and_partial(db):
     store = MatchStore(db)
     prev = select_benchmark(store, 39, 2026, T0, ScreenerConfig(benchmark_min_matches=5))
     assert prev["source"] == "previous_season" and prev["season"] == 2025 and prev["matches"] == 10
-    assert prev["home"]["form_score"] == 3.5 and prev["current_season_matches"] == 4
+    assert prev["home"]["form_score"] == 4.5 and prev["current_season_matches"] == 4
     cur = select_benchmark(store, 39, 2026, T0, ScreenerConfig(benchmark_min_matches=4))
-    assert cur["source"] == "current_season" and cur["home"]["form_score"] == 1.0
+    assert cur["source"] == "current_season" and cur["home"]["form_score"] == 2.0
     assert cur["draw_rate"] == 1.0
     assert "2026/27 averages (4 matches)" in cur["label"]
     # no previous season stored for the Championship -> partial current season, flagged by source
@@ -253,8 +254,9 @@ def test_venue_adjusted_difference_against_benchmark(db):
     b.save()
     r = compute(db, config=ScreenerConfig(benchmark_min_matches=1000))
     bench = r["match_result"]["benchmark"]
-    expected = (4.0 - bench["home"]["form_score"]) - (-0.5 - bench["away"]["form_score"])
-    assert r["match_result"]["raw_difference"] == 4.5
+    expected = (5.0 - bench["home"]["form_score"]) - (0.5 - bench["away"]["form_score"])
+    assert r["match_result"]["home_form"] == 5.0 and r["match_result"]["away_form"] == 0.5
+    assert r["match_result"]["raw_difference"] == 4.5  # unchanged by the +1 offset
     assert r["match_result"]["venue_adjusted_difference"] == pytest.approx(expected)
 
 
@@ -275,12 +277,12 @@ def test_point_in_time_later_results_do_not_leak(db):
     after = compute(db, as_of=T0 + 10 * DAY)
     assert before["cutoff"] == T0.isoformat()
     assert before["inputs_hash"] == after["inputs_hash"]
-    assert after["teams"]["home"]["form"]["display"] == "1.00"
+    assert after["teams"]["home"]["form"]["display"] == "2.00"
     # but a later fixture does see them
     db.execute(
         update(fixtures).where(fixtures.c.id == UPCOMING_ID).values(kickoff_utc=T0 + 9 * DAY)
     )
-    assert compute(db, as_of=T0 + 10 * DAY)["teams"]["home"]["form"]["display"] == "4.00"
+    assert compute(db, as_of=T0 + 10 * DAY)["teams"]["home"]["form"]["display"] == "5.00"
 
 
 def test_as_of_before_kickoff_uses_only_known_results(db):
@@ -328,11 +330,13 @@ def test_cache_refresh_unchanged_superseded_and_point_in_time(db):
         "inserted": 2,
         "unchanged": 0,
         "superseded": 0,
+        "retired_old_version": 0,
     }
     assert cache.refresh(db, [UPCOMING_ID], t2, t2) == {
         "inserted": 0,
         "unchanged": 2,
         "superseded": 0,
+        "retired_old_version": 0,
     }
     # a new result for the home team arrives -> venue-basis result changes
     store_fixtures(
@@ -380,3 +384,26 @@ def test_ranking_directions():
     assert ids(rank(rs, "home_stronger", threshold=0.5)) == [1]
     assert ids(rank(rs, "evenly_matched", threshold=0.1)) == [3]
     assert ids(rank(rs, "btts_no", threshold=0.6)) == [2]
+
+
+def test_old_engine_version_rows_are_retired(db):
+    from diski9.db.schema import screener_results
+    from diski9.screener.engine import ENGINE_VERSION
+
+    b = Builder(db)
+    for i in range(3):
+        b.add(1, 50 + i, 1, 0)
+        b.add(60 + i, 2, 0, 0)
+    b.upcoming(1, 2)
+    b.save()
+    cache.refresh(db, [UPCOMING_ID], T0, T0)
+    # simulate rows calculated on the previous (-1 to 4) scale
+    db.execute(update(screener_results).values(engine_version="1.2.0"))
+    assert cache.cached(db, "venue") == []  # old-version rows are never served
+    later = T0 + timedelta(hours=1)
+    counts = cache.refresh(db, [UPCOMING_ID], later, later)
+    assert counts["retired_old_version"] == 2 and counts["inserted"] == 2
+    active = db.execute(
+        select(screener_results).where(screener_results.c.superseded_at.is_(None))
+    ).all()
+    assert {r.engine_version for r in active} == {ENGINE_VERSION}

@@ -10,7 +10,7 @@ been at kickoff, then checked:
    later results cannot have influenced it.
 3. ``independent_form_check``: the home team's venue Form Score is re-derived
    with a separate SQL query and separate arithmetic.
-4. ``bounds``: Form Scores within [-1, 4]; rates and combined indicators in [0, 1].
+4. ``bounds``: Form Scores within [0, 5]; rates and combined indicators in [0, 1].
 5. ``deterministic``: computing twice gives the same hash.
 6. ``benchmark_count``: the benchmark's current-season sample equals the number
    of eligible, non-neutral league matches before kickoff (SQL count).
@@ -47,7 +47,7 @@ def _sql_home_form(conn: Connection, team_id: int, before: datetime, n: int = 5)
         return None
     pts = sum(3 if h > a else 1 if h == a else 0 for h, a in rows)
     gd = sum(h - a for h, a in rows) / len(rows)
-    return pts / len(rows) + 0.5 * max(-2.0, min(2.0, gd))
+    return 1.0 + pts / len(rows) + 0.5 * max(-2.0, min(2.0, gd))  # independent, 0-5 scale
 
 
 def _sql_league_count(conn: Connection, comp: int, season: int, before: datetime) -> int:
@@ -96,7 +96,7 @@ def check_fixture(conn: Connection, store: MatchStore, fx: Any, config: Screener
 
     for side in ("home", "away"):
         f = r["teams"][side]["form"]["score"]
-        if f is not None and not -1 <= f <= 4:
+        if f is not None and not 0 <= f <= 5:
             failures.append("bounds")
         for key in ("btts", "over_2_5"):
             rate = r["teams"][side]["goals"][key]

@@ -13,6 +13,12 @@ from fractions import Fraction
 
 GD_CAP = Fraction(2)
 GD_WEIGHT = Fraction(1, 2)
+# Scale offset (Nov 2026 decision): spec v1.2 Form Score + 1, so the scale runs
+# 0 to 5 instead of -1 to 4. Differences between Form Scores, and therefore all
+# rankings, are unchanged because the offset cancels.
+FORM_OFFSET = Fraction(1)
+FORM_MIN = Fraction(0)
+FORM_MAX = Fraction(5)
 
 
 def clip(x: Fraction, lo: Fraction, hi: Fraction) -> Fraction:
@@ -33,7 +39,10 @@ def display(value: Fraction | float | None, places: int = 2) -> str | None:
 # ------------------------------------------------------------------ Form Score
 @dataclass(frozen=True)
 class FormScore:
-    """Spec 4.2: Form Score = PPG + 0.5 x clip(GD/G, -2, +2). Range [-1, 4]."""
+    """Form Score = 1 + PPG + 0.5 x clip(GD/G, -2, +2). Range [0, 5].
+
+    Spec 4.2 formula plus a constant +1 scale offset (``FORM_OFFSET``).
+    """
 
     matches: int
     wins: int
@@ -68,7 +77,7 @@ class FormScore:
 
     @property
     def score(self) -> Fraction:
-        return self.ppg + self.gd_contribution
+        return FORM_OFFSET + self.ppg + self.gd_contribution
 
     def breakdown(self) -> dict:
         return {
@@ -84,6 +93,7 @@ class FormScore:
             "gd_per_game": float(self.gd_per_game),
             "capped_gd_per_game": float(self.capped_gd_per_game),
             "weighted_gd_contribution": float(self.gd_contribution),
+            "scale_offset": float(FORM_OFFSET),
             "form_score": float(self.score),
             "form_score_display": display(self.score),
         }

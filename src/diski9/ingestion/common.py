@@ -18,6 +18,10 @@ from diski9.db.schema import ingestion_runs
 Clock = Callable[[], datetime]
 
 
+class MissingReferenceData(RuntimeError):
+    """Required reference rows (competition/season) are absent; run ``diski9 setup``."""
+
+
 def utcnow() -> datetime:
     return datetime.now(UTC)
 

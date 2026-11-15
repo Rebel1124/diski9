@@ -51,6 +51,7 @@ def refresh(
 ) -> dict[str, int]:
     store = store or MatchStore(conn)
     counts = {"inserted": 0, "unchanged": 0, "superseded": 0}
+    counts["retired_old_version"] = retire_other_versions(conn, now)
     rows = conn.execute(select(fixtures).where(fixtures.c.id.in_(list(fixture_ids)))).all()
     for fx in rows:
         for basis in bases:
@@ -94,6 +95,20 @@ def refresh(
             )
             counts["inserted"] += 1
     return counts
+
+
+def retire_other_versions(conn: Connection, now: datetime) -> int:
+    """Supersede every active row computed by a different engine version, so
+    results from an older calculation (e.g. the previous Form Score scale) are
+    never served alongside current ones."""
+    return conn.execute(
+        update(screener_results)
+        .where(
+            screener_results.c.superseded_at.is_(None),
+            screener_results.c.engine_version != ENGINE_VERSION,
+        )
+        .values(superseded_at=now)
+    ).rowcount
 
 
 def invalidate(conn: Connection, now: datetime, fixture_ids: Iterable[int] | None = None) -> int:

@@ -38,13 +38,21 @@ def _json(obj) -> str:
 
 
 def _record_failure(engine, job: str, exc: Exception) -> None:
+    """Best effort: the database may not be migrated yet."""
     now = datetime.now(UTC)
-    with engine.begin() as conn:
-        conn.execute(
-            ingestion_runs.insert().values(
-                job=job, started_at=now, finished_at=now, status="failed", error=repr(exc)[:2000]
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                ingestion_runs.insert().values(
+                    job=job,
+                    started_at=now,
+                    finished_at=now,
+                    status="failed",
+                    error=repr(exc)[:2000],
+                )
             )
-        )
+    except Exception:  # noqa: BLE001 - never mask the original error
+        log.debug("could not record failure", exc_info=True)
 
 
 def cmd_init_db(args, engine) -> None:
@@ -244,38 +252,35 @@ def cmd_sync_standings(args, engine) -> None:
             print(f"{cid}/{args.season}: {'new snapshot' if s.inserted else 'unchanged'}")
 
 
-def cmd_refresh_data(args, engine) -> None:
-    """Documented refresh path after new results: fixtures -> standings -> screener cache."""
-    from datetime import timedelta
+def cmd_setup(args, engine) -> None:
+    """First-time setup on a new computer (safe to re-run)."""
+    from diski9 import workflow
 
-    from diski9.screener import cache
-
-    comps = list(COMPETITIONS)
-    top = [c.id for c in COMPETITIONS.values() if c.tier == 1]
     with ApiFootballClient.from_settings() as client:
-        for cid in comps:
-            with engine.begin() as conn:
-                reference.load_neutral_overrides(conn)
-                reference.load_approved_home_grounds(conn)
-                s = ingest_fixtures(conn, client, cid, CURRENT_SEASON)
-            print(f"fixtures {cid}/{CURRENT_SEASON}: +{s.inserted} ~{s.updated} ={s.unchanged}")
-        with engine.begin() as conn:
-            for cid in comps:
-                refresh_venue_classification(conn, cid, CURRENT_SEASON)
-            if not args.skip_standings:
-                for cid in top:
-                    reference.sync_standings(conn, client, cid, CURRENT_SEASON)
-        if args.with_odds:
-            for cid in [c.id for c in COMPETITIONS.values() if c.odds_enabled]:
-                with engine.begin() as conn:
-                    st = collect_odds(conn, client, cid, CURRENT_SEASON)
-                print(f"odds {cid}: {st.fixtures_collected} fixtures, {st.quotes_seen} quotes")
-        requests = client.quota_requests_made
-    now = datetime.now(UTC)
-    with engine.begin() as conn:
-        ids = cache.upcoming_fixture_ids(conn, top, now, now + timedelta(days=args.days))
-        counts = cache.refresh(conn, ids, now, now)
-    print(f"screener: {len(ids)} fixtures {counts}; API requests: {requests}")
+        res = workflow.setup(
+            engine, client, force=args.force, with_odds=args.with_odds, days=args.days
+        )
+    print(
+        f"Setup complete: {len(res.seasons_fetched)} seasons fetched, "
+        f"{len(res.seasons_skipped)} already loaded, fixtures +{res.fixtures_inserted} "
+        f"~{res.fixtures_updated} ={res.fixtures_unchanged}; API requests {res.requests}. "
+        "Start the app with: uv run diski9 serve"
+    )
+
+
+def cmd_refresh_data(args, engine) -> None:
+    """Routine incremental refresh after setup: current season, standings, cache."""
+    from diski9 import workflow
+
+    with ApiFootballClient.from_settings() as client:
+        res = workflow.refresh(
+            engine,
+            client,
+            with_odds=args.with_odds,
+            skip_standings=args.skip_standings,
+            days=args.days,
+        )
+    print(f"Refresh complete; API requests {res.requests}")
 
 
 def cmd_serve(args, engine) -> None:
@@ -352,7 +357,17 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--season", type=int, default=CURRENT_SEASON)
     s.set_defaults(func=cmd_sync_standings)
 
-    s = sub.add_parser("refresh-data", help="update fixtures, standings and the screener cache")
+    s = sub.add_parser("setup", help="first-time setup: reference data, 2023-2026 backfill, cache")
+    s.add_argument("--force", action="store_true", help="re-fetch completed historical seasons")
+    s.add_argument(
+        "--with-odds", action="store_true", help="also collect current odds (~4 requests)"
+    )
+    s.add_argument("--days", type=int, default=21)
+    s.set_defaults(func=cmd_setup)
+
+    s = sub.add_parser(
+        "refresh-data", help="incremental: current season, standings, screener cache"
+    )
     s.add_argument("--days", type=int, default=21)
     s.add_argument("--skip-standings", action="store_true")
     s.add_argument(
@@ -386,8 +401,15 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
     engine = make_engine(args.database_url)
+    from diski9.ingestion.common import MissingReferenceData
+    from diski9.workflow import SetupIncomplete
+
     try:
         args.func(args, engine)
+    except (SetupIncomplete, MissingReferenceData) as exc:
+        _record_failure(engine, args.command, exc)
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     except Exception as exc:
         if args.command != "init-db":
             _record_failure(engine, args.command, exc)
