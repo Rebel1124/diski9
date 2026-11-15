@@ -1,0 +1,603 @@
+{
+  "generated_at": "2026-11-15T11:06:12.785476+00:00",
+  "competitions": {
+    "39": {
+      "name": "Premier League",
+      "seasons": {
+        "2023": {
+          "competition_id": 39,
+          "season": 2023,
+          "fixtures": 380,
+          "regular_season_fixtures": 380,
+          "regular_season_teams": 20,
+          "expected_regular_season_fixtures": 380,
+          "final_results": 380,
+          "stats_eligible": 380,
+          "status_counts": {
+            "FT": 380
+          },
+          "round_type_counts": {
+            "regular": 380
+          },
+          "exclusion_reasons": {},
+          "venue_classification": {
+            "home_ground": 380
+          },
+          "venue_classification_reasons": {
+            "registered_ground": 361,
+            "usual_ground": 19
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2024": {
+          "competition_id": 39,
+          "season": 2024,
+          "fixtures": 380,
+          "regular_season_fixtures": 380,
+          "regular_season_teams": 20,
+          "expected_regular_season_fixtures": 380,
+          "final_results": 380,
+          "stats_eligible": 380,
+          "status_counts": {
+            "FT": 380
+          },
+          "round_type_counts": {
+            "regular": 380
+          },
+          "exclusion_reasons": {},
+          "venue_classification": {
+            "home_ground": 380
+          },
+          "venue_classification_reasons": {
+            "registered_ground": 361,
+            "usual_ground": 19
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2025": {
+          "competition_id": 39,
+          "season": 2025,
+          "fixtures": 380,
+          "regular_season_fixtures": 380,
+          "regular_season_teams": 20,
+          "expected_regular_season_fixtures": 380,
+          "final_results": 380,
+          "stats_eligible": 380,
+          "status_counts": {
+            "FT": 380
+          },
+          "round_type_counts": {
+            "regular": 380
+          },
+          "exclusion_reasons": {},
+          "venue_classification": {
+            "home_ground": 380
+          },
+          "venue_classification_reasons": {
+            "registered_ground": 380
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2026": {
+          "competition_id": 39,
+          "season": 2026,
+          "fixtures": 380,
+          "regular_season_fixtures": 380,
+          "regular_season_teams": 20,
+          "expected_regular_season_fixtures": 380,
+          "final_results": 100,
+          "stats_eligible": 100,
+          "status_counts": {
+            "FT": 100,
+            "NS": 280
+          },
+          "round_type_counts": {
+            "regular": 380
+          },
+          "exclusion_reasons": {
+            "not_started": 280
+          },
+          "venue_classification": {
+            "home_ground": 236,
+            "unknown": 144
+          },
+          "venue_classification_reasons": {
+            "registered_ground": 236,
+            "venue_missing": 144
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        }
+      }
+    },
+    "40": {
+      "name": "Championship",
+      "seasons": {
+        "2023": {
+          "competition_id": 40,
+          "season": 2023,
+          "fixtures": 557,
+          "regular_season_fixtures": 552,
+          "regular_season_teams": 24,
+          "expected_regular_season_fixtures": 552,
+          "final_results": 557,
+          "stats_eligible": 552,
+          "status_counts": {
+            "FT": 557
+          },
+          "round_type_counts": {
+            "regular": 552,
+            "promotion": 5
+          },
+          "exclusion_reasons": {
+            "promotion_round": 5
+          },
+          "venue_classification": {
+            "home_ground": 544,
+            "potential_neutral": 13
+          },
+          "venue_classification_reasons": {
+            "registered_ground": 544,
+            "not_home_team_ground": 13
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2024": {
+          "competition_id": 40,
+          "season": 2024,
+          "fixtures": 557,
+          "regular_season_fixtures": 552,
+          "regular_season_teams": 24,
+          "expected_regular_season_fixtures": 552,
+          "final_results": 557,
+          "stats_eligible": 552,
+          "status_counts": {
+            "FT": 556,
+            "AET": 1
+          },
+          "round_type_counts": {
+            "regular": 552,
+            "promotion": 5
+          },
+          "exclusion_reasons": {
+            "promotion_round": 5
+          },
+          "venue_classification": {
+            "home_ground": 556,
+            "potential_neutral": 1
+          },
+          "venue_classification_reasons": {
+            "registered_ground": 556,
+            "not_home_team_ground": 1
+          },
+          "extra_time_matches": 1,
+          "issues": []
+        },
+        "2025": {
+          "competition_id": 40,
+          "season": 2025,
+          "fixtures": 558,
+          "regular_season_fixtures": 552,
+          "regular_season_teams": 24,
+          "expected_regular_season_fixtures": 552,
+          "final_results": 557,
+          "stats_eligible": 552,
+          "status_counts": {
+            "FT": 556,
+            "AET": 1,
+            "CANC": 1
+          },
+          "round_type_counts": {
+            "regular": 552,
+            "playoff": 6
+          },
+          "exclusion_reasons": {
+            "playoff_round": 5,
+            "cancelled": 1
+          },
+          "venue_classification": {
+            "home_ground": 301,
+            "unknown": 255,
+            "potential_neutral": 2
+          },
+          "venue_classification_reasons": {
+            "usual_ground": 23,
+            "venue_missing": 255,
+            "registered_ground": 278,
+            "not_home_team_ground": 2
+          },
+          "extra_time_matches": 1,
+          "issues": []
+        },
+        "2026": {
+          "competition_id": 40,
+          "season": 2026,
+          "fixtures": 552,
+          "regular_season_fixtures": 552,
+          "regular_season_teams": 24,
+          "expected_regular_season_fixtures": 552,
+          "final_results": 180,
+          "stats_eligible": 180,
+          "status_counts": {
+            "FT": 180,
+            "NS": 372
+          },
+          "round_type_counts": {
+            "regular": 552
+          },
+          "exclusion_reasons": {
+            "not_started": 372
+          },
+          "venue_classification": {
+            "unknown": 213,
+            "home_ground": 336,
+            "potential_neutral": 3
+          },
+          "venue_classification_reasons": {
+            "venue_missing": 213,
+            "registered_ground": 336,
+            "not_home_team_ground": 3
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        }
+      }
+    },
+    "288": {
+      "name": "Premier Soccer League",
+      "seasons": {
+        "2023": {
+          "competition_id": 288,
+          "season": 2023,
+          "fixtures": 246,
+          "regular_season_fixtures": 240,
+          "regular_season_teams": 16,
+          "expected_regular_season_fixtures": 240,
+          "final_results": 246,
+          "stats_eligible": 240,
+          "status_counts": {
+            "FT": 246
+          },
+          "round_type_counts": {
+            "regular": 240,
+            "playoff": 6
+          },
+          "exclusion_reasons": {
+            "playoff_round": 6
+          },
+          "venue_classification": {
+            "home_ground": 186,
+            "potential_neutral": 46,
+            "unknown": 14
+          },
+          "venue_classification_reasons": {
+            "registered_ground": 165,
+            "not_home_team_ground": 45,
+            "usual_ground": 21,
+            "venue_missing": 14,
+            "away_team_ground": 1
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2024": {
+          "competition_id": 288,
+          "season": 2024,
+          "fixtures": 246,
+          "regular_season_fixtures": 240,
+          "regular_season_teams": 16,
+          "expected_regular_season_fixtures": 240,
+          "final_results": 227,
+          "stats_eligible": 221,
+          "status_counts": {
+            "FT": 227,
+            "CANC": 19
+          },
+          "round_type_counts": {
+            "regular": 240,
+            "playoff": 6
+          },
+          "exclusion_reasons": {
+            "cancelled": 19,
+            "playoff_round": 6
+          },
+          "venue_classification": {
+            "home_ground": 180,
+            "potential_neutral": 40,
+            "unknown": 26
+          },
+          "venue_classification_reasons": {
+            "registered_ground": 149,
+            "not_home_team_ground": 35,
+            "away_team_ground": 5,
+            "venue_missing": 26,
+            "usual_ground": 31
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2025": {
+          "competition_id": 288,
+          "season": 2025,
+          "fixtures": 246,
+          "regular_season_fixtures": 240,
+          "regular_season_teams": 16,
+          "expected_regular_season_fixtures": 240,
+          "final_results": 246,
+          "stats_eligible": 240,
+          "status_counts": {
+            "FT": 246
+          },
+          "round_type_counts": {
+            "regular": 240,
+            "relegation": 6
+          },
+          "exclusion_reasons": {
+            "relegation_round": 6
+          },
+          "venue_classification": {
+            "unknown": 167,
+            "home_ground": 76,
+            "potential_neutral": 3
+          },
+          "venue_classification_reasons": {
+            "venue_missing": 162,
+            "usual_ground": 45,
+            "registered_ground": 31,
+            "home_ground_unknown": 5,
+            "not_home_team_ground": 3
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2026": {
+          "competition_id": 288,
+          "season": 2026,
+          "fixtures": 240,
+          "regular_season_fixtures": 240,
+          "regular_season_teams": 16,
+          "expected_regular_season_fixtures": 240,
+          "final_results": 73,
+          "stats_eligible": 73,
+          "status_counts": {
+            "FT": 73,
+            "PST": 7,
+            "NS": 160
+          },
+          "round_type_counts": {
+            "regular": 240
+          },
+          "exclusion_reasons": {
+            "postponed": 7,
+            "not_started": 160
+          },
+          "venue_classification": {
+            "home_ground": 87,
+            "unknown": 149,
+            "potential_neutral": 4
+          },
+          "venue_classification_reasons": {
+            "usual_ground": 57,
+            "venue_missing": 149,
+            "registered_ground": 30,
+            "not_home_team_ground": 3,
+            "away_team_ground": 1
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        }
+      }
+    },
+    "289": {
+      "name": "1st Division",
+      "seasons": {
+        "2023": {
+          "competition_id": 289,
+          "season": 2023,
+          "fixtures": 240,
+          "regular_season_fixtures": 240,
+          "regular_season_teams": 16,
+          "expected_regular_season_fixtures": 240,
+          "final_results": 240,
+          "stats_eligible": 240,
+          "status_counts": {
+            "FT": 240
+          },
+          "round_type_counts": {
+            "regular": 240
+          },
+          "exclusion_reasons": {},
+          "venue_classification": {
+            "potential_neutral": 31,
+            "home_ground": 201,
+            "unknown": 8
+          },
+          "venue_classification_reasons": {
+            "not_home_team_ground": 31,
+            "registered_ground": 143,
+            "usual_ground": 58,
+            "venue_missing": 8
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2024": {
+          "competition_id": 289,
+          "season": 2024,
+          "fixtures": 240,
+          "regular_season_fixtures": 240,
+          "regular_season_teams": 16,
+          "expected_regular_season_fixtures": 240,
+          "final_results": 240,
+          "stats_eligible": 240,
+          "status_counts": {
+            "FT": 240
+          },
+          "round_type_counts": {
+            "regular": 240
+          },
+          "exclusion_reasons": {},
+          "venue_classification": {
+            "home_ground": 198,
+            "unknown": 31,
+            "potential_neutral": 11
+          },
+          "venue_classification_reasons": {
+            "usual_ground": 70,
+            "registered_ground": 128,
+            "venue_missing": 31,
+            "not_home_team_ground": 10,
+            "away_team_ground": 1
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2025": {
+          "competition_id": 289,
+          "season": 2025,
+          "fixtures": 240,
+          "regular_season_fixtures": 240,
+          "regular_season_teams": 16,
+          "expected_regular_season_fixtures": 240,
+          "final_results": 239,
+          "stats_eligible": 239,
+          "status_counts": {
+            "FT": 239,
+            "AWD": 1
+          },
+          "round_type_counts": {
+            "regular": 240
+          },
+          "exclusion_reasons": {
+            "awarded": 1
+          },
+          "venue_classification": {
+            "home_ground": 168,
+            "unknown": 63,
+            "potential_neutral": 9
+          },
+          "venue_classification_reasons": {
+            "registered_ground": 83,
+            "usual_ground": 85,
+            "venue_missing": 63,
+            "not_home_team_ground": 9
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        },
+        "2026": {
+          "competition_id": 289,
+          "season": 2026,
+          "fixtures": 240,
+          "regular_season_fixtures": 240,
+          "regular_season_teams": 16,
+          "expected_regular_season_fixtures": 240,
+          "final_results": 80,
+          "stats_eligible": 80,
+          "status_counts": {
+            "FT": 80,
+            "NS": 160
+          },
+          "round_type_counts": {
+            "regular": 240
+          },
+          "exclusion_reasons": {
+            "not_started": 160
+          },
+          "venue_classification": {
+            "unknown": 239,
+            "home_ground": 1
+          },
+          "venue_classification_reasons": {
+            "venue_missing": 239,
+            "registered_ground": 1
+          },
+          "extra_time_matches": 0,
+          "issues": []
+        }
+      }
+    }
+  },
+  "promotion": {
+    "39<->40": {
+      "2024": {
+        "promoted": [
+          41,
+          46,
+          57
+        ],
+        "relegated": [
+          44,
+          62,
+          1359
+        ],
+        "new_to_top_without_lower_history": []
+      },
+      "2025": {
+        "promoted": [
+          44,
+          63,
+          746
+        ],
+        "relegated": [
+          41,
+          46,
+          57
+        ],
+        "new_to_top_without_lower_history": []
+      },
+      "2026": {
+        "promoted": [
+          57,
+          64,
+          1346
+        ],
+        "relegated": [
+          39,
+          44,
+          48
+        ],
+        "new_to_top_without_lower_history": []
+      }
+    },
+    "288<->289": {
+      "2024": {
+        "promoted": [
+          2682,
+          19999
+        ],
+        "relegated": [
+          2683
+        ],
+        "new_to_top_without_lower_history": []
+      },
+      "2025": {
+        "promoted": [
+          10582,
+          24757
+        ],
+        "relegated": [
+          2697
+        ],
+        "new_to_top_without_lower_history": [
+          26299
+        ]
+      },
+      "2026": {
+        "promoted": [
+          22234,
+          24759
+        ],
+        "relegated": [
+          10582,
+          19999
+        ],
+        "new_to_top_without_lower_history": []
+      }
+    }
+  }
+}

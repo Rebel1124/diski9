@@ -1,0 +1,18 @@
+# Bookmaker eligibility and affiliation metadata for consensus odds.
+# id = API-Football bookmaker id. Blank fields fall back to defaults
+# (is_exchange=0, eligible=1, affiliation_group=none -> treated as independent).
+# Affiliation groups reflect publicly reported common ownership (Nov 2026) and
+# must be re-verified periodically. Distinct ids are NOT assumed independent.
+id,name,is_exchange,affiliation_group,eligible,notes
+3,Betfair,0,flutter,1,"Sportsbook-level margins observed (1X2 overround ~6.1%), not exchange prices; re-verify"
+6,Bwin,0,entain,1,
+10,Ladbrokes,0,entain,1,
+23,Sportingbet,0,entain,1,
+7,William Hill,0,evoke,1,
+21,888Sport,0,evoke,1,
+26,Betsson,0,betsson_group,1,
+27,NordicBet,0,betsson_group,1,
+25,Expekt,0,,1,"Ownership changed over time; affiliation unverified"
+17,5Dimes,0,,1,"Brand defunct; no current quotes expected"
+18,Intertops,0,,1,"Rebranded; no current quotes expected"
+37,,0,,0,"Provider returns no name; excluded until identified"

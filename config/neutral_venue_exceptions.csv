@@ -1,0 +1,3 @@
+# Explicit venue classifications overriding the automatic rules.
+# classification: home_ground | neutral | unknown
+fixture_id,classification,note

@@ -9,16 +9,18 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
 
 ## Status
 
-**Milestone 1 — project foundation and API-Football verification.** Complete.
-See [`docs/milestone1_api_football_verification.md`](docs/milestone1_api_football_verification.md).
+* **Milestone 1** — project foundation and API-Football verification:
+  [`docs/milestone1_api_football_verification.md`](docs/milestone1_api_football_verification.md)
+* **Milestone 2** — SQLite schema (SQLAlchemy Core + Alembic), idempotent historical
+  results ingestion, on-demand pre-match odds collection, median consensus odds:
+  [`docs/milestone2_report.md`](docs/milestone2_report.md)
 
-No database ingestion, historical backfill, scheduled odds collection, Dash UI or
-Challenge logic yet.
+Not yet built: recurring odds schedule, Screener statistics, Dash UI, Challenge.
 
 ## Stack
 
-Python 3.12 · uv · httpx · pydantic-settings · pytest · ruff.
-Planned: Plotly Dash, SQLite, SQLAlchemy Core, Alembic.
+Python 3.12 · uv · httpx · pydantic-settings · SQLite · SQLAlchemy Core · Alembic · pytest · ruff.
+Planned: Plotly Dash.
 
 ## Setup
 
@@ -39,6 +41,19 @@ The client sends `x-apisports-key` **only if** `DISKI9_API_FOOTBALL_KEY` is set.
 
 The key is never logged, never included in `repr()`, and must never be committed.
 
+### Database and jobs
+
+```bash
+uv run diski9 init-db
+uv run diski9 sync-reference
+uv run diski9 ingest-fixtures --seasons 2023 2024 2025 2026
+uv run diski9 collect-odds
+uv run diski9 consensus --competition 39
+```
+
+The database lives at `data/diski9.sqlite` (git-ignored; `DISKI9_DATABASE_URL`
+overrides). Bookmaker metadata and venue exceptions are edited in `config/`.
+
 ### Verifying the API
 
 ```bash
@@ -53,11 +68,18 @@ Writes a sanitised summary (no account details) to
 ```
 src/diski9/
   config.py                 settings from DISKI9_* env vars / .env
+  leagues.py                supported competitions and seasons
+  cli.py                    `diski9` command (on-demand jobs)
+  db/                       schema (SQLAlchemy Core), types, engine, migrations helper
+  ingestion/                reference data, fixtures/results, classification, quality checks
+  odds/                     odds collection (price episodes) and consensus
   api_football/
     client.py               HTTP client: envelope, pagination, retries, quota guard
     ratelimit.py            rate-limit header parsing and client-side pacing
     errors.py               exception hierarchy
     markets.py              verified bet-id / outcome mapping, quote extraction
+migrations/                 Alembic migrations
+config/                     bookmakers.csv, neutral_venue_exceptions.csv
 scripts/verify_api_football.py
 tests/                      offline tests (httpx.MockTransport) + trimmed real fixtures
 docs/                       verification report and summary JSON

@@ -87,3 +87,26 @@ def json_response(
     body: dict[str, Any], status: int = 200, headers: dict[str, str] | None = None
 ) -> httpx.Response:
     return httpx.Response(status, json=body, headers={**DEFAULT_HEADERS, **(headers or {})})
+
+
+# ---------------------------------------------------------------- database
+@pytest.fixture
+def db_url(tmp_path) -> str:
+    return f"sqlite:///{tmp_path / 'test.sqlite'}"
+
+
+@pytest.fixture
+def engine(db_url):
+    """A fresh database built by running the real Alembic migrations."""
+    from diski9.db import make_engine, upgrade
+
+    upgrade(db_url)
+    eng = make_engine(db_url)
+    yield eng
+    eng.dispose()
+
+
+@pytest.fixture
+def conn(engine):
+    with engine.begin() as c:
+        yield c

@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     # Hard cap on requests a single client instance may issue (None = unlimited).
     api_football_request_budget: int | None = None
 
+    database_url: str = "sqlite:///data/diski9.sqlite"
+
+    # Consensus / Challenge pricing rules (Product Outline + Screener spec 7.3).
+    odds_max_quote_age_hours: float = 24.0
+    odds_min_bookmakers: int = 3
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
