@@ -6,7 +6,7 @@ import csv
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import Connection, select
+from sqlalchemy import Connection, func, select
 
 from diski9.api_football import ApiFootballClient
 from diski9.db.schema import (
@@ -263,3 +263,103 @@ def load_approved_home_grounds(
             )
         )
     return len(rows)
+
+
+def store_standings(
+    conn: Connection, competition_id: int, season: int, items: list[dict[str, Any]], retrieved_at
+) -> int:
+    """Store one official standings snapshot unless identical to the latest one.
+
+    Returns the number of rows inserted (0 when unchanged or empty).
+    """
+    from diski9.db.schema import standings_snapshots
+
+    from .common import content_hash, parse_api_datetime
+
+    rows = []
+    team_refs = []
+    for league in items:
+        for group in (league.get("league") or {}).get("standings") or []:
+            for r in group:
+                team_refs.append(r["team"])
+                a = r.get("all") or {}
+                g = a.get("goals") or {}
+                rows.append(
+                    {
+                        "competition_id": competition_id,
+                        "season": season,
+                        "team_id": r["team"]["id"],
+                        "rank": r["rank"],
+                        "points": r["points"],
+                        "played": a.get("played") or 0,
+                        "won": a.get("win") or 0,
+                        "drawn": a.get("draw") or 0,
+                        "lost": a.get("lose") or 0,
+                        "goals_for": g.get("for") or 0,
+                        "goals_against": g.get("against") or 0,
+                        "goal_difference": r.get("goalsDiff") or 0,
+                        "form": r.get("form"),
+                        "description": r.get("description"),
+                        "group_name": r.get("group"),
+                        "provider_updated_at": parse_api_datetime(r.get("update")),
+                    }
+                )
+    if not rows:
+        return 0
+    digest = content_hash({"rows": rows})
+    latest = conn.execute(
+        select(standings_snapshots.c.snapshot_hash)
+        .where(
+            standings_snapshots.c.competition_id == competition_id,
+            standings_snapshots.c.season == season,
+        )
+        .order_by(standings_snapshots.c.retrieved_at.desc())
+        .limit(1)
+    ).scalar()
+    if latest == digest:
+        return 0
+    for team in team_refs:
+        ensure_team(conn, team, retrieved_at)
+    for row in rows:
+        conn.execute(
+            standings_snapshots.insert().values(
+                **row, retrieved_at=retrieved_at, snapshot_hash=digest
+            )
+        )
+    return len(rows)
+
+
+def sync_standings(
+    conn: Connection,
+    client: ApiFootballClient,
+    competition_id: int,
+    season: int,
+    clock: Clock = utcnow,
+) -> RunStats:
+    with ingestion_run(conn, "sync_standings", clock, competition_id, season) as stats:
+        resp = client.get("standings", {"league": competition_id, "season": season})
+        stats.requests += 1
+        n = store_standings(conn, competition_id, season, resp.items, resp.retrieved_at)
+        stats.inserted, stats.unchanged = n, 0 if n else 1
+    return stats
+
+
+def latest_standings(conn: Connection, competition_id: int, season: int, at=None) -> dict:
+    """Latest official snapshot retrieved at or before ``at`` (team_id -> row)."""
+    from diski9.db.schema import standings_snapshots
+
+    t = standings_snapshots
+    q = select(func.max(t.c.retrieved_at)).where(
+        t.c.competition_id == competition_id, t.c.season == season
+    )
+    if at is not None:
+        q = q.where(t.c.retrieved_at <= at)
+    when = conn.execute(q).scalar()
+    if when is None:
+        return {}
+    rows = conn.execute(
+        select(t).where(
+            t.c.competition_id == competition_id, t.c.season == season, t.c.retrieved_at == when
+        )
+    ).all()
+    return {r.team_id: r._asdict() for r in rows}

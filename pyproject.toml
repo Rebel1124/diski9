@@ -5,6 +5,7 @@ description = "Diski 9 — football statistical screener and virtual weekly chal
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.20.1",
+    "dash>=4.5.0",
     "httpx>=0.28.1",
     "pydantic-settings>=2.16.3",
     "sqlalchemy>=2.1.8",
@@ -26,7 +27,8 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra"
+addopts = "-ra -p no:dash"
+filterwarnings = ["ignore::DeprecationWarning:dash.development.base_component"]
 
 [tool.ruff]
 line-length = 100

@@ -236,6 +236,55 @@ def cmd_screener_show(args, engine) -> None:
             )
 
 
+def cmd_sync_standings(args, engine) -> None:
+    comps = args.competitions or [c.id for c in COMPETITIONS.values() if c.tier == 1]
+    with ApiFootballClient.from_settings() as client, engine.begin() as conn:
+        for cid in comps:
+            s = reference.sync_standings(conn, client, cid, args.season)
+            print(f"{cid}/{args.season}: {'new snapshot' if s.inserted else 'unchanged'}")
+
+
+def cmd_refresh_data(args, engine) -> None:
+    """Documented refresh path after new results: fixtures -> standings -> screener cache."""
+    from datetime import timedelta
+
+    from diski9.screener import cache
+
+    comps = list(COMPETITIONS)
+    top = [c.id for c in COMPETITIONS.values() if c.tier == 1]
+    with ApiFootballClient.from_settings() as client:
+        for cid in comps:
+            with engine.begin() as conn:
+                reference.load_neutral_overrides(conn)
+                reference.load_approved_home_grounds(conn)
+                s = ingest_fixtures(conn, client, cid, CURRENT_SEASON)
+            print(f"fixtures {cid}/{CURRENT_SEASON}: +{s.inserted} ~{s.updated} ={s.unchanged}")
+        with engine.begin() as conn:
+            for cid in comps:
+                refresh_venue_classification(conn, cid, CURRENT_SEASON)
+            if not args.skip_standings:
+                for cid in top:
+                    reference.sync_standings(conn, client, cid, CURRENT_SEASON)
+        if args.with_odds:
+            for cid in [c.id for c in COMPETITIONS.values() if c.odds_enabled]:
+                with engine.begin() as conn:
+                    st = collect_odds(conn, client, cid, CURRENT_SEASON)
+                print(f"odds {cid}: {st.fixtures_collected} fixtures, {st.quotes_seen} quotes")
+        requests = client.quota_requests_made
+    now = datetime.now(UTC)
+    with engine.begin() as conn:
+        ids = cache.upcoming_fixture_ids(conn, top, now, now + timedelta(days=args.days))
+        counts = cache.refresh(conn, ids, now, now)
+    print(f"screener: {len(ids)} fixtures {counts}; API requests: {requests}")
+
+
+def cmd_serve(args, engine) -> None:
+    from diski9.app import ScreenerData, create_app
+
+    app = create_app(ScreenerData(engine, ttl_seconds=args.ttl, tz=args.tz))
+    app.run(host=args.host, port=args.port, debug=args.debug)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="diski9")
     p.add_argument("--database-url", default=None)
@@ -297,6 +346,27 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--threshold", type=float, default=None)
     s.add_argument("--limit", type=int, default=10)
     s.set_defaults(func=cmd_screener_show)
+
+    s = sub.add_parser("sync-standings", help="official standings snapshot (1 request/league)")
+    s.add_argument("--competitions", type=int, nargs="+", default=None)
+    s.add_argument("--season", type=int, default=CURRENT_SEASON)
+    s.set_defaults(func=cmd_sync_standings)
+
+    s = sub.add_parser("refresh-data", help="update fixtures, standings and the screener cache")
+    s.add_argument("--days", type=int, default=21)
+    s.add_argument("--skip-standings", action="store_true")
+    s.add_argument(
+        "--with-odds", action="store_true", help="also collect current odds (~4 requests)"
+    )
+    s.set_defaults(func=cmd_refresh_data)
+
+    s = sub.add_parser("serve", help="run the Dash Statistical Screener")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--port", type=int, default=8050)
+    s.add_argument("--ttl", type=float, default=300, help="seconds to keep loaded data in memory")
+    s.add_argument("--tz", default="Africa/Johannesburg", help="display time zone")
+    s.add_argument("--debug", action="store_true")
+    s.set_defaults(func=cmd_serve)
 
     s = sub.add_parser("monitor-odds", help="odds trial: capture one raw odds snapshot")
     s.add_argument("--competitions", type=int, nargs="+", default=None)

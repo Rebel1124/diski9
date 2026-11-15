@@ -326,6 +326,41 @@ Index(
 )
 Index("ix_odds_quotes_fixture_market", odds_quotes.c.fixture_id, odds_quotes.c.market)
 
+standings_snapshots = Table(
+    "standings_snapshots",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("competition_id", Integer, nullable=False),
+    Column("season", Integer, nullable=False),
+    Column("team_id", Integer, ForeignKey("teams.id"), nullable=False),
+    Column("rank", Integer, nullable=False),
+    Column("points", Integer, nullable=False),
+    Column("played", Integer, nullable=False),
+    Column("won", Integer, nullable=False),
+    Column("drawn", Integer, nullable=False),
+    Column("lost", Integer, nullable=False),
+    Column("goals_for", Integer, nullable=False),
+    Column("goals_against", Integer, nullable=False),
+    Column("goal_difference", Integer, nullable=False),
+    Column("form", String(10), nullable=True),
+    Column("description", String(120), nullable=True),
+    Column("group_name", String(120), nullable=True),
+    Column("provider_updated_at", UTCDateTime, nullable=True, comment="API 'update' for the row"),
+    Column("retrieved_at", UTCDateTime, nullable=False),
+    Column("snapshot_hash", String(64), nullable=False),
+    ForeignKeyConstraint(
+        ["competition_id", "season"],
+        ["seasons.competition_id", "seasons.year"],
+        name="fk_standings_snapshots_season_seasons",
+    ),
+)
+Index(
+    "ix_standings_comp_season_retrieved",
+    standings_snapshots.c.competition_id,
+    standings_snapshots.c.season,
+    standings_snapshots.c.retrieved_at,
+)
+
 # -------------------------------------------------------------------- screener
 screener_results = Table(
     "screener_results",

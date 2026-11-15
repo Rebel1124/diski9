@@ -16,13 +16,23 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   [`docs/milestone2_report.md`](docs/milestone2_report.md)
 * **Milestone 3** — Statistical Screener engine (spec v1.2), approved home grounds,
   screener cache, odds monitoring trial: [`docs/milestone3_report.md`](docs/milestone3_report.md)
+* **Milestone 4** — Plotly Dash Statistical Screener, official standings, implied
+  probabilities, historical sanity check: [`docs/milestone4_report.md`](docs/milestone4_report.md)
 
-Not yet built: Dash UI, Challenge, user accounts.
+Not yet built: Challenge, user accounts, leaderboards.
+
+## Quick start (Screener app)
+
+```bash
+uv sync
+uv run diski9 init-db
+uv run diski9 refresh-data     # fixtures -> official standings -> screener cache
+uv run diski9 serve            # http://127.0.0.1:8050
+```
 
 ## Stack
 
-Python 3.12 · uv · httpx · pydantic-settings · SQLite · SQLAlchemy Core · Alembic · pytest · ruff.
-Planned: Plotly Dash.
+Python 3.12 · uv · httpx · pydantic-settings · SQLite · SQLAlchemy Core · Alembic · Plotly Dash · pytest · ruff.
 
 ## Setup
 
@@ -77,7 +87,8 @@ src/diski9/
   db/                       schema (SQLAlchemy Core), types, engine, migrations helper
   ingestion/                reference data, fixtures/results, classification, quality checks
   odds/                     odds collection (price episodes), consensus, monitoring trial
-  screener/                 Form Score, benchmarks, BTTS/OU indicators, ranking, cache
+  screener/                 Form Score, benchmarks, BTTS/OU indicators, ranking, cache, sanity check
+  app/                      Dash app: data service (read-only), views, layout/callbacks, assets/style.css
   api_football/
     client.py               HTTP client: envelope, pagination, retries, quota guard
     ratelimit.py            rate-limit header parsing and client-side pacing

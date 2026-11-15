@@ -105,6 +105,10 @@ class MarketConsensus:
     sources: int
     min_required: int
     exclusions: dict[str, int]
+    # Our own most recent retrieval that saw a contributing price (verified observation).
+    latest_observation: datetime | None = None
+    # Provider feed timestamp: fixture/league-level, NOT a bookmaker price-change time.
+    provider_updated_at: datetime | None = None
 
     @property
     def displayable(self) -> bool:
@@ -238,6 +242,7 @@ def market_consensus(
             )
         else:
             outcomes[outcome] = OutcomeConsensus(outcome, None, None, 0, (), None, None)
+    used = [q for b in chosen for q in complete[b].values()]
     return MarketConsensus(
         fixture_id=fixture_id,
         market=market,
@@ -246,6 +251,12 @@ def market_consensus(
         sources=len(chosen),
         min_required=rules.min_for(competition_id),
         exclusions=dict(exclusions),
+        latest_observation=max(
+            (_observed_at(q, as_of, fixture_observed_at) for q in used), default=None
+        ),
+        provider_updated_at=max(
+            (p for q in used if (p := _provider_at(q, as_of)) is not None), default=None
+        ),
     )
 
 

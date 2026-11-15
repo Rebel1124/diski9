@@ -1,0 +1,62 @@
+{
+  "fixtures_checked": 1394,
+  "checks": [
+    "no_future_matches",
+    "independent_reconstruction",
+    "independent_form_check",
+    "bounds",
+    "deterministic",
+    "benchmark_count"
+  ],
+  "failures": {},
+  "failed_fixtures": [],
+  "by_competition_season": {
+    "39/2024": {
+      "fixtures": 380,
+      "limited_form": 17,
+      "limited_goals": 17,
+      "no_form_difference": 0,
+      "benchmark_previous_season": 120,
+      "benchmark_current_season": 260
+    },
+    "288/2024": {
+      "fixtures": 221,
+      "limited_form": 12,
+      "limited_goals": 12,
+      "no_form_difference": 0,
+      "benchmark_previous_season": 120,
+      "benchmark_current_season": 101
+    },
+    "288/2025": {
+      "fixtures": 240,
+      "limited_form": 16,
+      "limited_goals": 22,
+      "no_form_difference": 2,
+      "benchmark_previous_season": 120,
+      "benchmark_current_season": 120
+    },
+    "39/2025": {
+      "fixtures": 380,
+      "limited_form": 17,
+      "limited_goals": 17,
+      "no_form_difference": 0,
+      "benchmark_previous_season": 120,
+      "benchmark_current_season": 260
+    },
+    "288/2026": {
+      "fixtures": 73,
+      "limited_form": 11,
+      "limited_goals": 11,
+      "no_form_difference": 0,
+      "benchmark_previous_season": 73
+    },
+    "39/2026": {
+      "fixtures": 100,
+      "limited_form": 17,
+      "limited_goals": 17,
+      "no_form_difference": 0,
+      "benchmark_previous_season": 100
+    }
+  },
+  "seconds": 18.1
+}

@@ -140,6 +140,26 @@ class MatchStore:
             )
             for r in rows
         ]
+        self._index()
+
+    @classmethod
+    def from_matches(
+        cls, matches: list[Match], team_names: dict[int, str], competition_names: dict[int, str]
+    ) -> MatchStore:
+        store = cls.__new__(cls)
+        store.team_names = team_names
+        store.competition_names = competition_names
+        store.matches = sorted(matches, key=lambda m: (m.kickoff, m.fixture_id))
+        store._index()
+        return store
+
+    def truncated(self, before: datetime) -> MatchStore:
+        """A store holding only matches that kicked off before ``before``."""
+        return MatchStore.from_matches(
+            [m for m in self.matches if m.kickoff < before], self.team_names, self.competition_names
+        )
+
+    def _index(self) -> None:
         self.by_team: dict[int, list[TeamMatch]] = defaultdict(list)
         self.by_comp_season: dict[tuple[int, int], list[Match]] = defaultdict(list)
         for m in self.matches:
