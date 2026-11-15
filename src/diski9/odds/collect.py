@@ -25,6 +25,7 @@ collected.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -158,6 +159,16 @@ def close_started_fixtures(
     return closed
 
 
+@dataclass(frozen=True)
+class OddsPage:
+    """One page of an ``/odds`` response, live or replayed from a saved file."""
+
+    retrieved_at: datetime
+    items: list[dict[str, Any]]
+    paging_current: int = 1
+    paging_total: int = 1
+
+
 def collect_odds(
     conn: Connection,
     client: ApiFootballClient,
@@ -166,11 +177,30 @@ def collect_odds(
     clock: Clock = utcnow,
     max_pages: int | None = None,
 ) -> FetchStats:
-    """Fetch ``/odds?league&season`` (all pages) and reconcile upcoming fixtures.
+    """Fetch ``/odds?league&season`` (all pages) and reconcile upcoming fixtures."""
+    pages = (
+        OddsPage(p.retrieved_at, p.items, p.paging_current, p.paging_total)
+        for p in client.paginate(
+            "odds", {"league": competition_id, "season": season}, max_pages=max_pages
+        )
+    )
+    return reconcile_pages(conn, competition_id, season, pages, clock)
+
+
+def reconcile_pages(
+    conn: Connection,
+    competition_id: int,
+    season: int,
+    pages: Iterable[OddsPage],
+    clock: Clock = utcnow,
+) -> FetchStats:
+    """Reconcile odds pages against stored quotes (shared by live collection and
+    replay of saved monitoring files).
 
     Fixtures must already be stored (run fixture ingestion first). Items for
     fixtures that are unknown, already kicked off or not in an upcoming status
-    are skipped and counted.
+    are skipped and counted. Disappearance of whole fixtures is only inferred
+    when the final page (``paging_current == paging_total``) was processed.
     """
     started = clock()
     stats = FetchStats()
@@ -189,18 +219,11 @@ def collect_odds(
         )
     }
     in_response: set[int] = set()
-    complete = True
-    for page in client.paginate(
-        "odds", {"league": competition_id, "season": season}, max_pages=max_pages
-    ):
+    complete = False
+    for page in pages:
         stats.requests += 1
         stats.pages += 1
-        if (
-            page.paging_current < page.paging_total
-            and max_pages is not None
-            and stats.pages >= max_pages
-        ):
-            complete = False
+        complete = page.paging_current >= page.paging_total
         retrieved_at = page.retrieved_at
         for item in page.items:
             stats.fixtures_in_response += 1

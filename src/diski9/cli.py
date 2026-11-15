@@ -11,6 +11,7 @@ import logging
 import sys
 from datetime import UTC, datetime
 from decimal import Decimal
+from pathlib import Path
 
 from sqlalchemy import select
 
@@ -131,6 +132,47 @@ def cmd_consensus(args, engine) -> None:
                 )
 
 
+def cmd_monitor_odds(args, engine) -> None:
+    from diski9.odds.monitor import DEFAULT_DIR, run_monitor
+
+    targets = args.competitions or [c.id for c in COMPETITIONS.values() if c.odds_enabled]
+    until = datetime.fromisoformat(args.until) if args.until else None
+    with ApiFootballClient.from_settings() as client:
+        summary = run_monitor(
+            client, targets, args.season, Path(args.out_dir) if args.out_dir else DEFAULT_DIR, until
+        )
+    print(_json(summary))
+
+
+def cmd_analyse_odds_trial(args, engine) -> None:
+    """Replay saved monitoring runs into a scratch copy of the database."""
+    import shutil
+    import tempfile
+
+    from diski9.db.schema import odds_fetches, odds_fixture_observations, odds_quotes
+    from diski9.odds.monitor import DEFAULT_DIR, analyse, load_runs, replay
+
+    runs = load_runs(Path(args.out_dir) if args.out_dir else DEFAULT_DIR)
+    src = engine.url.database
+    with tempfile.TemporaryDirectory() as tmp:
+        copy = Path(tmp) / "replay.sqlite"
+        shutil.copy(src, copy)
+        scratch = make_engine(f"sqlite:///{copy}")
+        with scratch.begin() as conn:
+            for t in (odds_quotes, odds_fixture_observations, odds_fetches):
+                conn.execute(t.delete())
+            result = replay(conn, runs)
+            report = analyse(conn, runs)
+        scratch.dispose()
+    report["replay_errors"] = result.errors
+    text = _json(report)
+    if args.out:
+        Path(args.out).write_text(text + "\n", encoding="utf-8")
+        print(f"Wrote {args.out}")
+    else:
+        print(text)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="diski9")
     p.add_argument("--database-url", default=None)
@@ -166,6 +208,17 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--limit", type=int, default=10)
     s.add_argument("--as-of", default=None)
     s.set_defaults(func=cmd_consensus)
+    s = sub.add_parser("monitor-odds", help="odds trial: capture one raw odds snapshot")
+    s.add_argument("--competitions", type=int, nargs="+", default=None)
+    s.add_argument("--season", type=int, default=CURRENT_SEASON)
+    s.add_argument("--until", default=None, help="ISO time after which capture is refused")
+    s.add_argument("--out-dir", default=None)
+    s.set_defaults(func=cmd_monitor_odds)
+
+    s = sub.add_parser("analyse-odds-trial", help="replay and analyse captured odds")
+    s.add_argument("--out-dir", default=None)
+    s.add_argument("--out", default=None)
+    s.set_defaults(func=cmd_analyse_odds_trial)
     return p
 
 
