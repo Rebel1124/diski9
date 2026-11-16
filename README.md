@@ -1,8 +1,11 @@
 # Diski 9
 
-Football research and virtual prediction platform: a transparent **Statistical
-Screener** (1X2 Form Score, BTTS, Over/Under 2.5) and, later, the **Diski 9
-Weekly Challenge** (nine picks, three probability-balanced buckets).
+Educational football analytics: a **Screener** and **The Match Lab** with transparent
+model probabilities for Match Result, BTTS and Over/Under 2.5 (Engine 3.0, Goal
+Model 1.0) and, later, the **Diski 9 Weekly Challenge** (nine picks, three
+probability-balanced buckets).
+
+> We calculate the probabilities. You analyse the match. You make the call.
 
 Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
 *Statistical Screener Specification v1.2*.
@@ -42,6 +45,11 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   [`docs/goal_distribution_research.md`](docs/goal_distribution_research.md), with
   [cross-league validation](docs/goal_model_crossleague_validation.md) (La Liga, Ligue 1,
   Bundesliga, Serie A, Champions League, Europa League)
+* **Engine 3.0 and The Match Lab** — Goal Model 1.0 estimated goals and probabilities
+  for eight domestic leagues, The Match Lab (baseline, context, checklist, your own
+  adjustments), pre-kickoff forecast snapshots and monthly monitoring:
+  [`docs/engine3_match_lab.md`](docs/engine3_match_lab.md); methodology:
+  [`docs/methodology.md`](docs/methodology.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 
@@ -80,15 +88,20 @@ This applies the migrations, then, in order:
 1. competitions and seasons (the foreign-key parents of fixtures), bookmakers
 2. teams and venues for every competition-season
 3. fixtures and results for **2023–2026** in the EPL, Championship, PSL and
-   PSL 1st Division
+   PSL 1st Division, and **2025–2026** in La Liga, Ligue 1, Bundesliga and Serie A
 4. venue classification and a check that every required season loaded
 5. official standings, current odds (`--with-odds`)
 6. the Screener cache, calculated **only** if step 4 passed
 
-It takes about 30 seconds and roughly 45 API requests. It is safe to re-run:
+It takes about a minute and roughly 75 API requests. It is safe to re-run:
 completed historical seasons are skipped (only the current season is
 re-fetched), everything is upserted, and an interrupted setup resumes where it
 stopped. `--force` re-fetches every season.
+
+**Upgrading an existing installation to Engine 3.0:** run the same command,
+`uv run diski9 setup --with-odds`. It applies the new migration (forecast
+snapshots), skips the historical seasons you already have and backfills only the four
+new leagues (about 45 requests).
 
 ### 4. Launch the Screener
 
@@ -112,33 +125,25 @@ and it refuses with a clear message if `setup` has not completed. Without
 
 Restart `serve` (or wait up to 5 minutes) for the app to show refreshed data.
 
-### Methodology (engine 2.4.0)
+### Methodology (Engine 3.0, Goal Model 1.0)
 
-All three markets use **current-season league matches only** (never earlier seasons
-or other divisions), point in time, with the actual number of matches as the
-denominator and Unavailable (never zero) when a team has no matches yet.
+* **Estimated goals** for each team come from this season's league goals scored and
+  conceded, venue-normalised against the league's home and away scoring, with
+  strength smoothing `k_s` = 12, goal tempo smoothing `k_t` = 96 and a previous-season
+  league-average prior `m0` = 30 (fixed for the season, shared by all leagues).
+* **Probabilities** for all seven outcomes come from two independent Poisson goal
+  distributions, so the three markets always agree.
+* **Context** (Form Score, recent records, head-to-head, league positions) is shown in
+  The Match Lab and never changes the model. **Bookmaker odds** are a separate
+  comparison and never a model input. **UEFA** competitions get no model probabilities.
+* **Forecast snapshots** record the official pre-kickoff baseline (insert-only);
+  `uv run diski9 model-report` evaluates them monthly against the league baseline.
 
-* **Diski Form Score (0–5)**, Model D, from each team's last **eight** current-season
-  league matches, home or away (fewer early in the season, normalised by N):
-  2.5 × points ÷ 3N + 2.5 × (goal difference clipped to ±1.8N, + 1.8N) ÷ 3.6N.
-  Fewer than eight matches shows an **Early season** note. Each team is compared with
-  one **league Form Score average** (current season; shown once at least 12 teams and
-  80% of the season's teams have three or more matches). **Venue context** (last five
-  home / away matches vs overall) is display only.
-* **BTTS / Over 2.5**: team records (up to ten current-season matches in the
-  current competition), a point-in-time **league baseline** (current season only;
-  shown from 30 completed league matches), and market-implied probabilities.
-* **Reference odds**: Fresh, Stale (last valid consensus, labelled) or
-  Unavailable. Stale odds are never eligible for the Challenge.
-
-Full details: [`docs/form_current_season.md`](docs/form_current_season.md),
-[`docs/milestone5_3_model_migration.md`](docs/milestone5_3_model_migration.md),
-[`docs/milestone5_3_screener_ux.md`](docs/milestone5_3_screener_ux.md),
-[`docs/ui_cleanup_and_baseline.md`](docs/ui_cleanup_and_baseline.md),
-[`docs/form_benchmark.md`](docs/form_benchmark.md) and
-[`docs/screener_methodology.md`](docs/screener_methodology.md) (earlier engines).
-Results from older engine versions are never shown; rebuild them locally with
-`uv run diski9 screener-refresh` (no API requests).
+Full details: [`docs/methodology.md`](docs/methodology.md),
+[`docs/model_changelog.md`](docs/model_changelog.md) and
+[`docs/engine3_match_lab.md`](docs/engine3_match_lab.md). Results from older engine
+versions are never shown; rebuild them locally with `uv run diski9 screener-refresh`
+(no API requests).
 
 ## Stack
 
@@ -155,7 +160,8 @@ uv run ruff format --check .
 ### Other commands
 
 ```bash
-uv run diski9 screener-show --direction btts_yes     # ranked view in the terminal
+uv run diski9 screener-show --direction home_win     # ranked view in the terminal
+uv run diski9 model-report                           # monthly Goal Model monitoring
 uv run diski9 consensus --competition 39             # consensus odds
 uv run diski9 quality-report                         # data-quality report
 uv run diski9 ingest-fixtures --seasons 2026         # low-level: one competition-season job
