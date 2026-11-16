@@ -31,10 +31,14 @@ from .data import (
 )
 
 FORM_TOOLTIP = (
-    "Diski Form Score (0–5) is based on the team's last five relevant matches: half "
-    "comes from points earned, half from goal difference. A positive goal difference "
-    "raises the score, a negative one lowers it; 2.5 is roughly an average team. It "
-    "describes recent results, not a probability."
+    "Diski Form Score (0–5) measures recent performance using points earned and goal "
+    "difference. The league comparison shows whether a team's score is above or below the "
+    "average of eligible teams in the same competition. It describes historical "
+    "performance, not the probability of winning."
+)
+FORM_TOOLTIP_VENUE = (
+    " With venue-specific form, the home team is compared with the league's home-form "
+    "average and the away team with the league's away-form average."
 )
 LIMITED_FORM = (
     "Fewer than five eligible matches for at least one team, so the score uses only "
@@ -148,27 +152,34 @@ def analysis_card(r: dict, market: str) -> html.Section:
         label_row = html.Div(
             [
                 html.Span("Diski Form Score", className="label"),
-                info(FORM_TOOLTIP, "About Diski Form Score"),
+                info(
+                    FORM_TOOLTIP + (FORM_TOOLTIP_VENUE if r["basis"] == "venue" else ""),
+                    "About Diski Form Score",
+                ),
             ],
             className="label-row",
         )
+        bench = r["match_result"].get("league_benchmark")
         tiles = [
             html.Div(
                 [
                     html.Div(t[s]["team"], className="tile-team"),
                     html.Div(
                         [
-                            html.Span(t[s]["form"]["display"] or "—", className="tile-value"),
+                            html.Span(t[s]["form"]["display"], className="tile-value"),
                             html.Span(" out of 5", className="muted"),
+                            " ",
+                            pill("Limited", "warn subtle")
+                            if t[s]["form"]["sample"]["limited_data"]
+                            else None,
                         ]
                         if t[s]["form"]["display"]
-                        else html.Span("Unavailable", className="tile-value muted")
+                        else html.Span("Unavailable", className="tile-value muted"),
+                        className="record-row",
                     ),
-                    html.Div(
-                        "Historical performance score from recent points and goal difference",
-                        className="muted small",
+                    comparison_indicator(
+                        form_comparison(t[s]["form"]["score"], bench, benchmark_side(bench, s))
                     ),
-                    _sample_note(t[s]["form"]["sample"], "form"),
                 ],
                 className="tile",
             )
@@ -179,7 +190,7 @@ def analysis_card(r: dict, market: str) -> html.Section:
             html.Div(pill("Limited data", "warn"), className="limited-row") if limited else None,
             html.P(LIMITED_FORM, className="muted small") if limited else None,
         ]
-        baseline = None
+        baseline = form_benchmark_block(bench)
     else:
         key = "btts" if market == "BTTS" else "over_2_5"
         label_row = html.Div(
@@ -249,6 +260,89 @@ def record_text(rate: dict | None, market: str) -> tuple[str, str | None]:
     return f"Over 2.5 in {k} of {n}", f"Under 2.5 in {n - k} of {n}"
 
 
+FORM_TOLERANCE = 1e-9  # floating-point only: scores are exact fractions before caching
+
+
+def benchmark_side(bench: dict | None, side: str) -> str:
+    """Which league average a team is compared with: overall, or home/away by venue."""
+    return side if bench and bench.get("basis") == "venue" else "overall"
+
+
+def form_comparison(score: float | None, bench: dict | None, side: str) -> str | None:
+    """'above' / 'below' / 'equal' versus the league Form Score average (unrounded
+    values), or None when the score or the benchmark is unavailable."""
+    if score is None or not bench or not bench.get("available"):
+        return None
+    avg = (bench.get(side) or {}).get("average")
+    if avg is None:
+        return None
+    if abs(score - avg) <= FORM_TOLERANCE:
+        return "equal"
+    return "above" if score > avg else "below"
+
+
+FORM_BENCH_HELP = (
+    "The average Diski Form Score of the competition's teams before this fixture: every "
+    "team that has played a league match this season, one score each, using the same "
+    "five-match windows. Venue-specific form has separate home and away averages. Shown "
+    "once enough teams have a full five-match window."
+)
+
+
+def form_benchmark_block(bench: dict | None) -> html.Div:
+    head = html.Div(
+        [
+            html.Span("League Form Score average", className="label"),
+            info(FORM_BENCH_HELP, "About the league Form Score average"),
+        ],
+        className="label-row",
+    )
+    if not bench or not bench.get("available"):
+        if bench and bench.get("members"):
+            sides = ("home", "away") if bench["basis"] == "venue" else ("overall",)
+            n = min(bench[sd]["teams"] for sd in sides)
+            detail = (
+                f"{n} of {bench['members']} league teams have a full five-match window "
+                f"(at least {bench['min_teams']} and {bench['min_share']:.0%} needed)."
+            )
+        else:
+            detail = "No league matches have been played this season yet."
+        return html.Div(
+            [
+                head,
+                html.Div("Not enough league data yet", className="baseline-value muted"),
+                html.Div(detail, className="muted small"),
+            ],
+            className="baseline",
+        )
+    if bench["basis"] == "venue":
+        value = [
+            html.Span(f"Home: {bench['home']['display']} out of 5", className="baseline-value"),
+            html.Span(f"Away: {bench['away']['display']} out of 5", className="baseline-value"),
+        ]
+        h, a = bench["home"]["teams"], bench["away"]["teams"]
+        teams = f"{h} teams evaluated" if h == a else f"{h} home and {a} away teams evaluated"
+    else:
+        value = [html.Span(f"{bench['overall']['display']} out of 5", className="baseline-value")]
+        teams = f"{bench['overall']['teams']} teams evaluated"
+    return html.Div(
+        [
+            head,
+            html.Div(
+                [
+                    *value,
+                    html.Span(
+                        f"{bench['competition']} {bench['season_label']} — {teams}",
+                        className="muted small",
+                    ),
+                ],
+                className="baseline-row",
+            ),
+        ],
+        className="baseline form-benchmark",
+    )
+
+
 def league_comparison(rate: dict | None, lb: dict | None, key: str) -> str | None:
     """'above' / 'below' / 'equal' versus the league baseline, or None when either side
     is unavailable (no team match, or baseline below its minimum sample).
@@ -289,7 +383,7 @@ def comparison_indicator(state: str | None) -> html.Div | None:
 
 def record_tile(team: dict, key: str, market: str, lb: dict | None = None) -> html.Div:
     rate = team["goals"][key]
-    main, other = record_text(rate, market)
+    main, _ = record_text(rate, market)  # the complement stays in "Matches used"
     limited = team["goals"]["sample"]["limited_data"]
     return html.Div(
         [
@@ -303,8 +397,6 @@ def record_tile(team: dict, key: str, market: str, lb: dict | None = None) -> ht
                 className="record-row",
             ),
             comparison_indicator(league_comparison(rate, lb, key)),
-            html.Div(other, className="muted small") if other else None,
-            html.Div(_goals_scope(team["window"]), className="muted small"),
         ],
         className="tile record",
     )
@@ -362,20 +454,6 @@ def league_baseline_block(r: dict, market: str) -> html.Div:
         ],
         className="baseline",
     )
-
-
-def _goals_scope(window: str) -> str:
-    return {"home": "current-season home matches", "away": "current-season away matches"}.get(
-        window, "current-season matches"
-    )
-
-
-def _sample_note(sample: dict, kind: str) -> html.Div:
-    n = sample["matches"]
-    parts = [f"{n} match{'es' if n != 1 else ''}"]
-    if sample.get("note"):
-        parts.append(sample["note"].replace("Includes ", "incl. "))
-    return html.Div(" · ".join(parts), className="muted small")
 
 
 def status_badge(status: str) -> html.Span:
@@ -632,6 +710,54 @@ def freshness_text(dm, data: ScreenerData) -> str:
 
 
 # ----------------------------------------------------- collapsible explanations
+def benchmark_explanation(r: dict) -> html.Div:
+    bench = r["match_result"].get("league_benchmark") or {}
+    venue = r["basis"] == "venue"
+    if bench.get("available"):
+        if venue:
+            now = (
+                f"This fixture: league home-form average {bench['home']['display']} out of 5 "
+                f"({bench['home']['teams']} teams), away-form average "
+                f"{bench['away']['display']} out of 5 ({bench['away']['teams']} teams)."
+            )
+        else:
+            now = (
+                f"This fixture: league average {bench['overall']['display']} out of 5 "
+                f"({bench['overall']['teams']} teams)."
+            )
+    else:
+        now = (
+            "This fixture: not enough league data yet, so no comparison is shown "
+            "(no 2.5 or zero is substituted)."
+        )
+    return html.Div(
+        [
+            html.H4("League comparison"),
+            html.P(
+                "The league Form Score average is calculated from every team that has played "
+                "an eligible league match in this competition this season before kickoff, one "
+                "score per team, using the same Diski Form Score and the same last-five-match "
+                "windows (including earlier seasons or divisions where those windows need "
+                "them). Only teams with a full five-match window are averaged. "
+                + (
+                    "With venue-specific form the home team is compared with the average of "
+                    "every team's home Form Score, and the away team with the average away "
+                    "Form Score. "
+                    if venue
+                    else "With overall form each team is compared with the average overall "
+                    "Form Score. "
+                )
+                + f"An average is shown when at least {bench.get('min_teams', 12)} teams and "
+                f"{bench.get('min_share', 0.8):.0%} of the league's teams have a full window. "
+                "Comparisons use unrounded scores. They describe historical performance, not "
+                "the probability of winning.",
+                className="muted small",
+            ),
+            html.P(now, className="muted small"),
+        ]
+    )
+
+
 def calculation_section(r: dict, market: str) -> html.Details:
     if market == "1X2":
         basis = (
@@ -645,7 +771,7 @@ def calculation_section(r: dict, market: str) -> html.Details:
             "raises it, a negative one lowers it. The screener's Form Difference is home score "
             "minus away score."
         )
-        body = form_breakdown_table(r)
+        body = html.Div([form_breakdown_table(r), benchmark_explanation(r)])
     else:
         what = "both teams scored" if market == "BTTS" else "there were three or more goals"
         basis = (

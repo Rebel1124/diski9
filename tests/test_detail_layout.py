@@ -102,7 +102,8 @@ def test_form_tiles_without_badges_and_results_in_matches_used(data):
     tiles = _find(analysis, lambda c: getattr(c, "className", "") == "tiles")[0].children
     for tile in tiles:
         t = _text(tile)
-        assert "out of 5" in t and "points and goal difference" in t and "matches" in t
+        assert "out of 5" in t and "/ 5" not in t
+        assert "points and goal difference" not in t and "matches" not in t  # simplified
         assert not _find(tile, lambda c: "res-" in str(getattr(c, "className", "")))
     matches = [
         a

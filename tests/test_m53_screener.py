@@ -38,7 +38,8 @@ F = Fraction
 
 # ------------------------------------------------------------- Model D
 def test_engine_version_bumped_for_current_season_baselines():
-    assert ENGINE_VERSION == "2.2.0"  # 2.1.0 Model D; 2.2.0 no previous-season blend
+    # 2.1.0 Model D; 2.2.0 no previous-season blend; 2.3.0 league Form Score benchmark
+    assert ENGINE_VERSION == "2.3.0"
 
 
 def test_model_d_exact_formula_worked_example():
@@ -339,7 +340,8 @@ def test_btts_detail_shows_three_layers_with_market_matching_odds_table(data):
     summary = _text(d.children[1])  # Diski 9 Match Analysis
     market = _text(d.children[2])  # Bookmaker Market Reference
     # team 1: ten 3-0 home wins; team 2: ten 1-1 away draws
-    assert "BTTS in 0 of 10" in summary and "No BTTS in 10 of 10" in summary
+    assert "BTTS in 0 of 10" in summary
+    assert "No BTTS in" not in summary  # complement lives in "Matches used" only
     assert "BTTS in 10 of 10" in summary
     # 21 current-season EPL matches in the fixture: below 30, so no percentage is shown
     assert "League BTTS baseline" in summary and "Not enough current-season data yet" in summary
@@ -362,7 +364,7 @@ def test_over_under_detail_and_equal_pair(data):
 
     r, ov, official = data.detail(EPL_FIX, "overall")
     summary = _text(render_detail(r, ov, official, "OU25", data).children[1])
-    assert "Over 2.5 in 10 of 10" in summary and "Under 2.5 in 10 of 10" in summary
+    assert "Over 2.5 in 10 of 10" in summary and "Under 2.5 in" not in summary
     assert "League Over 2.5 baseline" in summary
     block = goals_market_probabilities(
         ov.markets[Market.OVER_UNDER_25].implied, Market.OVER_UNDER_25
@@ -446,9 +448,9 @@ def test_old_engine_rows_never_served_and_banner_until_rebuilt(populated):
                 screener_results.c.superseded_at.is_(None)
             )
         ).all()
-    assert {a[0] for a in active} == {"2.2.0"}
+    assert {a[0] for a in active} == {"2.3.0"}
     snap = d.snapshot(force=True)
     assert snap.outdated_rows == 0 and EPL_FIX in snap.results["venue"]
     assert "earlier method" not in _text(build_layout(d))
     payload = json.loads(json.dumps(snap.results["venue"][EPL_FIX]))
-    assert payload["engine_version"] == "2.2.0" and payload["match_result"]["method"] == "D"
+    assert payload["engine_version"] == "2.3.0" and payload["match_result"]["method"] == "D"

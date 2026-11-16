@@ -310,3 +310,6 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .league-cmp { display: flex; align-items: baseline; gap: 6px; margin: 1px 0 2px; color: var(--muted); }
 .league-cmp.above { color: #5fbf9a; }
 .league-cmp .cmp-icon { font-weight: 700; width: 1em; text-align: center; }
+
+/* League Form Score average: home and away values side by side, tight when stacked */
+.form-benchmark .baseline-row { column-gap: 22px; row-gap: 0; }
