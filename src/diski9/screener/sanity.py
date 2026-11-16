@@ -3,17 +3,18 @@
 For each historical fixture, the screener result is computed as it would have
 been at kickoff, then checked:
 
-1. ``no_future_matches``: every match used (windows, benchmark, head-to-head)
+1. ``no_future_matches``: every match used (form and goals windows, head-to-head)
    kicked off before the fixture.
 2. ``independent_reconstruction``: recomputing from a store that physically
    contains only matches before kickoff gives an identical result hash, so
    later results cannot have influenced it.
-3. ``independent_form_check``: the home team's venue Form Score is re-derived
-   with a separate SQL query and separate arithmetic.
+3. ``independent_form_check``: the home team's venue Diski Form Score is
+   re-derived with a separate SQL query and separate scoring code.
 4. ``bounds``: Form Scores within [0, 5]; rates and combined indicators in [0, 1].
 5. ``deterministic``: computing twice gives the same hash.
-6. ``benchmark_count``: the benchmark's current-season sample equals the number
-   of eligible, non-neutral league matches before kickoff (SQL count).
+6. ``current_season_goals``: every BTTS / Over 2.5 match used belongs to the
+   fixture's own season and competition, and the window size equals the SQL
+   count of such matches before kickoff (capped at 10).
 
 No bookmaker odds are used.
 """
@@ -32,6 +33,7 @@ from .engine import MatchStore, ScreenerConfig, compute_fixture
 
 
 def _sql_home_form(conn: Connection, team_id: int, before: datetime, n: int = 5) -> float | None:
+    """Independent re-implementation of the Diski Form Score (venue: home matches)."""
     rows = conn.execute(
         select(fixtures.c.ft_home, fixtures.c.ft_away)
         .where(
@@ -46,13 +48,28 @@ def _sql_home_form(conn: Connection, team_id: int, before: datetime, n: int = 5)
     if not rows:
         return None
     pts = sum(3 if h > a else 1 if h == a else 0 for h, a in rows)
-    gd = sum(h - a for h, a in rows) / len(rows)
-    return 1.0 + pts / len(rows) + 0.5 * max(-2.0, min(2.0, gd))  # independent, 0-5 scale
+    gf, ga = sum(h for h, _ in rows), sum(a for _, a in rows)
+    gd = gf - ga
+    points_bands = [(15, 2.5), (12, 2.0), (9, 1.5), (6, 1.0), (3, 0.5)]
+    gd_bands = [(9, 2.5), (7, 2.0), (5, 1.5), (3, 1.0), (1, 0.5)]
+    raw = next((award for floor, award in points_bands if pts >= floor), 0.0)
+    raw += next((award for floor, award in gd_bands if gd >= floor), 0.0)
+    if len(rows) >= 3 and all(h > a for h, a in rows[:3]):
+        raw += 0.5
+    if gf >= 11:
+        raw += 0.5
+    if len(rows) == 5 and ga <= 2:
+        raw += 0.5
+    return raw / 6.5 * 5
 
 
-def _sql_league_count(conn: Connection, comp: int, season: int, before: datetime) -> int:
+def _sql_current_season_count(
+    conn: Connection, team_id: int, comp: int, season: int, before: datetime, home: bool
+) -> int:
+    side = fixtures.c.home_team_id if home else fixtures.c.away_team_id
     return conn.execute(
         select(func.count()).where(
+            side == team_id,
             fixtures.c.competition_id == comp,
             fixtures.c.season == season,
             fixtures.c.kickoff_utc < before,
@@ -109,19 +126,23 @@ def check_fixture(conn: Connection, store: MatchStore, fx: Any, config: Screener
     if compute_fixture(store, fx, kickoff, "venue", config)["inputs_hash"] != r["inputs_hash"]:
         failures.append("deterministic")
 
-    bench = r["match_result"]["benchmark"]
-    if bench and bench["current_season_matches"] != _sql_league_count(
-        conn, fx.competition_id, fx.season, kickoff
-    ):
-        failures.append("benchmark_count")
+    for side, team_id, home in (("home", fx.home_team_id, True), ("away", fx.away_team_id, False)):
+        goals = r["teams"][side]["goals"]["matches"]
+        if any(m["provenance"] != "current_season_same_division" for m in goals):
+            failures.append("current_season_goals")
+        expected = min(
+            10,
+            _sql_current_season_count(conn, team_id, fx.competition_id, fx.season, kickoff, home),
+        )
+        if len(goals) != expected:
+            failures.append("current_season_goals")
 
     return {
         "fixture_id": fx.id,
         "failures": sorted(set(failures)),
-        "benchmark_source": bench["source"] if bench else None,
         "limited_form": r["limited_data"]["form"],
         "limited_goals": r["limited_data"]["goals"],
-        "has_form_difference": r["match_result"]["venue_adjusted_difference"] is not None,
+        "has_form_difference": r["match_result"]["form_difference"] is not None,
     }
 
 
@@ -155,7 +176,6 @@ def run(
         c["limited_form"] += res["limited_form"]
         c["limited_goals"] += res["limited_goals"]
         c["no_form_difference"] += not res["has_form_difference"]
-        c[f"benchmark_{res['benchmark_source']}"] += 1
     return {
         "fixtures_checked": len(results),
         "checks": [
@@ -164,7 +184,7 @@ def run(
             "independent_form_check",
             "bounds",
             "deterministic",
-            "benchmark_count",
+            "current_season_goals",
         ],
         "failures": dict(failures),
         "failed_fixtures": [r for r in results if r["failures"]][:50],

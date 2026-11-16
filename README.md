@@ -19,6 +19,8 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
 * **Milestone 4** — Plotly Dash Statistical Screener, official standings, implied
   probabilities, historical sanity check: [`docs/milestone4_report.md`](docs/milestone4_report.md)
 * **Setup fix and Form Score scale (0–5):** [`docs/setup_fix_and_scale_change.md`](docs/setup_fix_and_scale_change.md)
+* **Milestone 5** — simplified Screener, new Diski Form Score, current-season goals
+  indicators, stale odds display: [`docs/milestone5_report.md`](docs/milestone5_report.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 
@@ -89,15 +91,20 @@ and it refuses with a clear message if `setup` has not completed. Without
 
 Restart `serve` (or wait up to 5 minutes) for the app to show refreshed data.
 
-### Form Score scale
+### Methodology (engine 2.0.0)
 
-Form Score = 1 + (3W + D)/N + 0.5 × clip((GF − GA)/N, −2, 2), on a **0 to 5**
-scale. This is the Specification v1.2 score plus a constant 1 (decided
-15 Nov 2026). Raw and venue-adjusted differences, and every ranking, are
-identical to the original formula because the constant cancels. League
-benchmarks use the same scale. A team without eligible matches has no Form
-Score (it is shown as unavailable, never as 1). Screener results calculated
-on the previous scale are retired automatically on the next refresh.
+* **Diski Form Score (0–5)** from the last five eligible matches: points band +
+  goal-difference band + three bonuses (won the last three, scored 11+, conceded
+  2 or fewer), divided by 6.5 and multiplied by 5. **Form Difference** = home −
+  away (no venue adjustment).
+* **BTTS / Over 2.5**: up to ten current-season matches in the current
+  competition only.
+* **Reference odds**: Fresh, Stale (last valid consensus, labelled) or
+  Unavailable. Stale odds are never eligible for the Challenge.
+
+Full details: [`docs/screener_methodology.md`](docs/screener_methodology.md).
+Results from older methodologies are retired automatically on the next
+`refresh-data`; no database reset is needed.
 
 ## Stack
 
@@ -119,6 +126,7 @@ uv run diski9 consensus --competition 39             # consensus odds
 uv run diski9 quality-report                         # data-quality report
 uv run diski9 ingest-fixtures --seasons 2026         # low-level: one competition-season job
 uv run python scripts/historical_sanity_check.py     # point-in-time integrity check
+uv run python scripts/compare_methodologies.py       # old vs new ranking comparison
 ```
 
 The database lives at `data/diski9.sqlite` (git-ignored; `DISKI9_DATABASE_URL`

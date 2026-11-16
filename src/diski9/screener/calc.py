@@ -1,4 +1,9 @@
-"""Pure Screener calculations (Statistical Screener Specification v1.2).
+"""Pure Screener calculations.
+
+Match result: the **Diski Form Score** (Milestone 5 methodology, bonus-based,
+0-5). The earlier spec v1.2 formula (``FormScore``/``form_score``) and pooled
+league benchmarks are kept only as legacy helpers for regression comparison
+and the benchmark-threshold script; the Screener engine does not use them.
 
 All arithmetic uses exact fractions; floats appear only at the presentation edge.
 None of these values are probabilities or predictions.
@@ -36,7 +41,142 @@ def display(value: Fraction | float | None, places: int = 2) -> str | None:
     return str(d.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP))
 
 
-# ------------------------------------------------------------------ Form Score
+# ---------------------------------------------------------- Diski Form Score
+FORM_RAW_MAX = Fraction(13, 2)  # 2.5 + 2.5 + 0.5 + 0.5 + 0.5
+FORM_SCALE = Fraction(5)
+FULL_WINDOW = 5
+BONUS = Fraction(1, 2)
+
+
+def points_award(points: int) -> Fraction:
+    """0-2: 0, 3-5: 0.5, 6-8: 1.0, 9-11: 1.5, 12-14: 2.0, 15: 2.5."""
+    return Fraction(min(max(points, 0) // 3, 5), 2)
+
+
+def goal_difference_award(gd: int) -> Fraction:
+    """<=0: 0, +1-2: 0.5, +3-4: 1.0, +5-6: 1.5, +7-8: 2.0, >=+9: 2.5."""
+    if gd <= 0:
+        return Fraction(0)
+    return Fraction(min((gd + 1) // 2, 5), 2)
+
+
+@dataclass(frozen=True)
+class DiskiFormScore:
+    """Diski Form Score from up to five eligible matches (most recent first).
+
+    raw = points award + goal-difference award + bonuses (each +0.5):
+      * won the three most recent matches (needs at least 3 matches)
+      * scored at least 11 goals in the window
+      * conceded at most 2 goals (only with a full five-match window)
+    score = raw / 6.5 x 5, in [0, 5]. Partial windows use the actual matches
+    with the same thresholds and are never scaled up.
+    """
+
+    results: tuple[str, ...]  # "W"/"D"/"L", most recent first
+    goals_for: int
+    goals_against: int
+
+    @property
+    def matches(self) -> int:
+        return len(self.results)
+
+    @property
+    def wins(self) -> int:
+        return self.results.count("W")
+
+    @property
+    def draws(self) -> int:
+        return self.results.count("D")
+
+    @property
+    def losses(self) -> int:
+        return self.results.count("L")
+
+    @property
+    def points(self) -> int:
+        return 3 * self.wins + self.draws
+
+    @property
+    def goal_difference(self) -> int:
+        return self.goals_for - self.goals_against
+
+    @property
+    def full_window(self) -> bool:
+        return self.matches >= FULL_WINDOW
+
+    @property
+    def points_award(self) -> Fraction:
+        return points_award(self.points)
+
+    @property
+    def goal_difference_award(self) -> Fraction:
+        return goal_difference_award(self.goal_difference)
+
+    @property
+    def bonus_last_three_wins(self) -> Fraction:
+        return BONUS if self.matches >= 3 and self.results[:3] == ("W", "W", "W") else Fraction(0)
+
+    @property
+    def bonus_goals_scored(self) -> Fraction:
+        return BONUS if self.goals_for >= 11 else Fraction(0)
+
+    @property
+    def bonus_goals_conceded(self) -> Fraction:
+        return BONUS if self.full_window and self.goals_against <= 2 else Fraction(0)
+
+    @property
+    def raw(self) -> Fraction:
+        return (
+            self.points_award
+            + self.goal_difference_award
+            + self.bonus_last_three_wins
+            + self.bonus_goals_scored
+            + self.bonus_goals_conceded
+        )
+
+    @property
+    def score(self) -> Fraction:
+        return self.raw / FORM_RAW_MAX * FORM_SCALE
+
+    def breakdown(self) -> dict:
+        return {
+            "matches": self.matches,
+            "full_window": self.full_window,
+            "wins": self.wins,
+            "draws": self.draws,
+            "losses": self.losses,
+            "points": self.points,
+            "goals_for": self.goals_for,
+            "goals_against": self.goals_against,
+            "goal_difference": self.goal_difference,
+            "points_award": float(self.points_award),
+            "goal_difference_award": float(self.goal_difference_award),
+            "bonus_last_three_wins": float(self.bonus_last_three_wins),
+            "bonus_goals_scored": float(self.bonus_goals_scored),
+            "bonus_goals_conceded": float(self.bonus_goals_conceded),
+            "bonus_last_three_wins_possible": self.matches >= 3,
+            "bonus_goals_conceded_possible": self.full_window,
+            "raw": float(self.raw),
+            "raw_max": float(FORM_RAW_MAX),
+            "form_score": float(self.score),
+            "form_score_display": display(self.score),
+        }
+
+
+def diski_form_score(results: Iterable[tuple[int, int]]) -> DiskiFormScore | None:
+    """From (goals_for, goals_against) pairs, most recent first; None if no matches."""
+    seq: list[str] = []
+    gf = ga = 0
+    for f, a in results:
+        gf += f
+        ga += a
+        seq.append("W" if f > a else "D" if f == a else "L")
+    if not seq:
+        return None
+    return DiskiFormScore(tuple(seq), gf, ga)
+
+
+# ------------------------------------------------- legacy (spec v1.2) formula
 @dataclass(frozen=True)
 class FormScore:
     """Form Score = 1 + PPG + 0.5 x clip(GD/G, -2, +2). Range [0, 5].
@@ -222,7 +362,7 @@ def combined_indicator(home: Rate | None, away: Rate | None) -> Fraction | None:
 
 
 # ------------------------------------------------------------- limited data
-FORM_MIN_MATCHES = 3
+FORM_MIN_MATCHES = 5  # Diski Form Score: Limited data below a full five-match window
 GOALS_MIN_MATCHES = 6
 CURRENT_DIVISION_MIN = 3
 

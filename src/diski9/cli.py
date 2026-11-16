@@ -204,6 +204,8 @@ def cmd_screener_show(args, engine) -> None:
     from diski9.screener.rank import rank
 
     market_of = {
+        "kickoff_earliest": (Market.MATCH_RESULT, Outcome.HOME),
+        "kickoff_latest": (Market.MATCH_RESULT, Outcome.HOME),
         "home_stronger": (Market.MATCH_RESULT, Outcome.HOME),
         "away_stronger": (Market.MATCH_RESULT, Outcome.AWAY),
         "evenly_matched": (Market.MATCH_RESULT, Outcome.DRAW),
@@ -237,8 +239,7 @@ def cmd_screener_show(args, engine) -> None:
             )
             print(
                 f"{f['kickoff'][:16]} {f['home']} v {f['away']}: {forms}"
-                f"raw {mr['raw_difference_display']} "
-                f"adj {mr['venue_adjusted_difference_display']} | "
+                f"form difference {mr['form_difference_display']} | "
                 f"BTTS {r['btts']['yes_display']} | O2.5 {r['over_under_2_5']['over_display']} | "
                 f"consensus {outcome.value} {price}{flag}"
             )
@@ -335,8 +336,10 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("screener-show", help="ranked screener view from the cache")
     s.add_argument(
         "--direction",
-        default="home_stronger",
+        default="kickoff_earliest",
         choices=[
+            "kickoff_earliest",
+            "kickoff_latest",
             "home_stronger",
             "away_stronger",
             "evenly_matched",

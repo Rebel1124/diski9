@@ -1,0 +1,79 @@
+{
+  "fixtures_compared": 56,
+  "match_result": {
+    "spearman_old_venue_adjusted_vs_new_form_difference": 0.93,
+    "spearman_old_raw_vs_new_form_difference": 0.931,
+    "top5_home_advantage_old": [
+      "Sekhukhune United v Siwelele",
+      "Mamelodi Sundowns v Polokwane City",
+      "Orlando Pirates v Stellenbosch",
+      "Orlando Pirates v Golden Arrows",
+      "Chelsea v Crystal Palace"
+    ],
+    "top5_home_advantage_new": [
+      "Orlando Pirates v Stellenbosch",
+      "Mamelodi Sundowns v Polokwane City",
+      "Brighton v Newcastle",
+      "Orlando Pirates v Golden Arrows",
+      "Chelsea v Leeds"
+    ],
+    "top5_home_overlap": 3,
+    "top5_away_advantage_old": [
+      "Kruger United v Mamelodi Sundowns",
+      "Marumo Gallants v Chippa United",
+      "Newcastle v Arsenal",
+      "Nottingham Forest v Brighton",
+      "Golden Arrows v Kruger United"
+    ],
+    "top5_away_advantage_new": [
+      "Nottingham Forest v Brighton",
+      "Kruger United v Mamelodi Sundowns",
+      "Marumo Gallants v Chippa United",
+      "Hull City v Brighton",
+      "Newcastle v Arsenal"
+    ],
+    "top5_away_overlap": 4,
+    "mean_absolute_rank_shift": 4.96,
+    "sign_changes": [
+      "Sunderland v Tottenham",
+      "Brentford v Arsenal",
+      "Coventry v Ipswich",
+      "Tottenham v Fulham",
+      "Brentford v Manchester City",
+      "Stellenbosch v TS Galaxy"
+    ],
+    "exact_ties_in_new_difference": 40,
+    "distinct_new_difference_values": 16
+  },
+  "form_score_distribution": {
+    "team_scores": 112,
+    "counts_by_score": {
+      "0.0": 6,
+      "0.38": 46,
+      "0.77": 12,
+      "1.15": 8,
+      "1.54": 5,
+      "1.92": 12,
+      "2.31": 2,
+      "2.69": 13,
+      "3.08": 3,
+      "4.23": 1,
+      "4.62": 2,
+      "5.0": 2
+    },
+    "share_at_or_below_0_77": 0.571,
+    "median": 0.7692307692307693
+  },
+  "btts": {
+    "spearman_old_vs_new": 0.75,
+    "top5_yes_overlap": 3,
+    "mean_absolute_change_pct_points": 9.4,
+    "limited_old": 0,
+    "limited_new": 56
+  },
+  "over_2_5": {
+    "spearman_old_vs_new": 0.679,
+    "top5_over_overlap": 0,
+    "mean_absolute_change_pct_points": 10.3
+  }
+}

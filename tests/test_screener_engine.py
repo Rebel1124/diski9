@@ -92,31 +92,39 @@ def set_venue(conn, fid, cls):
 
 def test_venue_windows_use_last_home_and_away_matches(db):
     b = Builder(db)
-    # team 1: 6 home wins 2-0 (oldest first), interleaved with away losses 0-1
+    # team 1: 6 home wins 3-0 (oldest first), interleaved with away losses 0-1
     for i in range(6):
-        b.add(1, 50 + i, 2, 0)
+        b.add(1, 50 + i, 3, 0)
         b.add(60 + i, 1, 1, 0)
-    # team 2: away draws
+    # team 2: away draws 1-1
     for i in range(6):
         b.add(70 + i, 2, 1, 1)
     b.upcoming(1, 2)
     b.save()
     r = compute(db)
     home = r["teams"]["home"]["form"]
+    # 15 pts (2.5) + GD +15 (2.5) + last 3 won + 15 goals scored + 0 conceded = 6.5 -> 5.00
     assert home["sequence"] == "W-W-W-W-W" and home["display"] == "5.00"
     assert all(m["venue"] == "H" for m in home["matches"])
-    assert r["teams"]["away"]["form"]["display"] == "2.00"
+    # away: 5 pts (0.5) + GD 0 (0) = 0.5 -> 0.38
+    assert r["teams"]["away"]["form"]["display"] == "0.38"
+    assert r["match_result"]["form_difference_display"] == "+4.62"
     overall = compute(db, basis="overall")
     assert overall["teams"]["home"]["form"]["sequence"] == "L-W-L-W-L"
-    assert overall["match_result"]["venue_adjusted_difference"] is None  # raw only on overall basis
+    # overall uses the same Form Difference definition (home minus away), no venue adjustment
+    mr = overall["match_result"]
+    assert mr["form_difference"] == pytest.approx(mr["home_form"] - mr["away_form"])
+    assert "venue_adjusted_difference" not in mr and "benchmark" not in mr
 
 
 def test_goals_markets_last_ten_and_complements(db):
-    b = Builder(db)
-    for i in range(12):  # newest 10 home: 8 BTTS & over (2-1), 2 not (1-0)
-        b.add(1, 50 + i, 1, 0) if i < 4 else b.add(1, 50 + i, 2, 1)
+    b = Builder(db, start=T0 - 300 * DAY)
+    for i in range(
+        12
+    ):  # 12 current-season home matches: newest 10 -> 8 BTTS & over (2-1), 2 not (1-0)
+        b.add(1, 50 + i, 1, 0, season=2026) if i < 4 else b.add(1, 50 + i, 2, 1, season=2026)
     for i in range(10):  # away team: 6 of 10 BTTS (1-1), 4 not (0-1)
-        b.add(70 + i, 2, 1, 1) if i < 6 else b.add(70 + i, 2, 1, 0)
+        b.add(70 + i, 2, 1, 1, season=2026) if i < 6 else b.add(70 + i, 2, 1, 0, season=2026)
     b.upcoming(1, 2)
     b.save()
     r = compute(db)
@@ -129,6 +137,7 @@ def test_goals_markets_last_ten_and_complements(db):
         r["over_under_2_5"]["over_display"] == "40%"
         and r["over_under_2_5"]["under_display"] == "60%"
     )
+    assert not r["limited_data"]["goals"]  # full ten-match windows
 
 
 def test_excluded_fixtures_never_used(db):
@@ -190,31 +199,34 @@ def test_promoted_team_provenance_and_limited_data(db):
 def test_new_club_without_history(db):
     b = Builder(db)
     for i in range(6):
-        b.add(70 + i, 2, 0, 1)
+        b.add(70 + i, 2, 0, 1, season=2026)
     b.upcoming(777, 2)  # e.g. a club that acquired a league status: no inherited history
     b.save()
     r = compute(db)
     home = r["teams"]["home"]
-    assert home["form"]["score"] is None and home["goals"]["btts"] is None  # never defaults to 1
+    assert home["form"]["score"] is None and home["goals"]["btts"] is None  # unavailable, never 0
     assert home["form"]["display"] is None and home["form"]["breakdown"] is None
     assert home["form"]["sample"]["limited_data_reasons"] == [
-        "fewer_than_3_matches",
+        "fewer_than_5_matches",
         "fewer_than_3_current_division_matches",
     ]
-    assert r["match_result"]["raw_difference"] is None and r["btts"]["yes_indicator"] is None
+    assert r["match_result"]["form_difference"] is None and r["btts"]["yes_indicator"] is None
 
 
 def test_small_samples_still_calculated_and_flagged(db):
     b = Builder(db)
-    for hg, ag in ((2, 0), (1, 1), (1, 0), (0, 1)):
-        b.add(1, 50 + hg * 10 + ag, hg, ag)
+    for hg, ag in ((2, 0), (1, 1), (1, 0), (0, 1)):  # 4 home matches, newest last
+        b.add(1, 50 + hg * 10 + ag, hg, ag, season=2026)
     for i in range(4):
-        b.add(70 + i, 2, 1, 1)
+        b.add(70 + i, 2, 1, 1, season=2026)
     b.upcoming(1, 2)
     b.save()
     r = compute(db)
-    assert r["teams"]["home"]["form"]["display"] == "3.00"
-    assert not r["teams"]["home"]["form"]["sample"]["limited_data"]  # 4 current-division matches
+    form = r["teams"]["home"]["form"]
+    # 7 pts -> 1.0, GD +2 -> 0.5, last 3 (L, W, D) not all won, 4 goals, conceded bonus needs 5 matches
+    assert form["breakdown"]["raw"] == 1.5 and form["display"] == "1.15"
+    assert form["breakdown"]["bonus_goals_conceded_possible"] is False
+    assert form["sample"]["limited_data_reasons"] == ["fewer_than_5_matches"]  # Limited below five
     assert r["teams"]["home"]["goals"]["btts"]["display"] == "1/4 (25%)"
     assert r["teams"]["home"]["goals"]["sample"]["limited_data_reasons"] == ["fewer_than_6_matches"]
 
@@ -245,30 +257,35 @@ def test_benchmark_current_previous_and_partial(db):
     assert select_benchmark(MatchStore(db), 40, 2024, T0, ScreenerConfig()) is None
 
 
-def test_venue_adjusted_difference_against_benchmark(db):
+def test_form_difference_is_plain_home_minus_away(db):
     b = Builder(db)
     for i in range(5):
-        b.add(1, 50 + i, 2, 0)  # home team 4.00 at home
-        b.add(60 + i, 2, 1, 0)  # away team -0.50 away
+        b.add(
+            1, 50 + i, 2, 0
+        )  # home team: 15 pts, GD +10, last 3 won, 10 scored, 0 conceded -> 6.0
+        b.add(60 + i, 2, 1, 0)  # away team (away): 0 pts, GD -5 -> 0
     b.upcoming(1, 2)
     b.save()
-    r = compute(db, config=ScreenerConfig(benchmark_min_matches=1000))
-    bench = r["match_result"]["benchmark"]
-    expected = (5.0 - bench["home"]["form_score"]) - (0.5 - bench["away"]["form_score"])
-    assert r["match_result"]["home_form"] == 5.0 and r["match_result"]["away_form"] == 0.5
-    assert r["match_result"]["raw_difference"] == 4.5  # unchanged by the +1 offset
-    assert r["match_result"]["venue_adjusted_difference"] == pytest.approx(expected)
+    r = compute(db)
+    mr = r["match_result"]
+    assert mr["home_form"] == pytest.approx(6.0 / 6.5 * 5) and mr["away_form"] == 0.0
+    assert mr["form_difference"] == pytest.approx(mr["home_form"] - mr["away_form"])
+    assert mr["form_difference_display"] == "+4.62"
+    # benchmarks no longer influence anything: a league full of home wins changes nothing
+    for i in range(20):
+        b.add(300 + i, 400 + i, 5, 0)
+    b.save()
+    assert compute(db)["match_result"]["form_difference"] == mr["form_difference"]
 
 
 def test_point_in_time_later_results_do_not_leak(db):
     b = Builder(db, start=T0 - 30 * DAY)
     for i in range(5):
-        b.add(1, 50 + i, 1, 1)
-        b.add(60 + i, 2, 1, 1)
+        b.add(1, 50 + i, 1, 1, season=2026)
+        b.add(60 + i, 2, 1, 1, season=2026)
     b.upcoming(1, 2, kickoff=T0)
     b.save()
     before = compute(db, as_of=T0 + 10 * DAY)  # cutoff = kickoff
-    # results played after the fixture kickoff are added later
     late = [
         fixture_item(5000 + i, 1, 90 + i, kickoff=T0 + (i + 1) * DAY, ft=(5, 0), season=2026)
         for i in range(5)
@@ -277,8 +294,9 @@ def test_point_in_time_later_results_do_not_leak(db):
     after = compute(db, as_of=T0 + 10 * DAY)
     assert before["cutoff"] == T0.isoformat()
     assert before["inputs_hash"] == after["inputs_hash"]
-    assert after["teams"]["home"]["form"]["display"] == "2.00"
-    # but a later fixture does see them
+    assert after["teams"]["home"]["form"]["display"] == "0.38"  # 5 draws: 5 pts -> 0.5, GD 0 -> 0
+    assert after["teams"]["home"]["goals"]["btts"]["matches"] == 5
+    # a later fixture does see them
     db.execute(
         update(fixtures).where(fixtures.c.id == UPCOMING_ID).values(kickoff_utc=T0 + 9 * DAY)
     )
@@ -358,32 +376,42 @@ def test_cache_refresh_unchanged_superseded_and_point_in_time(db):
 
 
 def test_ranking_directions():
-    def res(fid, vad, btts, over):
+    from datetime import timedelta as td
+
+    def res(fid, diff, btts, over, hours):
         return {
-            "fixture": {"id": fid},
+            "fixture": {"id": fid, "kickoff": (T0 + td(hours=hours)).isoformat()},
             "basis": "venue",
-            "match_result": {"venue_adjusted_difference": vad, "raw_difference": vad},
+            "match_result": {"form_difference": diff},
             "btts": {"yes_indicator": btts},
             "over_under_2_5": {"over_indicator": over},
         }
 
     rs = [
-        res(1, 1.2, 0.7, 0.4),
-        res(2, -0.8, 0.3, 0.8),
-        res(3, 0.05, 0.5, None),
-        res(4, None, None, 0.6),
+        res(1, 1.2, 0.7, 0.4, 30),
+        res(2, -0.8, 0.3, 0.8, 10),
+        res(3, 0.05, 0.5, None, 20),
+        res(4, None, None, 0.6, 5),
+        res(
+            5, 1.2, 0.7, 0.4, 30
+        ),  # ties fixture 1 on everything, incl. kickoff -> id breaks the tie
     ]
     ids = lambda xs: [r["fixture"]["id"] for r in xs]  # noqa: E731
-    assert ids(rank(rs, "home_stronger")) == [1, 3, 2]
-    assert ids(rank(rs, "away_stronger")) == [2, 3, 1]
-    assert ids(rank(rs, "evenly_matched")) == [3, 2, 1]
-    assert ids(rank(rs, "btts_yes")) == [1, 3, 2]
-    assert ids(rank(rs, "btts_no")) == [2, 3, 1]
-    assert ids(rank(rs, "over")) == [2, 4, 1]
-    assert ids(rank(rs, "under")) == [1, 4, 2]
-    assert ids(rank(rs, "home_stronger", threshold=0.5)) == [1]
+    assert ids(rank(rs, "kickoff_earliest")) == [4, 2, 3, 1, 5]
+    assert ids(rank(rs, "kickoff_latest")) == [5, 1, 3, 2, 4]
+    assert ids(rank(rs, "home_stronger")) == [1, 5, 3, 2, 4]  # unavailable (4) listed last
+    assert ids(rank(rs, "away_stronger")) == [2, 3, 1, 5, 4]
+    assert ids(rank(rs, "evenly_matched")) == [3, 2, 1, 5, 4]
+    assert ids(rank(rs, "btts_yes")) == [1, 5, 3, 2, 4]
+    assert ids(rank(rs, "btts_no")) == [2, 3, 1, 5, 4]
+    assert ids(rank(rs, "over")) == [2, 4, 1, 5, 3]
+    assert ids(rank(rs, "under")) == [1, 5, 4, 2, 3]
+    # thresholds filter and drop unavailable values
+    assert ids(rank(rs, "home_stronger", threshold=0.5)) == [1, 5]
     assert ids(rank(rs, "evenly_matched", threshold=0.1)) == [3]
     assert ids(rank(rs, "btts_no", threshold=0.6)) == [2]
+    # deterministic: input order does not matter
+    assert ids(rank(list(reversed(rs)), "home_stronger")) == ids(rank(rs, "home_stronger"))
 
 
 def test_old_engine_version_rows_are_retired(db):
@@ -407,3 +435,96 @@ def test_old_engine_version_rows_are_retired(db):
         select(screener_results).where(screener_results.c.superseded_at.is_(None))
     ).all()
     assert {r.engine_version for r in active} == {ENGINE_VERSION}
+
+
+# ------------------------------------------------- current-season goals markets
+def test_goals_use_current_season_and_division_only(db):
+    b = Builder(db, start=T0 - 300 * DAY)
+    for i in range(8):
+        b.add(1, 50 + i, 3, 3, season=2025)  # previous season: BTTS + over every time
+    for i in range(4):
+        b.add(1, 80 + i, 2, 2, league=40, season=2026)  # other division, current season year
+    b.add(1, 90, 4, 4, season=2026, round_name="Relegation Round - 1")  # excluded round
+    b.add(1, 91, 4, 4, season=2026, status="AWD")  # awarded: excluded
+    for i, (h, a) in enumerate(((1, 0), (2, 1), (0, 0), (1, 1))):
+        b.add(1, 100 + i, h, a, season=2026, gap=DAY * 2)  # 4 current-season home matches
+    for i in range(5):
+        b.add(200 + i, 2, 2, 1 if i < 2 else 0, season=2026)  # away team: 5 current-season away
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db)
+    home = r["teams"]["home"]["goals"]
+    assert home["btts"]["display"] == "2/4 (50%)"  # 2-1 and 1-1 only; never 3/10 or padded
+    assert {m["season"] for m in home["matches"]} == {2026}
+    assert {m["competition"] for m in home["matches"]} == {"Premier League"}
+    away = r["teams"]["away"]["goals"]
+    assert away["btts"]["display"] == "2/5 (40%)"
+    # combined = (50% + 40%) / 2 = 45%; complement 55%
+    assert r["btts"]["yes_display"] == "45%" and r["btts"]["no_display"] == "55%"
+    assert r["limited_data"]["goals"]
+    assert home["sample"]["limited_data_reasons"] == ["fewer_than_6_matches"]
+    # the Form Score window may still reach beyond the current competition/season (five most
+    # recent home matches): here the fifth is a 2026 Championship match
+    assert r["teams"]["home"]["form"]["sample"]["matches"] == 5
+    assert any(
+        m["provenance"] != "current_season_same_division"
+        for m in r["teams"]["home"]["form"]["matches"]
+    )
+
+
+def test_spec_example_four_and_five_match_samples(db):
+    """Home 3/4 BTTS (75%), away 2/5 (40%) -> combined 57.5%, No 42.5%."""
+    b = Builder(db)
+    for h, a in ((1, 1), (2, 1), (1, 2), (1, 0)):
+        b.add(1, 50 + h * 10 + a, h, a, season=2026)
+    for h, a in ((1, 1), (2, 2), (1, 0), (2, 0), (3, 0)):
+        b.add(60 + h * 10 + a, 2, h, a, season=2026)
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db)
+    assert r["teams"]["home"]["goals"]["btts"]["display"] == "3/4 (75%)"
+    assert r["teams"]["away"]["goals"]["btts"]["display"] == "2/5 (40%)"
+    assert r["btts"]["yes_display"] == "57.5%" and r["btts"]["no_display"] == "42.5%"
+    assert r["btts"]["yes_indicator"] + r["btts"]["no_indicator"] == pytest.approx(1)
+    o = r["over_under_2_5"]
+    assert o["over_indicator"] + o["under_indicator"] == pytest.approx(1)
+
+
+@pytest.mark.parametrize("n,limited", [(5, True), (6, False), (9, False), (10, False), (12, False)])
+def test_goals_limited_data_thresholds(db, n, limited):
+    b = Builder(db)
+    for i in range(n):
+        b.add(1, 50 + i, 1, 1, season=2026)
+        b.add(70 + i, 2, 1, 1, season=2026)
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db)
+    assert r["limited_data"]["goals"] is limited
+    assert r["teams"]["home"]["goals"]["btts"]["matches"] == min(n, 10)
+
+
+def test_goals_zero_observations_unavailable(db):
+    b = Builder(db)
+    for i in range(6):
+        b.add(1, 50 + i, 1, 1, season=2025)  # only previous-season history
+        b.add(70 + i, 2, 1, 1, season=2026)
+    b.upcoming(1, 2)
+    b.save()
+    r = compute(db)
+    assert r["teams"]["home"]["goals"]["btts"] is None  # never filled from earlier seasons
+    assert r["btts"]["yes_indicator"] is None and r["btts"]["yes_display"] is None
+    assert r["over_under_2_5"]["over_indicator"] is None
+
+
+def test_current_season_rule_is_point_in_time(db):
+    b = Builder(db, start=T0 - 60 * DAY)
+    for i in range(3):
+        b.add(1, 50 + i, 2, 2, season=2026)
+        b.add(70 + i, 2, 1, 1, season=2026)
+    b.upcoming(1, 2, kickoff=T0)
+    b.save()
+    store_fixtures(
+        db, [fixture_item(6000, 1, 99, kickoff=T0 + DAY, ft=(0, 0), season=2026)], lambda: T0
+    )
+    r = compute(db, as_of=T0 + 5 * DAY)
+    assert r["teams"]["home"]["goals"]["btts"]["display"] == "3/3 (100%)"  # later 0-0 ignored

@@ -5,15 +5,17 @@ Point-in-time rule
 Every statistic for a fixture uses only matches with ``kickoff_utc < cutoff``,
 where ``cutoff = min(as_of, fixture kickoff)``. So a result computed for a past
 fixture never sees later results, and a result for an upcoming fixture uses
-what is known now. Benchmarks follow the same rule.
+what is known now.
 
 Relevant matches
 ----------------
 * Domestic league matches eligible for statistics (``stats_exclusion_reason IS
   NULL``): completed, regular-season, not awarded/cancelled/walkover/abandoned.
   Play-off, relegation and promotion rounds are excluded.
-* From any stored domestic league (current division, previous divisions), any
-  season, to complete rolling windows. Provenance is recorded per match.
+* Match result (Diski Form Score, last 5): may draw on any stored domestic
+  league and earlier seasons to complete the window. Provenance is recorded.
+* BTTS / Over-Under 2.5 (up to last 10): **current season and current
+  competition only** (Milestone 5) - no earlier seasons or other divisions.
 * Venue windows (home/away) exclude matches at a confirmed ``neutral`` venue.
   ``unverified_venue`` matches are included (the provider's home/away
   designation) and flagged in the output.
@@ -38,15 +40,16 @@ from .calc import (
     FORM_MIN_MATCHES,
     GOALS_MIN_MATCHES,
     combined_indicator,
+    diski_form_score,
     display,
-    form_score,
     limited_data_reasons,
     pooled_benchmark,
-    rate,
-    venue_adjusted_difference,
 )
+from .calc import rate as rate_of
 
-ENGINE_VERSION = "1.2.1"  # spec v1.2 + Form Score scale 0-5 (+1 offset)
+# 2.0.0 (Milestone 5): bonus-based Diski Form Score, Form Difference (no venue
+# adjustment), current-season-only BTTS/O2.5. Older cache rows are retired.
+ENGINE_VERSION = "2.0.0"
 Basis = Literal["venue", "overall"]
 
 
@@ -170,13 +173,25 @@ class MatchStore:
         self._team_kickoffs = {t: [tm.match.kickoff for tm in v] for t, v in self.by_team.items()}
 
     def team_window(
-        self, team_id: int, cutoff: datetime, venue: Literal["home", "away"] | None, n: int
+        self,
+        team_id: int,
+        cutoff: datetime,
+        venue: Literal["home", "away"] | None,
+        n: int,
+        competition_id: int | None = None,
+        season: int | None = None,
     ) -> list[TeamMatch]:
-        """Last ``n`` eligible matches before ``cutoff``, most recent first."""
+        """Last ``n`` eligible matches before ``cutoff``, most recent first.
+
+        ``competition_id``/``season`` restrict the window (current-season-only rule)."""
         history = self.by_team.get(team_id, [])
         end = bisect_left(self._team_kickoffs.get(team_id, []), cutoff)
         out: list[TeamMatch] = []
         for tm in reversed(history[:end]):
+            if competition_id is not None and tm.match.competition_id != competition_id:
+                continue
+            if season is not None and tm.match.season != season:
+                continue
             if venue is not None:
                 if tm.is_home != (venue == "home"):
                     continue
@@ -257,7 +272,7 @@ def _sample_info(window: list[TeamMatch], competition_id: int, season: int, mini
     }
 
 
-def select_benchmark(
+def select_benchmark(  # legacy: not used by the Screener since engine 2.0.0
     store: MatchStore, competition_id: int, season: int, cutoff: datetime, config: ScreenerConfig
 ) -> dict | None:
     """Current season if enough eligible matches, else previous completed season,
@@ -339,10 +354,12 @@ def compute_fixture(
     goal_rates: dict[str, dict[str, Any]] = {}
     for side, team_id, venue in (("home", home_id, home_venue), ("away", away_id, away_venue)):
         fw = store.team_window(team_id, cutoff, venue, config.form_window)
-        gw = store.team_window(team_id, cutoff, venue, config.goals_window)
-        fs = form_score((tm.goals_for, tm.goals_against) for tm in fw)
-        btts = rate([tm.goals_for > 0 and tm.goals_against > 0 for tm in gw])
-        over = rate([tm.goals_for + tm.goals_against >= 3 for tm in gw])
+        gw = store.team_window(
+            team_id, cutoff, venue, config.goals_window, competition_id=comp, season=season
+        )
+        fs = diski_form_score((tm.goals_for, tm.goals_against) for tm in fw)
+        btts = rate_of([tm.goals_for > 0 and tm.goals_against > 0 for tm in gw])
+        over = rate_of([tm.goals_for + tm.goals_against >= 3 for tm in gw])
         forms[side] = fs
         goal_rates[side] = {"btts": btts, "over": over}
         n = len(gw)
@@ -375,17 +392,11 @@ def compute_fixture(
             },
         }
 
-    # 1X2
+    # 1X2: Form Difference = home Diski Form Score - away Diski Form Score (both bases)
     hf, af = forms["home"], forms["away"]
-    raw = (hf.score - af.score) if hf and af else None
-    bench = select_benchmark(store, comp, season, cutoff, config)
-    vad: Fraction | None = None
-    if basis == "venue" and raw is not None and bench is not None:
-        b = bench["object"]
-        vad = venue_adjusted_difference(hf.score, af.score, b.home.score, b.away.score)
-    bench_out = {k: v for k, v in bench.items() if k != "object"} if bench else None
+    diff = (hf.score - af.score) if hf and af else None
 
-    # Goals markets
+    # Goals markets (current season only)
     btts_yes = combined_indicator(goal_rates["home"]["btts"], goal_rates["away"]["btts"])
     over25 = combined_indicator(goal_rates["home"]["over"], goal_rates["away"]["over"])
 
@@ -412,34 +423,27 @@ def compute_fixture(
         "as_of": as_of.isoformat(),
         "cutoff": cutoff.isoformat(),
         "basis": basis,
-        "config": {
-            "form_window": config.form_window,
-            "goals_window": config.goals_window,
-            "benchmark_min_matches": config.benchmark_min(comp),
-        },
+        "config": {"form_window": config.form_window, "goals_window": config.goals_window},
         "teams": teams_out,
         "match_result": {
             "home_form": float(hf.score) if hf else None,
             "away_form": float(af.score) if af else None,
-            "raw_difference": float(raw) if raw is not None else None,
-            "raw_difference_display": display(raw),
-            "venue_adjusted_difference": float(vad) if vad is not None else None,
-            "venue_adjusted_difference_display": display(vad),
-            "benchmark": bench_out,
-            "note": "A near-zero difference indicates similar relative historical "
-            "performance; it does not imply that a draw is likely.",
+            "form_difference": float(diff) if diff is not None else None,
+            "form_difference_display": _signed(diff),
+            "note": "Similar Form Scores mean similar recent performance; "
+            "they do not mean a draw is likely.",
         },
         "btts": {
             "yes_indicator": float(btts_yes) if btts_yes is not None else None,
-            "yes_display": f"{display(btts_yes * 100, 0)}%" if btts_yes is not None else None,
+            "yes_display": pct(btts_yes),
             "no_indicator": float(1 - btts_yes) if btts_yes is not None else None,
-            "no_display": f"{display((1 - btts_yes) * 100, 0)}%" if btts_yes is not None else None,
+            "no_display": pct(1 - btts_yes) if btts_yes is not None else None,
         },
         "over_under_2_5": {
             "over_indicator": float(over25) if over25 is not None else None,
-            "over_display": f"{display(over25 * 100, 0)}%" if over25 is not None else None,
+            "over_display": pct(over25),
             "under_indicator": float(1 - over25) if over25 is not None else None,
-            "under_display": f"{display((1 - over25) * 100, 0)}%" if over25 is not None else None,
+            "under_display": pct(1 - over25) if over25 is not None else None,
         },
         "indicator_note": "Historical indicators, not predicted probabilities.",
         "limited_data": limited,
@@ -468,6 +472,21 @@ def compute_fixture(
     }
     result["inputs_hash"] = inputs_hash(result)
     return result
+
+
+def pct(value: Fraction | None) -> str | None:
+    """Percentage for display: 57.5% keeps one decimal, 70% drops a trailing .0."""
+    if value is None:
+        return None
+    text = display(value * 100, 1)
+    return (text[:-2] if text.endswith(".0") else text) + "%"
+
+
+def _signed(value: Fraction | None) -> str | None:
+    if value is None:
+        return None
+    text = display(value)
+    return text if text.startswith("-") or text == "0.00" else f"+{text}"
 
 
 def inputs_hash(result: dict) -> str:

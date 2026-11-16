@@ -88,8 +88,8 @@ def test_sanity_check_detects_leakage(history, monkeypatch):
 
     original = eng.MatchStore.team_window
 
-    def leaky(self, team_id, cutoff, venue, n):
-        return original(self, team_id, cutoff + timedelta(days=60), venue, n)
+    def leaky(self, team_id, cutoff, venue, n, **kw):
+        return original(self, team_id, cutoff + timedelta(days=60), venue, n, **kw)
 
     monkeypatch.setattr(eng.MatchStore, "team_window", leaky)
     from sqlalchemy import select

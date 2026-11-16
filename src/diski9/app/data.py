@@ -1,8 +1,9 @@
 """Read-only data service for the Dash app.
 
 Reads the screener cache, the odds tables and official standings from the local
-database. It never calls API-Football, so page interactions cost no requests.
-Loaded data is kept in memory for ``ttl_seconds`` (default 5 minutes).
+database. It never calls API-Football, so page interactions (tabs, ranking,
+filters, pagination, expanding details) cost no requests. Loaded data is kept in
+memory for ``ttl_seconds`` (default 5 minutes).
 """
 
 from __future__ import annotations
@@ -19,13 +20,15 @@ from sqlalchemy import Engine, false, func, select
 from diski9.api_football.markets import Market, Outcome
 from diski9.db.schema import competitions, fixtures, odds_quotes, screener_results
 from diski9.ingestion.reference import latest_standings
-from diski9.odds.consensus import MarketConsensus, fixture_consensus, load_bookmakers
-from diski9.odds.implied import ImpliedProbabilities, implied
+from diski9.odds.consensus import load_bookmakers
+from diski9.odds.display import DisplayedMarket, display_consensus
 from diski9.screener import cache
 from diski9.screener.engine import ENGINE_VERSION
-from diski9.screener.rank import rank
+from diski9.screener.rank import DEFAULT_DIRECTION, rank
 
+PAGE_SIZE = 10
 LEAGUE_SHORT = {39: "EPL", 288: "PSL", 40: "Championship", 289: "PSL 1st Div"}
+MARKET_OF = {"1X2": Market.MATCH_RESULT, "BTTS": Market.BTTS, "OU25": Market.OVER_UNDER_25}
 MARKET_OUTCOME_ORDER = {
     Market.MATCH_RESULT: (Outcome.HOME, Outcome.DRAW, Outcome.AWAY),
     Market.BTTS: (Outcome.BTTS_YES, Outcome.BTTS_NO),
@@ -40,27 +43,37 @@ OUTCOME_LABEL = {
     Outcome.OVER_25: "Over 2.5",
     Outcome.UNDER_25: "Under 2.5",
 }
+KICKOFF_OPTIONS = [
+    ("kickoff_earliest", "Kickoff: earliest first"),
+    ("kickoff_latest", "Kickoff: latest first"),
+]
 DIRECTIONS = {
-    "1X2": [
-        ("home_stronger", "Strongest home-team advantage"),
-        ("away_stronger", "Strongest away-team advantage"),
+    "1X2": KICKOFF_OPTIONS
+    + [
+        ("home_stronger", "Strongest home-team form advantage"),
+        ("away_stronger", "Strongest away-team form advantage"),
         ("evenly_matched", "Most evenly matched"),
     ],
-    "BTTS": [
-        ("btts_yes", "BTTS Yes: highest indicator first"),
-        ("btts_no", "BTTS No: lowest indicator first"),
+    "BTTS": KICKOFF_OPTIONS
+    + [
+        ("btts_yes", "Highest BTTS Yes historical indicator"),
+        ("btts_no", "Highest BTTS No historical indicator"),
     ],
-    "OU25": [
-        ("over", "Over 2.5: highest indicator first"),
-        ("under", "Under 2.5: lowest indicator first"),
+    "OU25": KICKOFF_OPTIONS
+    + [
+        ("over", "Highest Over 2.5 historical indicator"),
+        ("under", "Highest Under 2.5 historical indicator"),
     ],
 }
 
 
+def valid_direction(market: str, direction: str | None) -> str:
+    return direction if direction in dict(DIRECTIONS[market]) else DEFAULT_DIRECTION
+
+
 @dataclass
 class OddsView:
-    markets: dict[Market, MarketConsensus]
-    implied: dict[Market, ImpliedProbabilities]
+    markets: dict[Market, DisplayedMarket]
     league_has_odds: bool
 
 
@@ -83,6 +96,32 @@ class Snapshot:
             and self.fixtures_updated_at
             and self.fixtures_updated_at > self.cache_verified_at
         )
+
+
+@dataclass(frozen=True)
+class Page:
+    results: list[dict]
+    page: int
+    pages: int
+    total: int
+    first: int  # 1-based index of the first fixture on the page (0 if empty)
+    last: int
+
+    @property
+    def summary(self) -> str:
+        if not self.total:
+            return ""
+        noun = "fixture" if self.total == 1 else "fixtures"
+        return f"Showing {self.first}–{self.last} of {self.total} {noun}"
+
+
+def paginate(results: list[dict], page: int, size: int = PAGE_SIZE) -> Page:
+    total = len(results)
+    pages = max(1, -(-total // size))
+    page = min(max(1, page), pages)
+    start = (page - 1) * size
+    chunk = results[start : start + size]
+    return Page(chunk, page, pages, total, start + 1 if chunk else 0, start + len(chunk))
 
 
 class ScreenerData:
@@ -136,9 +175,8 @@ class ScreenerData:
                 payload = results["venue"].get(fid) or results["overall"][fid]
                 comp = payload["fixture"]["competition_id"]
                 seasons.add((comp, payload["fixture"]["season"]))
-                markets = fixture_consensus(conn, fid, now, books=books)
                 odds[fid] = OddsView(
-                    markets, {m: implied(mc) for m, mc in markets.items()}, comp in comps_with_odds
+                    display_consensus(conn, fid, now, books=books), comp in comps_with_odds
                 )
             standings = {comp: latest_standings(conn, comp, season) for comp, season in seasons}
             meta = conn.execute(
@@ -165,7 +203,8 @@ class ScreenerData:
         return Snapshot(now, results, odds, standings, meta[0], meta[1], fx_updated, leagues)
 
     # ------------------------------------------------------------ formatting
-    def local(self, dt: datetime | str | None, fmt: str = "%a %d %b %H:%M") -> str:
+    def local(self, dt: datetime | str | None, fmt: str = "%a %d %b, %H:%M") -> str:
+        """Readable local time, e.g. 'Sat 21 Nov, 14:30' (UTC values are unchanged)."""
         if dt is None:
             return "—"
         if isinstance(dt, str):
@@ -192,9 +231,10 @@ class ScreenerData:
         direction: str,
         threshold: float | None,
     ) -> list[dict]:
+        """Filter first, then rank (deterministic)."""
         snap = self.snapshot()
         results = list(snap.results.get(basis, {}).values())
-        if leagues:
+        if leagues is not None:
             results = [r for r in results if r["fixture"]["competition_id"] in leagues]
         if start or end:
 
@@ -203,60 +243,66 @@ class ScreenerData:
                 return (start is None or d >= start) and (end is None or d <= end)
 
             results = [r for r in results if in_range(r)]
-        return rank(results, direction, threshold)  # type: ignore[arg-type]
+        return rank(results, valid_direction(market, direction), threshold)
 
-    def table_rows(self, market: str, results: list[dict]) -> list[dict[str, Any]]:
+    def row(self, market: str, r: dict) -> dict[str, Any]:
+        """Display-ready values for one fixture row/card."""
         snap = self.snapshot()
-        rows = []
-        for r in results:
-            f, t, mr = r["fixture"], r["teams"], r["match_result"]
-            ov = snap.odds.get(f["id"])
-            row: dict[str, Any] = {
-                "id": f["id"],
-                "kickoff": self.local(f["kickoff"], "%Y-%m-%d %H:%M"),
-                "league": LEAGUE_SHORT.get(f["competition_id"], f["competition"]),
-                "home": f["home"],
-                "away": f["away"],
-            }
-            if market == "1X2":
-                diff = (
-                    mr["venue_adjusted_difference"]
-                    if r["basis"] == "venue"
-                    else mr["raw_difference"]
-                )
-                row.update(
-                    home_metric=_round(mr["home_form"]),
-                    away_metric=_round(mr["away_form"]),
-                    indicator=_round(diff),
-                    sample=_samples(t, "form"),
-                    limited="⚠ Limited data" if r["limited_data"]["form"] else "",
-                )
-                key = Market.MATCH_RESULT
-            else:
-                gk = "btts" if market == "BTTS" else "over_2_5"
-                block = r["btts"] if market == "BTTS" else r["over_under_2_5"]
-                yes = block["yes_indicator"] if market == "BTTS" else block["over_indicator"]
-                row.update(
-                    home_metric=(t["home"]["goals"][gk] or {}).get("display", "—"),
-                    away_metric=(t["away"]["goals"][gk] or {}).get("display", "—"),
-                    indicator=_round(yes, 4),
-                    complement=_round(1 - yes, 4) if yes is not None else None,
-                    sample=_samples(t, "goals"),
-                    limited="⚠ Limited data" if r["limited_data"]["goals"] else "",
-                )
-                key = Market.BTTS if market == "BTTS" else Market.OVER_UNDER_25
-            row["odds"] = self.odds_cell(ov, key)
-            rows.append(row)
-        return rows
+        f, t, mr = r["fixture"], r["teams"], r["match_result"]
+        ov = snap.odds.get(f["id"])
+        out: dict[str, Any] = {
+            "id": f["id"],
+            "kickoff": self.local(f["kickoff"]),
+            "league": LEAGUE_SHORT.get(f["competition_id"], f["competition"]),
+            "home": f["home"],
+            "away": f["away"],
+        }
+        if market == "1X2":
+            sample = [t[s]["form"]["sample"]["matches"] for s in ("home", "away")]
+            out.update(
+                home_metric=t["home"]["form"]["display"] or "—",
+                away_metric=t["away"]["form"]["display"] or "—",
+                indicator=mr["form_difference"],
+                indicator_display=mr["form_difference_display"] or "—",
+                complement_display=None,
+                limited=r["limited_data"]["form"],
+                sample=f"{sample[0]} / {sample[1]} matches",
+            )
+        else:
+            key, block = (
+                ("btts", r["btts"]) if market == "BTTS" else ("over_2_5", r["over_under_2_5"])
+            )
+            yes_key, no_key = (
+                ("yes_display", "no_display")
+                if market == "BTTS"
+                else ("over_display", "under_display")
+            )
+            out.update(
+                home_metric=(t["home"]["goals"][key] or {}).get("display", "—"),
+                away_metric=(t["away"]["goals"][key] or {}).get("display", "—"),
+                indicator=block["yes_indicator" if market == "BTTS" else "over_indicator"],
+                indicator_display=block[yes_key] or "—",
+                complement_display=block[no_key] or "—",
+                limited=r["limited_data"]["goals"],
+                sample=None,
+            )
+        status, odds_text = self.odds_summary(ov, MARKET_OF[market])
+        out.update(odds=odds_text, odds_status=status)
+        return out
 
-    def odds_cell(self, ov: OddsView | None, market: Market) -> str:
-        if ov is None or not ov.markets[market].displayable:
-            return "No odds" if ov is None or not ov.league_has_odds else "Unavailable"
-        mc = ov.markets[market]
-        return " · ".join(
-            str(mc.outcomes[o].consensus_odds) if mc.outcomes[o].consensus_odds else "—"
+    def odds_summary(self, ov: OddsView | None, market: Market) -> tuple[str, str]:
+        if ov is None:
+            return "unavailable", "—"
+        dm = ov.markets[market]
+        if dm.status == "unavailable":
+            return "unavailable", "No odds" if not ov.league_has_odds else "—"
+        prices = " · ".join(
+            str(dm.consensus.outcomes[o].consensus_odds)
+            if dm.consensus.outcomes[o].consensus_odds
+            else "—"
             for o in MARKET_OUTCOME_ORDER[market]
         )
+        return dm.status, prices
 
     def detail(self, fixture_id: int, basis: str) -> tuple[dict | None, OddsView | None, dict]:
         snap = self.snapshot()
@@ -264,11 +310,3 @@ class ScreenerData:
         if r is None:
             return None, None, {}
         return r, snap.odds.get(fixture_id), snap.standings.get(r["fixture"]["competition_id"], {})
-
-
-def _samples(teams: dict, key: str) -> str:
-    return f"{teams['home'][key]['sample']['matches']} / {teams['away'][key]['sample']['matches']}"
-
-
-def _round(x: float | None, places: int = 2) -> float | None:
-    return None if x is None else round(x, places)

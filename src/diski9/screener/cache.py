@@ -25,15 +25,16 @@ from .engine import ENGINE_VERSION, Basis, MatchStore, ScreenerConfig, compute_f
 
 def _row_values(result: dict) -> dict[str, Any]:
     mr = result["match_result"]
-    bench = mr["benchmark"] or {}
     return {
         "home_form": mr["home_form"],
         "away_form": mr["away_form"],
-        "raw_difference": mr["raw_difference"],
-        "venue_adjusted_difference": mr["venue_adjusted_difference"],
-        "benchmark_season": bench.get("season"),
-        "benchmark_source": bench.get("source"),
-        "benchmark_matches": bench.get("matches"),
+        # Form Difference (engine >= 2.0.0) is stored in the raw_difference column;
+        # venue adjustment and benchmarks are no longer part of the public result.
+        "raw_difference": mr["form_difference"],
+        "venue_adjusted_difference": None,
+        "benchmark_season": None,
+        "benchmark_source": None,
+        "benchmark_matches": None,
         "btts_yes_indicator": result["btts"]["yes_indicator"],
         "over25_indicator": result["over_under_2_5"]["over_indicator"],
         "limited_data": bool(result["limited_data"]["form"] or result["limited_data"]["goals"]),
