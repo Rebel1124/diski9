@@ -8,7 +8,8 @@ Layout (final UI refinement, after Milestone 5.3):
   Card 2   Bookmaker Market Reference - the selected market only: status,
            timestamps, market-implied probabilities, consensus odds (raw implied),
            bookmaker groups, margin removed and a short margin note
-  Then     collapsed sections: league positions, head-to-head
+           At its foot, under "Match context" (historical, not bookmaker data):
+           collapsed League positions and Head-to-head rows
 """
 
 from __future__ import annotations
@@ -99,14 +100,6 @@ def info(content: Any, label: str = "More information", extra_class: str = "") -
 
 def pill(text: str, kind: str = "") -> html.Span:
     return html.Span(text, className=f"pill {kind}".strip())
-
-
-def section(title: str, *children: Any, open_: bool = False) -> html.Details:
-    return html.Details(
-        [html.Summary(title), html.Div(children, className="section-body")],
-        className="more",
-        open=open_,
-    )
 
 
 def sequence(seq: str) -> html.Span:
@@ -364,7 +357,40 @@ MARGIN_NOTE = (
 )
 
 
+def context_group(*sections: Any) -> html.Div:
+    """League positions and head-to-head: historical context shown at the foot of the
+    bookmaker card for a compact layout, labelled so it is never read as market data."""
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span("Match context", className="label"),
+                    html.Span("Historical results, not bookmaker data", className="muted small"),
+                ],
+                className="label-row context-head",
+            ),
+            *sections,
+        ],
+        className="acc-group context-group",
+    )
+
+
 def market_card(
+    ov: OddsView | None,
+    market: Market,
+    data: ScreenerData,
+    league: str,
+    context: list | None = None,
+) -> html.Section:
+    """Bookmaker card with the historical context rows appended at the bottom (always,
+    whatever the odds status)."""
+    card = _market_card(ov, market, data, league)
+    if context:
+        card.children.append(context_group(*context))
+    return card
+
+
+def _market_card(
     ov: OddsView | None, market: Market, data: ScreenerData, league: str
 ) -> html.Section:
     """The selected market only: status, times, market-implied probabilities, consensus
@@ -859,7 +885,7 @@ def positions_section(r: dict, official: dict) -> html.Details:
             ]
         )
     )
-    return section(
+    return accordion(
         "League positions",
         html.P(label, className="muted small"),
         html.Table([head, html.Tbody(body)], className="grid compact"),
@@ -872,8 +898,9 @@ def positions_section(r: dict, official: dict) -> html.Details:
 def h2h_section(r: dict) -> html.Details:
     h = r["head_to_head"]
     if not h:
-        return section(
-            "Head-to-head", html.P("No previous meetings in the stored leagues.", className="muted")
+        return accordion(
+            "Head-to-head",
+            html.P("No previous meetings in the stored leagues.", className="muted small"),
         )
     rows = [
         html.Tr(
@@ -893,7 +920,7 @@ def h2h_section(r: dict) -> html.Details:
         )
         for m in h
     ]
-    return section(
+    return accordion(
         "Head-to-head (last 5 meetings)",
         html.Div(html.Table(html.Tbody(rows), className="grid compact"), className="scroll-x"),
         html.P(
@@ -925,10 +952,12 @@ def render_detail(
                 className="detail-header",
             ),
             analysis_card(r, market),
-            market_card(ov, MARKET_OF[market], data, league),
-            html.Div(
-                [positions_section(r, official), h2h_section(r)],
-                className="sections",
+            market_card(
+                ov,
+                MARKET_OF[market],
+                data,
+                league,
+                context=[positions_section(r, official), h2h_section(r)],
             ),
             html.P(
                 f"{r['indicator_note']} Uses only results before {data.local(r['cutoff'])} {data.tz_label}.",

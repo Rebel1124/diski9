@@ -666,7 +666,12 @@ def test_market_card_selected_market_only_with_sources_and_margin(data):
         assert f"combined margin removed {margin}" in text
         assert "proportionally adjusting the probabilities to total 100%" in text
         assert "raw " in text  # raw implied kept distinct from market-implied
-        assert not _find(card, lambda c: isinstance(c, h.Details) and c.className == "acc")
+        # the only expanders are the historical context rows (no odds-details accordion)
+        accs = _find(card, lambda c: isinstance(c, h.Details) and c.className == "acc")
+        assert [_text(a.children[0]).split(" (")[0] for a in accs] == [
+            "League positions",
+            "Head-to-head",
+        ]
         assert "Odds details" not in text and "other markets" not in text.lower()
 
 

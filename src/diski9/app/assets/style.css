@@ -299,3 +299,9 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .price-cell .raw { margin-top: 2px; }
 .market-facts { margin: 4px 0 2px; }
 .margin-note { margin: 2px 0 0; max-width: 70ch; }
+
+/* League positions and head-to-head at the foot of the bookmaker card */
+.market .context-group { margin-top: 14px; }
+.market .context-group .acc { margin-top: 0; }
+.context-head { padding: 10px 0 2px; border-top: 1px solid var(--border); gap: 10px; }
+.context-group .acc-body table { margin-top: 2px; }

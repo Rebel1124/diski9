@@ -47,9 +47,19 @@ def test_two_titled_cards_in_every_market(data, market):
     accs = _find(analysis, lambda c: isinstance(c, html.Details) and c.className == "acc")
     assert [_text(a.children[0]) for a in accs] == ["How it's calculated", "Matches used"]
     assert all(a.open is False for a in accs)
-    # no separate outer cards for them any more
-    outer = [_text(c.children[0]) for c in d.children[3].children]
-    assert [o.split(" (")[0] for o in outer] == ["League positions", "Head-to-head"]
+    # league positions and head-to-head sit at the foot of the bookmaker card,
+    # under a "Match context" label, collapsed; no standalone cards remain
+    ctx = _find(market_card, lambda c: getattr(c, "className", "") == "acc-group context-group")
+    assert len(ctx) == 1 and market_card.children[-1] is ctx[0]
+    assert _text(ctx[0]).startswith("Match context Historical results, not bookmaker data")
+    rows = _find(ctx[0], lambda c: isinstance(c, html.Details) and c.className == "acc")
+    assert [_text(a.children[0]).split(" (")[0] for a in rows] == [
+        "League positions",
+        "Head-to-head",
+    ]
+    assert all(a.open is False for a in rows)
+    assert len(d.children) == 4  # heading, analysis card, bookmaker card, footnote
+    assert not _find(d, lambda c: getattr(c, "className", "") == "sections")
     assert "Other markets" not in _text(d)
 
 
@@ -112,13 +122,39 @@ def test_form_tiles_without_badges_and_results_in_matches_used(data):
     assert "BTTS in" in _text(analysis) and "out of 5" not in _text(analysis)
 
 
+def test_context_rows_present_for_fresh_stale_and_unavailable_odds(populated):
+    from datetime import timedelta
+
+    from diski9.app import ScreenerData
+
+    from .test_app import T0
+
+    cases = [
+        (T0, EPL_FIX, "fresh"),
+        (T0 + timedelta(days=2), EPL_FIX, "stale"),
+        (T0, PSL_FIX, None),  # league without bookmaker odds
+    ]
+    for clock, fid, status in cases:
+        d = ScreenerData(populated, ttl_seconds=0, clock=lambda c=clock: c)
+        r, ov, official = d.detail(fid, "venue")
+        for market in MARKETS:
+            _, card = cards(render_detail(r, ov, official, market, d))
+            if status:
+                assert status in card.className
+            rows = _find(card, lambda c: isinstance(c, html.Details) and c.className == "acc")
+            titles = [_text(a.children[0]).split(" (")[0] for a in rows]
+            assert titles == ["League positions", "Head-to-head"], (fid, market, titles)
+            assert "No previous meetings in the stored leagues." in _text(card)
+
+
 def test_psl_market_card_is_small_and_honest(data):
     r, ov, official = data.detail(PSL_FIX, "venue")
     for market in MARKETS:
         _, card = cards(render_detail(r, ov, official, market, data))
         assert "compact" in card.className
         assert "No bookmaker odds are available for the PSL" in _text(card)
-        assert "%" not in _text(card) and "bookmaker group" not in _text(card)
+        odds_part = _text(card.children[:-1])  # everything above the context rows
+        assert "%" not in odds_part and "bookmaker group" not in odds_part
 
 
 BROWSER = """
@@ -147,6 +183,13 @@ const state = (p) => p.evaluate(() =>
     await acc.nth(1).click(); r.bothOpen = await state(p);
     await acc.nth(0).click(); r.secondOnly = await state(p);
     r.summaryHeight = await acc.first().evaluate(e => e.getBoundingClientRect().height);
+    const rowsCtx = p.locator('.market .context-group details.acc');
+    r.ctxClosed = await rowsCtx.evaluateAll(ds => ds.map(d => d.open));
+    await rowsCtx.nth(0).locator('summary').click();
+    await rowsCtx.nth(1).locator('summary').focus();
+    await p.keyboard.press('Enter');  // keyboard opens the second row
+    r.ctxOpen = await rowsCtx.evaluateAll(ds => ds.map(d => d.open));
+    r.cardsBelow = await p.evaluate(() => document.querySelectorAll('.detail .sections').length);
     r.overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     out[name] = r;
     await ctx.close();
@@ -181,5 +224,7 @@ def test_browser_cards_accordions_and_mobile(data):
             assert r["secondOnly"] == [False, True]
             assert r["summaryHeight"] >= 44  # comfortable touch target
             assert r["overflow"] <= 0
+            assert r["ctxClosed"] == [False, False] and r["ctxOpen"] == [True, True]
+            assert r["cardsBelow"] == 0
     finally:
         server.shutdown()

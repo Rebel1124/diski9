@@ -41,6 +41,18 @@ API requests.*
      fixture are included. A baseline is shown once at least 30 eligible
      matches are available."*
 
+## Follow-up: match context inside the bookmaker card
+
+League positions and Head-to-head now sit at the foot of the Bookmaker Market
+Reference card:
+* They come under a divider labelled "Match context — Historical results, not
+  bookmaker data".
+* They are collapsed rows, with the same style as "How it's calculated".
+* They appear in every odds state (Fresh, Stale, Unavailable, and leagues with
+  no odds).
+* There are no standalone cards below the bookmaker card any more.
+* Their content is unchanged. This is UI only, with the engine still 2.2.0.
+
 ## League baseline: new calculation (`engine.league_baseline`)
 
 For a fixture in competition *c*, season *s*, with cutoff *t* (kickoff, or
