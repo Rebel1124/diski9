@@ -328,16 +328,20 @@ def test_record_text_counts_and_missing_history():
 def test_btts_detail_shows_three_layers_with_market_matching_odds_table(data):
     r, ov, official = data.detail(EPL_FIX, "overall")
     d = render_detail(r, ov, official, "BTTS", data)
-    summary = _text(d.children[1])
+    summary = _text(d.children[1])  # Diski 9 Match Analysis
+    market = _text(d.children[2])  # Bookmaker Market Reference
     # team 1: ten 3-0 home wins; team 2: ten 1-1 away draws
     assert "BTTS in 0 of 10" in summary and "No BTTS in 10 of 10" in summary
     assert "BTTS in 10 of 10" in summary
     assert "League BTTS baseline" in summary and "Unavailable" in summary  # no 2025 EPL stored
-    assert "Market-implied probabilities" in summary
-    # full_book: Yes 1.80, No 2.00 -> 52.6% / 47.4%; identical to the expanded table
-    assert "52.6%" in summary and "47.4%" in summary
-    full = _text(d)
-    assert full.count("52.6%") >= 2
+    assert summary.startswith("Diski 9 Match Analysis")
+    # market figures live only in the bookmaker card, shown once (no duplication)
+    assert "Market-implied" not in summary
+    assert "52.6%" not in summary and "47.4%" not in summary and "1.80" not in summary
+    assert "Market-implied probabilities" in market
+    # full_book: Yes 1.80, No 2.00 -> 52.6% / 47.4%, from the same consensus as before
+    assert "52.6%" in market and "47.4%" in market
+    assert _text(d).count("47.4%") == 1  # BTTS No shown once (52.6% also = raw 1/1.90)
     assert "Historical indicator" not in summary  # no longer the headline
     assert "predicted probabilit" not in summary.lower().replace("not predicted probabilit", "")
 
@@ -386,14 +390,14 @@ def test_overall_and_venue_records_differ():
 def test_stale_and_unavailable_goals_markets(populated):
     stale = ScreenerData(populated, ttl_seconds=0, clock=lambda: T0 + 2 * timedelta(days=1))
     r, ov, official = stale.detail(EPL_FIX, "overall")
-    summary = _text(render_detail(r, ov, official, "BTTS", stale).children[1])
+    summary = _text(render_detail(r, ov, official, "BTTS", stale).children[2])
     assert "Stale" in summary and "Prices may have changed" in summary and "52.6%" in summary
     assert stale.row("BTTS", r)["market_status"] == "stale"
     fresh = ScreenerData(populated, ttl_seconds=0, clock=lambda: T0)
     r, ov, official = fresh.detail(PSL_FIX, "overall")
-    summary = _text(render_detail(r, ov, official, "OU25", fresh).children[1])
+    summary = _text(render_detail(r, ov, official, "OU25", fresh).children[2])
     assert "market-implied probabilities are unavailable" in summary
-    assert "%" not in summary.split("League Over 2.5 baseline")[-1].split("Reference odds")[-1]
+    assert "%" not in summary
     assert fresh.row("OU25", r)["market"] == "No odds"
 
 

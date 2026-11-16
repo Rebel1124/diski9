@@ -25,9 +25,9 @@ async function select(page, text) {
   await page.waitForTimeout(600);
 }
 async function openSection(page, title) {
-  const d = page.locator('.detail details.more', { has: page.locator('summary', { hasText: title }) }).first();
+  const d = page.locator('.detail details.acc, .detail details.more', { has: page.locator('summary', { hasText: title }) }).first();
   if (!(await d.evaluate((el) => el.open))) await d.locator('summary').first().click();
-  await page.waitForFunction((t) => [...document.querySelectorAll('.detail details.more')]
+  await page.waitForFunction((t) => [...document.querySelectorAll('.detail details.acc, .detail details.more')]
     .some((el) => el.open && el.querySelector('summary').innerText.includes(t)), title);
   await page.waitForTimeout(300);
 }
@@ -51,7 +51,7 @@ async function basis(page, value) {
   await desk.screenshot({ path: `${out}/m53_1x2_table.png` });
   report.desktop_overflow_px = await overflow(desk);
   await select(desk, 'Sekhukhune United');
-  await openSection(desk, 'How is Form Score calculated?');
+  await openSection(desk, "How it's calculated");
   report.form_calc_rows = await desk.evaluate(() => [...document.querySelectorAll('.form-calc tbody tr')].map(r => r.innerText.replace(/\s+/g, ' ')));
   await desk.locator('.detail').screenshot({ path: `${out}/m53_1x2_detail.png` });
   report.selected_rows = await desk.evaluate(() => document.querySelectorAll('tr.row.selected').length);
@@ -70,9 +70,9 @@ async function basis(page, value) {
   await desk.keyboard.press('Escape');
   await desk.screenshot({ path: `${out}/m53_btts_table.png` });
   await select(desk, 'Aston Villa');
-  await openSection(desk, 'How are these figures calculated?');
+  await openSection(desk, "How it's calculated");
   await desk.locator('.detail').screenshot({ path: `${out}/m53_btts_detail.png` });
-  report.market_pair = await desk.evaluate(() => [...document.querySelectorAll('.goals-summary .pair-row.compact .pair-value')].map(e => `${e.innerText} ${getComputedStyle(e).fontSize} ${getComputedStyle(e).fontWeight}`));
+  report.market_pair = await desk.evaluate(() => [...document.querySelectorAll('.market .pair-row.compact .pair-value')].map(e => `${e.innerText} ${getComputedStyle(e).fontSize} ${getComputedStyle(e).fontWeight}`));
 
   // 5-6. Over/Under
   await tab(desk, 'Over/Under 2.5');

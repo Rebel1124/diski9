@@ -432,10 +432,10 @@ def test_detail_levels_and_form_breakdown(data):
     d = render_detail(r, ov, official, "1X2", data)
     text = _text(d)
     for phrase in (
-        "Form Difference",
+        "Diski 9 Match Analysis",
+        "Bookmaker Market Reference",
         "Diski Form Score",
         "How it's calculated",
-        "How is Form Score calculated?",
         "Points earned",
         "Points part = 2.5 × points ÷ 15",
         "Goal-difference part = 2.5 × (GD + 9) ÷ 18",
@@ -444,13 +444,15 @@ def test_detail_levels_and_form_breakdown(data):
         "Head-to-head",
         "League positions",
         "Reference odds",
-        "do not mean a draw is likely",
         "not predicted probabilities",
     ):
         assert phrase in text, phrase
+    # the redundant Form Difference headline is gone from the detail (kept in the table)
+    assert not _find(d, lambda c: "headline" in str(getattr(c, "className", "")))
+    assert "do not mean a draw is likely" not in text
     assert "Venue-adjusted" not in text and "benchmark" not in text.lower()
     assert "Raw total" not in text and "bonus" not in text.replace("No bonuses", "").lower()
-    # Level 3 sections start collapsed
+    # secondary sections start collapsed
     sections = [c for c in d.children[3].children]
     assert all(getattr(s, "open", False) is False for s in sections)
     lowered = text.lower()
@@ -495,7 +497,7 @@ def test_missing_odds_psl(data):
     r, ov, official = data.detail(PSL_FIX, "venue")
     assert data.row("BTTS", r)["odds"] == "No odds"
     text = _text(render_detail(r, ov, official, "BTTS", data))
-    assert "does not currently provide bookmaker odds for the PSL" in text
+    assert "No bookmaker odds are available for the PSL" in text
 
 
 def test_limited_data_warnings(data):
@@ -649,24 +651,23 @@ def _find(component, pred):
     return out
 
 
-def test_about_expander_directly_below_heading(data):
-    from diski9.app.views import odds_section
+def test_odds_details_accordion_in_market_card(data):
+    from diski9.api_football.markets import Market
+    from diski9.app.views import odds_details
 
     r, ov, official = data.detail(EPL_FIX, "venue")
-    sec = odds_section(ov, data, "EPL")
-    body = sec.children[1].children
-    first = body[0]
-    assert _text(first.children[0]) == "About these figures" and first.open is False
-    assert "Match result" in _text(body[1])  # first market table follows
-    about = _text(first)
+    acc = odds_details(ov, Market.MATCH_RESULT, data)
+    assert _text(acc.children[0]) == "Odds details and other markets" and acc.open is False
+    about = _text(acc)
     for phrase in (
-        "Consensus reference odds",
         "Raw implied probability",
         "Market-implied probability",
         "Fresh or Stale",
         "Market versus history",
+        "Match result (this market)",
+        "Both teams to score",
     ):
-        assert phrase in about
+        assert phrase in about, phrase
 
 
 def test_paired_outcomes_equal_typography(data):
@@ -688,8 +689,10 @@ def test_market_implied_probabilities_in_1x2_summary(populated):
     for clock, status in ((T0, "Fresh"), (T0 + 2 * DAY, "Stale")):
         d = ScreenerData(populated, ttl_seconds=0, clock=lambda c=clock: c)
         r, ov, official = d.detail(EPL_FIX, "venue")
-        summary = render_detail(r, ov, official, "1X2", d).children[1]
-        text = _text(summary)
+        card = render_detail(r, ov, official, "1X2", d).children[2]
+        text = _text(card)
+        assert text.startswith("Bookmaker Market Reference")
+        assert "not Diski 9 predictions" in text
         assert "Market-implied probabilities" in text and status in text
         ip = ov.markets[Market.MATCH_RESULT].implied
         for o in ip.margin_adjusted:
@@ -702,9 +705,10 @@ def test_market_implied_probabilities_in_1x2_summary(populated):
             assert banned not in text.lower()
     d = ScreenerData(populated, ttl_seconds=0, clock=lambda: T0)
     r, ov, official = d.detail(PSL_FIX, "venue")
-    text = _text(render_detail(r, ov, official, "1X2", d).children[1])
+    card = render_detail(r, ov, official, "1X2", d).children[2]
+    text = _text(card)
     assert "market-implied probabilities are unavailable" in text
-    assert "%" not in text.split("Reference odds")[-1]  # nothing invented
+    assert "%" not in text and "compact" in card.className  # nothing invented, small card
 
 
 def test_compact_limited_marker_in_table(data):
