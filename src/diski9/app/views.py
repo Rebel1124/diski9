@@ -317,26 +317,22 @@ def form_benchmark_block(bench: dict | None) -> html.Div:
         )
     if bench["basis"] == "venue":
         value = [
-            html.Span(f"Home: {bench['home']['display']} out of 5", className="baseline-value"),
-            html.Span(f"Away: {bench['away']['display']} out of 5", className="baseline-value"),
+            html.Span(f"Home: {bench['home']['display']} out of 5", className="bench-value"),
+            html.Span("|", className="bench-sep", **{"aria-hidden": "true"}),
+            html.Span(f"Away: {bench['away']['display']} out of 5", className="bench-value"),
         ]
         h, a = bench["home"]["teams"], bench["away"]["teams"]
         teams = f"{h} teams evaluated" if h == a else f"{h} home and {a} away teams evaluated"
     else:
-        value = [html.Span(f"{bench['overall']['display']} out of 5", className="baseline-value")]
+        value = [html.Span(f"{bench['overall']['display']} out of 5", className="bench-value")]
         teams = f"{bench['overall']['teams']} teams evaluated"
     return html.Div(
         [
             head,
+            html.Div(value, className="bench-values"),
             html.Div(
-                [
-                    *value,
-                    html.Span(
-                        f"{bench['competition']} {bench['season_label']} — {teams}",
-                        className="muted small",
-                    ),
-                ],
-                className="baseline-row",
+                f"{bench['competition']} {bench['season_label']} — {teams}",
+                className="muted small bench-source",
             ),
         ],
         className="baseline form-benchmark",

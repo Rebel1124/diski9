@@ -269,3 +269,23 @@ def test_simplified_cards_and_out_of_5_everywhere(data, market):
         assert "No BTTS in" not in t and "Under 2.5 in" not in t
         if market == "1X2":
             assert "out of 5" in t and " matches" not in t
+
+
+def test_benchmark_block_layout_separator_and_source_line():
+    r, card = _card("venue")
+    block = _find(card, lambda c: "form-benchmark" in str(getattr(c, "className", "")))[0]
+    values = _find(block, lambda c: getattr(c, "className", "") == "bench-values")[0]
+    parts = [getattr(c, "className", "") for c in values.children]
+    assert parts == ["bench-value", "bench-sep", "bench-value"]  # Home | Away
+    assert _text(values).replace(" ", "").count("|") == 1
+    source = _find(block, lambda c: "bench-source" in str(getattr(c, "className", "")))[0]
+    assert _text(source) == "EPL 2026/27 — 14 teams evaluated"
+    assert "out of 5" not in _text(source)
+    _, overall = _card("overall")
+    block = _find(overall, lambda c: "form-benchmark" in str(getattr(c, "className", "")))[0]
+    values = _find(block, lambda c: getattr(c, "className", "") == "bench-values")[0]
+    assert [getattr(c, "className", "") for c in values.children] == ["bench-value"]  # no sep
+    css = (
+        __import__("pathlib").Path(__file__).parents[1] / "src/diski9/app/assets/style.css"
+    ).read_text()
+    assert ".bench-sep { display: none; }" in css  # hidden when stacked on narrow screens

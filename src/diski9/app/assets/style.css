@@ -311,5 +311,13 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .league-cmp.above { color: #5fbf9a; }
 .league-cmp .cmp-icon { font-weight: 700; width: 1em; text-align: center; }
 
-/* League Form Score average: home and away values side by side, tight when stacked */
-.form-benchmark .baseline-row { column-gap: 22px; row-gap: 0; }
+/* League Form Score average: values on one line (separator), source line below;
+   on narrow screens the values stack and the separator is hidden */
+.bench-values { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 12px; }
+.bench-value { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.bench-sep { color: var(--border); font-size: 18px; }
+.bench-source { margin-top: 2px; }
+@media (max-width: 720px) {
+  .bench-values { flex-direction: column; gap: 0; }
+  .bench-sep { display: none; }
+}
