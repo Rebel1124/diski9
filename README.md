@@ -37,6 +37,9 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
 * **Engine 2.4.0** — Match Result Form Score from the last eight current-season matches
   (normalised for shorter windows), current-season league average, display-only venue
   context: [`docs/form_current_season.md`](docs/form_current_season.md)
+* **Research: unified goal-distribution model** (estimated goals → 1X2, BTTS,
+  Over/Under 2.5; research only, not in the app):
+  [`docs/goal_distribution_research.md`](docs/goal_distribution_research.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 

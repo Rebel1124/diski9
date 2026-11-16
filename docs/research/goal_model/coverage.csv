@@ -1,0 +1,17 @@
+league,season,eligible_completed,predictable,role,neutral_venue
+EPL,2023/24,380,350,tuning only,0
+EPL,2024/25,380,380,test (out of sample),0
+EPL,2025/26,380,380,test (out of sample),0
+EPL,2026/27,100,100,test (out of sample),0
+Championship,2023/24,552,517,tuning only,0
+Championship,2024/25,552,552,test (out of sample),0
+Championship,2025/26,552,552,test (out of sample),0
+Championship,2026/27,180,180,test (out of sample),0
+PSL,2023/24,240,210,tuning only,0
+PSL,2024/25,221,221,test (out of sample),0
+PSL,2025/26,240,240,test (out of sample),0
+PSL,2026/27,73,73,test (out of sample),0
+PSL 1st Division,2023/24,240,210,tuning only,0
+PSL 1st Division,2024/25,240,240,test (out of sample),0
+PSL 1st Division,2025/26,239,239,test (out of sample),0
+PSL 1st Division,2026/27,80,80,test (out of sample),0
