@@ -36,7 +36,33 @@ from diski9.research.evaluation import calibration_table, iso_week, paired_boots
 from diski9.research.form_score_comparison import write_csv  # noqa: E402
 from diski9.screener.engine import MatchStore  # noqa: E402
 
-DB = "sqlite:///data/research_crossleague.sqlite"
+DB_PATH = Path("data/research_crossleague.sqlite")
+DB = f"sqlite:///{DB_PATH}"
+_ARGS = "--competitions 140 61 78 135 2 3 --seasons 2022 2023 2024 2025 2026"
+BUILD_HELP = f"""The research database {DB_PATH} has not been built on this computer.
+It is local data (not in git). Build it once (about 67 API requests), then rerun:
+
+  uv run diski9 --database-url {DB} init-db
+  uv run diski9 --database-url {DB} sync-reference {_ARGS}
+  uv run diski9 --database-url {DB} ingest-fixtures {_ARGS}
+"""
+
+
+def require_research_db() -> None:
+    """Fail with build instructions (and without creating an empty file) when the
+    research database is missing or has not been populated."""
+    import sqlite3
+
+    if DB_PATH.exists():
+        with sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True) as con:
+            n = con.execute(
+                "select count(*) from sqlite_master where type='table' and name='fixtures'"
+            ).fetchone()[0]
+            if n and con.execute("select count(*) from fixtures").fetchone()[0]:
+                return
+    raise SystemExit(BUILD_HELP)
+
+
 OUT = Path("docs/research/goal_model_crossleague")
 FROZEN = gd.Params("season", 12, gd.INF, 30.0, 96)
 DOMESTIC = {140: "La Liga", 61: "Ligue 1", 78: "Bundesliga", 135: "Serie A"}
@@ -195,6 +221,7 @@ def development_league_check(alt: gd.Params) -> dict:
 
 
 def main() -> None:
+    require_research_db()
     OUT.mkdir(parents=True, exist_ok=True)
     gd.GAMES_PER_TEAM.update(GAMES)
     store, stage = load_store()
