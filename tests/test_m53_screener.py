@@ -37,8 +37,8 @@ F = Fraction
 
 
 # ------------------------------------------------------------- Model D
-def test_engine_version_bumped_for_model_d():
-    assert ENGINE_VERSION == "2.1.0"
+def test_engine_version_bumped_for_current_season_baselines():
+    assert ENGINE_VERSION == "2.2.0"  # 2.1.0 Model D; 2.2.0 no previous-season blend
 
 
 def test_model_d_exact_formula_worked_example():
@@ -222,30 +222,43 @@ def _league(n_current, n_prev, current_btts, prev_btts, comp=39):
 def test_baseline_current_season_only_from_30_matches():
     store = _store(_league(30, 40, current_btts=12, prev_btts=40))
     lb = league_baseline(store, 39, 2026, T + timedelta(days=60))
-    assert lb["source"] == "current_season" and lb["current_matches"] == 30
+    assert lb["available"] and lb["source"] == "current_season" and lb["matches"] == 30
     assert lb["btts"] == pytest.approx(12 / 30) and lb["over_2_5"] == pytest.approx(18 / 30)
-    assert lb["previous_matches"] == 0 and lb["current_weight"] == 1
+    assert lb["btts_display"] == "40%" and lb["over_2_5_display"] == "60%"
+    assert "previous_matches" not in lb and "current_weight" not in lb
 
 
-def test_baseline_early_season_blend_weight_n_over_30():
+def test_previous_season_never_blended_below_minimum():
+    # 12 current-season matches and a full previous season stored: still unavailable
     store = _store(_league(12, 40, current_btts=6, prev_btts=10))
     lb = league_baseline(store, 39, 2026, T + timedelta(days=60))
-    w = F(12, 30)
-    assert lb["source"] == "blended_previous_season"
-    assert lb["current_weight"] == pytest.approx(float(w))
-    assert lb["btts"] == pytest.approx(float(w * F(6, 12) + (1 - w) * F(10, 40)))
-    assert lb["over_2_5"] == pytest.approx(float(w * F(6, 12) + (1 - w) * F(30, 40)))
-    assert (lb["current_matches"], lb["previous_matches"]) == (12, 40)
-    assert lb["season_label"] == "2026/27" and lb["previous_season_label"] == "2025/26"
+    assert lb["available"] is False and lb["matches"] == 12 and lb["min_matches"] == 30
+    assert lb["btts"] is None and lb["over_2_5"] is None  # never 0, never a blend
+    assert lb["btts_display"] is None
+    # no current-season match at all: unavailable, previous season ignored
+    lb0 = league_baseline(_store(_league(0, 40, 0, 10)), 39, 2026, T)
+    assert lb0["available"] is False and lb0["matches"] == 0 and lb0["btts"] is None
+    assert league_baseline(_store([]), 39, 2026, T)["available"] is False
 
 
-def test_baseline_previous_season_only_and_unavailable():
-    store = _store(_league(0, 40, 0, 10))
-    lb = league_baseline(store, 39, 2026, T)
-    assert lb["source"] == "previous_season_only" and lb["btts"] == pytest.approx(0.25)
-    # thin current season and no previous season stored -> Unavailable, not a made-up value
-    assert league_baseline(_store(_league(10, 0, 5, 0)), 39, 2026, T + timedelta(days=60)) is None
-    assert league_baseline(_store([]), 39, 2026, T) is None
+def test_baseline_becomes_available_exactly_at_minimum():
+    ms = _league(40, 0, current_btts=20, prev_btts=0)  # one match per day, days 0..39
+    store = _store(ms)
+    assert league_baseline(store, 39, 2026, T + timedelta(days=29))["available"] is False  # 29
+    at30 = league_baseline(store, 39, 2026, T + timedelta(days=30))
+    assert at30["available"] and at30["matches"] == 30
+    assert at30["btts"] == pytest.approx(20 / 30)  # first 20 are BTTS
+    # the threshold is configurable
+    assert league_baseline(store, 39, 2026, T + timedelta(days=10), minimum=10)["available"]
+    assert not league_baseline(store, 39, 2026, T + timedelta(days=10), minimum=11)["available"]
+
+
+def test_previous_season_results_do_not_change_an_available_baseline():
+    with_prev = _store(_league(30, 300, current_btts=15, prev_btts=300))
+    without = _store(_league(30, 0, current_btts=15, prev_btts=0))
+    cut = T + timedelta(days=60)
+    a, b = league_baseline(with_prev, 39, 2026, cut), league_baseline(without, 39, 2026, cut)
+    assert a == b and a["btts"] == pytest.approx(0.5)
 
 
 def test_baseline_excludes_future_ineligible_and_other_competitions():
@@ -256,7 +269,7 @@ def test_baseline_excludes_future_ineligible_and_other_competitions():
     ms.append(_m(999, 35, 39, 2026, 7, 8, 3, 0))  # the fixture itself, kickoff == cutoff
     store = _store(ms)
     lb = league_baseline(store, 39, 2026, T + timedelta(days=35))
-    assert lb["current_matches"] == 30 and lb["btts"] == 1.0 and lb["over_2_5"] == 0.0
+    assert lb["matches"] == 30 and lb["btts"] == 1.0 and lb["over_2_5"] == 0.0
 
 
 def test_baseline_ignores_postponed_fixtures(conn):
@@ -273,27 +286,21 @@ def test_baseline_ignores_postponed_fixtures(conn):
     ]
     store_fixtures(conn, items, lambda: T0)
     lb = league_baseline(MatchStore(conn), 39, 2026, T0)
-    assert lb["current_matches"] == 30 and lb["btts"] == 1.0
+    assert lb["matches"] == 30 and lb["btts"] == 1.0
 
 
-def test_baseline_matches_milestone_5_2_research_method():
-    from diski9.research.historical_goals import league_prior
-
-    rng = random.Random(7)
-    ms = [
-        _m(i, -365 + i, 39, 2025, 1 + i % 9, 20 + i % 9, rng.randint(0, 3), rng.randint(0, 3))
-        for i in range(300)
-    ]
-    ms += [
-        _m(1000 + i, i, 39, 2026, 1 + i % 9, 20 + i % 9, rng.randint(0, 3), rng.randint(0, 3))
-        for i in range(60)
-    ]
+def test_baseline_compute_fixture_and_config_threshold():
+    ms = _league(20, 40, current_btts=10, prev_btts=40)
     store = _store(ms)
-    for day in (0, 5, 17, 29, 31, 59):
-        cut = T + timedelta(days=day)
-        prod, research = league_baseline(store, 39, 2026, cut), league_prior(store, 39, 2026, cut)
-        assert prod["btts"] == pytest.approx(research.btts)
-        assert prod["over_2_5"] == pytest.approx(research.over)
+    fx = _fixture(999, 100, 101, 60)
+    r = compute_fixture(store, fx, fx.kickoff_utc)
+    assert r["league_baseline"]["available"] is False and r["league_baseline"]["matches"] == 20
+    assert r["config"]["league_baseline_min"] == 30
+    from diski9.screener.engine import ScreenerConfig
+
+    r20 = compute_fixture(store, fx, fx.kickoff_utc, config=ScreenerConfig(league_baseline_min=20))
+    assert r20["league_baseline"]["btts"] == pytest.approx(0.5)
+    assert r20["inputs_hash"] != r["inputs_hash"]
 
 
 def test_team_histories_stay_current_season_only():
@@ -309,6 +316,7 @@ def test_team_histories_stay_current_season_only():
     )  # never the 2025 or other-comp draws
     assert g["sample"]["limited_data"] is True
     assert r["league_baseline"]["source"] == "current_season"
+    assert r["league_baseline"]["available"] and r["league_baseline"]["matches"] == 42
 
 
 # ---------------------------------------------------- records presentation
@@ -333,7 +341,9 @@ def test_btts_detail_shows_three_layers_with_market_matching_odds_table(data):
     # team 1: ten 3-0 home wins; team 2: ten 1-1 away draws
     assert "BTTS in 0 of 10" in summary and "No BTTS in 10 of 10" in summary
     assert "BTTS in 10 of 10" in summary
-    assert "League BTTS baseline" in summary and "Unavailable" in summary  # no 2025 EPL stored
+    # 21 current-season EPL matches in the fixture: below 30, so no percentage is shown
+    assert "League BTTS baseline" in summary and "Not enough current-season data yet" in summary
+    assert "21 of 30 eligible completed league matches" in summary
     assert summary.startswith("Diski 9 Match Analysis")
     # market figures live only in the bookmaker card, shown once (no duplication)
     assert "Market-implied" not in summary
@@ -436,9 +446,9 @@ def test_old_engine_rows_never_served_and_banner_until_rebuilt(populated):
                 screener_results.c.superseded_at.is_(None)
             )
         ).all()
-    assert {a[0] for a in active} == {"2.1.0"}
+    assert {a[0] for a in active} == {"2.2.0"}
     snap = d.snapshot(force=True)
     assert snap.outdated_rows == 0 and EPL_FIX in snap.results["venue"]
     assert "earlier method" not in _text(build_layout(d))
     payload = json.loads(json.dumps(snap.results["venue"][EPL_FIX]))
-    assert payload["engine_version"] == "2.1.0" and payload["match_result"]["method"] == "D"
+    assert payload["engine_version"] == "2.2.0" and payload["match_result"]["method"] == "D"

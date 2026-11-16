@@ -104,6 +104,8 @@ and league baselines are historical, not predicted probabilities."
 
 ## 4. League baseline methodology
 
+> **Superseded (engine 2.2.0):** league baselines now use the current season only, with no previous-season blending, and are unavailable below 30 matches. See [`ui_cleanup_and_baseline.md`](ui_cleanup_and_baseline.md). The description below is kept as a record of engine 2.1.0.
+
 This is the exact Milestone 5.2 research rule (`engine.league_baseline`). A
 test checks it equals `research.historical_goals.league_prior`.
 

@@ -49,11 +49,8 @@ def test_two_titled_cards_in_every_market(data, market):
     assert all(a.open is False for a in accs)
     # no separate outer cards for them any more
     outer = [_text(c.children[0]) for c in d.children[3].children]
-    assert [o.split(" (")[0] for o in outer] == [
-        "League positions",
-        "Head-to-head",
-        "Other markets",
-    ]
+    assert [o.split(" (")[0] for o in outer] == ["League positions", "Head-to-head"]
+    assert "Other markets" not in _text(d)
 
 
 def test_form_difference_removed_from_detail_but_kept_in_screener(data):
@@ -89,13 +86,39 @@ def test_calculation_details_preserved(data):
     assert "League BTTS baseline" in t and "current-season matches in this competition" in t
 
 
+def test_form_tiles_without_badges_and_results_in_matches_used(data):
+    r, ov, official = data.detail(EPL_FIX, "venue")
+    analysis, _ = cards(render_detail(r, ov, official, "1X2", data))
+    tiles = _find(analysis, lambda c: getattr(c, "className", "") == "tiles")[0].children
+    for tile in tiles:
+        t = _text(tile)
+        assert "out of 5" in t and "points and goal difference" in t and "matches" in t
+        assert not _find(tile, lambda c: "res-" in str(getattr(c, "className", "")))
+    matches = [
+        a
+        for a in _find(analysis, lambda c: isinstance(c, html.Details))
+        if _text(a.children[0]) == "Matches used"
+    ][0]
+    seq = r["teams"]["home"]["form"]["sequence"].split("-")
+    used = _find(matches, lambda c: getattr(c, "className", "") == "results-used")
+    assert len(used) == 2 and "oldest to newest" in _text(used[0])
+    badges = [
+        _text(b)
+        for b in _find(used[0], lambda c: str(getattr(c, "className", "")).startswith("res res-"))
+    ]
+    assert badges == list(reversed(seq))
+    # BTTS keeps its record presentation
+    analysis, _ = cards(render_detail(r, ov, official, "BTTS", data))
+    assert "BTTS in" in _text(analysis) and "out of 5" not in _text(analysis)
+
+
 def test_psl_market_card_is_small_and_honest(data):
     r, ov, official = data.detail(PSL_FIX, "venue")
     for market in MARKETS:
         _, card = cards(render_detail(r, ov, official, market, data))
         assert "compact" in card.className
         assert "No bookmaker odds are available for the PSL" in _text(card)
-        assert "%" not in _text(card)
+        assert "%" not in _text(card) and "bookmaker group" not in _text(card)
 
 
 BROWSER = """

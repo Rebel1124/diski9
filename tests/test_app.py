@@ -443,7 +443,7 @@ def test_detail_levels_and_form_breakdown(data):
         "Matches used",
         "Head-to-head",
         "League positions",
-        "Reference odds",
+        "Consensus reference odds",
         "not predicted probabilities",
     ):
         assert phrase in text, phrase
@@ -651,23 +651,23 @@ def _find(component, pred):
     return out
 
 
-def test_odds_details_accordion_in_market_card(data):
-    from diski9.api_football.markets import Market
-    from diski9.app.views import odds_details
+def test_market_card_selected_market_only_with_sources_and_margin(data):
+    from dash import html as h
 
     r, ov, official = data.detail(EPL_FIX, "venue")
-    acc = odds_details(ov, Market.MATCH_RESULT, data)
-    assert _text(acc.children[0]) == "Odds details and other markets" and acc.open is False
-    about = _text(acc)
-    for phrase in (
-        "Raw implied probability",
-        "Market-implied probability",
-        "Fresh or Stale",
-        "Market versus history",
-        "Match result (this market)",
-        "Both teams to score",
+    for market, own, others, margin in (
+        ("1X2", "1.45", ("1.80", "1.90"), "24.7%"),  # 1/1.45 + 1/3.40 + 1/3.80 - 1
+        ("BTTS", "1.80", ("1.45", "1.90"), "5.6%"),  # 1/1.80 + 1/2.00 - 1
     ):
-        assert phrase in about, phrase
+        card = render_detail(r, ov, official, market, data).children[2]
+        text = _text(card)
+        assert own in text and not any(o in text for o in others)  # this market only
+        assert "3 independent bookmaker groups" in text
+        assert f"combined margin removed {margin}" in text
+        assert "proportionally adjusting the probabilities to total 100%" in text
+        assert "raw " in text  # raw implied kept distinct from market-implied
+        assert not _find(card, lambda c: isinstance(c, h.Details) and c.className == "acc")
+        assert "Odds details" not in text and "other markets" not in text.lower()
 
 
 def test_paired_outcomes_equal_typography(data):

@@ -1,5 +1,7 @@
 # Fixture detail: two-card layout (final UI refinement before the Challenge)
 
+> **Updated:** the odds-details accordion, the "Other markets" section and the W/D/L badges on team cards were later removed or moved. See [`ui_cleanup_and_baseline.md`](ui_cleanup_and_baseline.md).
+
 *16 November 2026. UI only: no calculation, schema, cache or API change. The
 engine is still 2.1.0.*
 

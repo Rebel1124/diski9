@@ -50,6 +50,12 @@ const checks = (page) => page.evaluate(() => ({
     await openAcc(page, "How it's calculated");
     report[`${name}_1x2_open`] = await checks(page);
     await page.locator('.analysis').screenshot({ path: `${out}/ui_${name}_1x2_calculation_open.png` });
+    if (!phone) {
+      await openAcc(page, "How it's calculated");
+      await openAcc(page, 'Matches used');
+      report.results_used = await page.locator('.results-used').first().innerText();
+      await page.locator('.analysis').screenshot({ path: `${out}/ui_desktop_1x2_matches_open.png` });
+    }
     // BTTS (collapsed, then with "Matches used" open)
     await tab(page, 'Both teams to score');
     await pick(page, 'Manchester City', phone);

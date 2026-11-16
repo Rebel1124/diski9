@@ -299,9 +299,8 @@ class ScreenerData:
                 or "—",
                 complement_display=None,
                 baseline_display=(lb["btts_display" if market == "BTTS" else "over_2_5_display"])
-                if lb
+                if lb and lb.get("available")
                 else "—",
-                baseline_blended=bool(lb and lb["source"] != "current_season"),
                 limited=r["limited_data"]["goals"],
                 sample=None,
             )

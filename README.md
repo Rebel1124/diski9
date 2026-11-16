@@ -104,19 +104,20 @@ and it refuses with a clear message if `setup` has not completed. Without
 
 Restart `serve` (or wait up to 5 minutes) for the app to show refreshed data.
 
-### Methodology (engine 2.1.0)
+### Methodology (engine 2.2.0)
 
 * **Diski Form Score (0–5)**, Model D, from the last five eligible matches:
   2.5 × points ÷ 15 + 2.5 × (goal difference clipped to ±9, + 9) ÷ 18. No bonuses;
   no history means Unavailable. **Form Difference** = home − away.
 * **BTTS / Over 2.5**: team records (up to ten current-season matches in the
-  current competition), a point-in-time **league baseline** (blended with last
-  season until 30 current-season matches), and market-implied probabilities.
+  current competition), a point-in-time **league baseline** (current season only;
+  shown from 30 completed league matches), and market-implied probabilities.
 * **Reference odds**: Fresh, Stale (last valid consensus, labelled) or
   Unavailable. Stale odds are never eligible for the Challenge.
 
 Full details: [`docs/milestone5_3_model_migration.md`](docs/milestone5_3_model_migration.md),
-[`docs/milestone5_3_screener_ux.md`](docs/milestone5_3_screener_ux.md) and
+[`docs/milestone5_3_screener_ux.md`](docs/milestone5_3_screener_ux.md),
+[`docs/ui_cleanup_and_baseline.md`](docs/ui_cleanup_and_baseline.md) and
 [`docs/screener_methodology.md`](docs/screener_methodology.md) (earlier engines).
 Results from older engine versions are never shown; rebuild them locally with
 `uv run diski9 screener-refresh` (no API requests).

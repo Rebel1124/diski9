@@ -293,3 +293,9 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
   .market .prob-values .sep { display: none; }
   .market .prob-values .prob { display: flex; flex-direction: column; }
 }
+
+/* Final cleanup: results sequence in "Matches used"; market facts and margin note */
+.results-used { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; }
+.price-cell .raw { margin-top: 2px; }
+.market-facts { margin: 4px 0 2px; }
+.margin-note { margin: 2px 0 0; max-width: 70ch; }
