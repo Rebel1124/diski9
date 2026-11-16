@@ -17,6 +17,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
+from fractions import Fraction
 
 from diski9.screener.calc import diski_form_score
 from diski9.screener.engine import MatchStore, ScreenerConfig, TeamMatch, form_benchmark
@@ -123,6 +124,147 @@ def build_rows(
                 bo["overall"]["average"],
                 len(ids(hv) & ids(ho)),
                 len(ids(av) & ids(ao)),
+            )
+        )
+    return rows, skipped
+
+
+# ------------------------------------------------- longer overall windows (research)
+GD_PER_MATCH = Fraction(9, 5)  # production cap: +/-9 over five matches = 1.8 per match
+
+
+def score_n(results: list[tuple[int, int]], n: int) -> Fraction | None:
+    """Model D generalised to an n-match window, on the same 0-5 scale:
+
+        points part = 2.5 x P / (3n)
+        GD part     = 2.5 x (clip(GD, -c, c) + c) / (2c),  c = 1.8 n
+
+    i.e. the production per-match scale (+/-9 over five matches). With n = 5 this is
+    exactly the production Diski Form Score. Partial windows use actual totals over
+    the n-match denominator (no prorating), as in production. None if no matches."""
+    if not results:
+        return None
+    pts = sum(3 if f > a else 1 if f == a else 0 for f, a in results)
+    gd = sum(f - a for f, a in results)
+    c = GD_PER_MATCH * n
+    capped = max(-c, min(c, Fraction(gd)))
+    half = Fraction(5, 2)
+    return half * Fraction(pts, 3 * n) + half * (capped + c) / (2 * c)
+
+
+def window_benchmark(
+    store: MatchStore,
+    competition_id: int,
+    season: int,
+    cutoff: datetime,
+    venue: str | None,
+    n: int,
+    config: ScreenerConfig,
+) -> float | None:
+    """League average of ``score_n`` over point-in-time league members with a full
+    n-match window (same population and availability rule as production)."""
+    from diski9.screener.engine import league_members
+
+    members = league_members(store, competition_id, season, cutoff)
+    scores = []
+    for team in sorted(members):
+        w = store.team_window(team, cutoff, venue, n)
+        if len(w) == n:
+            scores.append(score_n([(t.goals_for, t.goals_against) for t in w], n))
+    k = len(scores)
+    if not members or k < config.form_benchmark_min_teams:
+        return None
+    if k / len(members) < config.form_benchmark_min_share:
+        return None
+    return float(sum(scores, Fraction(0)) / k)
+
+
+APPROACHES = ("venue", "overall5", "blend50", "overall7", "overall8", "overall10")
+
+
+@dataclass
+class WindowRow:
+    fixture_id: int
+    competition_id: int
+    season: int
+    kickoff: datetime
+    outcome: int
+    # approach -> (home score, away score, home benchmark, away benchmark)
+    values: dict[str, tuple[float, float, float, float]]
+    min_window: dict[str, int]  # approach-relevant smallest window length of the two teams
+    disagree_home: bool  # venue vs overall-5 indicators disagree for the home team
+    disagree_away: bool
+
+    def diff(self, a: str) -> float:
+        h, aw, _, _ = self.values[a]
+        return h - aw
+
+    def rel(self, a: str) -> tuple[float, float]:
+        h, aw, bh, ba = self.values[a]
+        return h - bh, aw - ba
+
+
+def build_window_rows(
+    store: MatchStore,
+    competitions: Iterable[int],
+    seasons: Iterable[int],
+    config: ScreenerConfig | None = None,
+) -> tuple[list[WindowRow], dict[str, int]]:
+    """Identical fixture set: rows only where every approach has both scores and both
+    benchmarks (point in time, cutoff = kickoff)."""
+    config = config or ScreenerConfig()
+    comps, yrs = set(competitions), set(seasons)
+    rows: list[WindowRow] = []
+    skipped = {"no_score": 0, "no_benchmark": 0}
+    for m in store.matches:
+        if not m.stats_eligible or m.competition_id not in comps or m.season not in yrs:
+            continue
+        k, comp, yr = m.kickoff, m.competition_id, m.season
+
+        def pairs(team, venue, n, k=k):
+            return [(t.goals_for, t.goals_against) for t in store.team_window(team, k, venue, n)]
+
+        win = {
+            "venue": (pairs(m.home_id, "home", 5), pairs(m.away_id, "away", 5), 5),
+            **{
+                f"overall{n}": (pairs(m.home_id, None, n), pairs(m.away_id, None, n), n)
+                for n in (5, 7, 8, 10)
+            },
+        }
+        sc = {a: (score_n(h, n), score_n(aw, n)) for a, (h, aw, n) in win.items()}
+        if any(s is None for pair in sc.values() for s in pair):
+            skipped["no_score"] += 1
+            continue
+        bench = {
+            "venue": (
+                window_benchmark(store, comp, yr, k, "home", 5, config),
+                window_benchmark(store, comp, yr, k, "away", 5, config),
+            ),
+            **{
+                f"overall{n}": (window_benchmark(store, comp, yr, k, None, n, config),) * 2
+                for n in (5, 7, 8, 10)
+            },
+        }
+        if any(b is None for pair in bench.values() for b in pair):
+            skipped["no_benchmark"] += 1
+            continue
+        values = {a: (float(sc[a][0]), float(sc[a][1]), bench[a][0], bench[a][1]) for a in win}
+        v, o = values["venue"], values["overall5"]
+        values["blend50"] = tuple(0.5 * x + 0.5 * y for x, y in zip(v, o, strict=True))
+        min_window = {a: min(len(h), len(aw)) for a, (h, aw, _) in win.items()}
+        min_window["blend50"] = min(min_window["venue"], min_window["overall5"])
+        outcome = 0 if m.home_goals > m.away_goals else 1 if m.home_goals == m.away_goals else 2
+        rows.append(
+            WindowRow(
+                m.fixture_id,
+                comp,
+                yr,
+                k,
+                outcome,
+                values,
+                min_window,
+                (v[0] > v[2]) != (o[0] > o[2]),
+                (v[1] > v[3]) != (o[1] > o[3]),
             )
         )
     return rows, skipped

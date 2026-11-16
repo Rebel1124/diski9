@@ -96,3 +96,30 @@ def test_rows_are_point_in_time_and_need_benchmarks():
     for r in rows:  # adding later results never changes an earlier fixture's row
         assert by_id[r.fixture_id] == r
     assert all(0 <= r.shared_home <= 5 for r in rows)
+
+
+def test_score_n_equals_production_at_five_and_scales_consistently():
+    import random
+    from fractions import Fraction
+
+    from diski9.research.form_blend import score_n
+    from diski9.screener.calc import diski_form_score
+
+    rng = random.Random(8)
+    for _ in range(2000):
+        w = [(rng.randint(0, 5), rng.randint(0, 5)) for _ in range(rng.randint(1, 5))]
+        assert score_n(w, 5) == diski_form_score(w).score  # identical to Model D
+    for n in (7, 8, 10):
+        assert score_n([(3, 0)] * n, n) == 5 and score_n([(0, 3)] * n, n) == 0
+        # level goal difference -> 1.25; all draws -> 2.5 x 1/3 + 1.25
+        assert score_n([(1, 1)] * n, n) == Fraction(5, 2) * Fraction(1, 3) + Fraction(5, 4)
+        # the GD cap is 1.8 per match: +1.8n reaches the full 2.5
+        c = Fraction(9, 5) * n
+        w = [(1, 0)] * n  # all wins (full points part), GD = n, below the cap c
+        assert score_n(w, n) == Fraction(5, 2) + Fraction(5, 2) * (n + c) / (2 * c)
+        for _ in range(500):
+            w = [(rng.randint(0, 4), rng.randint(0, 4)) for _ in range(rng.randint(1, n))]
+            assert 0 <= score_n(w, n) <= 5
+    # partial windows use the n-match denominator (no prorating)
+    assert score_n([(2, 0)] * 4, 8) < score_n([(2, 0)] * 8, 8)
+    assert score_n([], 8) is None
