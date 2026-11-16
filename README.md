@@ -21,6 +21,10 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
 * **Setup fix and Form Score scale (0–5):** [`docs/setup_fix_and_scale_change.md`](docs/setup_fix_and_scale_change.md)
 * **Milestone 5** — simplified Screener, new Diski Form Score, current-season goals
   indicators, stale odds display: [`docs/milestone5_report.md`](docs/milestone5_report.md)
+* **Milestone 5.1** — UI refinements, market-implied 1X2 summary, Form Score and
+  market-implied goals research (offline; scripts in `scripts/research_*.py`, which
+  need the dev dependencies numpy and scipy installed by `uv sync`):
+  [`docs/milestone5_1_report.md`](docs/milestone5_1_report.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 

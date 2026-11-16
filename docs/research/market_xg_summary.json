@@ -1,0 +1,91 @@
+{
+  "captures": 9,
+  "fixtures": 20,
+  "snapshots_with_all_three_markets": 180,
+  "status_by_combination": {
+    "1x2": {
+      "good_fit": 180
+    },
+    "ou25": {
+      "insufficient_market_data": 180
+    },
+    "btts": {
+      "insufficient_market_data": 180
+    },
+    "1x2+ou25": {
+      "good_fit": 135,
+      "approximate_fit": 45
+    },
+    "1x2+btts": {
+      "good_fit": 126,
+      "approximate_fit": 54
+    },
+    "1x2+btts+ou25": {
+      "good_fit": 126,
+      "approximate_fit": 54
+    }
+  },
+  "residuals_all_three": {
+    "max_abs": {
+      "0.1": 0.0076,
+      "0.5": 0.0155,
+      "0.75": 0.0205,
+      "0.9": 0.0217,
+      "1.0": 0.023
+    },
+    "draw_residual_mean": -0.0155,
+    "home_residual_mean": 0.0073,
+    "btts_yes_residual_mean": -0.0053,
+    "over_residual_mean": -0.0003
+  },
+  "lambda_ranges_all_three": {
+    "lambda_home": [
+      0.9482,
+      1.641,
+      2.3212
+    ],
+    "lambda_away": [
+      0.9333,
+      1.235,
+      2.0368
+    ],
+    "lambda_total": [
+      2.6481,
+      2.902,
+      3.2768
+    ]
+  },
+  "smallest_singular_value_median": {
+    "1x2": 0.0561,
+    "ou25": null,
+    "btts": null,
+    "1x2+ou25": 0.328,
+    "1x2+btts": 0.2498,
+    "1x2+btts+ou25": 0.3786
+  },
+  "combination_sensitivity_max_abs_lambda_change": {
+    "1x2": {
+      "median": 0.1675,
+      "p90": 0.2029
+    },
+    "1x2+ou25": {
+      "median": 0.0104,
+      "p90": 0.0167
+    },
+    "1x2+btts": {
+      "median": 0.0055,
+      "p90": 0.0094
+    }
+  },
+  "stability_across_captures": {
+    "fixtures": 20,
+    "median_home_range": 0.001,
+    "max_home_range": 0.007,
+    "median_away_range": 0.0,
+    "max_away_range": 0.006
+  },
+  "outcome_validation": {
+    "fixtures_with_pre_kickoff_odds_and_final_result": 0,
+    "note": "insufficient for outcome validation"
+  }
+}

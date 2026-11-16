@@ -232,42 +232,120 @@ def test_paginate_pure():
     assert paginate([], 1).summary == "" and paginate([], 1).pages == 1
 
 
-def test_page_resets_on_filter_change(data):
-    """The results callback resets to page 1 for any trigger other than prev/next."""
+def _results_callback(data):
+    app = create_app(data)
+    cb = next(v for k, v in app.callback_map.items() if "results-table.children" in k)
+    return cb, cb["callback"].__wrapped__
+
+
+def _trigger(prop_id: str, value=1):
+    from dash._callback_context import context_value
+    from dash._utils import AttributeDict
+
+    context_value.set(AttributeDict(triggered_inputs=[{"prop_id": prop_id, "value": value}]))
+
+
+def test_page_and_selection_transitions(data):
+    """Clicks select by fixture id and keep the page; prev/next page; filters reset to page 1."""
     import diski9.app.app as appmod
 
     captured = {}
 
     def fake(data_, market, leagues, start, end, basis, direction, threshold, page, selected):
-        captured["page"] = page
-        return (None,) * 10
+        captured.update(page=page, selected=selected)
+        return (None,) * 11
 
-    app = create_app(data)
-    cb = next(v for k, v in app.callback_map.items() if "results-table.children" in k)
-    assert "prev.n_clicks" in [i["id"] + "." + i["property"] for i in cb["inputs"]]
-    orig = appmod.results_payload
-    appmod.results_payload = fake
+    cb, func = _results_callback(data)
+    inputs = [i["id"] if isinstance(i["id"], str) else json.dumps(i["id"]) for i in cb["inputs"]]
+    assert (
+        "prev" in inputs and any('"row"' in i for i in inputs) and any('"fx"' in i for i in inputs)
+    )
+    orig, appmod.results_payload = appmod.results_payload, fake
     try:
-        func = cb["callback"].__wrapped__
-        from dash._callback_context import context_value
-        from dash._utils import AttributeDict
-
-        for trig, start, expected in (
-            ("next", 1, 2),
-            ("prev", 2, 1),
-            ("leagues", 3, 1),
-            ("direction", 2, 1),
+        args = ("1X2", [39], None, None, "venue", "kickoff_earliest", 0, 1, 1, [], [])
+        for prop, page, expected_page in (
+            ("next.n_clicks", 1, 2),
+            ("prev.n_clicks", 2, 1),
+            ("leagues.value", 3, 1),
+            ("direction.value", 2, 1),
         ):
-            context_value.set(
-                AttributeDict(triggered_inputs=[{"prop_id": f"{trig}.value", "value": 1}])
-            )
-            func("1X2", [39], None, None, "venue", "kickoff_earliest", 0, 1, 1, start, None)
-            assert captured["page"] == expected, trig
+            _trigger(prop)
+            func(*args, page, 77)
+            assert captured == {"page": expected_page, "selected": 77}, prop
+        _trigger(json.dumps({"index": 9001, "type": "row"}, separators=(",", ":")) + ".n_clicks")
+        func(*args, 2, 77)
+        assert captured == {"page": 2, "selected": 9001}  # page kept, selection follows the id
+        _trigger(json.dumps({"index": 9002, "type": "fx"}, separators=(",", ":")) + ".n_clicks")
+        func(*args, 2, 9001)
+        assert captured == {"page": 2, "selected": 9002}  # mobile cards behave the same
+        from dash.exceptions import PreventUpdate
+
+        _trigger(json.dumps({"index": 9001, "type": "row"}, separators=(",", ":")) + ".n_clicks", 0)
+        with pytest.raises(PreventUpdate):  # re-rendered rows (n_clicks 0) never select
+            func(*args, 1, 9002)
     finally:
         appmod.results_payload = orig
 
 
-# ------------------------------------------------------------------ filters
+def _selected_rows(p) -> list[int]:
+    table = p[0]
+    if table is None:
+        return []
+    return [row.id["index"] for row in table.children[1].children if "selected" in row.className]
+
+
+def _selected_cards(p) -> list[int]:
+    return [c.id["index"] for c in p[1] if "selected" in c.className]
+
+
+def test_highlight_follows_selected_fixture_id(data):
+    second_page = page_ids(payload(data, page=2))
+    target = second_page[1]
+    on_page_1 = results_payload(
+        data, "1X2", [39, 288], None, "2026-12-31", "venue", None, 0, 1, target
+    )
+    assert (
+        _selected_rows(on_page_1) == [] and _selected_cards(on_page_1) == []
+    )  # not visible: no highlight
+    assert on_page_1[10] == target  # but still selected
+    on_page_2 = results_payload(
+        data, "1X2", [39, 288], None, "2026-12-31", "venue", None, 0, 2, target
+    )
+    assert _selected_rows(on_page_2) == [target] and _selected_cards(on_page_2) == [target]
+    # re-sorting keeps the selection; it is highlighted wherever it lands, never the first row by default
+    latest = results_payload(
+        data, "1X2", [39, 288], None, "2026-12-31", "venue", "kickoff_latest", 0, 1, target
+    )
+    assert latest[10] == target and _selected_rows(latest) in ([target], [])
+    assert page_ids(latest)[0] not in _selected_rows(latest) or page_ids(latest)[0] == target
+
+
+def test_selection_cleared_when_filtered_out(data):
+    p = results_payload(data, "1X2", [288], None, "2026-12-31", "venue", None, 0, 1, EPL_FIX)
+    assert p[10] is None and _selected_rows(p) == []
+    kept = results_payload(data, "1X2", [39], None, "2026-12-31", "venue", None, 0, 1, EPL_FIX)
+    assert kept[10] == EPL_FIX and _selected_rows(kept) == [EPL_FIX]
+
+
+def test_form_basis_defaults_and_memory(data):
+    from diski9.app.app import DEFAULT_BASIS
+
+    assert DEFAULT_BASIS == {"1X2": "venue", "BTTS": "overall", "OU25": "overall"}
+    app = create_app(data)
+    apply_cb = next(v for k, v in app.callback_map.items() if k.startswith("basis.value"))[
+        "callback"
+    ].__wrapped__
+    remember = next(v for k, v in app.callback_map.items() if k.startswith("basis-pref.data"))[
+        "callback"
+    ].__wrapped__
+    assert apply_cb("1X2", {}) == "venue"
+    assert apply_cb("BTTS", {}) == "overall" and apply_cb("OU25", None) == "overall"
+    prefs = remember("venue", "BTTS", {})  # user explicitly picks venue for BTTS
+    assert apply_cb("BTTS", prefs) == "venue" and apply_cb("OU25", prefs) == "overall"
+    assert apply_cb("1X2", remember("overall", "1X2", prefs)) == "overall"
+    assert '"value":"venue"' in _layout_json(data)  # initial Match result view
+
+
 def test_league_and_date_filters(data):
     assert page_ids(payload(data, leagues=[288])) == [PSL_FIX]
     p = payload(data, leagues=[])
@@ -277,11 +355,25 @@ def test_league_and_date_filters(data):
     assert empty[0] is None and "No fixtures match" in _text(empty[4]) and empty[2] == ""
 
 
-def test_threshold_only_for_statistical_rankings():
-    assert threshold_config("1X2", "kickoff_earliest")["disabled"] is True
+def test_threshold_enabled_only_where_meaningful():
+    for d in ("kickoff_earliest", "kickoff_latest", "evenly_matched"):
+        c = threshold_config("1X2", d)
+        assert c["disabled"] is True and c["hint"] == "Available for strongest home/away rankings"
+    for d in ("home_stronger", "away_stronger"):
+        assert threshold_config("1X2", d)["disabled"] is False
     assert threshold_config("1X2", "home_stronger")["label"] == "Minimum form difference"
-    assert threshold_config("1X2", "evenly_matched")["max"] == 5
     assert threshold_config("BTTS", "btts_no")["label"] == "Minimum BTTS No indicator"
+    assert threshold_config("BTTS", "kickoff_earliest")["disabled"] is True
+
+
+def test_disabled_threshold_has_no_effect(data):
+    for d in ("kickoff_earliest", "kickoff_latest", "evenly_matched"):
+        assert page_ids(payload(data, direction=d, threshold=4.5)) == page_ids(
+            payload(data, direction=d, threshold=0)
+        )
+    assert page_ids(payload(data, direction="home_stronger", threshold=4.5)) != page_ids(
+        payload(data, direction="home_stronger", threshold=0)
+    )
 
 
 def test_threshold_filters(data):
@@ -520,5 +612,142 @@ def test_phone_viewport_cards_tooltip_and_pager(data):
             "after": 0,
         }
         # default range is today + 14 days, so the fixture 30 days out is not listed (14 fixtures)
+    finally:
+        server.shutdown()
+
+
+# ------------------------------------------------------------- Milestone 5.1
+def _find(component, pred):
+    out = []
+    if pred(component):
+        out.append(component)
+    children = getattr(component, "children", None)
+    for c in (
+        children
+        if isinstance(children, list | tuple)
+        else ([children] if children is not None else [])
+    ):
+        if not isinstance(c, str | int | float):
+            out += _find(c, pred)
+    return out
+
+
+def test_about_expander_directly_below_heading(data):
+    from diski9.app.views import odds_section
+
+    r, ov, official = data.detail(EPL_FIX, "venue")
+    sec = odds_section(ov, data, "EPL")
+    body = sec.children[1].children
+    first = body[0]
+    assert _text(first.children[0]) == "About these figures" and first.open is False
+    assert "Match result" in _text(body[1])  # first market table follows
+    about = _text(first)
+    for phrase in (
+        "Consensus reference odds",
+        "Raw implied probability",
+        "Market-implied probability",
+        "Fresh or Stale",
+        "Market versus history",
+    ):
+        assert phrase in about
+
+
+def test_paired_outcomes_equal_typography(data):
+    for market in ("BTTS", "OU25"):
+        r, ov, official = data.detail(EPL_FIX, "overall")
+        d = render_detail(r, ov, official, market, data)
+        values = _find(d, lambda c: getattr(c, "className", "") == "pair-value")
+        assert len(values) == 2  # both outcomes share exactly the same class
+        # no percentage is rendered in the larger headline style
+        assert not _find(
+            d,
+            lambda c: getattr(c, "className", "") in ("headline", "headline-2") and "%" in _text(c),
+        )
+
+
+def test_market_implied_probabilities_in_1x2_summary(populated):
+    from diski9.api_football.markets import Market
+
+    for clock, status in ((T0, "Fresh"), (T0 + 2 * DAY, "Stale")):
+        d = ScreenerData(populated, ttl_seconds=0, clock=lambda c=clock: c)
+        r, ov, official = d.detail(EPL_FIX, "venue")
+        summary = render_detail(r, ov, official, "1X2", d).children[1]
+        text = _text(summary)
+        assert "Market-implied probabilities" in text and status in text
+        ip = ov.markets[Market.MATCH_RESULT].implied
+        for o in ip.margin_adjusted:
+            assert (
+                f"{float(ip.margin_adjusted[o]) * 100:.1f}%" in text
+            )  # same values as the full table
+        total = sum(float(v) for v in ip.margin_adjusted.values()) * 100
+        assert abs(total - 100) < 1e-6
+        for banned in ("prediction:", "win prediction", "model probabilit", "confidence"):
+            assert banned not in text.lower()
+    d = ScreenerData(populated, ttl_seconds=0, clock=lambda: T0)
+    r, ov, official = d.detail(PSL_FIX, "venue")
+    text = _text(render_detail(r, ov, official, "1X2", d).children[1])
+    assert "market-implied probabilities are unavailable" in text
+    assert "%" not in text.split("Reference odds")[-1]  # nothing invented
+
+
+def test_compact_limited_marker_in_table(data):
+    p = payload(data, end="2026-12-31", page=2)
+    cells = _find(p[0], lambda c: getattr(c, "className", "") == "pill warn subtle")
+    assert cells and all(_text(c) == "Limited" and "fewer than" in c.title for c in cells)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not available")
+def test_browser_selection_highlight(data):
+    if subprocess.run(["node", "-e", "require('playwright')"], capture_output=True).returncode != 0:
+        pytest.skip("playwright for node not available")
+    from werkzeug.serving import make_server
+
+    port = _free_port()
+    server = make_server("127.0.0.1", port, create_app(data).server, threaded=True)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        script = f"""
+        const {{ chromium }} = require('playwright');
+        const sel = (p) => p.evaluate(() => [...document.querySelectorAll('tr.row.selected')].map(r => JSON.parse(r.id).index));
+        const ids = (p) => p.evaluate(() => [...document.querySelectorAll('tr.row')].map(r => JSON.parse(r.id).index));
+        (async () => {{
+          const b = await chromium.launch();
+          const p = await b.newPage({{ viewport: {{ width: 1400, height: 1000 }} }});
+          await p.goto('http://127.0.0.1:{port}/');
+          await p.waitForSelector('tr.row', {{ timeout: 20000 }});
+          const out = {{}};
+          const rows = await ids(p);
+          out.initial = await sel(p);
+          await p.locator('tr.row').nth(2).click();
+          await p.waitForFunction(() => document.querySelectorAll('tr.row.selected').length === 1);
+          out.afterThird = await sel(p); out.third = rows[2];
+          await p.waitForSelector('.detail-header h2');
+          const thirdTitle = await p.locator('.detail-header h2').innerText();
+          await p.locator('tr.row').nth(4).click();
+          await p.waitForFunction((id) => document.querySelector('tr.row.selected') && JSON.parse(document.querySelector('tr.row.selected').id).index === id, rows[4]);
+          out.afterFifth = await sel(p); out.fifth = rows[4];
+          await p.waitForFunction((t) => document.querySelector('.detail-header h2').innerText !== t, thirdTitle);
+          out.detail = await p.locator('.detail-header h2').innerText();
+          await p.locator('#next').click();
+          await p.waitForFunction(() => document.querySelector('#summary').innerText.startsWith('Showing 11'));
+          out.page2 = await sel(p);
+          await p.locator('#prev').click();
+          await p.waitForFunction(() => document.querySelector('#summary').innerText.startsWith('Showing 1–'));
+          out.backToPage1 = await sel(p);
+          console.log(JSON.stringify(out));
+          await b.close();
+        }})().catch(e => {{ console.error(e); process.exit(1); }});
+        """
+        time.sleep(0.5)
+        res = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=120)
+        assert res.returncode == 0, res.stderr
+        out = json.loads(res.stdout.strip().splitlines()[-1])
+        assert out["initial"] == []
+        assert out["afterThird"] == [out["third"]]
+        assert out["afterFifth"] == [out["fifth"]]  # highlight moved; previous row cleared
+        assert out["page2"] == []  # selection off-page: nothing unrelated highlighted
+        assert out["backToPage1"] == [out["fifth"]]
+        snap = data.snapshot().results["venue"][out["fifth"]]["fixture"]
+        assert out["detail"] == f"{snap['home']} v {snap['away']}"
     finally:
         server.shutdown()

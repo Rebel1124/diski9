@@ -187,14 +187,7 @@ def summary_card(r: dict, market: str, ov: OddsView | None, data: ScreenerData) 
                     ],
                     className="label-row",
                 ),
-                html.Div(
-                    [
-                        html.Span(f"{yes_lbl} ", className="muted"),
-                        html.Span(yes or "—", className="headline"),
-                        html.Span(f"   {no_lbl} ", className="muted"),
-                        html.Span(no or "—", className="headline-2"),
-                    ]
-                ),
+                paired_outcomes(yes_lbl, yes, no_lbl, no),
             ]
         )
         tiles = [
@@ -229,6 +222,30 @@ def summary_card(r: dict, market: str, ov: OddsView | None, data: ScreenerData) 
     )
 
 
+def paired_outcomes(yes_lbl: str, yes: str | None, no_lbl: str, no: str | None) -> html.Div:
+    """Both outcomes with identical typography: neither is visually favoured."""
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span(yes_lbl, className="pair-label"),
+                    html.Span(yes or "—", className="pair-value"),
+                ],
+                className="pair",
+            ),
+            html.Span("|", className="pair-sep", **{"aria-hidden": "true"}),
+            html.Div(
+                [
+                    html.Span(no_lbl, className="pair-label"),
+                    html.Span(no or "—", className="pair-value"),
+                ],
+                className="pair",
+            ),
+        ],
+        className="pair-row",
+    )
+
+
 def _goals_scope(window: str) -> str:
     return {"home": "current-season home matches", "away": "current-season away matches"}.get(
         window, "current-season matches"
@@ -256,7 +273,12 @@ def odds_strip(ov: OddsView | None, market: Market, data: ScreenerData, league: 
             [
                 html.Span("Reference odds", className="label"),
                 html.Div(
-                    f"API-Football does not currently provide bookmaker odds for the {league}.",
+                    f"API-Football does not currently provide bookmaker odds for the {league}"
+                    + (
+                        ", so market-implied probabilities are unavailable."
+                        if market is Market.MATCH_RESULT
+                        else "."
+                    ),
                     className="muted small",
                 ),
             ],
@@ -270,7 +292,15 @@ def odds_strip(ov: OddsView | None, market: Market, data: ScreenerData, league: 
                     [html.Span("Reference odds", className="label"), status_badge("unavailable")],
                     className="label-row",
                 ),
-                html.Div(dm.reason, className="muted small"),
+                html.Div(
+                    (
+                        "Market-implied probabilities unavailable. "
+                        if market is Market.MATCH_RESULT
+                        else ""
+                    )
+                    + dm.reason,
+                    className="muted small",
+                ),
             ],
             className="odds-strip",
         )
@@ -301,6 +331,7 @@ def odds_strip(ov: OddsView | None, market: Market, data: ScreenerData, league: 
                 ],
                 className="label-row",
             ),
+            market_probabilities(ip) if market is Market.MATCH_RESULT else None,
             html.Div(cells, className="prices"),
             html.Div(
                 "Consensus reference odds — not an offer from any bookmaker.",
@@ -308,6 +339,63 @@ def odds_strip(ov: OddsView | None, market: Market, data: ScreenerData, league: 
             ),
         ],
         className=f"odds-strip {dm.status}",
+    )
+
+
+def market_probabilities(ip) -> html.Div | None:
+    """Home/Draw/Away margin-adjusted probabilities from the consensus odds.
+
+    Market information (bookmaker-implied), not a Diski 9 prediction. Uses the same
+    values as the expanded reference-odds table. Shown only for a complete 1X2 set.
+    """
+    if ip is None or ip.margin_adjusted is None:
+        return html.Div(
+            "Market-implied probabilities need prices for home, draw and away.",
+            className="muted small",
+        )
+    order = MARKET_OUTCOME_ORDER[Market.MATCH_RESULT]
+    pct = {o: float(ip.margin_adjusted[o]) * 100 for o in order}
+    segments = [
+        html.Div(
+            className=f"seg seg-{o.value.lower()}",
+            style={"width": f"{pct[o]:.1f}%"},
+            title=f"{OUTCOME_LABEL[o]} {pct[o]:.1f}%",
+        )
+        for o in order
+    ]
+    values = []
+    for i, o in enumerate(order):
+        if i:
+            values.append(html.Span("|", className="sep"))
+        values.append(
+            html.Span(
+                [html.Span(OUTCOME_LABEL[o], className="muted"), f" {pct[o]:.1f}%"],
+                className="prob",
+            )
+        )
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span("Market-implied probabilities", className="label"),
+                    info(
+                        "Derived from the consensus bookmaker odds after removing the combined "
+                        "bookmaker margin. They describe the betting market, not a Diski 9 "
+                        "prediction.",
+                        "About market-implied probabilities",
+                    ),
+                ],
+                className="label-row",
+            ),
+            html.Div(
+                segments,
+                className="prob-bar",
+                role="img",
+                **{"aria-label": ", ".join(f"{OUTCOME_LABEL[o]} {pct[o]:.1f}%" for o in order)},
+            ),
+            html.Div(values, className="prob-values"),
+        ],
+        className="market-probs",
     )
 
 
@@ -535,6 +623,49 @@ def odds_section(ov: OddsView | None, data: ScreenerData, league: str) -> html.D
                 className="muted",
             ),
         )
+    about = section(
+        "About these figures",
+        html.Ul(
+            [
+                html.Li(
+                    [
+                        html.Strong("Consensus reference odds: "),
+                        "the median price across independent bookmakers (brands under common ownership "
+                        "count once). A reference value, not an offer from any bookmaker.",
+                    ]
+                ),
+                html.Li(
+                    [
+                        html.Strong("Raw implied probability: "),
+                        "1 ÷ odds. These add up to more than 100% because of the bookmaker margin.",
+                    ]
+                ),
+                html.Li(
+                    [
+                        html.Strong("Market-implied probability: "),
+                        "the raw figures rescaled to remove the combined margin, so a market's outcomes "
+                        "add up to 100%.",
+                    ]
+                ),
+                html.Li(
+                    [
+                        html.Strong("Fresh or Stale: "),
+                        "Fresh prices meet the provisional 24-hour freshness rule. Stale prices are the "
+                        "last valid consensus, shown for reference only; they may have changed. The "
+                        "provider time is a feed-level timestamp, not a bookmaker price-change time.",
+                    ]
+                ),
+                html.Li(
+                    [
+                        html.Strong("Market versus history: "),
+                        "these figures describe the betting market. Diski 9's historical indicators "
+                        "describe past matches. They are kept separate and no betting value is calculated.",
+                    ]
+                ),
+            ],
+            className="about-list muted small",
+        ),
+    )
     blocks = []
     for market, title in (
         (Market.MATCH_RESULT, "Match result"),
@@ -593,7 +724,7 @@ def odds_section(ov: OddsView | None, data: ScreenerData, league: str) -> html.D
                     html.Div(table, className="scroll-x"),
                     html.P(" · ".join(notes), className="muted small"),
                     html.P(
-                        f"{freshness_text(dm, data)} Times in {data.tz_label}; the provider time is "
+                        f"{freshness_text(dm, data).rstrip('.')}. Times in {data.tz_label}; the provider time is "
                         "feed-level, not a bookmaker price-change time.",
                         className="muted small",
                     ),
@@ -601,20 +732,7 @@ def odds_section(ov: OddsView | None, data: ScreenerData, league: str) -> html.D
                 className="odds-block",
             )
         )
-    about = section(
-        "About these figures",
-        html.P(
-            "Consensus odds are the median price across independent bookmakers (brands under common "
-            "ownership count once). Raw implied probability is 1 ÷ odds; market-implied probability "
-            "removes the combined bookmaker margin. Stale prices are shown for reference only and may "
-            "have changed. The provider feed time is a feed-level timestamp, not the moment a bookmaker "
-            "changed a price. Freshness rules are provisional until the odds monitoring trial completes. "
-            "These figures describe the betting market and are kept separate from Diski 9's historical "
-            "indicators; no betting value is calculated.",
-            className="muted small",
-        ),
-    )
-    return section("Reference odds and market-implied probabilities", *blocks, about)
+    return section("Reference odds and market-implied probabilities", about, *blocks)
 
 
 def positions_section(r: dict, official: dict) -> html.Details:

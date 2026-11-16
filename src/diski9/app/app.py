@@ -16,6 +16,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
+from dash.exceptions import PreventUpdate
 
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS
 
@@ -24,6 +25,13 @@ from .views import FORM_TOOLTIP, basis_help, info, pill, render_detail, signed_c
 
 ASSETS = Path(__file__).parent / "assets"
 MARKETS = [("1X2", "Match result"), ("BTTS", "Both teams to score"), ("OU25", "Over/Under 2.5")]
+LIMITED_TITLE = {
+    "1X2": "Limited data: fewer than five eligible matches for at least one team",
+    "BTTS": "Limited data: fewer than six current-season matches for at least one team",
+    "OU25": "Limited data: fewer than six current-season matches for at least one team",
+}
+THRESHOLD_DISABLED = KICKOFF_DIRECTIONS + ("evenly_matched",)
+DEFAULT_BASIS = {"1X2": "venue", "BTTS": "overall", "OU25": "overall"}
 STAT_PAIR = {  # header toggle between the two statistical directions of a market
     "1X2": ("home_stronger", "away_stronger"),
     "BTTS": ("btts_yes", "btts_no"),
@@ -63,8 +71,15 @@ def columns_for(market: str) -> list[dict]:
 
 
 def threshold_config(market: str, direction: str) -> dict:
-    """Thresholds apply to statistical rankings only."""
-    if direction in KICKOFF_DIRECTIONS:
+    """Threshold is interactive only where it is meaningful:
+    Match result - strongest home/away advantage; BTTS and O/U - the indicator rankings.
+    It is reset to 'Any' whenever the ranking changes (predictable, documented)."""
+    if direction in THRESHOLD_DISABLED:
+        hint = (
+            "Available for strongest home/away rankings"
+            if market == "1X2"
+            else "Available for indicator rankings"
+        )
         return {
             "min": 0,
             "max": 1,
@@ -72,19 +87,10 @@ def threshold_config(market: str, direction: str) -> dict:
             "value": 0,
             "disabled": True,
             "label": "Threshold",
-            "marks": {0: "Off for kickoff ranking", 1: ""},
+            "hint": hint,
+            "marks": {0: "Any", 1: ""},
         }
     if market == "1X2":
-        if direction == "evenly_matched":
-            return {
-                "min": 0,
-                "max": 5,
-                "step": 0.25,
-                "value": 5,
-                "disabled": False,
-                "label": "Maximum form difference",
-                "marks": {0: "0", 2.5: "2.5", 5: "Any"},
-            }
         return {
             "min": 0,
             "max": 5,
@@ -92,6 +98,7 @@ def threshold_config(market: str, direction: str) -> dict:
             "value": 0,
             "disabled": False,
             "label": "Minimum form difference",
+            "hint": None,
             "marks": {0: "Any", 2.5: "2.5", 5: "5"},
         }
     outcome = {
@@ -107,6 +114,7 @@ def threshold_config(market: str, direction: str) -> dict:
         "value": 0,
         "disabled": False,
         "label": f"Minimum {outcome} indicator",
+        "hint": None,
         "marks": {0: "Any", 50: "50%", 100: "100%"},
     }
 
@@ -285,6 +293,7 @@ def build_layout(data: ScreenerData) -> html.Div:
             ),
             dcc.Store(id="page", data=1),
             dcc.Store(id="selected"),
+            dcc.Store(id="basis-pref", storage_type="session", data={}),
             html.Div(id="detail", className="detail-holder"),
             html.Footer(
                 "Diski 9 is a research tool. Historical indicators describe past matches and are "
@@ -351,7 +360,9 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             c["value"],
             c["marks"],
             c["disabled"],
-            c["label"],
+            [html.Span(c["label"]), html.Span(c["hint"], className="hint")]
+            if c["hint"]
+            else c["label"],
             basis_label,
             legend,
         )
@@ -367,6 +378,7 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Output("next", "disabled"),
         Output("page", "data"),
         Output("pager", "style"),
+        Output("selected", "data"),
         Input("market", "value"),
         Input("leagues", "value"),
         Input("dates", "start_date"),
@@ -376,34 +388,68 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Input("threshold", "value"),
         Input("prev", "n_clicks"),
         Input("next", "n_clicks"),
+        Input({"type": "row", "index": ALL}, "n_clicks"),
+        Input({"type": "fx", "index": ALL}, "n_clicks"),
         State("page", "data"),
         State("selected", "data"),
     )
     def update_results(
-        market, leagues, start, end, basis, direction, threshold, _p, _n, page, selected
+        market,
+        leagues,
+        start,
+        end,
+        basis,
+        direction,
+        threshold,
+        _p,
+        _n,
+        _rows,
+        _cards,
+        page,
+        selected,
     ):
+        """Single source of truth for the list, the page and the selected fixture id.
+
+        * row/card click: select that fixture id, keep the current page
+        * Previous / Next: change page, keep the selection
+        * any filter, ranking or market change: back to page 1, keep the selection
+          if the fixture is still in the filtered list (cleared otherwise)
+        """
         trig = ctx.triggered_id
-        if trig == "prev":
+        if isinstance(trig, dict) and trig.get("type") in ("row", "fx"):
+            if not any(t["value"] for t in ctx.triggered):
+                raise PreventUpdate  # rows/cards were re-rendered, not clicked
+            selected = int(trig["index"])
+        elif trig == "prev":
             page = (page or 1) - 1
         elif trig == "next":
             page = (page or 1) + 1
-        else:  # any filter / ranking / market change resets to page 1
+        else:
             page = 1
         return results_payload(
             data, market, leagues, start, end, basis, direction, threshold, page, selected
         )
 
     @app.callback(
-        Output("selected", "data"),
-        Input({"type": "row", "index": ALL}, "n_clicks"),
-        Input({"type": "fx", "index": ALL}, "n_clicks"),
-        prevent_initial_call=True,
+        Output("basis", "value"),
+        Input("market", "value"),
+        State("basis-pref", "data"),
     )
-    def select_fixture(_rows, _cards):
-        trig = ctx.triggered_id
-        if not isinstance(trig, dict) or not any(t["value"] for t in ctx.triggered):
-            return no_update
-        return int(trig["index"])
+    def apply_basis_default(market, prefs):
+        """Per-market Form Basis: the user's choice for that market in this session,
+        otherwise the default (Match result: venue; BTTS and O/U: overall)."""
+        return (prefs or {}).get(market, DEFAULT_BASIS[market])
+
+    @app.callback(
+        Output("basis-pref", "data"),
+        Input("basis", "value"),
+        State("market", "value"),
+        State("basis-pref", "data"),
+    )
+    def remember_basis(basis, market, prefs):
+        prefs = dict(prefs or {})
+        prefs[market] = basis
+        return prefs
 
     @app.callback(
         Output("detail", "children"),
@@ -438,11 +484,10 @@ def header_sort(market: str, key: str, current: str | None) -> str:
 
 
 def _threshold_value(market: str, direction: str, value: float | None) -> float | None:
-    if value is None or direction in KICKOFF_DIRECTIONS:
+    """A disabled threshold never filters, whatever value the slider holds."""
+    if value is None or direction in THRESHOLD_DISABLED:
         return None
     if market == "1X2":
-        if direction == "evenly_matched":
-            return None if value >= 5 else float(value)
         return None if value <= 0 else float(value)
     return None if value <= 0 else value / 100
 
@@ -462,6 +507,9 @@ def results_payload(
         if leagues
         else []
     )
+    # selection is the fixture id; cleared when filters remove it from the list
+    if selected is not None and selected not in {r["fixture"]["id"] for r in results}:
+        selected = None
     pg = paginate(results, page)
     rows = [data.row(market, r) for r in pg.results]
     if not leagues:
@@ -488,6 +536,7 @@ def results_payload(
         pg.page >= pg.pages,
         pg.page,
         pager_style,
+        selected,
     )
 
 
@@ -542,7 +591,11 @@ def results_table(
                 )
                 cls += f" odds-{row['odds_status']}"
             elif cid == "limited":
-                value = pill("Limited data", "warn subtle") if row["limited"] else ""
+                value = (
+                    html.Span("Limited", className="pill warn subtle", title=LIMITED_TITLE[market])
+                    if row["limited"]
+                    else ""
+                )
             else:
                 value = row[cid]
             cells.append(html.Td(value, className=cls))
