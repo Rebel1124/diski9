@@ -362,7 +362,11 @@ def test_threshold_enabled_only_where_meaningful():
     for d in ("home_stronger", "away_stronger"):
         assert threshold_config("1X2", d)["disabled"] is False
     assert threshold_config("1X2", "home_stronger")["label"] == "Minimum form difference"
-    assert threshold_config("BTTS", "btts_no")["label"] == "Minimum BTTS No indicator"
+    assert threshold_config("BTTS", "btts_no")["label"] == "Minimum recent no-BTTS occurrence"
+    assert threshold_config("OU25", "over")["label"] == "Minimum recent Over 2.5 occurrence"
+    assert threshold_config("OU25", "kickoff_latest")["hint"] == (
+        "Available for recent-occurrence rankings"
+    )
     assert threshold_config("BTTS", "kickoff_earliest")["disabled"] is True
 
 
@@ -390,7 +394,17 @@ def test_columns_alignment_and_names():
     assert cols["indicator"]["label"] == "Form difference" and cols["indicator"]["align"] == "right"
     assert cols["home"]["align"] == "left" and cols["odds"]["align"] == "right"
     assert "venue" not in json.dumps(columns_for("1X2")).lower()
-    assert columns_for("OU25")[7]["label"] == "Under 2.5"
+    goals = [c["label"] for c in columns_for("OU25")]
+    assert goals[4:] == [
+        "Home record",
+        "Away record",
+        "Recent Over 2.5",
+        "League",
+        "Market Over · Under",
+        "Data",
+    ]
+    assert "Under 2.5" not in goals  # the historical complement is no longer a headline column
+    assert "not a probability" in columns_for("BTTS")[6]["title"]
 
 
 def test_rows_use_readable_dates_and_signed_differences(data):
@@ -423,7 +437,9 @@ def test_detail_levels_and_form_breakdown(data):
         "How it's calculated",
         "How is Form Score calculated?",
         "Points earned",
-        "Raw total (max 6.5)",
+        "Points part = 2.5 × points ÷ 15",
+        "Goal-difference part = 2.5 × (GD + 9) ÷ 18",
+        "No bonuses are added",
         "Matches used",
         "Head-to-head",
         "League positions",
@@ -433,6 +449,7 @@ def test_detail_levels_and_form_breakdown(data):
     ):
         assert phrase in text, phrase
     assert "Venue-adjusted" not in text and "benchmark" not in text.lower()
+    assert "Raw total" not in text and "bonus" not in text.replace("No bonuses", "").lower()
     # Level 3 sections start collapsed
     sections = [c for c in d.children[3].children]
     assert all(getattr(s, "open", False) is False for s in sections)

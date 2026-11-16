@@ -55,17 +55,46 @@ def columns_for(market: str) -> list[dict]:
             {"id": "odds", "label": "Odds H · D · A", "align": "right", "sort": None},
             {"id": "limited", "label": "Data", "align": "left", "sort": None},
         ]
-    yes, no, odds = (
-        ("BTTS Yes", "BTTS No", "Odds Yes · No")
-        if market == "BTTS"
-        else ("Over 2.5", "Under 2.5", "Odds Over · Under")
+    word, market_lbl = (
+        ("BTTS", "Market Yes · No") if market == "BTTS" else ("Over 2.5", "Market Over · Under")
     )
     return base + [
-        {"id": "home_metric", "label": "Home rate", "align": "right", "sort": None},
-        {"id": "away_metric", "label": "Away rate", "align": "right", "sort": None},
-        {"id": "indicator", "label": yes, "align": "right", "sort": "stat"},
-        {"id": "complement", "label": no, "align": "right", "sort": None},
-        {"id": "odds", "label": odds, "align": "right", "sort": None},
+        {
+            "id": "home_metric",
+            "label": "Home record",
+            "align": "right",
+            "sort": None,
+            "title": f"Home team: {word} matches / current-season matches",
+        },
+        {
+            "id": "away_metric",
+            "label": "Away record",
+            "align": "right",
+            "sort": None,
+            "title": f"Away team: {word} matches / current-season matches",
+        },
+        {
+            "id": "indicator",
+            "label": f"Recent {word}",
+            "align": "right",
+            "sort": "stat",
+            "title": "Historical occurrence: average of the two teams' recent shares "
+            "(not a probability)",
+        },
+        {
+            "id": "baseline",
+            "label": "League",
+            "align": "right",
+            "sort": None,
+            "title": f"League {word} baseline before kickoff",
+        },
+        {
+            "id": "market",
+            "label": market_lbl,
+            "align": "right",
+            "sort": None,
+            "title": "Market-implied probabilities from consensus odds, margin removed",
+        },
         {"id": "limited", "label": "Data", "align": "left", "sort": None},
     ]
 
@@ -78,7 +107,7 @@ def threshold_config(market: str, direction: str) -> dict:
         hint = (
             "Available for strongest home/away rankings"
             if market == "1X2"
-            else "Available for indicator rankings"
+            else "Available for recent-occurrence rankings"
         )
         return {
             "min": 0,
@@ -102,8 +131,8 @@ def threshold_config(market: str, direction: str) -> dict:
             "marks": {0: "Any", 2.5: "2.5", 5: "5"},
         }
     outcome = {
-        "btts_yes": "BTTS Yes",
-        "btts_no": "BTTS No",
+        "btts_yes": "BTTS",
+        "btts_no": "no-BTTS",
         "over": "Over 2.5",
         "under": "Under 2.5",
     }[direction]
@@ -113,7 +142,7 @@ def threshold_config(market: str, direction: str) -> dict:
         "step": 5,
         "value": 0,
         "disabled": False,
-        "label": f"Minimum {outcome} indicator",
+        "label": f"Minimum recent {outcome} occurrence",
         "hint": None,
         "marks": {0: "Any", 50: "50%", 100: "100%"},
     }
@@ -139,6 +168,14 @@ def build_layout(data: ScreenerData) -> html.Div:
     leagues = data.available_leagues()
     today = data.clock().astimezone(data.tz).date()
     banner = []
+    if snap.outdated_rows:
+        banner.append(
+            html.Div(
+                "The statistics were calculated with an earlier method. Run "
+                "`uv run diski9 screener-refresh` to rebuild them (no API requests).",
+                className="banner warn",
+            )
+        )
     if snap.stale:
         banner.append(
             html.Div(
@@ -147,7 +184,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                 className="banner warn",
             )
         )
-    if not leagues:
+    if not leagues and not snap.outdated_rows:
         banner.append(
             html.Div(
                 "No screener results are cached yet. Run `diski9 setup` (first time) "
@@ -347,8 +384,8 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             if market == "1X2"
             else [
                 html.Span(
-                    "Rates use up to ten current-season matches; indicators are historical, "
-                    "not predicted probabilities",
+                    "Records use up to ten current-season matches; recent occurrence and league "
+                    "baselines are historical, not predicted probabilities",
                     className="muted small",
                 )
             ]
@@ -543,7 +580,7 @@ def results_payload(
 def _header(col: dict, market: str, direction: str) -> html.Th:
     cls = f"col-{col['align']}"
     if not col["sort"]:
-        return html.Th(col["label"], className=cls)
+        return html.Th(col["label"], className=cls, title=col.get("title"))
     if col["sort"] == "kickoff":
         active = direction in KICKOFF_DIRECTIONS
         arrow = ("▲" if direction == "kickoff_earliest" else "▼") if active else "↕"
@@ -562,7 +599,7 @@ def _header(col: dict, market: str, direction: str) -> html.Th:
             id={"type": "sort", "key": col["sort"]},
             className="sort-btn" + (" active" if active else ""),
             n_clicks=0,
-            title="Change ranking",
+            title=(col.get("title", "") + " · click to change ranking").lstrip(" ·"),
         ),
         className=cls,
     )
@@ -580,11 +617,16 @@ def results_table(
             cls = f"col-{col['align']}"
             if cid == "indicator":
                 value = row["indicator_display"]
-                cls += " strong " + (
-                    signed_class(row["indicator"]).replace("num", "") if market == "1X2" else ""
+                if market == "1X2":  # only Form difference is emphasised
+                    cls += " strong " + signed_class(row["indicator"]).replace("num", "")
+            elif cid == "baseline":
+                value = row["baseline_display"]
+                cls += " muted"
+            elif cid == "market":
+                value = [row["market"]] + (
+                    [" ", pill("stale", "warn subtle")] if row["market_status"] == "stale" else []
                 )
-            elif cid == "complement":
-                value = row["complement_display"]
+                cls += f" odds-{row['market_status']}"
             elif cid == "odds":
                 value = [row["odds"]] + (
                     [" ", pill("stale", "warn subtle")] if row["odds_status"] == "stale" else []
@@ -619,13 +661,18 @@ def fixture_card(market: str, row: dict, selected: int | None) -> html.Button:
         sub = f"Form {row['home_metric']} v {row['away_metric']}"
         metric_cls = "card-metric " + signed_class(row["indicator"]).replace("num", "")
     else:
-        yes, no = ("BTTS Yes", "No") if market == "BTTS" else ("Over 2.5", "Under")
-        metric = f"{yes} {row['indicator_display']}"
-        sub = f"{no} {row['complement_display']} · {row['home_metric']} / {row['away_metric']}"
+        word = "BTTS" if market == "BTTS" else "Over 2.5"
+        metric = f"{word} records {row['home_metric']} · {row['away_metric']}"
+        sub = f"League {row['baseline_display']}"
         metric_cls = "card-metric"
-    odds = row["odds"] if row["odds"] in ("No odds", "—") else f"Odds {row['odds']}"
+    if market == "1X2":
+        odds = row["odds"] if row["odds"] in ("No odds", "—") else f"Odds {row['odds']}"
+        status = row["odds_status"]
+    else:
+        odds = row["market"] if row["market"] in ("No odds", "—") else f"Market {row['market']}"
+        status = row["market_status"]
     bottom = [html.Span(odds, className="muted small")]
-    if row["odds_status"] == "stale":
+    if status == "stale":
         bottom.append(pill("stale odds", "warn subtle"))
     if row["limited"]:
         bottom.append(pill("Limited data", "warn subtle"))

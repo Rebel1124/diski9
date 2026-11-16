@@ -1,9 +1,10 @@
 """Pure Screener calculations.
 
-Match result: the **Diski Form Score** (Milestone 5 methodology, bonus-based,
-0-5). The earlier spec v1.2 formula (``FormScore``/``form_score``) and pooled
-league benchmarks are kept only as legacy helpers for regression comparison
-and the benchmark-threshold script; the Screener engine does not use them.
+Match result: the **Diski Form Score**, Model D (Milestone 5.3): half points,
+half goal difference, 0-5, no bonuses. The banded Milestone 5 score ("Model A",
+``banded_form_score``), the spec v1.2 formula (``FormScore``/``form_score``) and
+pooled league benchmarks are kept only as legacy helpers for research
+reproducibility and regression comparison; the Screener engine does not use them.
 
 All arithmetic uses exact fractions; floats appear only at the presentation edge.
 None of these values are probabilities or predictions.
@@ -41,10 +42,119 @@ def display(value: Fraction | float | None, places: int = 2) -> str | None:
     return str(d.quantize(Decimal(1).scaleb(-places), rounding=ROUND_HALF_UP))
 
 
-# ---------------------------------------------------------- Diski Form Score
+# ------------------------------------------- Diski Form Score (Model D, 5.3)
+FULL_WINDOW = 5
+GD_LIMIT = 9
+HALF_SCALE = Fraction(5, 2)
+
+
+@dataclass(frozen=True)
+class DiskiFormScore:
+    """Diski Form Score, Model D (engine 2.1.0, Milestone 5.3), from up to five
+    eligible matches, most recent first.
+
+        points component        = 2.5 x P / 15
+        goal-difference component = 2.5 x (clip(GD, -9, +9) + 9) / 18
+        Diski Form Score        = points component + goal-difference component
+
+    P is the points earned (3 per win, 1 per draw), GD goals for minus goals
+    against. Bounded 0 to 5; no bonuses. Partial windows use the actual totals of
+    the matches available - nothing is prorated - so a short window cannot reach
+    5. Because the goal-difference component is symmetric (1.25 at GD 0), a team
+    with very few matches can still score above 0; the Limited-data flag marks
+    such windows. Not a probability.
+    """
+
+    results: tuple[str, ...]  # "W"/"D"/"L", most recent first
+    goals_for: int
+    goals_against: int
+
+    @property
+    def matches(self) -> int:
+        return len(self.results)
+
+    @property
+    def wins(self) -> int:
+        return self.results.count("W")
+
+    @property
+    def draws(self) -> int:
+        return self.results.count("D")
+
+    @property
+    def losses(self) -> int:
+        return self.results.count("L")
+
+    @property
+    def points(self) -> int:
+        return 3 * self.wins + self.draws
+
+    @property
+    def goal_difference(self) -> int:
+        return self.goals_for - self.goals_against
+
+    @property
+    def goal_difference_capped(self) -> int:
+        return max(-GD_LIMIT, min(GD_LIMIT, self.goal_difference))
+
+    @property
+    def full_window(self) -> bool:
+        return self.matches >= FULL_WINDOW
+
+    @property
+    def points_component(self) -> Fraction:
+        return HALF_SCALE * Fraction(self.points, 15)
+
+    @property
+    def goal_difference_component(self) -> Fraction:
+        return HALF_SCALE * Fraction(self.goal_difference_capped + GD_LIMIT, 2 * GD_LIMIT)
+
+    @property
+    def score(self) -> Fraction:
+        return self.points_component + self.goal_difference_component
+
+    def breakdown(self) -> dict:
+        return {
+            "method": "D",
+            "matches": self.matches,
+            "full_window": self.full_window,
+            "wins": self.wins,
+            "draws": self.draws,
+            "losses": self.losses,
+            "points": self.points,
+            "goals_for": self.goals_for,
+            "goals_against": self.goals_against,
+            "goal_difference": self.goal_difference,
+            "goal_difference_capped": self.goal_difference_capped,
+            "points_component": float(self.points_component),
+            "points_component_display": display(self.points_component),
+            "goal_difference_component": float(self.goal_difference_component),
+            "goal_difference_component_display": display(self.goal_difference_component),
+            "form_score": float(self.score),
+            "form_score_display": display(self.score),
+        }
+
+
+def _tally(results: Iterable[tuple[int, int]]) -> tuple[tuple[str, ...], int, int] | None:
+    seq: list[str] = []
+    gf = ga = 0
+    for f, a in results:
+        gf += f
+        ga += a
+        seq.append("W" if f > a else "D" if f == a else "L")
+    return (tuple(seq), gf, ga) if seq else None
+
+
+def diski_form_score(results: Iterable[tuple[int, int]]) -> DiskiFormScore | None:
+    """Model D from (goals_for, goals_against) pairs, most recent first; None
+    (Unavailable, never 0) if there are no matches."""
+    t = _tally(results)
+    return None if t is None else DiskiFormScore(*t)
+
+
+# ------------------------------------- legacy banded Diski Form Score (Model A)
 FORM_RAW_MAX = Fraction(13, 2)  # 2.5 + 2.5 + 0.5 + 0.5 + 0.5
 FORM_SCALE = Fraction(5)
-FULL_WINDOW = 5
 BONUS = Fraction(1, 2)
 
 
@@ -61,8 +171,12 @@ def goal_difference_award(gd: int) -> Fraction:
 
 
 @dataclass(frozen=True)
-class DiskiFormScore:
-    """Diski Form Score from up to five eligible matches (most recent first).
+class BandedFormScore:
+    """LEGACY (engine 2.0.0, Milestone 5): banded Diski Form Score, "Model A".
+
+    Replaced in production by Model D (engine 2.1.0, Milestone 5.3). Kept only so
+    the Milestone 5.1/5.2 research remains reproducible.
+
 
     raw = points award + goal-difference award + bonuses (each +0.5):
       * won the three most recent matches (needs at least 3 matches)
@@ -163,8 +277,8 @@ class DiskiFormScore:
         }
 
 
-def diski_form_score(results: Iterable[tuple[int, int]]) -> DiskiFormScore | None:
-    """From (goals_for, goals_against) pairs, most recent first; None if no matches."""
+def banded_form_score(results: Iterable[tuple[int, int]]) -> BandedFormScore | None:
+    """LEGACY Model A. From (goals_for, goals_against) pairs, most recent first."""
     seq: list[str] = []
     gf = ga = 0
     for f, a in results:
@@ -173,7 +287,7 @@ def diski_form_score(results: Iterable[tuple[int, int]]) -> DiskiFormScore | Non
         seq.append("W" if f > a else "D" if f == a else "L")
     if not seq:
         return None
-    return DiskiFormScore(tuple(seq), gf, ga)
+    return BandedFormScore(tuple(seq), gf, ga)
 
 
 # ------------------------------------------------- legacy (spec v1.2) formula

@@ -16,6 +16,12 @@ Relevant matches
   league and earlier seasons to complete the window. Provenance is recorded.
 * BTTS / Over-Under 2.5 (up to last 10): **current season and current
   competition only** (Milestone 5) - no earlier seasons or other divisions.
+* League BTTS / Over 2.5 baseline (Milestone 5.3, the Milestone 5.2 research
+  method): eligible current-season matches of the same competition before the
+  cutoff; with fewer than 30 they are blended with the previous season of that
+  competition by weight n/30 (league level only - team histories never use
+  earlier seasons). No previous season stored and fewer than 30 current matches:
+  Unavailable.
 * Venue windows (home/away) exclude matches at a confirmed ``neutral`` venue.
   ``unverified_venue`` matches are included (the provider's home/away
   designation) and flagged in the output.
@@ -48,8 +54,12 @@ from .calc import (
 from .calc import rate as rate_of
 
 # 2.0.0 (Milestone 5): bonus-based Diski Form Score, Form Difference (no venue
-# adjustment), current-season-only BTTS/O2.5. Older cache rows are retired.
-ENGINE_VERSION = "2.0.0"
+# adjustment), current-season-only BTTS/O2.5.
+# 2.1.0 (Milestone 5.3): Diski Form Score Model D (half points, half goal
+# difference, no bonuses) and point-in-time league BTTS / Over 2.5 baselines.
+# Rows from any other version are retired and never served.
+ENGINE_VERSION = "2.1.0"
+LEAGUE_BASELINE_MIN = 30  # current-season matches before the prior is no longer blended
 Basis = Literal["venue", "overall"]
 
 
@@ -307,6 +317,61 @@ def select_benchmark(  # legacy: not used by the Screener since engine 2.0.0
     }
 
 
+def league_baseline(
+    store: MatchStore, competition_id: int, season: int, cutoff: datetime
+) -> dict | None:
+    """League BTTS and Over 2.5 frequencies known before ``cutoff``.
+
+    Exactly the Milestone 5.2 research rule (``research.historical_goals.league_prior``):
+    * >= 30 current-season league matches: current season only
+    * fewer, with the previous season of the competition stored: blend,
+      weight n / 30 on the current season (previous season only when n = 0)
+    * fewer than 30 and no previous season stored: None (Unavailable)
+    Matches are the same eligible, non-neutral league matches used elsewhere
+    (``league_matches``): awarded, abandoned, postponed and play-off fixtures and
+    other competitions never enter. Historical context, not a probability.
+    """
+
+    def rates(ms: list[Match]) -> tuple[Fraction, Fraction]:
+        n = len(ms)
+        return (
+            Fraction(sum(m.home_goals > 0 and m.away_goals > 0 for m in ms), n),
+            Fraction(sum(m.home_goals + m.away_goals >= 3 for m in ms), n),
+        )
+
+    cur = store.league_matches(competition_id, season, cutoff)
+    prev = store.league_matches(competition_id, season - 1, cutoff)
+    n, m = len(cur), len(prev)
+    if n >= LEAGUE_BASELINE_MIN:
+        btts, over = rates(cur)
+        source, weight = "current_season", Fraction(1)
+    elif not prev:
+        return None
+    elif n == 0:
+        btts, over = rates(prev)
+        source, weight = "previous_season_only", Fraction(0)
+    else:
+        weight = Fraction(n, LEAGUE_BASELINE_MIN)
+        (cb, co), (pb, po) = rates(cur), rates(prev)
+        btts, over = weight * cb + (1 - weight) * pb, weight * co + (1 - weight) * po
+        source = "blended_previous_season"
+    return {
+        "btts": float(btts),
+        "btts_display": pct(btts),
+        "over_2_5": float(over),
+        "over_2_5_display": pct(over),
+        "source": source,
+        "competition": store.competition_names.get(competition_id),
+        "season": season,
+        "season_label": f"{season}/{str(season + 1)[-2:]}",
+        "previous_season_label": f"{season - 1}/{str(season)[-2:]}",
+        "current_matches": n,
+        "previous_matches": m if source != "current_season" else 0,
+        "current_weight": float(weight),
+        "min_current_matches": LEAGUE_BASELINE_MIN,
+    }
+
+
 def computed_table(store: MatchStore, competition_id: int, season: int, cutoff: datetime) -> dict:
     """League table computed from eligible results before cutoff (context only)."""
     table: dict[int, dict[str, int]] = defaultdict(lambda: {"p": 0, "pts": 0, "gf": 0, "ga": 0})
@@ -401,6 +466,7 @@ def compute_fixture(
     over25 = combined_indicator(goal_rates["home"]["over"], goal_rates["away"]["over"])
 
     table = computed_table(store, comp, season, cutoff)
+    baseline = league_baseline(store, comp, season, cutoff)
     h2h = store.head_to_head(home_id, away_id, cutoff, config.h2h_count)
 
     limited = {
@@ -430,6 +496,7 @@ def compute_fixture(
             "away_form": float(af.score) if af else None,
             "form_difference": float(diff) if diff is not None else None,
             "form_difference_display": _signed(diff),
+            "method": "D",
             "note": "Similar Form Scores mean similar recent performance; "
             "they do not mean a draw is likely.",
         },
@@ -445,7 +512,9 @@ def compute_fixture(
             "under_indicator": float(1 - over25) if over25 is not None else None,
             "under_display": pct(1 - over25) if over25 is not None else None,
         },
-        "indicator_note": "Historical indicators, not predicted probabilities.",
+        "indicator_note": "Historical records and league baselines describe past matches; "
+        "they are not predicted probabilities.",
+        "league_baseline": baseline,
         "limited_data": limited,
         "league_position": {
             "source": "computed from eligible results before cutoff (excludes awarded "

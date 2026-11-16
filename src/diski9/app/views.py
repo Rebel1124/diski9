@@ -24,15 +24,21 @@ from .data import (
 )
 
 FORM_TOOLTIP = (
-    "Diski Form Score measures a team's recent performance using points earned, goal "
-    "difference and bonuses for winning streaks, goals scored and defensive performance. "
-    "Scores range from 0 to 5."
+    "Diski Form Score (0–5) is based on the team's last five relevant matches: half "
+    "comes from points earned, half from goal difference. A positive goal difference "
+    "raises the score, a negative one lowers it; 2.5 is roughly an average team. It "
+    "describes recent results, not a probability."
 )
-LIMITED_FORM = "Fewer than five eligible matches for at least one team, so the score uses only the matches available."
+LIMITED_FORM = (
+    "Fewer than five eligible matches for at least one team, so the score uses only "
+    "the matches available (a short window cannot reach 5, and a level goal "
+    "difference still counts as 1.25)."
+)
 LIMITED_GOALS = (
-    "Based on fewer than six relevant current-season matches for at least one team. "
-    "Historical percentages may be unstable."
+    "Fewer than six current-season matches for at least one team: the records are a "
+    "small sample. The league baseline gives wider context."
 )
+RECORD_WORD = {"BTTS": "BTTS", "OU25": "Over 2.5"}
 PROVENANCE_LABEL = {
     "current_season_same_division": "This season",
     "previous_season_same_division": "Earlier season",
@@ -170,43 +176,38 @@ def summary_card(r: dict, market: str, ov: OddsView | None, data: ScreenerData) 
         limited_text = LIMITED_FORM
     else:
         key = "btts" if market == "BTTS" else "over_2_5"
-        block = r["btts"] if market == "BTTS" else r["over_under_2_5"]
-        yes_lbl, no_lbl = ("BTTS Yes", "BTTS No") if market == "BTTS" else ("Over 2.5", "Under 2.5")
-        yes = block["yes_display"] if market == "BTTS" else block["over_display"]
-        no = block["no_display"] if market == "BTTS" else block["under_display"]
-        headline = html.Div(
+        headline = None
+        label_row = html.Div(
             [
-                html.Div(
-                    [
-                        html.Span("Historical indicator", className="label"),
-                        info(
-                            "Average of the two teams' historical rates. It describes past matches; "
-                            "it is not a predicted probability.",
-                            "About the indicator",
-                        ),
-                    ],
-                    className="label-row",
+                html.Span("Historical records", className="label"),
+                info(
+                    "What actually happened in each team's recent current-season matches "
+                    "(up to ten, this competition only). A record describes the past; it is "
+                    "not a prediction for this fixture.",
+                    "About historical records",
                 ),
-                paired_outcomes(yes_lbl, yes, no_lbl, no),
-            ]
+            ],
+            className="label-row",
         )
-        tiles = [
-            html.Div(
-                [
-                    html.Div(t[s]["team"], className="tile-team"),
-                    html.Div(
-                        (t[s]["goals"][key] or {}).get("display", "No matches yet"),
-                        className="tile-value",
-                    ),
-                    html.Div(_goals_scope(t[s]["window"]), className="muted small"),
-                ],
-                className="tile",
-            )
-            for s in ("home", "away")
-        ]
-        label_row = html.Div(html.Span(f"{yes_lbl} rate", className="label"), className="label-row")
+        tiles = [record_tile(t[s], key, market) for s in ("home", "away")]
         limited = r["limited_data"]["goals"]
         limited_text = LIMITED_GOALS
+    if market != "1X2":
+        return html.Section(
+            [
+                label_row,
+                html.Div(tiles, className="tiles"),
+                html.P(limited_text, className="muted small limited-note") if limited else None,
+                league_baseline_block(r, market),
+                odds_strip(
+                    ov,
+                    MARKET_OF[market],
+                    data,
+                    LEAGUE_SHORT.get(f["competition_id"], f["competition"]),
+                ),
+            ],
+            className="card summary goals-summary",
+        )
     return html.Section(
         [
             headline,
@@ -246,6 +247,98 @@ def paired_outcomes(yes_lbl: str, yes: str | None, no_lbl: str, no: str | None) 
     )
 
 
+def record_text(rate: dict | None, market: str) -> tuple[str, str | None]:
+    """'BTTS in 7 of 10' and its complement ('No BTTS in 3 of 10'); never a 0% for no data."""
+    if not rate or not rate["matches"]:
+        return "No current-season history", None
+    k, n = rate["hits"], rate["matches"]
+    if market == "BTTS":
+        return f"BTTS in {k} of {n}", f"No BTTS in {n - k} of {n}"
+    return f"Over 2.5 in {k} of {n}", f"Under 2.5 in {n - k} of {n}"
+
+
+def record_tile(team: dict, key: str, market: str) -> html.Div:
+    rate = team["goals"][key]
+    main, other = record_text(rate, market)
+    limited = team["goals"]["sample"]["limited_data"]
+    return html.Div(
+        [
+            html.Div(team["team"], className="tile-team"),
+            html.Div(
+                [
+                    html.Span(main, className="record-value"),
+                    " ",
+                    pill("Limited", "warn subtle") if limited else None,
+                ],
+                className="record-row",
+            ),
+            html.Div(other, className="muted small") if other else None,
+            html.Div(_goals_scope(team["window"]), className="muted small"),
+        ],
+        className="tile record",
+    )
+
+
+BASELINE_HELP = (
+    "The share of this competition's matches in which the outcome happened, using only "
+    "matches played before this fixture. Until 30 current-season matches have been played, "
+    "last season's league results are blended in (the current season's weight grows with "
+    "each match) to stabilise the estimate. League context, not a prediction for this fixture."
+)
+
+
+def baseline_source(lb: dict) -> str:
+    comp, season, prev = lb["competition"], lb["season_label"], lb["previous_season_label"]
+    n = lb["current_matches"]
+    if lb["source"] == "current_season":
+        return f"{comp} {season}: {n} matches before kickoff"
+    if lb["source"] == "previous_season_only":
+        return f"{comp} {prev} results (no {season} matches yet)"
+    return f"{comp} {season} ({n} match{'es' if n != 1 else ''}) blended with {prev}"
+
+
+def league_baseline_block(r: dict, market: str) -> html.Div:
+    lb = r.get("league_baseline")
+    key = "btts" if market == "BTTS" else "over_2_5"
+    title = "League BTTS baseline" if market == "BTTS" else "League Over 2.5 baseline"
+    head = html.Div(
+        [html.Span(title, className="label"), info(BASELINE_HELP, "About the league baseline")],
+        className="label-row",
+    )
+    if lb is None:
+        return html.Div(
+            [
+                head,
+                html.Div("Unavailable", className="baseline-value muted"),
+                html.Div(
+                    "Not enough league history is stored for this competition yet.",
+                    className="muted small",
+                ),
+            ],
+            className="baseline",
+        )
+    return html.Div(
+        [
+            head,
+            html.Div(
+                [
+                    html.Span(lb[f"{key}_display"], className="baseline-value"),
+                    html.Span(baseline_source(lb), className="muted small"),
+                ],
+                className="baseline-row",
+            ),
+            html.Div(
+                "League baseline uses last season's league results to stabilise the estimate "
+                "while the current season is still young.",
+                className="muted small baseline-note",
+            )
+            if lb["source"] != "current_season"
+            else None,
+        ],
+        className="baseline",
+    )
+
+
 def _goals_scope(window: str) -> str:
     return {"home": "current-season home matches", "away": "current-season away matches"}.get(
         window, "current-season matches"
@@ -273,12 +366,8 @@ def odds_strip(ov: OddsView | None, market: Market, data: ScreenerData, league: 
             [
                 html.Span("Reference odds", className="label"),
                 html.Div(
-                    f"API-Football does not currently provide bookmaker odds for the {league}"
-                    + (
-                        ", so market-implied probabilities are unavailable."
-                        if market is Market.MATCH_RESULT
-                        else "."
-                    ),
+                    f"API-Football does not currently provide bookmaker odds for the {league}, "
+                    "so market-implied probabilities are unavailable.",
                     className="muted small",
                 ),
             ],
@@ -293,22 +382,16 @@ def odds_strip(ov: OddsView | None, market: Market, data: ScreenerData, league: 
                     className="label-row",
                 ),
                 html.Div(
-                    (
-                        "Market-implied probabilities unavailable. "
-                        if market is Market.MATCH_RESULT
-                        else ""
-                    )
-                    + dm.reason,
+                    "Market-implied probabilities unavailable. " + dm.reason,
                     className="muted small",
                 ),
             ],
             className="odds-strip",
         )
     mc, ip = dm.consensus, dm.implied
-    cells = []
+    cells = []  # prices only: the market-implied probabilities are shown once, above
     for o in MARKET_OUTCOME_ORDER[market]:
         oc = mc.outcomes[o]
-        adj = ip.margin_adjusted.get(o) if ip and ip.margin_adjusted else None
         cells.append(
             html.Div(
                 [
@@ -316,7 +399,6 @@ def odds_strip(ov: OddsView | None, market: Market, data: ScreenerData, league: 
                     html.Div(
                         str(oc.consensus_odds) if oc.consensus_odds else "—", className="price"
                     ),
-                    html.Div(f"{adj * 100:.1f}% implied" if adj else "", className="muted small"),
                 ],
                 className="price-cell",
             )
@@ -331,7 +413,9 @@ def odds_strip(ov: OddsView | None, market: Market, data: ScreenerData, league: 
                 ],
                 className="label-row",
             ),
-            market_probabilities(ip) if market is Market.MATCH_RESULT else None,
+            market_probabilities(ip)
+            if market is Market.MATCH_RESULT
+            else goals_market_probabilities(ip, market),
             html.Div(cells, className="prices"),
             html.Div(
                 "Consensus reference odds — not an offer from any bookmaker.",
@@ -399,6 +483,36 @@ def market_probabilities(ip) -> html.Div | None:
     )
 
 
+def goals_market_probabilities(ip, market: Market) -> html.Div:
+    """BTTS Yes/No or Over/Under 2.5 margin-adjusted probabilities, equal typography.
+    The same values as the expanded reference-odds table; never a baseline or history."""
+    yes_o, no_o = MARKET_OUTCOME_ORDER[market]
+    labels = ("BTTS Yes", "BTTS No") if market is Market.BTTS else ("Over 2.5", "Under 2.5")
+    head = html.Div(
+        [
+            html.Span("Market-implied probabilities", className="label"),
+            info(
+                "Derived from the consensus bookmaker odds after removing the combined "
+                "bookmaker margin, so the two outcomes add up to 100%. They describe the "
+                "betting market, not a Diski 9 prediction.",
+                "About market-implied probabilities",
+            ),
+        ],
+        className="label-row",
+    )
+    if ip is None or ip.margin_adjusted is None:
+        need = "yes and no" if market is Market.BTTS else "over and under"
+        return html.Div(
+            [head, html.Div(f"Needs prices for both {need}.", className="muted small")],
+            className="market-probs",
+        )
+    yes = f"{float(ip.margin_adjusted[yes_o]) * 100:.1f}%"
+    no = f"{float(ip.margin_adjusted[no_o]) * 100:.1f}%"
+    pair = paired_outcomes(labels[0], yes, labels[1], no)
+    pair.className = "pair-row compact"
+    return html.Div([head, pair], className="market-probs")
+
+
 def _ago(hours: float | None) -> str:
     if hours is None:
         return "unknown"
@@ -428,59 +542,62 @@ def explanation_card(r: dict, market: str) -> html.Section:
             else "each team's last five matches"
         )
         text = (
-            f"Each team gets a Diski Form Score (0–5) from its {basis}: points earned, goal "
-            "difference and three bonuses. Form Difference is home score minus away score."
+            f"Each team gets a Diski Form Score (0–5) from its {basis}. Half the score comes "
+            "from points earned and half from goal difference: a positive goal difference "
+            "raises it, a negative one lowers it. Form Difference is home score minus away score."
         )
         body = section("How is Form Score calculated?", form_breakdown_table(r))
     else:
         what = "both teams scored" if market == "BTTS" else "there were three or more goals"
-        basis = "home (home team) and away (away team)" if r["basis"] == "venue" else "all"
-        text = (
-            f"For each team: the share of its last (up to ten) current-season {basis} matches in which "
-            f"{what}. The two rates are averaged. Earlier seasons and other divisions are not used."
+        basis = (
+            "home matches (home team) or away matches (away team)"
+            if r["basis"] == "venue"
+            else "matches"
         )
-        body = section("How is the indicator calculated?", goals_breakdown_table(r, market))
+        text = (
+            f"Historical records count, among each team's last (up to ten) current-season {basis} "
+            f"in this competition, those in which {what}. The league baseline is the "
+            "competition's rate before this fixture, and the market-implied probability comes "
+            "from bookmaker prices. Each answers a different question; none is a Diski 9 "
+            "prediction."
+        )
+        body = section("How are these figures calculated?", goals_breakdown_table(r, market))
     return html.Section(
         [html.H3("How it's calculated"), html.P(text, className="explain"), body], className="card"
     )
 
 
 def form_breakdown_table(r: dict) -> html.Div:
+    """Model D, with the actual arithmetic for each team."""
     t = r["teams"]
     b = {s: t[s]["form"]["breakdown"] for s in ("home", "away")}
 
     def cell(side: str, fn) -> html.Td:
         return html.Td(fn(b[side]) if b[side] else "—", className="num")
 
-    def award(x: float) -> str:
-        return f"+{x:.1f}" if x else "0.0"
+    def gd_capped(x: dict) -> str:
+        capped = x["goal_difference_capped"]
+        return f"{x['goal_difference']:+d}" + (
+            f" (capped at {capped:+d})" if capped != x["goal_difference"] else ""
+        )
 
     rows = [
         ("Matches used", lambda x: str(x["matches"])),
-        ("Points earned → award", lambda x: f"{x['points']} → {award(x['points_award'])}"),
+        ("Won · drawn · lost", lambda x: f"{x['wins']} · {x['draws']} · {x['losses']}"),
+        ("Points earned (of 15)", lambda x: str(x["points"])),
         (
-            "Goal difference → award",
-            lambda x: f"{x['goal_difference']:+d} → {award(x['goal_difference_award'])}",
+            "Points part = 2.5 × points ÷ 15",
+            lambda x: f"2.5 × {x['points']}/15 = {x['points_component_display']}",
         ),
+        ("Goal difference", gd_capped),
         (
-            "Won last 3 matches",
+            "Goal-difference part = 2.5 × (GD + 9) ÷ 18",
             lambda x: (
-                award(x["bonus_last_three_wins"])
-                if x["bonus_last_three_wins_possible"]
-                else "n/a (<3 matches)"
+                f"2.5 × ({x['goal_difference_capped']:+d} + 9)/18 = "
+                f"{x['goal_difference_component_display']}"
             ),
         ),
-        ("Scored 11+ goals", lambda x: f"{x['goals_for']} → {award(x['bonus_goals_scored'])}"),
-        (
-            "Conceded 2 or fewer",
-            lambda x: (
-                f"{x['goals_against']} → {award(x['bonus_goals_conceded'])}"
-                if x["bonus_goals_conceded_possible"]
-                else "n/a (needs 5 matches)"
-            ),
-        ),
-        ("Raw total (max 6.5)", lambda x: f"{x['raw']:.1f}"),
-        ("Diski Form Score = raw ÷ 6.5 × 5", lambda x: x["form_score_display"]),
+        ("Diski Form Score (0–5)", lambda x: x["form_score_display"]),
     ]
     body = [
         html.Tr([html.Td(label)] + [cell(s, fn) for s in ("home", "away")]) for label, fn in rows
@@ -498,14 +615,14 @@ def form_breakdown_table(r: dict) -> html.Div:
                         ),
                         html.Tbody(body),
                     ],
-                    className="grid compact",
+                    className="grid compact form-calc",
                 ),
                 className="scroll-x",
             ),
             html.P(
-                "Points: 0–2 → 0, 3–5 → 0.5, 6–8 → 1.0, 9–11 → 1.5, 12–14 → 2.0, 15 → 2.5. "
-                "Goal difference: 0 or less → 0, +1–2 → 0.5, +3–4 → 1.0, +5–6 → 1.5, +7–8 → 2.0, "
-                "+9 or more → 2.5. Bonuses +0.5 each.",
+                "Each part is worth up to 2.5. Goal difference counts from −9 (0) through level "
+                "(1.25) to +9 or better (2.5). With fewer than five matches the actual totals "
+                "are used, so the score cannot reach 5. No bonuses are added.",
                 className="muted small",
             ),
         ]
@@ -518,21 +635,43 @@ def goals_breakdown_table(r: dict, market: str) -> html.Div:
     rows = []
     for s in ("home", "away"):
         rate = t[s]["goals"][key]
+        n = rate["matches"] if rate else 0
         rows.append(
             html.Tr(
                 [
                     html.Td(t[s]["team"]),
                     html.Td(str(rate["hits"]) if rate else "—", className="num"),
-                    html.Td(str(rate["matches"]) if rate else "0", className="num"),
+                    html.Td(str(n), className="num"),
                     html.Td(
-                        rate["display"].split(" ")[-1].strip("()") if rate else "—", className="num"
+                        rate["display"].split(" ")[-1].strip("()") if rate else "No history",
+                        className="num",
                     ),
                 ]
             )
         )
     block = r["btts"] if market == "BTTS" else r["over_under_2_5"]
-    yes = block["yes_display"] if market == "BTTS" else block["over_display"]
+    combined = block["yes_display"] if market == "BTTS" else block["over_display"]
     lbl = "BTTS matches" if market == "BTTS" else "3+ goal matches"
+    word = RECORD_WORD[market]
+    lb = r.get("league_baseline")
+    if lb is None:
+        baseline = "League baseline: unavailable (not enough league history stored)."
+    else:
+        value = lb["btts_display" if market == "BTTS" else "over_2_5_display"]
+        if lb["source"] == "current_season":
+            how = f"{lb['current_matches']} {lb['season_label']} league matches before kickoff"
+        elif lb["source"] == "previous_season_only":
+            how = (
+                f"{lb['previous_season_label']} league results only (no {lb['season_label']} "
+                "matches yet)"
+            )
+        else:
+            how = (
+                f"{lb['current_matches']} {lb['season_label']} matches weighted "
+                f"{lb['current_matches']}/30, blended with {lb['previous_season_label']} "
+                f"({lb['previous_matches']} matches)"
+            )
+        baseline = f"League baseline {value}: {how}."
     return html.Div(
         [
             html.Div(
@@ -544,7 +683,7 @@ def goals_breakdown_table(r: dict, market: str) -> html.Div:
                                     html.Th("Team"),
                                     html.Th(lbl, className="num"),
                                     html.Th("Matches", className="num"),
-                                    html.Th("Rate", className="num"),
+                                    html.Th("Share", className="num"),
                                 ]
                             )
                         ),
@@ -554,8 +693,11 @@ def goals_breakdown_table(r: dict, market: str) -> html.Div:
                 ),
                 className="scroll-x",
             ),
+            html.P(baseline, className="muted small"),
             html.P(
-                f"Combined = (home rate + away rate) ÷ 2 = {yes or '—'}. The opposite outcome is 100% minus this.",
+                f"Recent {word} occurrence (average of the two shares): {combined or '—'}. Used "
+                "only to order fixtures in the 'recent occurrence' rankings. It describes past "
+                "matches and is not a probability for this fixture.",
                 className="muted small",
             ),
         ]
@@ -848,21 +990,34 @@ def other_markets_section(r: dict, market: str) -> html.Details:
             html.P(
                 [
                     html.Strong("BTTS: "),
-                    f"Yes {r['btts']['yes_display'] or '—'} · No {r['btts']['no_display'] or '—'}",
+                    _records_line(r, "BTTS"),
                 ]
             )
         )
     if market != "OU25":
-        o = r["over_under_2_5"]
         lines.append(
             html.P(
                 [
                     html.Strong("Over/Under 2.5: "),
-                    f"Over {o['over_display'] or '—'} · Under {o['under_display'] or '—'}",
+                    _records_line(r, "OU25"),
                 ]
             )
         )
     return section("Other markets", *lines)
+
+
+def _records_line(r: dict, market: str) -> str:
+    key = "btts" if market == "BTTS" else "over_2_5"
+    parts = [
+        f"{r['teams'][s]['team']} {record_text(r['teams'][s]['goals'][key], market)[0]}"
+        for s in ("home", "away")
+    ]
+    lb = r.get("league_baseline")
+    if lb:
+        parts.append(
+            f"league baseline {lb['btts_display' if market == 'BTTS' else 'over_2_5_display']}"
+        )
+    return " · ".join(parts)
 
 
 def render_detail(

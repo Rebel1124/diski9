@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from fractions import Fraction
 
-from diski9.screener.calc import diski_form_score
+from diski9.screener.calc import banded_form_score
 from diski9.screener.engine import MatchStore, TeamMatch
 
 MODELS = ("a", "b", "c", "d")
@@ -114,7 +114,7 @@ def score(model: str, results: Iterable[tuple[int, int]]) -> Fraction | None:
     """Form Score for ``results`` ((goals_for, goals_against), most recent first)."""
     pairs = list(results)
     if model == "a":
-        fs = diski_form_score(pairs)
+        fs = banded_form_score(pairs)
         return None if fs is None else fs.score
     w = Window.of(pairs)
     if w is None:

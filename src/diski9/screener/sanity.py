@@ -33,7 +33,7 @@ from .engine import MatchStore, ScreenerConfig, compute_fixture
 
 
 def _sql_home_form(conn: Connection, team_id: int, before: datetime, n: int = 5) -> float | None:
-    """Independent re-implementation of the Diski Form Score (venue: home matches)."""
+    """Independent re-implementation of the Diski Form Score, Model D (venue: home matches)."""
     rows = conn.execute(
         select(fixtures.c.ft_home, fixtures.c.ft_away)
         .where(
@@ -48,19 +48,9 @@ def _sql_home_form(conn: Connection, team_id: int, before: datetime, n: int = 5)
     if not rows:
         return None
     pts = sum(3 if h > a else 1 if h == a else 0 for h, a in rows)
-    gf, ga = sum(h for h, _ in rows), sum(a for _, a in rows)
-    gd = gf - ga
-    points_bands = [(15, 2.5), (12, 2.0), (9, 1.5), (6, 1.0), (3, 0.5)]
-    gd_bands = [(9, 2.5), (7, 2.0), (5, 1.5), (3, 1.0), (1, 0.5)]
-    raw = next((award for floor, award in points_bands if pts >= floor), 0.0)
-    raw += next((award for floor, award in gd_bands if gd >= floor), 0.0)
-    if len(rows) >= 3 and all(h > a for h, a in rows[:3]):
-        raw += 0.5
-    if gf >= 11:
-        raw += 0.5
-    if len(rows) == 5 and ga <= 2:
-        raw += 0.5
-    return raw / 6.5 * 5
+    gd = sum(h - a for h, a in rows)
+    # Model D (engine 2.1.0), written independently of calc.DiskiFormScore
+    return 2.5 * pts / 15 + 2.5 * (max(-9, min(9, gd)) + 9) / 18
 
 
 def _sql_current_season_count(

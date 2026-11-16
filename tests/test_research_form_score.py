@@ -16,7 +16,7 @@ from diski9.research.form_score_comparison import (
     out_of_sample,
     spearman,
 )
-from diski9.screener.calc import diski_form_score
+from diski9.screener.calc import banded_form_score
 from diski9.screener.engine import ENGINE_VERSION, MatchStore
 
 from .factories import T0, fixture_item, seed_competition
@@ -24,9 +24,10 @@ from .factories import T0, fixture_item, seed_competition
 F = Fraction
 
 
-def test_production_method_a_unchanged():
-    assert ENGINE_VERSION == "2.0.0"
-    fs = diski_form_score([(3, 0), (2, 0), (2, 1), (0, 1), (5, 1)])
+def test_legacy_method_a_unchanged():
+    # production moved to Model D in engine 2.1.0; Method A stays as the legacy helper
+    assert ENGINE_VERSION == "2.1.0"
+    fs = banded_form_score([(3, 0), (2, 0), (2, 1), (0, 1), (5, 1)])
     assert fs.breakdown()["form_score_display"] == "4.23"
 
 
@@ -51,7 +52,7 @@ def test_bonuses_match_method_a():
         [(1, 0), (1, 0), (0, 1), (1, 0), (0, 0)],
         [(0, 0)] * 5,
     ):
-        a, b = diski_form_score(res), continuous_form_score(res)
+        a, b = banded_form_score(res), continuous_form_score(res)
         assert b.bonuses == a.bonus_last_three_wins + a.bonus_goals_scored + a.bonus_goals_conceded
 
 

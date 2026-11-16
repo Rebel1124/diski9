@@ -103,12 +103,12 @@ def test_venue_windows_use_last_home_and_away_matches(db):
     b.save()
     r = compute(db)
     home = r["teams"]["home"]["form"]
-    # 15 pts (2.5) + GD +15 (2.5) + last 3 won + 15 goals scored + 0 conceded = 6.5 -> 5.00
+    # Model D: 15 pts -> 2.5 x 15/15 = 2.5; GD +15 capped at +9 -> 2.5 x 18/18 = 2.5
     assert home["sequence"] == "W-W-W-W-W" and home["display"] == "5.00"
     assert all(m["venue"] == "H" for m in home["matches"])
-    # away: 5 pts (0.5) + GD 0 (0) = 0.5 -> 0.38
-    assert r["teams"]["away"]["form"]["display"] == "0.38"
-    assert r["match_result"]["form_difference_display"] == "+4.62"
+    # away: 5 draws -> 2.5 x 5/15 = 0.83; GD 0 -> 2.5 x 9/18 = 1.25; total 2.08
+    assert r["teams"]["away"]["form"]["display"] == "2.08"
+    assert r["match_result"]["form_difference_display"] == "+2.92"
     overall = compute(db, basis="overall")
     assert overall["teams"]["home"]["form"]["sequence"] == "L-W-L-W-L"
     # overall uses the same Form Difference definition (home minus away), no venue adjustment
@@ -223,9 +223,14 @@ def test_small_samples_still_calculated_and_flagged(db):
     b.save()
     r = compute(db)
     form = r["teams"]["home"]["form"]
-    # 7 pts -> 1.0, GD +2 -> 0.5, last 3 (L, W, D) not all won, 4 goals, conceded bonus needs 5 matches
-    assert form["breakdown"]["raw"] == 1.5 and form["display"] == "1.15"
-    assert form["breakdown"]["bonus_goals_conceded_possible"] is False
+    # Model D, actual totals of the 4 matches: 7 pts -> 2.5 x 7/15 = 1.17;
+    # GD +2 -> 2.5 x 11/18 = 1.53; total 2.69 (no prorating, no bonuses)
+    bd = form["breakdown"]
+    assert bd["points"] == 7 and bd["goal_difference"] == 2 and bd["matches"] == 4
+    assert bd["points_component_display"] == "1.17"
+    assert bd["goal_difference_component_display"] == "1.53"
+    assert form["display"] == "2.69"
+    assert not any(k.startswith("bonus") for k in bd)
     assert form["sample"]["limited_data_reasons"] == ["fewer_than_5_matches"]  # Limited below five
     assert r["teams"]["home"]["goals"]["btts"]["display"] == "1/4 (25%)"
     assert r["teams"]["home"]["goals"]["sample"]["limited_data_reasons"] == ["fewer_than_6_matches"]
@@ -260,17 +265,15 @@ def test_benchmark_current_previous_and_partial(db):
 def test_form_difference_is_plain_home_minus_away(db):
     b = Builder(db)
     for i in range(5):
-        b.add(
-            1, 50 + i, 2, 0
-        )  # home team: 15 pts, GD +10, last 3 won, 10 scored, 0 conceded -> 6.0
-        b.add(60 + i, 2, 1, 0)  # away team (away): 0 pts, GD -5 -> 0
+        b.add(1, 50 + i, 2, 0)  # home team: 15 pts -> 2.5, GD +10 capped at +9 -> 2.5: 5.0
+        b.add(60 + i, 2, 1, 0)  # away team (away): 0 pts -> 0, GD -5 -> 2.5 x 4/18
     b.upcoming(1, 2)
     b.save()
     r = compute(db)
     mr = r["match_result"]
-    assert mr["home_form"] == pytest.approx(6.0 / 6.5 * 5) and mr["away_form"] == 0.0
+    assert mr["home_form"] == 5.0 and mr["away_form"] == pytest.approx(2.5 * 4 / 18)
     assert mr["form_difference"] == pytest.approx(mr["home_form"] - mr["away_form"])
-    assert mr["form_difference_display"] == "+4.62"
+    assert mr["form_difference_display"] == "+4.44"
     # benchmarks no longer influence anything: a league full of home wins changes nothing
     for i in range(20):
         b.add(300 + i, 400 + i, 5, 0)
@@ -294,7 +297,7 @@ def test_point_in_time_later_results_do_not_leak(db):
     after = compute(db, as_of=T0 + 10 * DAY)
     assert before["cutoff"] == T0.isoformat()
     assert before["inputs_hash"] == after["inputs_hash"]
-    assert after["teams"]["home"]["form"]["display"] == "0.38"  # 5 draws: 5 pts -> 0.5, GD 0 -> 0
+    assert after["teams"]["home"]["form"]["display"] == "2.08"  # 5 draws: 0.83 + 1.25
     assert after["teams"]["home"]["goals"]["btts"]["matches"] == 5
     # a later fixture does see them
     db.execute(

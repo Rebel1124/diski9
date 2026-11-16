@@ -29,7 +29,7 @@ from pathlib import Path
 from statistics import mean, median, pstdev
 from typing import Any
 
-from diski9.screener.calc import diski_form_score
+from diski9.screener.calc import banded_form_score
 from diski9.screener.engine import MatchStore
 
 RAW_MAX = Fraction(13, 2)
@@ -158,7 +158,7 @@ def build_dataset(
             aw = store.team_window(m.away_id, m.kickoff, "away" if basis == "venue" else None, 5)
             hp = [(t.goals_for, t.goals_against) for t in hw]
             ap = [(t.goals_for, t.goals_against) for t in aw]
-            ha, aa = diski_form_score(hp), diski_form_score(ap)
+            ha, aa = banded_form_score(hp), banded_form_score(ap)
             hb, ab = continuous_form_score(hp), continuous_form_score(ap)
 
             def bonus(fs):

@@ -31,6 +31,9 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   [Form Score](docs/milestone5_2_form_score_research.md),
   [goal models](docs/milestone5_2_goal_model_research.md) and
   [BTTS / Over-Under](docs/milestone5_2_goals_market_research.md)
+* **Milestone 5.3** — Diski Form Score Model D (engine 2.1.0), BTTS / Over-Under shown as
+  records, league baseline and market-implied probabilities:
+  [`docs/milestone5_3_report.md`](docs/milestone5_3_report.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 
@@ -101,20 +104,22 @@ and it refuses with a clear message if `setup` has not completed. Without
 
 Restart `serve` (or wait up to 5 minutes) for the app to show refreshed data.
 
-### Methodology (engine 2.0.0)
+### Methodology (engine 2.1.0)
 
-* **Diski Form Score (0–5)** from the last five eligible matches: points band +
-  goal-difference band + three bonuses (won the last three, scored 11+, conceded
-  2 or fewer), divided by 6.5 and multiplied by 5. **Form Difference** = home −
-  away (no venue adjustment).
-* **BTTS / Over 2.5**: up to ten current-season matches in the current
-  competition only.
+* **Diski Form Score (0–5)**, Model D, from the last five eligible matches:
+  2.5 × points ÷ 15 + 2.5 × (goal difference clipped to ±9, + 9) ÷ 18. No bonuses;
+  no history means Unavailable. **Form Difference** = home − away.
+* **BTTS / Over 2.5**: team records (up to ten current-season matches in the
+  current competition), a point-in-time **league baseline** (blended with last
+  season until 30 current-season matches), and market-implied probabilities.
 * **Reference odds**: Fresh, Stale (last valid consensus, labelled) or
   Unavailable. Stale odds are never eligible for the Challenge.
 
-Full details: [`docs/screener_methodology.md`](docs/screener_methodology.md).
-Results from older methodologies are retired automatically on the next
-`refresh-data`; no database reset is needed.
+Full details: [`docs/milestone5_3_model_migration.md`](docs/milestone5_3_model_migration.md),
+[`docs/milestone5_3_screener_ux.md`](docs/milestone5_3_screener_ux.md) and
+[`docs/screener_methodology.md`](docs/screener_methodology.md) (earlier engines).
+Results from older engine versions are never shown; rebuild them locally with
+`uv run diski9 screener-refresh` (no API requests).
 
 ## Stack
 

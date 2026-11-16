@@ -248,3 +248,17 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
   .detail-header h2 { font-size: 19px; }
   .info-pop { left: auto; right: -8px; }
 }
+
+/* Milestone 5.3: BTTS / Over-Under layers (records, league baseline, market) */
+.goals-summary .tiles { margin-bottom: 4px; }
+.record-row { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; margin: 2px 0; }
+.record-value { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.limited-note { margin: 6px 0 0; }
+.baseline { margin: 12px 0 4px; padding-top: 10px; border-top: 1px solid var(--border); }
+.baseline-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.baseline-value { font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.baseline-note { margin-top: 2px; }
+.goals-summary .odds-strip { margin-top: 10px; }
+.pair-row.compact .pair-value { font-size: 22px; }
+.pair-row.compact .pair-sep { font-size: 18px; }
+.form-calc td.num { white-space: nowrap; }

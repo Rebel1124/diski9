@@ -54,17 +54,26 @@ DIRECTIONS = {
         ("away_stronger", "Strongest away-team form advantage"),
         ("evenly_matched", "Most evenly matched"),
     ],
+    # Ordered by the historical occurrence rate (average of the two team shares),
+    # not by any predicted likelihood (Milestone 5.3 labels).
     "BTTS": KICKOFF_OPTIONS
     + [
-        ("btts_yes", "Highest BTTS Yes historical indicator"),
-        ("btts_no", "Highest BTTS No historical indicator"),
+        ("btts_yes", "Highest recent BTTS occurrence"),
+        ("btts_no", "Lowest recent BTTS occurrence"),
     ],
     "OU25": KICKOFF_OPTIONS
     + [
-        ("over", "Highest Over 2.5 historical indicator"),
-        ("under", "Highest Under 2.5 historical indicator"),
+        ("over", "Highest recent Over 2.5 occurrence"),
+        ("under", "Lowest recent Over 2.5 occurrence"),
     ],
 }
+
+
+def record_short(rate: dict | None) -> str:
+    """'7/10' for a team record; '—' when the team has no current-season history."""
+    if not rate or not rate["matches"]:
+        return "—"
+    return f"{rate['hits']}/{rate['matches']}"
 
 
 def valid_direction(market: str, direction: str | None) -> str:
@@ -87,6 +96,7 @@ class Snapshot:
     cache_verified_at: datetime | None
     fixtures_updated_at: datetime | None
     leagues: dict[int, str] = field(default_factory=dict)
+    outdated_rows: int = 0  # active cache rows from another engine version
 
     @property
     def stale(self) -> bool:
@@ -200,7 +210,15 @@ class ScreenerData:
                 else None
             )
             leagues = dict(conn.execute(select(competitions.c.id, competitions.c.name)).all())
-        return Snapshot(now, results, odds, standings, meta[0], meta[1], fx_updated, leagues)
+            outdated = conn.execute(
+                select(func.count()).where(
+                    screener_results.c.superseded_at.is_(None),
+                    screener_results.c.engine_version != ENGINE_VERSION,
+                )
+            ).scalar()
+        return Snapshot(
+            now, results, odds, standings, meta[0], meta[1], fx_updated, leagues, outdated or 0
+        )
 
     # ------------------------------------------------------------ formatting
     def local(self, dt: datetime | str | None, fmt: str = "%a %d %b, %H:%M") -> str:
@@ -272,20 +290,23 @@ class ScreenerData:
             key, block = (
                 ("btts", r["btts"]) if market == "BTTS" else ("over_2_5", r["over_under_2_5"])
             )
-            yes_key, no_key = (
-                ("yes_display", "no_display")
-                if market == "BTTS"
-                else ("over_display", "under_display")
-            )
+            lb = r.get("league_baseline")
             out.update(
-                home_metric=(t["home"]["goals"][key] or {}).get("display", "—"),
-                away_metric=(t["away"]["goals"][key] or {}).get("display", "—"),
+                home_metric=record_short(t["home"]["goals"][key]),
+                away_metric=record_short(t["away"]["goals"][key]),
                 indicator=block["yes_indicator" if market == "BTTS" else "over_indicator"],
-                indicator_display=block[yes_key] or "—",
-                complement_display=block[no_key] or "—",
+                indicator_display=block["yes_display" if market == "BTTS" else "over_display"]
+                or "—",
+                complement_display=None,
+                baseline_display=(lb["btts_display" if market == "BTTS" else "over_2_5_display"])
+                if lb
+                else "—",
+                baseline_blended=bool(lb and lb["source"] != "current_season"),
                 limited=r["limited_data"]["goals"],
                 sample=None,
             )
+            mstatus, mtext = self.market_summary(ov, MARKET_OF[market])
+            out.update(market=mtext, market_status=mstatus)
         status, odds_text = self.odds_summary(ov, MARKET_OF[market])
         out.update(odds=odds_text, odds_status=status)
         return out
@@ -303,6 +324,20 @@ class ScreenerData:
             for o in MARKET_OUTCOME_ORDER[market]
         )
         return dm.status, prices
+
+    def market_summary(self, ov: OddsView | None, market: Market) -> tuple[str, str]:
+        """Market-implied probabilities for the table (same consensus as the odds strip)."""
+        if ov is None:
+            return "unavailable", "—"
+        dm = ov.markets[market]
+        if dm.status == "unavailable":
+            return "unavailable", "No odds" if not ov.league_has_odds else "—"
+        adj = dm.implied.margin_adjusted if dm.implied else None
+        if not adj:
+            return "unavailable", "—"
+        return dm.status, " · ".join(
+            f"{float(adj[o]) * 100:.0f}%" for o in MARKET_OUTCOME_ORDER[market]
+        )
 
     def detail(self, fixture_id: int, basis: str) -> tuple[dict | None, OddsView | None, dict]:
         snap = self.snapshot()

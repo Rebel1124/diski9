@@ -240,7 +240,8 @@ def cmd_screener_show(args, engine) -> None:
             print(
                 f"{f['kickoff'][:16]} {f['home']} v {f['away']}: {forms}"
                 f"form difference {mr['form_difference_display']} | "
-                f"BTTS {r['btts']['yes_display']} | O2.5 {r['over_under_2_5']['over_display']} | "
+                f"recent BTTS {r['btts']['yes_display']} | "
+                f"recent O2.5 {r['over_under_2_5']['over_display']} | "
                 f"consensus {outcome.value} {price}{flag}"
             )
 

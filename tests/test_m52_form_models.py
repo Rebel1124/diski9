@@ -18,7 +18,7 @@ from diski9.research.form_models import (
     score,
     symmetric_gd_component,
 )
-from diski9.screener.calc import diski_form_score
+from diski9.screener.calc import banded_form_score
 from diski9.screener.engine import Match, MatchStore, compute_fixture
 
 T = datetime(2025, 8, 1, 15, tzinfo=UTC)
@@ -132,11 +132,11 @@ def test_partial_window_rules():
     assert score("c", [(5, 0)] * 4) < 5
 
 
-def test_model_a_is_production_unchanged():
+def test_model_a_is_the_legacy_banded_score():
     rng = random.Random(3)
     for _ in range(500):
         w = random_window(rng)
-        assert score("a", w) == diski_form_score(w).score
+        assert score("a", w) == banded_form_score(w).score
 
 
 # ------------------------------------------------------------ point in time
@@ -216,7 +216,7 @@ def test_no_duplicate_rows_and_promoted_flag():
     assert not r5.changed_division
 
 
-def test_row_a_score_matches_production_engine():
+def test_row_d_score_matches_production_engine():
     store = store_of(synthetic())
     rows = build_rows(store, (39,), (2025,))
     fx = SimpleNamespace(
@@ -230,7 +230,7 @@ def test_row_a_score_matches_production_engine():
     for basis in ("venue", "overall"):
         prod = compute_fixture(store, fx, fx.kickoff_utc + timedelta(days=1), basis)
         row = [r for r in rows if r.fixture_id == 7 and r.basis == basis][0]
-        assert row.scores["a"] == (
+        assert row.scores["d"] == (
             prod["match_result"]["home_form"],
             prod["match_result"]["away_form"],
         )
@@ -242,3 +242,14 @@ def test_features_unavailable_when_window_missing():
     assert first.diff("a") is None
     for f in ("a", "ppg", "gd", "ppg_gd", "venue_ppg", "d_plus_bonuses"):
         assert features(first, f) is None
+
+
+def test_research_model_d_equals_production_engine_2_1():
+    """Milestone 5.3 adopted Model D: production must equal the researched formula."""
+    from diski9.screener.calc import diski_form_score
+
+    rng = random.Random(4)
+    for _ in range(2000):
+        w = random_window(rng)
+        assert score("d", w) == diski_form_score(w).score
+    assert diski_form_score([]) is None
