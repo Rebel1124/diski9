@@ -1,0 +1,31 @@
+competition,season,evaluated_fixtures,role,uefa_qualifying,uefa_group,uefa_league,uefa_knockout,uefa_final
+La Liga,2022/23,0,prior only,,,,,
+La Liga,2023/24,380,holdout (new evidence),,,,,
+La Liga,2024/25,380,holdout (new evidence),,,,,
+La Liga,2025/26,380,holdout (new evidence),,,,,
+La Liga,2026/27,119,holdout (new evidence),,,,,
+Ligue 1,2022/23,0,prior only,,,,,
+Ligue 1,2023/24,306,holdout (new evidence),,,,,
+Ligue 1,2024/25,306,holdout (new evidence),,,,,
+Ligue 1,2025/26,305,holdout (new evidence),,,,,
+Ligue 1,2026/27,90,holdout (new evidence),,,,,
+Bundesliga,2022/23,0,prior only,,,,,
+Bundesliga,2023/24,306,holdout (new evidence),,,,,
+Bundesliga,2024/25,306,holdout (new evidence),,,,,
+Bundesliga,2025/26,306,holdout (new evidence),,,,,
+Bundesliga,2026/27,81,holdout (new evidence),,,,,
+Serie A,2022/23,0,prior only,,,,,
+Serie A,2023/24,380,holdout (new evidence),,,,,
+Serie A,2024/25,380,holdout (new evidence),,,,,
+Serie A,2025/26,380,holdout (new evidence),,,,,
+Serie A,2026/27,110,holdout (new evidence),,,,,
+Champions League,2022/23,0,prior only,89,96,0,28,1
+Champions League,2023/24,124,holdout (new evidence),89,96,0,28,1
+Champions League,2024/25,188,holdout (new evidence),90,0,144,44,1
+Champions League,2025/26,188,holdout (new evidence),92,0,144,44,1
+Champions League,2026/27,72,holdout (new evidence),90,0,72,0,0
+Europa League,2022/23,0,prior only,34,96,0,44,1
+Europa League,2023/24,140,holdout (new evidence),34,96,0,44,1
+Europa League,2024/25,188,holdout (new evidence),80,0,144,44,1
+Europa League,2025/26,188,holdout (new evidence),82,0,144,44,1
+Europa League,2026/27,72,holdout (new evidence),80,0,72,0,0

@@ -1,0 +1,3197 @@
+{
+  "generated": "2026-11-16T19:11:33+00:00",
+  "parameters": {
+    "k_s": 12,
+    "k_t": 96,
+    "m0": 30
+  },
+  "fixture_status_counts": [
+    [
+      2,
+      2022,
+      "non_regular_round",
+      189
+    ],
+    [
+      2,
+      2022,
+      "playoff_round",
+      25
+    ],
+    [
+      2,
+      2023,
+      "non_regular_round",
+      189
+    ],
+    [
+      2,
+      2023,
+      "playoff_round",
+      25
+    ],
+    [
+      2,
+      2024,
+      "non_regular_round",
+      236
+    ],
+    [
+      2,
+      2024,
+      "playoff_round",
+      43
+    ],
+    [
+      2,
+      2025,
+      "non_regular_round",
+      254
+    ],
+    [
+      2,
+      2025,
+      "playoff_round",
+      27
+    ],
+    [
+      2,
+      2026,
+      "non_regular_round",
+      148
+    ],
+    [
+      2,
+      2026,
+      "not_started",
+      72
+    ],
+    [
+      2,
+      2026,
+      "playoff_round",
+      14
+    ],
+    [
+      3,
+      2022,
+      "non_regular_round",
+      126
+    ],
+    [
+      3,
+      2022,
+      "playoff_round",
+      49
+    ],
+    [
+      3,
+      2023,
+      "non_regular_round",
+      126
+    ],
+    [
+      3,
+      2023,
+      "playoff_round",
+      49
+    ],
+    [
+      3,
+      2024,
+      "non_regular_round",
+      216
+    ],
+    [
+      3,
+      2024,
+      "playoff_round",
+      53
+    ],
+    [
+      3,
+      2025,
+      "non_regular_round",
+      234
+    ],
+    [
+      3,
+      2025,
+      "playoff_round",
+      37
+    ],
+    [
+      3,
+      2026,
+      "non_regular_round",
+      128
+    ],
+    [
+      3,
+      2026,
+      "not_started",
+      72
+    ],
+    [
+      3,
+      2026,
+      "playoff_round",
+      24
+    ],
+    [
+      61,
+      2022,
+      "eligible",
+      380
+    ],
+    [
+      61,
+      2023,
+      "eligible",
+      306
+    ],
+    [
+      61,
+      2023,
+      "relegation_round",
+      2
+    ],
+    [
+      61,
+      2024,
+      "eligible",
+      306
+    ],
+    [
+      61,
+      2024,
+      "relegation_round",
+      2
+    ],
+    [
+      61,
+      2025,
+      "awarded",
+      1
+    ],
+    [
+      61,
+      2025,
+      "eligible",
+      305
+    ],
+    [
+      61,
+      2025,
+      "playoff_round",
+      2
+    ],
+    [
+      61,
+      2026,
+      "eligible",
+      90
+    ],
+    [
+      61,
+      2026,
+      "not_started",
+      216
+    ],
+    [
+      78,
+      2022,
+      "eligible",
+      306
+    ],
+    [
+      78,
+      2022,
+      "relegation_round",
+      2
+    ],
+    [
+      78,
+      2023,
+      "eligible",
+      306
+    ],
+    [
+      78,
+      2023,
+      "relegation_round",
+      2
+    ],
+    [
+      78,
+      2024,
+      "eligible",
+      306
+    ],
+    [
+      78,
+      2024,
+      "relegation_round",
+      2
+    ],
+    [
+      78,
+      2025,
+      "eligible",
+      306
+    ],
+    [
+      78,
+      2025,
+      "playoff_round",
+      2
+    ],
+    [
+      78,
+      2026,
+      "eligible",
+      81
+    ],
+    [
+      78,
+      2026,
+      "not_started",
+      225
+    ],
+    [
+      135,
+      2022,
+      "eligible",
+      380
+    ],
+    [
+      135,
+      2022,
+      "relegation_round",
+      1
+    ],
+    [
+      135,
+      2023,
+      "eligible",
+      380
+    ],
+    [
+      135,
+      2024,
+      "eligible",
+      380
+    ],
+    [
+      135,
+      2025,
+      "eligible",
+      380
+    ],
+    [
+      135,
+      2026,
+      "eligible",
+      110
+    ],
+    [
+      135,
+      2026,
+      "not_started",
+      270
+    ],
+    [
+      140,
+      2022,
+      "eligible",
+      380
+    ],
+    [
+      140,
+      2023,
+      "eligible",
+      380
+    ],
+    [
+      140,
+      2024,
+      "eligible",
+      380
+    ],
+    [
+      140,
+      2025,
+      "eligible",
+      380
+    ],
+    [
+      140,
+      2026,
+      "abandoned",
+      1
+    ],
+    [
+      140,
+      2026,
+      "eligible",
+      119
+    ],
+    [
+      140,
+      2026,
+      "not_started",
+      260
+    ]
+  ],
+  "per_competition": {
+    "La Liga": {
+      "seasons": [
+        "2023/24",
+        "2024/25",
+        "2025/26",
+        "2026/27"
+      ],
+      "model": {
+        "n": 1259,
+        "1x2_log_loss": 1.0027,
+        "1x2_brier": 0.5979,
+        "1x2_ece_home": 0.0518,
+        "1x2_ece_draw": 0.0294,
+        "1x2_ece_away": 0.0409,
+        "1x2_slope_home": 1.448,
+        "btts_log_loss": 0.6877,
+        "btts_brier": 0.2473,
+        "btts_ece": 0.0171,
+        "btts_slope": 1.45,
+        "ou_log_loss": 0.6847,
+        "ou_brier": 0.2458,
+        "ou_ece": 0.025,
+        "ou_slope": 1.506,
+        "mean_p_home": 0.4547,
+        "mean_p_draw": 0.2447,
+        "mean_p_btts": 0.5218,
+        "mean_p_over": 0.5057,
+        "score_loglik": -2.8639
+      },
+      "league_baseline": {
+        "n": 1259,
+        "1x2_log_loss": 1.0726,
+        "1x2_brier": 0.6481,
+        "1x2_ece_home": 0.0048,
+        "1x2_ece_draw": 0.0095,
+        "1x2_ece_away": 0.0153,
+        "1x2_slope_home": -1.367,
+        "btts_log_loss": 0.6928,
+        "btts_brier": 0.2498,
+        "btts_ece": 0.0127,
+        "btts_slope": -0.397,
+        "ou_log_loss": 0.6955,
+        "ou_brier": 0.2511,
+        "ou_ece": 0.0232,
+        "ou_slope": -0.471,
+        "mean_p_home": 0.4546,
+        "mean_p_draw": 0.2692,
+        "mean_p_btts": 0.5382,
+        "mean_p_over": 0.4848
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.06994,
+          "ci95": [
+            -0.08425,
+            -0.05526
+          ],
+          "n": 1259,
+          "clusters": 121,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.05014,
+          "ci95": [
+            -0.06022,
+            -0.03967
+          ],
+          "n": 1259,
+          "clusters": 121,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.00511,
+          "ci95": [
+            -0.00894,
+            -0.00129
+          ],
+          "n": 1259,
+          "clusters": 121,
+          "excludes_zero": true
+        },
+        "btts_brier": {
+          "mean": -0.00253,
+          "ci95": [
+            -0.00443,
+            -0.00064
+          ],
+          "n": 1259,
+          "clusters": 121,
+          "excludes_zero": true
+        },
+        "ou_log_loss": {
+          "mean": -0.01075,
+          "ci95": [
+            -0.01566,
+            -0.00543
+          ],
+          "n": 1259,
+          "clusters": 121,
+          "excludes_zero": true
+        },
+        "ou_brier": {
+          "mean": -0.00531,
+          "ci95": [
+            -0.00775,
+            -0.00267
+          ],
+          "n": 1259,
+          "clusters": 121,
+          "excludes_zero": true
+        }
+      },
+      "lambda_range": [
+        0.56,
+        3.03
+      ],
+      "by_stage": {
+        "early": {
+          "n": 398,
+          "model_1x2_log_loss": 1.0389,
+          "model_btts_log_loss": 0.6865,
+          "model_ou_log_loss": 0.6885,
+          "baseline_1x2_log_loss": 1.0874,
+          "baseline_btts_log_loss": 0.6914,
+          "baseline_ou_log_loss": 0.6986,
+          "1x2_diff": {
+            "mean": -0.04855,
+            "ci95": [
+              -0.06646,
+              -0.03141
+            ],
+            "n": 398,
+            "clusters": 39,
+            "excludes_zero": true
+          }
+        },
+        "mid": {
+          "n": 593,
+          "model_1x2_log_loss": 0.9935,
+          "model_btts_log_loss": 0.6893,
+          "model_ou_log_loss": 0.6861,
+          "baseline_1x2_log_loss": 1.0655,
+          "baseline_btts_log_loss": 0.6928,
+          "baseline_ou_log_loss": 0.6935,
+          "1x2_diff": {
+            "mean": -0.07204,
+            "ci95": [
+              -0.09408,
+              -0.05051
+            ],
+            "n": 593,
+            "clusters": 63,
+            "excludes_zero": true
+          }
+        },
+        "late": {
+          "n": 268,
+          "model_1x2_log_loss": 0.9691,
+          "model_btts_log_loss": 0.6858,
+          "model_ou_log_loss": 0.676,
+          "baseline_1x2_log_loss": 1.0661,
+          "baseline_btts_log_loss": 0.6947,
+          "baseline_ou_log_loss": 0.6951,
+          "1x2_diff": {
+            "mean": -0.09704,
+            "ci95": [
+              -0.13389,
+              -0.06005
+            ],
+            "n": 268,
+            "clusters": 25,
+            "excludes_zero": true
+          }
+        }
+      }
+    },
+    "Ligue 1": {
+      "seasons": [
+        "2023/24",
+        "2024/25",
+        "2025/26",
+        "2026/27"
+      ],
+      "model": {
+        "n": 1007,
+        "1x2_log_loss": 1.0205,
+        "1x2_brier": 0.6122,
+        "1x2_ece_home": 0.0169,
+        "1x2_ece_draw": 0.0032,
+        "1x2_ece_away": 0.0276,
+        "1x2_slope_home": 1.028,
+        "btts_log_loss": 0.693,
+        "btts_brier": 0.2499,
+        "btts_ece": 0.0226,
+        "btts_slope": -0.198,
+        "ou_log_loss": 0.6908,
+        "ou_brier": 0.2488,
+        "ou_ece": 0.0252,
+        "ou_slope": 0.414,
+        "mean_p_home": 0.4523,
+        "mean_p_draw": 0.2365,
+        "mean_p_btts": 0.5564,
+        "mean_p_over": 0.5473,
+        "score_loglik": -3.0154
+      },
+      "league_baseline": {
+        "n": 1007,
+        "1x2_log_loss": 1.0723,
+        "1x2_brier": 0.6489,
+        "1x2_ece_home": 0.0227,
+        "1x2_ece_draw": 0.0203,
+        "1x2_ece_away": 0.0235,
+        "1x2_slope_home": 0.169,
+        "btts_log_loss": 0.693,
+        "btts_brier": 0.2499,
+        "btts_ece": 0.0181,
+        "btts_slope": -0.129,
+        "ou_log_loss": 0.6945,
+        "ou_brier": 0.2506,
+        "ou_ece": 0.0093,
+        "ou_slope": -1.168,
+        "mean_p_home": 0.4473,
+        "mean_p_draw": 0.2483,
+        "mean_p_btts": 0.5358,
+        "mean_p_over": 0.5343
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.05184,
+          "ci95": [
+            -0.06857,
+            -0.03637
+          ],
+          "n": 1007,
+          "clusters": 112,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.03666,
+          "ci95": [
+            -0.04877,
+            -0.02519
+          ],
+          "n": 1007,
+          "clusters": 112,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": 3e-05,
+          "ci95": [
+            -0.00556,
+            0.00572
+          ],
+          "n": 1007,
+          "clusters": 112,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": 1e-05,
+          "ci95": [
+            -0.00275,
+            0.00283
+          ],
+          "n": 1007,
+          "clusters": 112,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.00367,
+          "ci95": [
+            -0.0091,
+            0.00174
+          ],
+          "n": 1007,
+          "clusters": 112,
+          "excludes_zero": false
+        },
+        "ou_brier": {
+          "mean": -0.0018,
+          "ci95": [
+            -0.00444,
+            0.00082
+          ],
+          "n": 1007,
+          "clusters": 112,
+          "excludes_zero": false
+        }
+      },
+      "lambda_range": [
+        0.64,
+        3.19
+      ],
+      "by_stage": {
+        "early": {
+          "n": 323,
+          "model_1x2_log_loss": 1.0519,
+          "model_btts_log_loss": 0.6872,
+          "model_ou_log_loss": 0.6863,
+          "baseline_1x2_log_loss": 1.0758,
+          "baseline_btts_log_loss": 0.6934,
+          "baseline_ou_log_loss": 0.6928,
+          "1x2_diff": {
+            "mean": -0.02388,
+            "ci95": [
+              -0.04414,
+              -0.00379
+            ],
+            "n": 323,
+            "clusters": 37,
+            "excludes_zero": true
+          }
+        },
+        "mid": {
+          "n": 470,
+          "model_1x2_log_loss": 1.0049,
+          "model_btts_log_loss": 0.7034,
+          "model_ou_log_loss": 0.7015,
+          "baseline_1x2_log_loss": 1.0755,
+          "baseline_btts_log_loss": 0.6972,
+          "baseline_ou_log_loss": 0.7006,
+          "1x2_diff": {
+            "mean": -0.07056,
+            "ci95": [
+              -0.09506,
+              -0.04453
+            ],
+            "n": 470,
+            "clusters": 53,
+            "excludes_zero": true
+          }
+        },
+        "late": {
+          "n": 214,
+          "model_1x2_log_loss": 1.0071,
+          "model_btts_log_loss": 0.6789,
+          "model_ou_log_loss": 0.674,
+          "baseline_1x2_log_loss": 1.06,
+          "baseline_btts_log_loss": 0.683,
+          "baseline_ou_log_loss": 0.6834,
+          "1x2_diff": {
+            "mean": -0.05294,
+            "ci95": [
+              -0.09045,
+              -0.01487
+            ],
+            "n": 214,
+            "clusters": 24,
+            "excludes_zero": true
+          }
+        }
+      }
+    },
+    "Bundesliga": {
+      "seasons": [
+        "2023/24",
+        "2024/25",
+        "2025/26",
+        "2026/27"
+      ],
+      "model": {
+        "n": 999,
+        "1x2_log_loss": 1.0155,
+        "1x2_brier": 0.6076,
+        "1x2_ece_home": 0.0476,
+        "1x2_ece_draw": 0.0375,
+        "1x2_ece_away": 0.0322,
+        "1x2_slope_home": 1.1,
+        "btts_log_loss": 0.6729,
+        "btts_brier": 0.2399,
+        "btts_ece": 0.0274,
+        "btts_slope": 0.629,
+        "ou_log_loss": 0.6558,
+        "ou_brier": 0.2317,
+        "ou_ece": 0.0235,
+        "ou_slope": 1.226,
+        "mean_p_home": 0.4623,
+        "mean_p_draw": 0.2138,
+        "mean_p_btts": 0.6289,
+        "mean_p_over": 0.6462,
+        "score_loglik": -3.1351
+      },
+      "league_baseline": {
+        "n": 999,
+        "1x2_log_loss": 1.0816,
+        "1x2_brier": 0.6549,
+        "1x2_ece_home": 0.0238,
+        "1x2_ece_draw": 0.0137,
+        "1x2_ece_away": 0.0431,
+        "1x2_slope_home": -0.142,
+        "btts_log_loss": 0.6755,
+        "btts_brier": 0.2412,
+        "btts_ece": 0.0325,
+        "btts_slope": -1.475,
+        "ou_log_loss": 0.6641,
+        "ou_brier": 0.2355,
+        "ou_ece": 0.0133,
+        "ou_slope": -0.154,
+        "mean_p_home": 0.444,
+        "mean_p_draw": 0.2375,
+        "mean_p_btts": 0.595,
+        "mean_p_over": 0.6342
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.0661,
+          "ci95": [
+            -0.08587,
+            -0.04582
+          ],
+          "n": 999,
+          "clusters": 109,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.04731,
+          "ci95": [
+            -0.06178,
+            -0.03307
+          ],
+          "n": 999,
+          "clusters": 109,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.00261,
+          "ci95": [
+            -0.00818,
+            0.00356
+          ],
+          "n": 999,
+          "clusters": 109,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": -0.00127,
+          "ci95": [
+            -0.00391,
+            0.00167
+          ],
+          "n": 999,
+          "clusters": 109,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.00832,
+          "ci95": [
+            -0.01291,
+            -0.00344
+          ],
+          "n": 999,
+          "clusters": 109,
+          "excludes_zero": true
+        },
+        "ou_brier": {
+          "mean": -0.00374,
+          "ci95": [
+            -0.00574,
+            -0.00158
+          ],
+          "n": 999,
+          "clusters": 109,
+          "excludes_zero": true
+        }
+      },
+      "lambda_range": [
+        0.68,
+        3.87
+      ],
+      "by_stage": {
+        "early": {
+          "n": 324,
+          "model_1x2_log_loss": 1.0161,
+          "model_btts_log_loss": 0.6809,
+          "model_ou_log_loss": 0.6272,
+          "baseline_1x2_log_loss": 1.0636,
+          "baseline_btts_log_loss": 0.6816,
+          "baseline_ou_log_loss": 0.6339,
+          "1x2_diff": {
+            "mean": -0.04754,
+            "ci95": [
+              -0.06869,
+              -0.02676
+            ],
+            "n": 324,
+            "clusters": 36,
+            "excludes_zero": true
+          }
+        },
+        "mid": {
+          "n": 459,
+          "model_1x2_log_loss": 1.0093,
+          "model_btts_log_loss": 0.6771,
+          "model_ou_log_loss": 0.6841,
+          "baseline_1x2_log_loss": 1.0867,
+          "baseline_btts_log_loss": 0.6792,
+          "baseline_ou_log_loss": 0.693,
+          "1x2_diff": {
+            "mean": -0.07742,
+            "ci95": [
+              -0.10919,
+              -0.04139
+            ],
+            "n": 459,
+            "clusters": 49,
+            "excludes_zero": true
+          }
+        },
+        "late": {
+          "n": 216,
+          "model_1x2_log_loss": 1.0278,
+          "model_btts_log_loss": 0.6518,
+          "model_ou_log_loss": 0.6383,
+          "baseline_1x2_log_loss": 1.0977,
+          "baseline_btts_log_loss": 0.6585,
+          "baseline_ou_log_loss": 0.6477,
+          "1x2_diff": {
+            "mean": -0.06991,
+            "ci95": [
+              -0.11536,
+              -0.0192
+            ],
+            "n": 216,
+            "clusters": 24,
+            "excludes_zero": true
+          }
+        }
+      }
+    },
+    "Serie A": {
+      "seasons": [
+        "2023/24",
+        "2024/25",
+        "2025/26",
+        "2026/27"
+      ],
+      "model": {
+        "n": 1250,
+        "1x2_log_loss": 1.0106,
+        "1x2_brier": 0.6046,
+        "1x2_ece_home": 0.0498,
+        "1x2_ece_draw": 0.0205,
+        "1x2_ece_away": 0.0423,
+        "1x2_slope_home": 1.266,
+        "btts_log_loss": 0.6917,
+        "btts_brier": 0.2493,
+        "btts_ece": 0.0107,
+        "btts_slope": 0.788,
+        "ou_log_loss": 0.6939,
+        "ou_brier": 0.2503,
+        "ou_ece": 0.0312,
+        "ou_slope": 0.399,
+        "mean_p_home": 0.4178,
+        "mean_p_draw": 0.2502,
+        "mean_p_btts": 0.5067,
+        "mean_p_over": 0.485,
+        "score_loglik": -2.8292
+      },
+      "league_baseline": {
+        "n": 1250,
+        "1x2_log_loss": 1.0884,
+        "1x2_brier": 0.6599,
+        "1x2_ece_home": 0.0425,
+        "1x2_ece_draw": 0.0113,
+        "1x2_ece_away": 0.0139,
+        "1x2_slope_home": -0.561,
+        "btts_log_loss": 0.6946,
+        "btts_brier": 0.2507,
+        "btts_ece": 0.0126,
+        "btts_slope": 0.046,
+        "ou_log_loss": 0.6948,
+        "ou_brier": 0.2508,
+        "ou_ece": 0.0142,
+        "ou_slope": 0.186,
+        "mean_p_home": 0.41,
+        "mean_p_draw": 0.2791,
+        "mean_p_btts": 0.4991,
+        "mean_p_over": 0.4826
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.07776,
+          "ci95": [
+            -0.09641,
+            -0.05936
+          ],
+          "n": 1250,
+          "clusters": 121,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.05534,
+          "ci95": [
+            -0.06871,
+            -0.0424
+          ],
+          "n": 1250,
+          "clusters": 121,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.00292,
+          "ci95": [
+            -0.00627,
+            0.00054
+          ],
+          "n": 1250,
+          "clusters": 121,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": -0.00146,
+          "ci95": [
+            -0.00312,
+            0.00026
+          ],
+          "n": 1250,
+          "clusters": 121,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.00091,
+          "ci95": [
+            -0.00549,
+            0.00367
+          ],
+          "n": 1250,
+          "clusters": 121,
+          "excludes_zero": false
+        },
+        "ou_brier": {
+          "mean": -0.00045,
+          "ci95": [
+            -0.00273,
+            0.00182
+          ],
+          "n": 1250,
+          "clusters": 121,
+          "excludes_zero": false
+        }
+      },
+      "lambda_range": [
+        0.53,
+        3.24
+      ],
+      "by_stage": {
+        "early": {
+          "n": 399,
+          "model_1x2_log_loss": 1.0363,
+          "model_btts_log_loss": 0.6937,
+          "model_ou_log_loss": 0.6936,
+          "baseline_1x2_log_loss": 1.0833,
+          "baseline_btts_log_loss": 0.6976,
+          "baseline_ou_log_loss": 0.6923,
+          "1x2_diff": {
+            "mean": -0.04699,
+            "ci95": [
+              -0.06919,
+              -0.02368
+            ],
+            "n": 399,
+            "clusters": 40,
+            "excludes_zero": true
+          }
+        },
+        "mid": {
+          "n": 582,
+          "model_1x2_log_loss": 0.9855,
+          "model_btts_log_loss": 0.6917,
+          "model_ou_log_loss": 0.6984,
+          "baseline_1x2_log_loss": 1.087,
+          "baseline_btts_log_loss": 0.6947,
+          "baseline_ou_log_loss": 0.6988,
+          "1x2_diff": {
+            "mean": -0.10152,
+            "ci95": [
+              -0.12584,
+              -0.07645
+            ],
+            "n": 582,
+            "clusters": 59,
+            "excludes_zero": true
+          }
+        },
+        "late": {
+          "n": 269,
+          "model_1x2_log_loss": 1.0269,
+          "model_btts_log_loss": 0.6887,
+          "model_ou_log_loss": 0.6844,
+          "baseline_1x2_log_loss": 1.0989,
+          "baseline_btts_log_loss": 0.6901,
+          "baseline_ou_log_loss": 0.6897,
+          "1x2_diff": {
+            "mean": -0.07202,
+            "ci95": [
+              -0.12332,
+              -0.02145
+            ],
+            "n": 269,
+            "clusters": 28,
+            "excludes_zero": true
+          }
+        }
+      }
+    },
+    "Champions League": {
+      "seasons": [
+        "2023/24",
+        "2024/25",
+        "2025/26",
+        "2026/27"
+      ],
+      "model": {
+        "n": 572,
+        "1x2_log_loss": 0.9821,
+        "1x2_brier": 0.5862,
+        "1x2_ece_home": 0.0334,
+        "1x2_ece_draw": 0.0561,
+        "1x2_ece_away": 0.0369,
+        "1x2_slope_home": 1.368,
+        "btts_log_loss": 0.6911,
+        "btts_brier": 0.2487,
+        "btts_ece": 0.0613,
+        "btts_slope": 0.444,
+        "ou_log_loss": 0.6463,
+        "ou_brier": 0.2271,
+        "ou_ece": 0.0257,
+        "ou_slope": 0.814,
+        "mean_p_home": 0.4833,
+        "mean_p_draw": 0.2204,
+        "mean_p_btts": 0.6329,
+        "mean_p_over": 0.6382,
+        "score_loglik": -3.3042
+      },
+      "league_baseline": {
+        "n": 572,
+        "1x2_log_loss": 1.0152,
+        "1x2_brier": 0.6136,
+        "1x2_ece_home": 0.0422,
+        "1x2_ece_draw": 0.0123,
+        "1x2_ece_away": 0.0322,
+        "1x2_slope_home": -0.665,
+        "btts_log_loss": 0.6891,
+        "btts_brier": 0.2479,
+        "btts_ece": 0.0425,
+        "btts_slope": -0.396,
+        "ou_log_loss": 0.6499,
+        "ou_brier": 0.2287,
+        "ou_ece": 0.022,
+        "ou_slope": 0.546,
+        "mean_p_home": 0.4966,
+        "mean_p_draw": 0.1767,
+        "mean_p_btts": 0.5461,
+        "mean_p_over": 0.6248
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.03309,
+          "ci95": [
+            -0.04776,
+            -0.01884
+          ],
+          "n": 572,
+          "clusters": 50,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.02735,
+          "ci95": [
+            -0.03693,
+            -0.01796
+          ],
+          "n": 572,
+          "clusters": 50,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": 0.00205,
+          "ci95": [
+            -0.00922,
+            0.01376
+          ],
+          "n": 572,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": 0.00076,
+          "ci95": [
+            -0.00467,
+            0.00637
+          ],
+          "n": 572,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.00362,
+          "ci95": [
+            -0.00766,
+            0.00035
+          ],
+          "n": 572,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "ou_brier": {
+          "mean": -0.00164,
+          "ci95": [
+            -0.00355,
+            0.00017
+          ],
+          "n": 572,
+          "clusters": 50,
+          "excludes_zero": false
+        }
+      },
+      "lambda_range": [
+        0.86,
+        3.2
+      ],
+      "by_stage": {
+        "early": {
+          "n": 140,
+          "model_1x2_log_loss": 1.0262,
+          "model_btts_log_loss": 0.6841,
+          "model_ou_log_loss": 0.6295,
+          "baseline_1x2_log_loss": 1.0263,
+          "baseline_btts_log_loss": 0.6934,
+          "baseline_ou_log_loss": 0.6362,
+          "1x2_diff": {
+            "mean": -8e-05,
+            "ci95": [
+              -0.01518,
+              0.01635
+            ],
+            "n": 140,
+            "clusters": 8,
+            "excludes_zero": false
+          }
+        },
+        "mid": {
+          "n": 176,
+          "model_1x2_log_loss": 0.973,
+          "model_btts_log_loss": 0.7143,
+          "model_ou_log_loss": 0.6472,
+          "baseline_1x2_log_loss": 1.0043,
+          "baseline_btts_log_loss": 0.6942,
+          "baseline_ou_log_loss": 0.6517,
+          "1x2_diff": {
+            "mean": -0.03124,
+            "ci95": [
+              -0.05706,
+              -0.00423
+            ],
+            "n": 176,
+            "clusters": 10,
+            "excludes_zero": true
+          }
+        },
+        "late": {
+          "n": 140,
+          "model_1x2_log_loss": 0.9336,
+          "model_btts_log_loss": 0.6811,
+          "model_ou_log_loss": 0.6506,
+          "baseline_1x2_log_loss": 0.989,
+          "baseline_btts_log_loss": 0.6854,
+          "baseline_ou_log_loss": 0.6555,
+          "1x2_diff": {
+            "mean": -0.05534,
+            "ci95": [
+              -0.08329,
+              -0.02765
+            ],
+            "n": 140,
+            "clusters": 8,
+            "excludes_zero": true
+          }
+        },
+        "knockout": {
+          "n": 116,
+          "model_1x2_log_loss": 1.0012,
+          "model_btts_log_loss": 0.6765,
+          "model_ou_log_loss": 0.66,
+          "baseline_1x2_log_loss": 1.0501,
+          "baseline_btts_log_loss": 0.6804,
+          "baseline_ou_log_loss": 0.6571,
+          "1x2_diff": {
+            "mean": -0.04885,
+            "ci95": [
+              -0.07739,
+              -0.01622
+            ],
+            "n": 116,
+            "clusters": 24,
+            "excludes_zero": true
+          }
+        }
+      }
+    },
+    "Europa League": {
+      "seasons": [
+        "2023/24",
+        "2024/25",
+        "2025/26",
+        "2026/27"
+      ],
+      "model": {
+        "n": 588,
+        "1x2_log_loss": 1.0135,
+        "1x2_brier": 0.6069,
+        "1x2_ece_home": 0.0549,
+        "1x2_ece_draw": 0.0479,
+        "1x2_ece_away": 0.0259,
+        "1x2_slope_home": 1.329,
+        "btts_log_loss": 0.6911,
+        "btts_brier": 0.249,
+        "btts_ece": 0.0204,
+        "btts_slope": 0.215,
+        "ou_log_loss": 0.6868,
+        "ou_brier": 0.2468,
+        "ou_ece": 0.0453,
+        "ou_slope": 0.268,
+        "mean_p_home": 0.4701,
+        "mean_p_draw": 0.2413,
+        "mean_p_btts": 0.556,
+        "mean_p_over": 0.5388,
+        "score_loglik": -3.0035
+      },
+      "league_baseline": {
+        "n": 588,
+        "1x2_log_loss": 1.0398,
+        "1x2_brier": 0.6273,
+        "1x2_ece_home": 0.0356,
+        "1x2_ece_draw": 0.0254,
+        "1x2_ece_away": 0.0182,
+        "1x2_slope_home": -1.156,
+        "btts_log_loss": 0.696,
+        "btts_brier": 0.2514,
+        "btts_ece": 0.0181,
+        "btts_slope": -0.684,
+        "ou_log_loss": 0.6899,
+        "ou_brier": 0.2483,
+        "ou_ece": 0.0407,
+        "ou_slope": -0.672,
+        "mean_p_home": 0.4835,
+        "mean_p_draw": 0.2055,
+        "mean_p_btts": 0.5366,
+        "mean_p_over": 0.5537
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.02628,
+          "ci95": [
+            -0.04423,
+            -0.00969
+          ],
+          "n": 588,
+          "clusters": 51,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.02041,
+          "ci95": [
+            -0.03337,
+            -0.00914
+          ],
+          "n": 588,
+          "clusters": 51,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.00485,
+          "ci95": [
+            -0.01025,
+            -0.00013
+          ],
+          "n": 588,
+          "clusters": 51,
+          "excludes_zero": true
+        },
+        "btts_brier": {
+          "mean": -0.00241,
+          "ci95": [
+            -0.00509,
+            -7e-05
+          ],
+          "n": 588,
+          "clusters": 51,
+          "excludes_zero": true
+        },
+        "ou_log_loss": {
+          "mean": -0.00307,
+          "ci95": [
+            -0.00891,
+            0.00283
+          ],
+          "n": 588,
+          "clusters": 51,
+          "excludes_zero": false
+        },
+        "ou_brier": {
+          "mean": -0.00148,
+          "ci95": [
+            -0.00433,
+            0.0014
+          ],
+          "n": 588,
+          "clusters": 51,
+          "excludes_zero": false
+        }
+      },
+      "lambda_range": [
+        0.78,
+        2.54
+      ],
+      "by_stage": {
+        "early": {
+          "n": 140,
+          "model_1x2_log_loss": 1.0646,
+          "model_btts_log_loss": 0.6869,
+          "model_ou_log_loss": 0.7,
+          "baseline_1x2_log_loss": 1.0612,
+          "baseline_btts_log_loss": 0.7032,
+          "baseline_ou_log_loss": 0.7015,
+          "1x2_diff": {
+            "mean": 0.00345,
+            "ci95": [
+              -0.0226,
+              0.02957
+            ],
+            "n": 140,
+            "clusters": 8,
+            "excludes_zero": false
+          }
+        },
+        "mid": {
+          "n": 176,
+          "model_1x2_log_loss": 1.0011,
+          "model_btts_log_loss": 0.6949,
+          "model_ou_log_loss": 0.6925,
+          "baseline_1x2_log_loss": 1.0338,
+          "baseline_btts_log_loss": 0.6989,
+          "baseline_ou_log_loss": 0.6915,
+          "1x2_diff": {
+            "mean": -0.03268,
+            "ci95": [
+              -0.04866,
+              -0.01444
+            ],
+            "n": 176,
+            "clusters": 11,
+            "excludes_zero": true
+          }
+        },
+        "late": {
+          "n": 140,
+          "model_1x2_log_loss": 0.9456,
+          "model_btts_log_loss": 0.6998,
+          "model_ou_log_loss": 0.6748,
+          "baseline_1x2_log_loss": 1.0122,
+          "baseline_btts_log_loss": 0.6964,
+          "baseline_ou_log_loss": 0.6869,
+          "1x2_diff": {
+            "mean": -0.06656,
+            "ci95": [
+              -0.11221,
+              -0.0206
+            ],
+            "n": 140,
+            "clusters": 8,
+            "excludes_zero": true
+          }
+        },
+        "knockout": {
+          "n": 132,
+          "model_1x2_log_loss": 1.048,
+          "model_btts_log_loss": 0.6813,
+          "model_ou_log_loss": 0.678,
+          "baseline_1x2_log_loss": 1.0546,
+          "baseline_btts_log_loss": 0.6839,
+          "baseline_ou_log_loss": 0.6786,
+          "1x2_diff": {
+            "mean": -0.00657,
+            "ci95": [
+              -0.03843,
+              0.02369
+            ],
+            "n": 132,
+            "clusters": 24,
+            "excludes_zero": false
+          }
+        }
+      }
+    },
+    "New domestic leagues (pooled)": {
+      "seasons": [
+        "2023/24",
+        "2024/25",
+        "2025/26",
+        "2026/27"
+      ],
+      "model": {
+        "n": 4515,
+        "1x2_log_loss": 1.0117,
+        "1x2_brier": 0.6051,
+        "1x2_ece_home": 0.0249,
+        "1x2_ece_draw": 0.018,
+        "1x2_ece_away": 0.0293,
+        "1x2_slope_home": 1.209,
+        "btts_log_loss": 0.6867,
+        "btts_brier": 0.2468,
+        "btts_ece": 0.0105,
+        "btts_slope": 0.703,
+        "ou_log_loss": 0.6822,
+        "ou_brier": 0.2446,
+        "ou_ece": 0.0146,
+        "ou_slope": 0.88,
+        "mean_p_home": 0.4456,
+        "mean_p_draw": 0.2376,
+        "mean_p_btts": 0.549,
+        "mean_p_over": 0.5403,
+        "score_loglik": -2.9481
+      },
+      "league_baseline": {
+        "n": 4515,
+        "1x2_log_loss": 1.0789,
+        "1x2_brier": 0.653,
+        "1x2_ece_home": 0.0234,
+        "1x2_ece_draw": 0.0093,
+        "1x2_ece_away": 0.0223,
+        "1x2_slope_home": 0.098,
+        "btts_log_loss": 0.6895,
+        "btts_brier": 0.2482,
+        "btts_ece": 0.0122,
+        "btts_slope": 0.48,
+        "ou_log_loss": 0.6881,
+        "ou_brier": 0.2475,
+        "ou_ece": 0.0135,
+        "ou_slope": 0.666,
+        "mean_p_home": 0.4383,
+        "mean_p_draw": 0.2603,
+        "mean_p_btts": 0.5394,
+        "mean_p_over": 0.5283
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.06722,
+          "ci95": [
+            -0.07648,
+            -0.05831
+          ],
+          "n": 4515,
+          "clusters": 124,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.04795,
+          "ci95": [
+            -0.05468,
+            -0.04148
+          ],
+          "n": 4515,
+          "clusters": 124,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.0028,
+          "ci95": [
+            -0.00524,
+            -0.00047
+          ],
+          "n": 4515,
+          "clusters": 124,
+          "excludes_zero": true
+        },
+        "btts_brier": {
+          "mean": -0.00139,
+          "ci95": [
+            -0.00258,
+            -0.00024
+          ],
+          "n": 4515,
+          "clusters": 124,
+          "excludes_zero": true
+        },
+        "ou_log_loss": {
+          "mean": -0.00591,
+          "ci95": [
+            -0.00838,
+            -0.00343
+          ],
+          "n": 4515,
+          "clusters": 124,
+          "excludes_zero": true
+        },
+        "ou_brier": {
+          "mean": -0.00283,
+          "ci95": [
+            -0.00404,
+            -0.00167
+          ],
+          "n": 4515,
+          "clusters": 124,
+          "excludes_zero": true
+        }
+      },
+      "lambda_range": [
+        0.53,
+        3.87
+      ],
+      "by_stage": {
+        "early": {
+          "n": 1444,
+          "model_1x2_log_loss": 1.036,
+          "model_btts_log_loss": 0.6874,
+          "model_ou_log_loss": 0.6757,
+          "baseline_1x2_log_loss": 1.0784,
+          "baseline_btts_log_loss": 0.6913,
+          "baseline_ou_log_loss": 0.6811,
+          "1x2_diff": {
+            "mean": -0.04237,
+            "ci95": [
+              -0.05574,
+              -0.02905
+            ],
+            "n": 1444,
+            "clusters": 43,
+            "excludes_zero": true
+          }
+        },
+        "mid": {
+          "n": 2104,
+          "model_1x2_log_loss": 0.9973,
+          "model_btts_log_loss": 0.6904,
+          "model_ou_log_loss": 0.6925,
+          "baseline_1x2_log_loss": 1.0783,
+          "baseline_btts_log_loss": 0.6913,
+          "baseline_ou_log_loss": 0.6965,
+          "1x2_diff": {
+            "mean": -0.08104,
+            "ci95": [
+              -0.09389,
+              -0.06678
+            ],
+            "n": 2104,
+            "clusters": 65,
+            "excludes_zero": true
+          }
+        },
+        "late": {
+          "n": 967,
+          "model_1x2_log_loss": 1.0067,
+          "model_btts_log_loss": 0.6775,
+          "model_ou_log_loss": 0.6695,
+          "baseline_1x2_log_loss": 1.081,
+          "baseline_btts_log_loss": 0.6827,
+          "baseline_ou_log_loss": 0.6805,
+          "1x2_diff": {
+            "mean": -0.07426,
+            "ci95": [
+              -0.09461,
+              -0.05389
+            ],
+            "n": 967,
+            "clusters": 28,
+            "excludes_zero": true
+          }
+        }
+      }
+    },
+    "UEFA (pooled)": {
+      "seasons": [
+        "2023/24",
+        "2024/25",
+        "2025/26",
+        "2026/27"
+      ],
+      "model": {
+        "n": 1160,
+        "1x2_log_loss": 0.9981,
+        "1x2_brier": 0.5967,
+        "1x2_ece_home": 0.0385,
+        "1x2_ece_draw": 0.0491,
+        "1x2_ece_away": 0.0301,
+        "1x2_slope_home": 1.35,
+        "btts_log_loss": 0.6911,
+        "btts_brier": 0.2488,
+        "btts_ece": 0.0405,
+        "btts_slope": 0.38,
+        "ou_log_loss": 0.6668,
+        "ou_brier": 0.2371,
+        "ou_ece": 0.0356,
+        "ou_slope": 0.7,
+        "mean_p_home": 0.4766,
+        "mean_p_draw": 0.231,
+        "mean_p_btts": 0.5939,
+        "mean_p_over": 0.5878,
+        "score_loglik": -3.1517
+      },
+      "league_baseline": {
+        "n": 1160,
+        "1x2_log_loss": 1.0277,
+        "1x2_brier": 0.6205,
+        "1x2_ece_home": 0.0389,
+        "1x2_ece_draw": 0.0174,
+        "1x2_ece_away": 0.0251,
+        "1x2_slope_home": -0.705,
+        "btts_log_loss": 0.6926,
+        "btts_brier": 0.2497,
+        "btts_ece": 0.0296,
+        "btts_slope": -0.473,
+        "ou_log_loss": 0.6702,
+        "ou_brier": 0.2387,
+        "ou_ece": 0.0245,
+        "ou_slope": 0.522,
+        "mean_p_home": 0.49,
+        "mean_p_draw": 0.1913,
+        "mean_p_btts": 0.5413,
+        "mean_p_over": 0.5887
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.02964,
+          "ci95": [
+            -0.04192,
+            -0.01863
+          ],
+          "n": 1160,
+          "clusters": 54,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.02383,
+          "ci95": [
+            -0.03195,
+            -0.01605
+          ],
+          "n": 1160,
+          "clusters": 54,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.00145,
+          "ci95": [
+            -0.00789,
+            0.0047
+          ],
+          "n": 1160,
+          "clusters": 54,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": -0.00084,
+          "ci95": [
+            -0.00396,
+            0.00212
+          ],
+          "n": 1160,
+          "clusters": 54,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.00334,
+          "ci95": [
+            -0.00671,
+            -4e-05
+          ],
+          "n": 1160,
+          "clusters": 54,
+          "excludes_zero": true
+        },
+        "ou_brier": {
+          "mean": -0.00156,
+          "ci95": [
+            -0.00321,
+            3e-05
+          ],
+          "n": 1160,
+          "clusters": 54,
+          "excludes_zero": false
+        }
+      },
+      "lambda_range": [
+        0.78,
+        3.2
+      ],
+      "by_stage": {
+        "early": {
+          "n": 280,
+          "model_1x2_log_loss": 1.0454,
+          "model_btts_log_loss": 0.6855,
+          "model_ou_log_loss": 0.6647,
+          "baseline_1x2_log_loss": 1.0437,
+          "baseline_btts_log_loss": 0.6983,
+          "baseline_ou_log_loss": 0.6688,
+          "1x2_diff": {
+            "mean": 0.00168,
+            "ci95": [
+              -0.01088,
+              0.01446
+            ],
+            "n": 280,
+            "clusters": 11,
+            "excludes_zero": false
+          }
+        },
+        "mid": {
+          "n": 352,
+          "model_1x2_log_loss": 0.9871,
+          "model_btts_log_loss": 0.7046,
+          "model_ou_log_loss": 0.6699,
+          "baseline_1x2_log_loss": 1.019,
+          "baseline_btts_log_loss": 0.6966,
+          "baseline_ou_log_loss": 0.6716,
+          "1x2_diff": {
+            "mean": -0.03196,
+            "ci95": [
+              -0.04474,
+              -0.01915
+            ],
+            "n": 352,
+            "clusters": 11,
+            "excludes_zero": true
+          }
+        },
+        "late": {
+          "n": 280,
+          "model_1x2_log_loss": 0.9396,
+          "model_btts_log_loss": 0.6904,
+          "model_ou_log_loss": 0.6627,
+          "baseline_1x2_log_loss": 1.0006,
+          "baseline_btts_log_loss": 0.6909,
+          "baseline_ou_log_loss": 0.6712,
+          "1x2_diff": {
+            "mean": -0.06095,
+            "ci95": [
+              -0.09336,
+              -0.03251
+            ],
+            "n": 280,
+            "clusters": 8,
+            "excludes_zero": true
+          }
+        },
+        "knockout": {
+          "n": 248,
+          "model_1x2_log_loss": 1.0261,
+          "model_btts_log_loss": 0.6791,
+          "model_ou_log_loss": 0.6696,
+          "baseline_1x2_log_loss": 1.0525,
+          "baseline_btts_log_loss": 0.6822,
+          "baseline_ou_log_loss": 0.6686,
+          "1x2_diff": {
+            "mean": -0.02635,
+            "ci95": [
+              -0.0455,
+              -0.00801
+            ],
+            "n": 248,
+            "clusters": 24,
+            "excludes_zero": true
+          }
+        }
+      }
+    }
+  },
+  "calibration_tables": {
+    "New domestic leagues (pooled)": {
+      "Home win": [
+        {
+          "bin": "[0.00, 0.10)",
+          "n": 9,
+          "mean_forecast": 0.0865,
+          "observed": 0.1111
+        },
+        {
+          "bin": "[0.10, 0.20)",
+          "n": 106,
+          "mean_forecast": 0.1631,
+          "observed": 0.0849
+        },
+        {
+          "bin": "[0.20, 0.30)",
+          "n": 494,
+          "mean_forecast": 0.2567,
+          "observed": 0.2409
+        },
+        {
+          "bin": "[0.30, 0.40)",
+          "n": 1031,
+          "mean_forecast": 0.3555,
+          "observed": 0.3046
+        },
+        {
+          "bin": "[0.40, 0.50)",
+          "n": 1460,
+          "mean_forecast": 0.449,
+          "observed": 0.4397
+        },
+        {
+          "bin": "[0.50, 0.60)",
+          "n": 841,
+          "mean_forecast": 0.5435,
+          "observed": 0.5577
+        },
+        {
+          "bin": "[0.60, 0.70)",
+          "n": 412,
+          "mean_forecast": 0.643,
+          "observed": 0.6748
+        },
+        {
+          "bin": "[0.70, 0.80)",
+          "n": 127,
+          "mean_forecast": 0.7399,
+          "observed": 0.7638
+        },
+        {
+          "bin": "[0.80, 0.90)",
+          "n": 35,
+          "mean_forecast": 0.8285,
+          "observed": 0.7714
+        },
+        {
+          "bin": "[0.90, 1.00]",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        }
+      ],
+      "BTTS Yes": [
+        {
+          "bin": "[0.00, 0.10)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.10, 0.20)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.20, 0.30)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.30, 0.40)",
+          "n": 2,
+          "mean_forecast": 0.3943,
+          "observed": 0.0
+        },
+        {
+          "bin": "[0.40, 0.50)",
+          "n": 918,
+          "mean_forecast": 0.4789,
+          "observed": 0.4749
+        },
+        {
+          "bin": "[0.50, 0.60)",
+          "n": 2676,
+          "mean_forecast": 0.5434,
+          "observed": 0.5478
+        },
+        {
+          "bin": "[0.60, 0.70)",
+          "n": 919,
+          "mean_forecast": 0.6358,
+          "observed": 0.6017
+        },
+        {
+          "bin": "[0.70, 0.80)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.80, 0.90)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.90, 1.00]",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        }
+      ],
+      "Over 2.5": [
+        {
+          "bin": "[0.00, 0.10)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.10, 0.20)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.20, 0.30)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.30, 0.40)",
+          "n": 23,
+          "mean_forecast": 0.3939,
+          "observed": 0.5652
+        },
+        {
+          "bin": "[0.40, 0.50)",
+          "n": 1607,
+          "mean_forecast": 0.4646,
+          "observed": 0.4673
+        },
+        {
+          "bin": "[0.50, 0.60)",
+          "n": 1824,
+          "mean_forecast": 0.5449,
+          "observed": 0.5225
+        },
+        {
+          "bin": "[0.60, 0.70)",
+          "n": 954,
+          "mean_forecast": 0.6414,
+          "observed": 0.6268
+        },
+        {
+          "bin": "[0.70, 0.80)",
+          "n": 104,
+          "mean_forecast": 0.7274,
+          "observed": 0.75
+        },
+        {
+          "bin": "[0.80, 0.90)",
+          "n": 3,
+          "mean_forecast": 0.8199,
+          "observed": 1.0
+        },
+        {
+          "bin": "[0.90, 1.00]",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        }
+      ]
+    },
+    "UEFA (pooled)": {
+      "Home win": [
+        {
+          "bin": "[0.00, 0.10)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.10, 0.20)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.20, 0.30)",
+          "n": 25,
+          "mean_forecast": 0.2729,
+          "observed": 0.36
+        },
+        {
+          "bin": "[0.30, 0.40)",
+          "n": 194,
+          "mean_forecast": 0.3622,
+          "observed": 0.3041
+        },
+        {
+          "bin": "[0.40, 0.50)",
+          "n": 505,
+          "mean_forecast": 0.4546,
+          "observed": 0.4673
+        },
+        {
+          "bin": "[0.50, 0.60)",
+          "n": 340,
+          "mean_forecast": 0.5413,
+          "observed": 0.6088
+        },
+        {
+          "bin": "[0.60, 0.70)",
+          "n": 83,
+          "mean_forecast": 0.6348,
+          "observed": 0.6386
+        },
+        {
+          "bin": "[0.70, 0.80)",
+          "n": 12,
+          "mean_forecast": 0.7214,
+          "observed": 0.8333
+        },
+        {
+          "bin": "[0.80, 0.90)",
+          "n": 1,
+          "mean_forecast": 0.8256,
+          "observed": 1.0
+        },
+        {
+          "bin": "[0.90, 1.00]",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        }
+      ],
+      "BTTS Yes": [
+        {
+          "bin": "[0.00, 0.10)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.10, 0.20)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.20, 0.30)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.30, 0.40)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.40, 0.50)",
+          "n": 11,
+          "mean_forecast": 0.4946,
+          "observed": 0.6364
+        },
+        {
+          "bin": "[0.50, 0.60)",
+          "n": 663,
+          "mean_forecast": 0.5599,
+          "observed": 0.537
+        },
+        {
+          "bin": "[0.60, 0.70)",
+          "n": 453,
+          "mean_forecast": 0.6375,
+          "observed": 0.5784
+        },
+        {
+          "bin": "[0.70, 0.80)",
+          "n": 33,
+          "mean_forecast": 0.711,
+          "observed": 0.6061
+        },
+        {
+          "bin": "[0.80, 0.90)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.90, 1.00]",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        }
+      ],
+      "Over 2.5": [
+        {
+          "bin": "[0.00, 0.10)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.10, 0.20)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.20, 0.30)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.30, 0.40)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.40, 0.50)",
+          "n": 124,
+          "mean_forecast": 0.4848,
+          "observed": 0.5323
+        },
+        {
+          "bin": "[0.50, 0.60)",
+          "n": 571,
+          "mean_forecast": 0.556,
+          "observed": 0.6007
+        },
+        {
+          "bin": "[0.60, 0.70)",
+          "n": 403,
+          "mean_forecast": 0.6429,
+          "observed": 0.6203
+        },
+        {
+          "bin": "[0.70, 0.80)",
+          "n": 62,
+          "mean_forecast": 0.7293,
+          "observed": 0.7419
+        },
+        {
+          "bin": "[0.80, 0.90)",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        },
+        {
+          "bin": "[0.90, 1.00]",
+          "n": 0,
+          "mean_forecast": null,
+          "observed": null
+        }
+      ]
+    }
+  },
+  "uefa_by_format": {
+    "Champions League group": {
+      "model": {
+        "n": 96,
+        "1x2_log_loss": 1.0186,
+        "1x2_brier": 0.6111,
+        "1x2_ece_home": 0.0648,
+        "1x2_ece_draw": 0.0261,
+        "1x2_ece_away": 0.0527,
+        "1x2_slope_home": 1.446,
+        "btts_log_loss": 0.6662,
+        "btts_brier": 0.2367,
+        "btts_ece": 0.0566,
+        "btts_slope": 1.573,
+        "ou_log_loss": 0.6784,
+        "ou_brier": 0.2426,
+        "ou_ece": 0.0745,
+        "ou_slope": -1.683,
+        "mean_p_home": 0.449,
+        "mean_p_draw": 0.2344,
+        "mean_p_btts": 0.5996,
+        "mean_p_over": 0.5867,
+        "score_loglik": -3.0551
+      },
+      "league_baseline": {
+        "n": 96,
+        "1x2_log_loss": 1.0612,
+        "1x2_brier": 0.6419,
+        "1x2_ece_home": 0.0175,
+        "1x2_ece_draw": 0.056,
+        "1x2_ece_away": 0.0381,
+        "1x2_slope_home": -2.18,
+        "btts_log_loss": 0.688,
+        "btts_brier": 0.2474,
+        "btts_ece": 0.0807,
+        "btts_slope": -0.626,
+        "ou_log_loss": 0.6838,
+        "ou_brier": 0.2453,
+        "ou_ece": 0.0341,
+        "ou_slope": -1.378,
+        "mean_p_home": 0.4512,
+        "mean_p_draw": 0.2118,
+        "mean_p_btts": 0.5338,
+        "mean_p_over": 0.5597
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.04264,
+          "ci95": [
+            -0.08122,
+            -0.01044
+          ],
+          "n": 96,
+          "clusters": 6,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.03084,
+          "ci95": [
+            -0.05502,
+            -0.00898
+          ],
+          "n": 96,
+          "clusters": 6,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.02183,
+          "ci95": [
+            -0.05039,
+            0.00227
+          ],
+          "n": 96,
+          "clusters": 6,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": -0.01078,
+          "ci95": [
+            -0.02481,
+            0.00098
+          ],
+          "n": 96,
+          "clusters": 6,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.00534,
+          "ci95": [
+            -0.02324,
+            0.00708
+          ],
+          "n": 96,
+          "clusters": 6,
+          "excludes_zero": false
+        },
+        "ou_brier": {
+          "mean": -0.00267,
+          "ci95": [
+            -0.01145,
+            0.00344
+          ],
+          "n": 96,
+          "clusters": 6,
+          "excludes_zero": false
+        }
+      }
+    },
+    "Champions League league": {
+      "model": {
+        "n": 360,
+        "1x2_log_loss": 0.9663,
+        "1x2_brier": 0.5748,
+        "1x2_ece_home": 0.0414,
+        "1x2_ece_draw": 0.0779,
+        "1x2_ece_away": 0.0486,
+        "1x2_slope_home": 1.545,
+        "btts_log_loss": 0.7025,
+        "btts_brier": 0.2542,
+        "btts_ece": 0.093,
+        "btts_slope": 1.122,
+        "ou_log_loss": 0.6333,
+        "ou_brier": 0.2209,
+        "ou_ece": 0.02,
+        "ou_slope": 0.892,
+        "mean_p_home": 0.4926,
+        "mean_p_draw": 0.2168,
+        "mean_p_btts": 0.6429,
+        "mean_p_over": 0.6528,
+        "score_loglik": -3.4055
+      },
+      "league_baseline": {
+        "n": 360,
+        "1x2_log_loss": 0.9917,
+        "1x2_brier": 0.5997,
+        "1x2_ece_home": 0.0421,
+        "1x2_ece_draw": 0.0306,
+        "1x2_ece_away": 0.0296,
+        "1x2_slope_home": -1.529,
+        "btts_log_loss": 0.6922,
+        "btts_brier": 0.2495,
+        "btts_ece": 0.0288,
+        "btts_slope": -0.141,
+        "ou_log_loss": 0.6386,
+        "ou_brier": 0.2232,
+        "ou_ece": 0.0243,
+        "ou_slope": 0.404,
+        "mean_p_home": 0.5084,
+        "mean_p_draw": 0.1695,
+        "mean_p_btts": 0.5482,
+        "mean_p_over": 0.6424
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.02546,
+          "ci95": [
+            -0.04304,
+            -0.00706
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.02487,
+          "ci95": [
+            -0.03732,
+            -0.01284
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": 0.01032,
+          "ci95": [
+            -0.00295,
+            0.02379
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": 0.00473,
+          "ci95": [
+            -0.00156,
+            0.01115
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.00526,
+          "ci95": [
+            -0.00915,
+            -0.00107
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": true
+        },
+        "ou_brier": {
+          "mean": -0.00233,
+          "ci95": [
+            -0.00403,
+            -0.00046
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": true
+        }
+      }
+    },
+    "Champions League knockout": {
+      "model": {
+        "n": 116,
+        "1x2_log_loss": 1.0012,
+        "1x2_brier": 0.6011,
+        "1x2_ece_home": 0.0367,
+        "1x2_ece_draw": 0.0359,
+        "1x2_ece_away": 0.0857,
+        "1x2_slope_home": 0.932,
+        "btts_log_loss": 0.6765,
+        "btts_brier": 0.2416,
+        "btts_ece": 0.0565,
+        "btts_slope": -0.274,
+        "ou_log_loss": 0.66,
+        "ou_brier": 0.2335,
+        "ou_ece": 0.0208,
+        "ou_slope": 0.423,
+        "mean_p_home": 0.483,
+        "mean_p_draw": 0.2201,
+        "mean_p_btts": 0.6292,
+        "mean_p_over": 0.6357,
+        "score_loglik": -3.1958
+      },
+      "league_baseline": {
+        "n": 116,
+        "1x2_log_loss": 1.0501,
+        "1x2_brier": 0.6332,
+        "1x2_ece_home": 0.0625,
+        "1x2_ece_draw": 0.0371,
+        "1x2_ece_away": 0.0358,
+        "1x2_slope_home": -7.59,
+        "btts_log_loss": 0.6804,
+        "btts_brier": 0.2436,
+        "btts_ece": 0.0535,
+        "btts_slope": -2.325,
+        "ou_log_loss": 0.6571,
+        "ou_brier": 0.2322,
+        "ou_ece": 0.0349,
+        "ou_slope": 0.819,
+        "mean_p_home": 0.4978,
+        "mean_p_draw": 0.1698,
+        "mean_p_btts": 0.5499,
+        "mean_p_over": 0.6239
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.04885,
+          "ci95": [
+            -0.07739,
+            -0.01622
+          ],
+          "n": 116,
+          "clusters": 24,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.03216,
+          "ci95": [
+            -0.05195,
+            -0.01039
+          ],
+          "n": 116,
+          "clusters": 24,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.00385,
+          "ci95": [
+            -0.02863,
+            0.02064
+          ],
+          "n": 116,
+          "clusters": 24,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": -0.00201,
+          "ci95": [
+            -0.01387,
+            0.0096
+          ],
+          "n": 116,
+          "clusters": 24,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": 0.00291,
+          "ci95": [
+            -0.00636,
+            0.01251
+          ],
+          "n": 116,
+          "clusters": 24,
+          "excludes_zero": false
+        },
+        "ou_brier": {
+          "mean": 0.00136,
+          "ci95": [
+            -0.00276,
+            0.00568
+          ],
+          "n": 116,
+          "clusters": 24,
+          "excludes_zero": false
+        }
+      }
+    },
+    "Europa League group": {
+      "model": {
+        "n": 96,
+        "1x2_log_loss": 0.9747,
+        "1x2_brier": 0.5797,
+        "1x2_ece_home": 0.1193,
+        "1x2_ece_draw": 0.0753,
+        "1x2_ece_away": 0.0724,
+        "1x2_slope_home": 2.026,
+        "btts_log_loss": 0.6923,
+        "btts_brier": 0.2496,
+        "btts_ece": 0.0002,
+        "btts_slope": -3.244,
+        "ou_log_loss": 0.6752,
+        "ou_brier": 0.2411,
+        "ou_ece": 0.0723,
+        "ou_slope": 1.232,
+        "mean_p_home": 0.4989,
+        "mean_p_draw": 0.2366,
+        "mean_p_btts": 0.5519,
+        "mean_p_over": 0.5423,
+        "score_loglik": -3.0428
+      },
+      "league_baseline": {
+        "n": 96,
+        "1x2_log_loss": 1.0212,
+        "1x2_brier": 0.6153,
+        "1x2_ece_home": 0.0448,
+        "1x2_ece_draw": 0.0628,
+        "1x2_ece_away": 0.0523,
+        "1x2_slope_home": -4.604,
+        "btts_log_loss": 0.705,
+        "btts_brier": 0.2559,
+        "btts_ece": 0.0313,
+        "btts_slope": -4.258,
+        "ou_log_loss": 0.6806,
+        "ou_brier": 0.2437,
+        "ou_ece": 0.0659,
+        "ou_slope": -1.812,
+        "mean_p_home": 0.4921,
+        "mean_p_draw": 0.2013,
+        "mean_p_btts": 0.5208,
+        "mean_p_over": 0.5487
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.04655,
+          "ci95": [
+            -0.1059,
+            0.00202
+          ],
+          "n": 96,
+          "clusters": 7,
+          "excludes_zero": false
+        },
+        "1x2_brier": {
+          "mean": -0.03566,
+          "ci95": [
+            -0.07229,
+            -0.00487
+          ],
+          "n": 96,
+          "clusters": 7,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.0126,
+          "ci95": [
+            -0.02607,
+            0.00142
+          ],
+          "n": 96,
+          "clusters": 7,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": -0.00629,
+          "ci95": [
+            -0.01297,
+            0.00066
+          ],
+          "n": 96,
+          "clusters": 7,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.0054,
+          "ci95": [
+            -0.01473,
+            0.00486
+          ],
+          "n": 96,
+          "clusters": 7,
+          "excludes_zero": false
+        },
+        "ou_brier": {
+          "mean": -0.00262,
+          "ci95": [
+            -0.00721,
+            0.00244
+          ],
+          "n": 96,
+          "clusters": 7,
+          "excludes_zero": false
+        }
+      }
+    },
+    "Europa League league": {
+      "model": {
+        "n": 360,
+        "1x2_log_loss": 1.0113,
+        "1x2_brier": 0.6054,
+        "1x2_ece_home": 0.0675,
+        "1x2_ece_draw": 0.0489,
+        "1x2_ece_away": 0.0276,
+        "1x2_slope_home": 1.433,
+        "btts_log_loss": 0.6944,
+        "btts_brier": 0.2506,
+        "btts_ece": 0.0355,
+        "btts_slope": 0.122,
+        "ou_log_loss": 0.6931,
+        "ou_brier": 0.2499,
+        "ou_ece": 0.0475,
+        "ou_slope": -0.196,
+        "mean_p_home": 0.4562,
+        "mean_p_draw": 0.2437,
+        "mean_p_btts": 0.5546,
+        "mean_p_over": 0.5339,
+        "score_loglik": -2.978
+      },
+      "league_baseline": {
+        "n": 360,
+        "1x2_log_loss": 1.0394,
+        "1x2_brier": 0.6271,
+        "1x2_ece_home": 0.0132,
+        "1x2_ece_draw": 0.0202,
+        "1x2_ece_away": 0.0094,
+        "1x2_slope_home": -0.449,
+        "btts_log_loss": 0.698,
+        "btts_brier": 0.2524,
+        "btts_ece": 0.0385,
+        "btts_slope": -0.464,
+        "ou_log_loss": 0.6965,
+        "ou_brier": 0.2516,
+        "ou_ece": 0.0379,
+        "ou_slope": -0.971,
+        "mean_p_home": 0.4764,
+        "mean_p_draw": 0.2068,
+        "mean_p_btts": 0.5383,
+        "mean_p_over": 0.5513
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.02811,
+          "ci95": [
+            -0.04947,
+            -0.00778
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": true
+        },
+        "1x2_brier": {
+          "mean": -0.02176,
+          "ci95": [
+            -0.03707,
+            -0.00807
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": true
+        },
+        "btts_log_loss": {
+          "mean": -0.00363,
+          "ci95": [
+            -0.01042,
+            0.00204
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": -0.00179,
+          "ci95": [
+            -0.00517,
+            0.00103
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.00338,
+          "ci95": [
+            -0.01113,
+            0.00468
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "ou_brier": {
+          "mean": -0.00165,
+          "ci95": [
+            -0.00546,
+            0.00231
+          ],
+          "n": 360,
+          "clusters": 20,
+          "excludes_zero": false
+        }
+      }
+    },
+    "Europa League knockout": {
+      "model": {
+        "n": 132,
+        "1x2_log_loss": 1.048,
+        "1x2_brier": 0.6309,
+        "1x2_ece_home": 0.0984,
+        "1x2_ece_draw": 0.0253,
+        "1x2_ece_away": 0.0675,
+        "1x2_slope_home": 0.712,
+        "btts_log_loss": 0.6813,
+        "btts_brier": 0.2441,
+        "btts_ece": 0.0062,
+        "btts_slope": 1.504,
+        "ou_log_loss": 0.678,
+        "ou_brier": 0.2425,
+        "ou_ece": 0.0372,
+        "ou_slope": 1.028,
+        "mean_p_home": 0.4871,
+        "mean_p_draw": 0.238,
+        "mean_p_btts": 0.5627,
+        "mean_p_over": 0.5496,
+        "score_loglik": -3.0443
+      },
+      "league_baseline": {
+        "n": 132,
+        "1x2_log_loss": 1.0546,
+        "1x2_brier": 0.6366,
+        "1x2_ece_home": 0.09,
+        "1x2_ece_draw": 0.0143,
+        "1x2_ece_away": 0.0171,
+        "1x2_slope_home": -21.642,
+        "btts_log_loss": 0.6839,
+        "btts_brier": 0.2454,
+        "btts_ece": 0.0247,
+        "btts_slope": 1.066,
+        "ou_log_loss": 0.6786,
+        "ou_brier": 0.2428,
+        "ou_ece": 0.0298,
+        "ou_slope": 0.85,
+        "mean_p_home": 0.4968,
+        "mean_p_draw": 0.2053,
+        "mean_p_btts": 0.5435,
+        "mean_p_over": 0.5636
+      },
+      "model_minus_baseline": {
+        "1x2_log_loss": {
+          "mean": -0.00657,
+          "ci95": [
+            -0.03843,
+            0.02369
+          ],
+          "n": 132,
+          "clusters": 24,
+          "excludes_zero": false
+        },
+        "1x2_brier": {
+          "mean": -0.00566,
+          "ci95": [
+            -0.02802,
+            0.0137
+          ],
+          "n": 132,
+          "clusters": 24,
+          "excludes_zero": false
+        },
+        "btts_log_loss": {
+          "mean": -0.00252,
+          "ci95": [
+            -0.00934,
+            0.00445
+          ],
+          "n": 132,
+          "clusters": 24,
+          "excludes_zero": false
+        },
+        "btts_brier": {
+          "mean": -0.00125,
+          "ci95": [
+            -0.00462,
+            0.00218
+          ],
+          "n": 132,
+          "clusters": 24,
+          "excludes_zero": false
+        },
+        "ou_log_loss": {
+          "mean": -0.00055,
+          "ci95": [
+            -0.01206,
+            0.00917
+          ],
+          "n": 132,
+          "clusters": 24,
+          "excludes_zero": false
+        },
+        "ou_brier": {
+          "mean": -0.00021,
+          "ci95": [
+            -0.00581,
+            0.00456
+          ],
+          "n": 132,
+          "clusters": 24,
+          "excludes_zero": false
+        }
+      }
+    }
+  },
+  "uefa_team_matches_before_fixture": {
+    "median_min_of_two_teams": 3.0,
+    "share_with_zero": 0.128,
+    "max": 13.0
+  },
+  "headroom_2023_2024_in_sample": {
+    "new_domestic": {
+      "rows": 2744,
+      "best": {
+        "k_s": 8,
+        "k_t": 24
+      },
+      "frozen_loglik": -2.93082,
+      "best_loglik": -2.92504,
+      "gap": 0.00578
+    },
+    "uefa": {
+      "rows": 640,
+      "best": {
+        "k_s": 6,
+        "k_t": 48
+      },
+      "frozen_loglik": -3.10486,
+      "best_loglik": -3.09512,
+      "gap": 0.00975
+    },
+    "La Liga": {
+      "rows": 760,
+      "best": {
+        "k_s": 6,
+        "k_t": 24
+      },
+      "frozen_loglik": -2.85455,
+      "best_loglik": -2.84333,
+      "gap": 0.01122
+    },
+    "Ligue 1": {
+      "rows": 612,
+      "best": {
+        "k_s": 8,
+        "k_t": 48
+      },
+      "frozen_loglik": -2.97509,
+      "best_loglik": -2.9729,
+      "gap": 0.00219
+    },
+    "Bundesliga": {
+      "rows": 612,
+      "best": {
+        "k_s": 8,
+        "k_t": 24
+      },
+      "frozen_loglik": -3.11977,
+      "best_loglik": -3.11166,
+      "gap": 0.0081
+    },
+    "Serie A": {
+      "rows": 760,
+      "best": {
+        "k_s": 8,
+        "k_t": 24
+      },
+      "frozen_loglik": -2.81927,
+      "best_loglik": -2.81597,
+      "gap": 0.0033
+    }
+  },
+  "uefa_split_check": {
+    "tuned_on": "2023/24-2024/25",
+    "evaluated_on": "2025/26-2026/27",
+    "n": 520,
+    "tuned_params": {
+      "k_s": 6,
+      "k_t": 48
+    },
+    "frozen": {
+      "n": 520,
+      "1x2_log_loss": 0.9917,
+      "1x2_brier": 0.5925,
+      "1x2_ece_home": 0.0497,
+      "1x2_ece_draw": 0.0698,
+      "1x2_ece_away": 0.0428,
+      "1x2_slope_home": 1.631,
+      "btts_log_loss": 0.695,
+      "btts_brier": 0.2507,
+      "btts_ece": 0.0633,
+      "btts_slope": 0.552,
+      "ou_log_loss": 0.6577,
+      "ou_brier": 0.2328,
+      "ou_ece": 0.0211,
+      "ou_slope": 0.778,
+      "mean_p_home": 0.4669,
+      "mean_p_draw": 0.2314,
+      "mean_p_btts": 0.6015,
+      "mean_p_over": 0.5944
+    },
+    "tuned": {
+      "n": 520,
+      "1x2_log_loss": 0.9835,
+      "1x2_brier": 0.586,
+      "1x2_ece_home": 0.0447,
+      "1x2_ece_draw": 0.0641,
+      "1x2_ece_away": 0.0364,
+      "1x2_slope_home": 1.14,
+      "btts_log_loss": 0.6947,
+      "btts_brier": 0.2505,
+      "btts_ece": 0.0639,
+      "btts_slope": 0.513,
+      "ou_log_loss": 0.6568,
+      "ou_brier": 0.2324,
+      "ou_ece": 0.025,
+      "ou_slope": 0.759,
+      "mean_p_home": 0.4665,
+      "mean_p_draw": 0.2256,
+      "mean_p_btts": 0.5967,
+      "mean_p_over": 0.6001
+    },
+    "tuned_minus_frozen": {
+      "1x2_log_loss": {
+        "mean": -0.00823,
+        "ci95": [
+          -0.01624,
+          0.00019
+        ],
+        "n": 520,
+        "clusters": 22,
+        "excludes_zero": false
+      },
+      "1x2_brier": {
+        "mean": -0.0065,
+        "ci95": [
+          -0.01195,
+          -0.00063
+        ],
+        "n": 520,
+        "clusters": 22,
+        "excludes_zero": true
+      },
+      "btts_log_loss": {
+        "mean": -0.00037,
+        "ci95": [
+          -0.0021,
+          0.00144
+        ],
+        "n": 520,
+        "clusters": 22,
+        "excludes_zero": false
+      },
+      "btts_brier": {
+        "mean": -0.00016,
+        "ci95": [
+          -0.001,
+          0.00072
+        ],
+        "n": 520,
+        "clusters": 22,
+        "excludes_zero": false
+      },
+      "ou_log_loss": {
+        "mean": -0.00085,
+        "ci95": [
+          -0.00366,
+          0.00249
+        ],
+        "n": 520,
+        "clusters": 22,
+        "excludes_zero": false
+      },
+      "ou_brier": {
+        "mean": -0.00039,
+        "ci95": [
+          -0.0016,
+          0.00102
+        ],
+        "n": 520,
+        "clusters": 22,
+        "excludes_zero": false
+      }
+    }
+  },
+  "domestic_split_check": {
+    "tuned_on": "2023/24-2024/25",
+    "evaluated_on": "2025/26-2026/27",
+    "n": 1771,
+    "tuned_params": {
+      "k_s": 8,
+      "k_t": 24
+    },
+    "frozen": {
+      "n": 1771,
+      "1x2_log_loss": 1.0123,
+      "1x2_brier": 0.6053,
+      "1x2_ece_home": 0.0265,
+      "1x2_ece_draw": 0.0057,
+      "1x2_ece_away": 0.0176,
+      "1x2_slope_home": 1.188,
+      "btts_log_loss": 0.6865,
+      "btts_brier": 0.2467,
+      "btts_ece": 0.0105,
+      "btts_slope": 0.693,
+      "ou_log_loss": 0.6793,
+      "ou_brier": 0.2433,
+      "ou_ece": 0.0095,
+      "ou_slope": 0.891,
+      "mean_p_home": 0.4459,
+      "mean_p_draw": 0.2392,
+      "mean_p_btts": 0.5489,
+      "mean_p_over": 0.5378
+    },
+    "tuned": {
+      "n": 1771,
+      "1x2_log_loss": 1.0091,
+      "1x2_brier": 0.6032,
+      "1x2_ece_home": 0.0126,
+      "1x2_ece_draw": 0.0044,
+      "1x2_ece_away": 0.0166,
+      "1x2_slope_home": 1.04,
+      "btts_log_loss": 0.6878,
+      "btts_brier": 0.2473,
+      "btts_ece": 0.0227,
+      "btts_slope": 0.572,
+      "ou_log_loss": 0.6789,
+      "ou_brier": 0.2431,
+      "ou_ece": 0.0272,
+      "ou_slope": 0.779,
+      "mean_p_home": 0.4453,
+      "mean_p_draw": 0.2373,
+      "mean_p_btts": 0.5409,
+      "mean_p_over": 0.5352
+    },
+    "tuned_minus_frozen": {
+      "1x2_log_loss": {
+        "mean": -0.00315,
+        "ci95": [
+          -0.00554,
+          -0.00076
+        ],
+        "n": 1771,
+        "clusters": 48,
+        "excludes_zero": true
+      },
+      "1x2_brier": {
+        "mean": -0.00218,
+        "ci95": [
+          -0.00374,
+          -0.00066
+        ],
+        "n": 1771,
+        "clusters": 48,
+        "excludes_zero": true
+      },
+      "btts_log_loss": {
+        "mean": 0.00127,
+        "ci95": [
+          -0.00094,
+          0.00367
+        ],
+        "n": 1771,
+        "clusters": 48,
+        "excludes_zero": false
+      },
+      "btts_brier": {
+        "mean": 0.00061,
+        "ci95": [
+          -0.00046,
+          0.00177
+        ],
+        "n": 1771,
+        "clusters": 48,
+        "excludes_zero": false
+      },
+      "ou_log_loss": {
+        "mean": -0.0004,
+        "ci95": [
+          -0.00366,
+          0.00283
+        ],
+        "n": 1771,
+        "clusters": 48,
+        "excludes_zero": false
+      },
+      "ou_brier": {
+        "mean": -0.00015,
+        "ci95": [
+          -0.0017,
+          0.00139
+        ],
+        "n": 1771,
+        "clusters": 48,
+        "excludes_zero": false
+      }
+    }
+  },
+  "development_league_check": {
+    "alternative": {
+      "k_s": 8,
+      "k_t": 24
+    },
+    "n": 3237,
+    "alternative_minus_frozen": {
+      "1x2_log_loss": {
+        "mean": -0.00063,
+        "ci95": [
+          -0.00216,
+          0.00096
+        ],
+        "n": 3237,
+        "clusters": 89,
+        "excludes_zero": false
+      },
+      "1x2_brier": {
+        "mean": -0.0002,
+        "ci95": [
+          -0.00126,
+          0.00086
+        ],
+        "n": 3237,
+        "clusters": 89,
+        "excludes_zero": false
+      },
+      "btts_log_loss": {
+        "mean": 0.00156,
+        "ci95": [
+          -8e-05,
+          0.00329
+        ],
+        "n": 3237,
+        "clusters": 89,
+        "excludes_zero": false
+      },
+      "btts_brier": {
+        "mean": 0.00072,
+        "ci95": [
+          -7e-05,
+          0.00156
+        ],
+        "n": 3237,
+        "clusters": 89,
+        "excludes_zero": false
+      },
+      "ou_log_loss": {
+        "mean": 0.00212,
+        "ci95": [
+          -0.00017,
+          0.0045
+        ],
+        "n": 3237,
+        "clusters": 89,
+        "excludes_zero": false
+      },
+      "ou_brier": {
+        "mean": 0.00101,
+        "ci95": [
+          -4e-05,
+          0.00212
+        ],
+        "n": 3237,
+        "clusters": 89,
+        "excludes_zero": false
+      }
+    }
+  }
+}

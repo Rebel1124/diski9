@@ -39,7 +39,9 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   context: [`docs/form_current_season.md`](docs/form_current_season.md)
 * **Research: unified goal-distribution model** (estimated goals → 1X2, BTTS,
   Over/Under 2.5; research only, not in the app):
-  [`docs/goal_distribution_research.md`](docs/goal_distribution_research.md)
+  [`docs/goal_distribution_research.md`](docs/goal_distribution_research.md), with
+  [cross-league validation](docs/goal_model_crossleague_validation.md) (La Liga, Ligue 1,
+  Bundesliga, Serie A, Champions League, Europa League)
 
 Not yet built: Challenge, user accounts, leaderboards.
 
