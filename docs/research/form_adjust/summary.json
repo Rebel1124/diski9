@@ -1,0 +1,1003 @@
+{
+  "generated": "2026-11-16T14:41:47+00:00",
+  "fixtures_with_scores": 3202,
+  "excluded_no_score": 35,
+  "fixtures_with_all_benchmarks": 3002,
+  "excluded_no_benchmark": 200,
+  "by_league_benchmarked": {
+    "Championship": 1249,
+    "EPL": 842,
+    "PSL": 512,
+    "PSL 1st Div": 399
+  },
+  "q1_windows": {
+    "overall5": {
+      "windows_reaching_earlier_season_or_division": 0.158,
+      "same_in_first_8_weeks": 0.654,
+      "median_age_oldest_match_days": 38.2,
+      "median_age_oldest_match_days_first_8_weeks": 113.0,
+      "mean_abs_change_per_match": 0.443
+    },
+    "overall6": {
+      "windows_reaching_earlier_season_or_division": 0.191,
+      "same_in_first_8_weeks": 0.784,
+      "median_age_oldest_match_days": 46.8,
+      "median_age_oldest_match_days_first_8_weeks": 125.9,
+      "mean_abs_change_per_match": 0.378
+    },
+    "overall7": {
+      "windows_reaching_earlier_season_or_division": 0.223,
+      "same_in_first_8_weeks": 0.878,
+      "median_age_oldest_match_days": 55.9,
+      "median_age_oldest_match_days_first_8_weeks": 133.0,
+      "mean_abs_change_per_match": 0.321
+    },
+    "overall8": {
+      "windows_reaching_earlier_season_or_division": 0.256,
+      "same_in_first_8_weeks": 0.928,
+      "median_age_oldest_match_days": 64.0,
+      "median_age_oldest_match_days_first_8_weeks": 140.0,
+      "mean_abs_change_per_match": 0.282
+    }
+  },
+  "q1_oos": {
+    "benchmarked_sample": {
+      "n": 1713,
+      "models": {
+        "o5": {
+          "log_loss": 1.0607,
+          "brier": 0.641
+        },
+        "o6": {
+          "log_loss": 1.0601,
+          "brier": 0.6406
+        },
+        "o7": {
+          "log_loss": 1.0559,
+          "brier": 0.6376
+        },
+        "o8": {
+          "log_loss": 1.0523,
+          "brier": 0.6351
+        }
+      },
+      "paired": {
+        "o5 - o8": {
+          "mean": 0.0084,
+          "ci95": [
+            0.003,
+            0.01346
+          ],
+          "n": 1713,
+          "clusters": 50,
+          "excludes_zero": true
+        },
+        "o6 - o8": {
+          "mean": 0.00777,
+          "ci95": [
+            0.00285,
+            0.01267
+          ],
+          "n": 1713,
+          "clusters": 50,
+          "excludes_zero": true
+        },
+        "o7 - o8": {
+          "mean": 0.00354,
+          "ci95": [
+            1e-05,
+            0.00686
+          ],
+          "n": 1713,
+          "clusters": 50,
+          "excludes_zero": true
+        },
+        "o5 - o6": {
+          "mean": 0.00064,
+          "ci95": [
+            -0.00272,
+            0.00383
+          ],
+          "n": 1713,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "o7 - o6": {
+          "mean": -0.00423,
+          "ci95": [
+            -0.00735,
+            -0.00133
+          ],
+          "n": 1713,
+          "clusters": 50,
+          "excludes_zero": true
+        }
+      }
+    },
+    "all_fixtures_with_scores": {
+      "n": 1822,
+      "models": {
+        "o5": {
+          "log_loss": 1.0639,
+          "brier": 0.6431
+        },
+        "o6": {
+          "log_loss": 1.0637,
+          "brier": 0.6431
+        },
+        "o7": {
+          "log_loss": 1.0598,
+          "brier": 0.6404
+        },
+        "o8": {
+          "log_loss": 1.0564,
+          "brier": 0.638
+        }
+      },
+      "paired": {
+        "o5 - o8": {
+          "mean": 0.00745,
+          "ci95": [
+            0.00244,
+            0.0121
+          ],
+          "n": 1822,
+          "clusters": 50,
+          "excludes_zero": true
+        },
+        "o6 - o8": {
+          "mean": 0.00731,
+          "ci95": [
+            0.00298,
+            0.01173
+          ],
+          "n": 1822,
+          "clusters": 50,
+          "excludes_zero": true
+        },
+        "o7 - o8": {
+          "mean": 0.00336,
+          "ci95": [
+            0.00028,
+            0.00637
+          ],
+          "n": 1822,
+          "clusters": 50,
+          "excludes_zero": true
+        },
+        "o5 - o6": {
+          "mean": 0.00014,
+          "ci95": [
+            -0.00291,
+            0.00296
+          ],
+          "n": 1822,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "o7 - o6": {
+          "mean": -0.00395,
+          "ci95": [
+            -0.00677,
+            -0.00121
+          ],
+          "n": 1822,
+          "clusters": 50,
+          "excludes_zero": true
+        }
+      }
+    },
+    "first_8_weeks_of_season": {
+      "n": 522,
+      "models": {
+        "o5": {
+          "log_loss": 1.0865,
+          "brier": 0.6584
+        },
+        "o6": {
+          "log_loss": 1.0884,
+          "brier": 0.6599
+        },
+        "o7": {
+          "log_loss": 1.0875,
+          "brier": 0.6598
+        },
+        "o8": {
+          "log_loss": 1.0877,
+          "brier": 0.6598
+        }
+      },
+      "paired": {
+        "o5 - o8": {
+          "mean": -0.00115,
+          "ci95": [
+            -0.00922,
+            0.00596
+          ],
+          "n": 522,
+          "clusters": 17,
+          "excludes_zero": false
+        },
+        "o6 - o8": {
+          "mean": 0.00068,
+          "ci95": [
+            -0.0048,
+            0.00603
+          ],
+          "n": 522,
+          "clusters": 17,
+          "excludes_zero": false
+        },
+        "o7 - o8": {
+          "mean": -0.00015,
+          "ci95": [
+            -0.00622,
+            0.00528
+          ],
+          "n": 522,
+          "clusters": 17,
+          "excludes_zero": false
+        },
+        "o5 - o6": {
+          "mean": -0.00183,
+          "ci95": [
+            -0.0073,
+            0.00343
+          ],
+          "n": 522,
+          "clusters": 17,
+          "excludes_zero": false
+        },
+        "o7 - o6": {
+          "mean": -0.00083,
+          "ci95": [
+            -0.00333,
+            0.00196
+          ],
+          "n": 522,
+          "clusters": 17,
+          "excludes_zero": false
+        }
+      }
+    },
+    "after_first_8_weeks": {
+      "n": 1300,
+      "models": {
+        "o5": {
+          "log_loss": 1.0548,
+          "brier": 0.637
+        },
+        "o6": {
+          "log_loss": 1.0538,
+          "brier": 0.6363
+        },
+        "o7": {
+          "log_loss": 1.0486,
+          "brier": 0.6326
+        },
+        "o8": {
+          "log_loss": 1.0439,
+          "brier": 0.6292
+        }
+      },
+      "paired": {
+        "o5 - o8": {
+          "mean": 0.01091,
+          "ci95": [
+            0.0057,
+            0.01641
+          ],
+          "n": 1300,
+          "clusters": 36,
+          "excludes_zero": true
+        },
+        "o6 - o8": {
+          "mean": 0.00998,
+          "ci95": [
+            0.00488,
+            0.01505
+          ],
+          "n": 1300,
+          "clusters": 36,
+          "excludes_zero": true
+        },
+        "o7 - o8": {
+          "mean": 0.00477,
+          "ci95": [
+            0.00114,
+            0.00823
+          ],
+          "n": 1300,
+          "clusters": 36,
+          "excludes_zero": true
+        },
+        "o5 - o6": {
+          "mean": 0.00093,
+          "ci95": [
+            -0.00258,
+            0.00446
+          ],
+          "n": 1300,
+          "clusters": 36,
+          "excludes_zero": false
+        },
+        "o7 - o6": {
+          "mean": -0.0052,
+          "ci95": [
+            -0.00919,
+            -0.00166
+          ],
+          "n": 1300,
+          "clusters": 36,
+          "excludes_zero": true
+        }
+      }
+    }
+  },
+  "q1_ranking": {
+    "o5": {
+      "auc_home_win": 0.591,
+      "auc_away_win": 0.62
+    },
+    "o6": {
+      "auc_home_win": 0.592,
+      "auc_away_win": 0.619
+    },
+    "o7": {
+      "auc_home_win": 0.601,
+      "auc_away_win": 0.631
+    },
+    "o8": {
+      "auc_home_win": 0.605,
+      "auc_away_win": 0.635
+    }
+  },
+  "q2_oos": {
+    "n": 1713,
+    "models": {
+      "o6": {
+        "log_loss": 1.0601,
+        "brier": 0.6406
+      },
+      "o6+raw0.25": {
+        "log_loss": 1.0577,
+        "brier": 0.639
+      },
+      "o6+raw0.5": {
+        "log_loss": 1.0577,
+        "brier": 0.6389
+      },
+      "o6+rel0.25": {
+        "log_loss": 1.0573,
+        "brier": 0.6387
+      },
+      "o6+rel0.5": {
+        "log_loss": 1.0566,
+        "brier": 0.6381
+      },
+      "o6+raw(free)": {
+        "log_loss": 1.0579,
+        "brier": 0.6391
+      },
+      "o6+rel(free)": {
+        "log_loss": 1.0569,
+        "brier": 0.6383
+      },
+      "o8": {
+        "log_loss": 1.0523,
+        "brier": 0.6351
+      },
+      "o8+raw0.25": {
+        "log_loss": 1.0523,
+        "brier": 0.6352
+      },
+      "o8+raw0.5": {
+        "log_loss": 1.0549,
+        "brier": 0.6369
+      },
+      "o8+rel0.25": {
+        "log_loss": 1.0519,
+        "brier": 0.6349
+      },
+      "o8+rel0.5": {
+        "log_loss": 1.0538,
+        "brier": 0.6361
+      },
+      "o8+raw(free)": {
+        "log_loss": 1.0531,
+        "brier": 0.6357
+      },
+      "o8+rel(free)": {
+        "log_loss": 1.0525,
+        "brier": 0.6353
+      }
+    },
+    "paired": {
+      "o6+raw0.25 - o6": {
+        "mean": -0.00241,
+        "ci95": [
+          -0.00458,
+          -0.00013
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      },
+      "o6+raw0.5 - o6": {
+        "mean": -0.00239,
+        "ci95": [
+          -0.00654,
+          0.00215
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o6+rel0.25 - o6": {
+        "mean": -0.00276,
+        "ci95": [
+          -0.00499,
+          -0.00039
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      },
+      "o6+rel0.5 - o6": {
+        "mean": -0.00345,
+        "ci95": [
+          -0.00792,
+          0.00142
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o6+raw(free) - o6": {
+        "mean": -0.00218,
+        "ci95": [
+          -0.00579,
+          0.00172
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o6+rel(free) - o6": {
+        "mean": -0.00322,
+        "ci95": [
+          -0.00709,
+          0.00106
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o8+raw0.25 - o8": {
+        "mean": -3e-05,
+        "ci95": [
+          -0.00199,
+          0.00211
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o8+raw0.5 - o8": {
+        "mean": 0.00262,
+        "ci95": [
+          -0.00126,
+          0.00676
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o8+rel0.25 - o8": {
+        "mean": -0.00044,
+        "ci95": [
+          -0.00252,
+          0.00188
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o8+rel0.5 - o8": {
+        "mean": 0.00146,
+        "ci95": [
+          -0.00268,
+          0.00591
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o8+raw(free) - o8": {
+        "mean": 0.00075,
+        "ci95": [
+          -0.00142,
+          0.00331
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o8+rel(free) - o8": {
+        "mean": 0.00013,
+        "ci95": [
+          -0.0023,
+          0.00289
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "o8 - o6": {
+        "mean": -0.00777,
+        "ci95": [
+          -0.01267,
+          -0.00285
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      }
+    }
+  },
+  "q2_subsets": {
+    "venue_overall_disagree": {
+      "n": 732,
+      "models": {
+        "o6": {
+          "log_loss": 1.0693,
+          "brier": 0.6464
+        },
+        "o8": {
+          "log_loss": 1.0539,
+          "brier": 0.6365
+        },
+        "o6+raw0.25": {
+          "log_loss": 1.0665,
+          "brier": 0.6445
+        },
+        "o8+raw0.25": {
+          "log_loss": 1.0547,
+          "brier": 0.637
+        },
+        "o6+rel0.25": {
+          "log_loss": 1.0665,
+          "brier": 0.6445
+        },
+        "o8+rel0.25": {
+          "log_loss": 1.0548,
+          "brier": 0.637
+        },
+        "o8+rel0.5": {
+          "log_loss": 1.0595,
+          "brier": 0.6397
+        }
+      },
+      "paired": {
+        "o6+raw0.25 - o6": {
+          "mean": -0.00279,
+          "ci95": [
+            -0.00643,
+            0.00127
+          ],
+          "n": 732,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "o8+raw0.25 - o8": {
+          "mean": 0.00082,
+          "ci95": [
+            -0.00283,
+            0.00476
+          ],
+          "n": 732,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "o6+rel0.25 - o6": {
+          "mean": -0.00278,
+          "ci95": [
+            -0.0064,
+            0.0012
+          ],
+          "n": 732,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "o8+rel0.25 - o8": {
+          "mean": 0.00091,
+          "ci95": [
+            -0.00294,
+            0.00497
+          ],
+          "n": 732,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "o8+rel0.5 - o8": {
+          "mean": 0.00559,
+          "ci95": [
+            -0.00202,
+            0.01333
+          ],
+          "n": 732,
+          "clusters": 50,
+          "excludes_zero": false
+        },
+        "o8 - o6": {
+          "mean": -0.01542,
+          "ci95": [
+            -0.02193,
+            -0.00862
+          ],
+          "n": 732,
+          "clusters": 50,
+          "excludes_zero": true
+        }
+      }
+    },
+    "venue_overall_agree": {
+      "n": 981,
+      "models": {
+        "o6": {
+          "log_loss": 1.0532,
+          "brier": 0.6362
+        },
+        "o8": {
+          "log_loss": 1.0512,
+          "brier": 0.6341
+        },
+        "o6+raw0.25": {
+          "log_loss": 1.0511,
+          "brier": 0.6348
+        },
+        "o8+raw0.25": {
+          "log_loss": 1.0505,
+          "brier": 0.6338
+        },
+        "o6+rel0.25": {
+          "log_loss": 1.0505,
+          "brier": 0.6344
+        },
+        "o8+rel0.25": {
+          "log_loss": 1.0497,
+          "brier": 0.6333
+        },
+        "o8+rel0.5": {
+          "log_loss": 1.0496,
+          "brier": 0.6334
+        }
+      },
+      "paired": {
+        "o6+raw0.25 - o6": {
+          "mean": -0.00213,
+          "ci95": [
+            -0.00482,
+            0.00044
+          ],
+          "n": 981,
+          "clusters": 49,
+          "excludes_zero": false
+        },
+        "o8+raw0.25 - o8": {
+          "mean": -0.00067,
+          "ci95": [
+            -0.00282,
+            0.00149
+          ],
+          "n": 981,
+          "clusters": 49,
+          "excludes_zero": false
+        },
+        "o6+rel0.25 - o6": {
+          "mean": -0.00274,
+          "ci95": [
+            -0.00519,
+            -0.00016
+          ],
+          "n": 981,
+          "clusters": 49,
+          "excludes_zero": true
+        },
+        "o8+rel0.25 - o8": {
+          "mean": -0.00144,
+          "ci95": [
+            -0.00347,
+            0.0007
+          ],
+          "n": 981,
+          "clusters": 49,
+          "excludes_zero": false
+        },
+        "o8+rel0.5 - o8": {
+          "mean": -0.00162,
+          "ci95": [
+            -0.00563,
+            0.00277
+          ],
+          "n": 981,
+          "clusters": 49,
+          "excludes_zero": false
+        },
+        "o8 - o6": {
+          "mean": -0.00206,
+          "ci95": [
+            -0.00887,
+            0.00455
+          ],
+          "n": 981,
+          "clusters": 49,
+          "excludes_zero": false
+        }
+      }
+    },
+    "limited_history": {
+      "n": 58,
+      "models": {
+        "o6": {
+          "log_loss": 1.0975,
+          "brier": 0.6641
+        },
+        "o8": {
+          "log_loss": 1.1038,
+          "brier": 0.6697
+        },
+        "o6+raw0.25": {
+          "log_loss": 1.1024,
+          "brier": 0.6677
+        },
+        "o8+raw0.25": {
+          "log_loss": 1.1097,
+          "brier": 0.6739
+        },
+        "o6+rel0.25": {
+          "log_loss": 1.1,
+          "brier": 0.6661
+        },
+        "o8+rel0.25": {
+          "log_loss": 1.1067,
+          "brier": 0.6718
+        },
+        "o8+rel0.5": {
+          "log_loss": 1.1113,
+          "brier": 0.6751
+        }
+      },
+      "paired": {
+        "o6+raw0.25 - o6": {
+          "mean": 0.00495,
+          "ci95": [
+            -0.00701,
+            0.01643
+          ],
+          "n": 58,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "o8+raw0.25 - o8": {
+          "mean": 0.00585,
+          "ci95": [
+            -0.00714,
+            0.01771
+          ],
+          "n": 58,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "o6+rel0.25 - o6": {
+          "mean": 0.00247,
+          "ci95": [
+            -0.00975,
+            0.01461
+          ],
+          "n": 58,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "o8+rel0.25 - o8": {
+          "mean": 0.00285,
+          "ci95": [
+            -0.00923,
+            0.01483
+          ],
+          "n": 58,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "o8+rel0.5 - o8": {
+          "mean": 0.00745,
+          "ci95": [
+            -0.01646,
+            0.03061
+          ],
+          "n": 58,
+          "clusters": 20,
+          "excludes_zero": false
+        },
+        "o8 - o6": {
+          "mean": 0.00635,
+          "ci95": [
+            -0.01481,
+            0.02702
+          ],
+          "n": 58,
+          "clusters": 20,
+          "excludes_zero": false
+        }
+      }
+    }
+  },
+  "q2_by_league_and_season": [
+    {
+      "subset": "EPL",
+      "n": 468,
+      "o6": 1.0639,
+      "o8": 1.0586,
+      "o6+raw0.25": 1.0634,
+      "o8+raw0.25": 1.0602,
+      "o6+rel0.25": 1.0628,
+      "o8+rel0.25": 1.0595,
+      "o8+rel0.5": 1.0621,
+      "o8_minus_o6": -0.00529,
+      "o8_minus_o6_ci": [
+        -0.01244,
+        0.0018
+      ],
+      "rel25_minus_o8": 0.00084,
+      "rel25_minus_o8_ci": [
+        -0.0034,
+        0.00489
+      ]
+    },
+    {
+      "subset": "Championship",
+      "n": 710,
+      "o6": 1.0717,
+      "o8": 1.0626,
+      "o6+raw0.25": 1.0689,
+      "o8+raw0.25": 1.062,
+      "o6+rel0.25": 1.0689,
+      "o8+rel0.25": 1.0619,
+      "o8+rel0.5": 1.063,
+      "o8_minus_o6": -0.00914,
+      "o8_minus_o6_ci": [
+        -0.01632,
+        -0.00189
+      ],
+      "rel25_minus_o8": -0.00066,
+      "rel25_minus_o8_ci": [
+        -0.00417,
+        0.00279
+      ]
+    },
+    {
+      "subset": "PSL",
+      "n": 299,
+      "o6": 1.0442,
+      "o8": 1.0369,
+      "o6+raw0.25": 1.0392,
+      "o8+raw0.25": 1.0348,
+      "o6+rel0.25": 1.0373,
+      "o8+rel0.25": 1.0329,
+      "o8+rel0.5": 1.0331,
+      "o8_minus_o6": -0.00731,
+      "o8_minus_o6_ci": [
+        -0.01617,
+        0.00104
+      ],
+      "rel25_minus_o8": -0.00396,
+      "rel25_minus_o8_ci": [
+        -0.00871,
+        0.00131
+      ]
+    },
+    {
+      "subset": "PSL 1st Div",
+      "n": 236,
+      "o6": 1.0378,
+      "o8": 1.0287,
+      "o6+raw0.25": 1.0359,
+      "o8+raw0.25": 1.0297,
+      "o6+rel0.25": 1.037,
+      "o8+rel0.25": 1.0309,
+      "o8+rel0.5": 1.0358,
+      "o8_minus_o6": -0.00911,
+      "o8_minus_o6_ci": [
+        -0.01956,
+        0.00078
+      ],
+      "rel25_minus_o8": 0.00218,
+      "rel25_minus_o8_ci": [
+        -0.00102,
+        0.0055
+      ]
+    },
+    {
+      "subset": "2025/26",
+      "n": 1312,
+      "o6": 1.0601,
+      "o8": 1.0524,
+      "o6+raw0.25": 1.0582,
+      "o8+raw0.25": 1.0528,
+      "o6+rel0.25": 1.0581,
+      "o8+rel0.25": 1.0527,
+      "o8+rel0.5": 1.0551,
+      "o8_minus_o6": -0.00775,
+      "o8_minus_o6_ci": [
+        -0.01363,
+        -0.00216
+      ],
+      "rel25_minus_o8": 0.00027,
+      "rel25_minus_o8_ci": [
+        -0.00204,
+        0.00281
+      ]
+    },
+    {
+      "subset": "2026/27 to date",
+      "n": 401,
+      "o6": 1.06,
+      "o8": 1.0521,
+      "o6+raw0.25": 1.0559,
+      "o8+raw0.25": 1.0505,
+      "o6+rel0.25": 1.0549,
+      "o8+rel0.25": 1.0494,
+      "o8+rel0.5": 1.0496,
+      "o8_minus_o6": -0.00782,
+      "o8_minus_o6_ci": [
+        -0.01584,
+        0.00086
+      ],
+      "rel25_minus_o8": -0.00273,
+      "rel25_minus_o8_ci": [
+        -0.00751,
+        0.00229
+      ]
+    }
+  ],
+  "q2_ranking": {
+    "o6": {
+      "auc_home_win": 0.592,
+      "auc_away_win": 0.619
+    },
+    "o8": {
+      "auc_home_win": 0.605,
+      "auc_away_win": 0.635
+    },
+    "o6+raw0.25": {
+      "auc_home_win": 0.597,
+      "auc_away_win": 0.626
+    },
+    "o8+raw0.25": {
+      "auc_home_win": 0.607,
+      "auc_away_win": 0.636
+    },
+    "o6+rel0.25": {
+      "auc_home_win": 0.599,
+      "auc_away_win": 0.627
+    },
+    "o8+rel0.25": {
+      "auc_home_win": 0.608,
+      "auc_away_win": 0.636
+    },
+    "o8+rel0.5": {
+      "auc_home_win": 0.608,
+      "auc_away_win": 0.633
+    }
+  },
+  "q2_adjustment_properties": {
+    "raw": {
+      "corr_with_o8_difference": -0.211,
+      "sd": 1.08
+    },
+    "rel": {
+      "corr_with_o8_difference": -0.219,
+      "sd": 0.992
+    }
+  }
+}
