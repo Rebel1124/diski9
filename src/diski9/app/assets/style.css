@@ -277,6 +277,7 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .acc[open] > summary::after { content: "−"; }
 .acc-body { padding: 0 0 12px; min-width: 0; }
 .acc-body h4 { margin: 10px 0 6px; font-size: 14px; }
+.acc-body h4 ~ h4 { margin-top: 22px; }  /* gap before the second team's matches */
 .market .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .market .status-row { margin: 10px 0 2px; }
 .market .status-row .muted { overflow-wrap: anywhere; }
