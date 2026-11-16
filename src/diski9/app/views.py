@@ -1,4 +1,10 @@
-"""Rendering for the match analysis panel (pure functions, no callbacks).
+"""Rendering building blocks for the match panel (pure functions, no callbacks).
+
+Engine 3.0: the panel itself is assembled in ``lab.py`` (The Match Lab); the
+historical context pieces below (Form Score, records, head-to-head, positions)
+and the bookmaker card are reused there.
+
+Legacy layout notes (Engine 2.x):
 
 Layout (final UI refinement, after Milestone 5.3):
   Heading  fixture, competition, kickoff, market, form basis
@@ -22,8 +28,6 @@ from dash import html
 from diski9.api_football.markets import Market
 
 from .data import (
-    LEAGUE_SHORT,
-    MARKET_OF,
     MARKET_OUTCOME_ORDER,
     OUTCOME_LABEL,
     OddsView,
@@ -552,8 +556,8 @@ def _market_card(
                 head,
                 html.Div(
                     f"No bookmaker odds are available for the {league} from API-Football, so "
-                    "market-implied probabilities are unavailable. The historical statistics "
-                    "are unaffected.",
+                    "market-implied probabilities are unavailable. The Diski 9 model "
+                    "probabilities are unaffected.",
                     className="muted small",
                 ),
             ],
@@ -1113,40 +1117,14 @@ def h2h_section(r: dict) -> html.Details:
 
 
 def render_detail(
-    r: dict | None, ov: OddsView | None, official: dict, market: str, data: ScreenerData
+    r: dict | None,
+    ov: OddsView | None,
+    official: dict,
+    market: str,
+    data: ScreenerData,
+    adj: dict | None = None,
 ) -> Any:
-    if r is None:
-        return html.Div("Select a fixture to see its analysis.", className="empty")
-    f = r["fixture"]
-    league = LEAGUE_SHORT.get(f["competition_id"], f["competition"])
-    if market == "1X2":
-        basis = "Current-season form"  # Match Result has no basis choice
-    else:
-        basis = "Venue-specific form" if r["basis"] == "venue" else "Overall form"
-    return html.Div(
-        [
-            html.Div(
-                [
-                    html.H2(f"{f['home']} v {f['away']}"),
-                    html.Div(
-                        f"{league} · {data.local(f['kickoff'])} {data.tz_label} · {MARKET_TITLE[market]} · {basis}",
-                        className="muted",
-                    ),
-                ],
-                className="detail-header",
-            ),
-            analysis_card(r, market),
-            market_card(
-                ov,
-                MARKET_OF[market],
-                data,
-                league,
-                context=[positions_section(r, official), h2h_section(r)],
-            ),
-            html.P(
-                f"{r['indicator_note']} Uses only results before {data.local(r['cutoff'])} {data.tz_label}.",
-                className="muted small",
-            ),
-        ],
-        className="detail",
-    )
+    """Engine 3.0 detail panel: The Match Lab and the bookmaker card (``lab.py``)."""
+    from .lab import render_detail as lab_render
+
+    return lab_render(r, ov, official, market, data, adj)

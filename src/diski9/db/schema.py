@@ -420,3 +420,38 @@ ingestion_runs = Table(
     Column("unchanged", Integer, nullable=False, server_default=text("0")),
     Column("error", Text, nullable=True),
 )
+
+# ------------------------------------------------- Engine 3.0 forecast record
+forecast_snapshots = Table(
+    "forecast_snapshots",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("fixture_id", Integer, ForeignKey("fixtures.id"), nullable=False),
+    Column("competition_id", Integer, nullable=False),
+    Column("season", Integer, nullable=False),
+    Column("kickoff_utc", UTCDateTime, nullable=False, comment="Scheduled kickoff when recorded"),
+    Column("created_at", UTCDateTime, nullable=False, comment="When the forecast was recorded"),
+    Column("data_cutoff", UTCDateTime, nullable=False, comment="Only results before this used"),
+    Column("engine_version", String(20), nullable=False),
+    Column("goal_model_version", String(20), nullable=False),
+    Column("params_hash", String(32), nullable=False),
+    Column("params_json", Text, nullable=False),
+    Column("lambda_home", Float, nullable=False),
+    Column("lambda_away", Float, nullable=False),
+    Column("p_home", Float, nullable=False),
+    Column("p_draw", Float, nullable=False),
+    Column("p_away", Float, nullable=False),
+    Column("p_btts_yes", Float, nullable=False),
+    Column("p_over", Float, nullable=False),
+    Column("baseline_json", Text, nullable=True, comment="League baseline at the same cutoff"),
+    Column("forecast_hash", String(64), nullable=False),
+    Column("status", String(20), nullable=False, server_default=text("'pre_kickoff'")),
+    comment="Insert-only record of the official model forecasts shown before kickoff "
+    "(UPDATE and DELETE are blocked by triggers).",
+)
+Index(
+    "ix_forecast_snapshots_fixture",
+    forecast_snapshots.c.fixture_id,
+    forecast_snapshots.c.goal_model_version,
+    forecast_snapshots.c.created_at,
+)

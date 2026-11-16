@@ -52,6 +52,7 @@ from .calc import (
     pooled_benchmark,
 )
 from .calc import rate as rate_of
+from .goal_model import fixture_estimate
 
 # 2.0.0 (Milestone 5): bonus-based Diski Form Score, Form Difference (no venue
 # adjustment), current-season-only BTTS/O2.5.
@@ -65,7 +66,7 @@ from .calc import rate as rate_of
 # 2.4.0: Match Result Form Score from the last eight CURRENT-SEASON league matches,
 # normalised by the matches actually played; one overall league average; display-only
 # venue context. The Venue/Overall basis no longer affects Match Result.
-ENGINE_VERSION = "2.4.0"
+ENGINE_VERSION = "3.0.0"  # Goal Model 1.0 probabilities; Form Score etc. as context
 LEAGUE_BASELINE_MIN = 30  # eligible current-season league matches before a baseline is shown
 FORM_BENCHMARK_MIN_TEAMS = 12  # teams with at least FORM_BENCHMARK_MIN_MATCHES matches
 FORM_BENCHMARK_MIN_SHARE = 0.8  # ... and at least this share of the season's teams
@@ -625,8 +626,10 @@ def compute_fixture(
         "goals": teams_out["home"]["goals"]["sample"]["limited_data"]
         or teams_out["away"]["goals"]["sample"]["limited_data"],
     }
+    goal_model = fixture_estimate(store, comp, season, home_id, away_id, cutoff)
     result = {
         "engine_version": ENGINE_VERSION,
+        "goal_model": goal_model,
         "fixture": {
             "id": fixture.id,
             "competition_id": comp,
@@ -675,7 +678,7 @@ def compute_fixture(
         "indicator_note": "Historical records and league baselines describe past matches; "
         "they are not predicted probabilities.",
         "league_baseline": baseline,
-        "limited_data": limited,
+        "limited_data": {**limited, "model": bool(goal_model.get("early_season"))},
         "league_position": {
             "source": "computed from eligible results before cutoff (excludes awarded "
             "results and points deductions; may differ from official standings)",

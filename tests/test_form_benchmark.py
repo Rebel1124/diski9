@@ -84,7 +84,7 @@ def fixture(home, away, days, comp=39, season=2026):
 
 
 def test_engine_version():
-    assert ENGINE_VERSION == "2.4.0" and CFG.form_window == 8
+    assert ENGINE_VERSION == "3.0.0" and CFG.form_window == 8
 
 
 # ------------------------------------------------------------ team scores

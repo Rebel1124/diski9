@@ -360,16 +360,20 @@ def test_cache_refresh_unchanged_superseded_and_point_in_time(db):
     b.upcoming(1, 2)
     b.save()
     t1, t2, t3 = T0, T0 + timedelta(hours=1), T0 + timedelta(hours=2)
+    # Engine 3.0: one (overall) row per fixture. No previous season and only 10
+    # league matches: Goal Model 1.0 is unavailable, so no forecast is recorded
     assert cache.refresh(db, [UPCOMING_ID], t1, t1) == {
-        "inserted": 2,
+        "inserted": 1,
         "unchanged": 0,
         "superseded": 0,
+        "forecasts_recorded": 0,
         "retired_old_version": 0,
     }
     assert cache.refresh(db, [UPCOMING_ID], t2, t2) == {
         "inserted": 0,
-        "unchanged": 2,
+        "unchanged": 1,
         "superseded": 0,
+        "forecasts_recorded": 0,
         "retired_old_version": 0,
     }
     # a new result for the home team arrives -> venue-basis result changes
@@ -379,55 +383,66 @@ def test_cache_refresh_unchanged_superseded_and_point_in_time(db):
         lambda: t3,
     )
     counts = cache.refresh(db, [UPCOMING_ID], t3, t3)
-    assert counts["superseded"] == 2 and counts["inserted"] == 2
+    assert counts["superseded"] == 1 and counts["inserted"] == 1
+    assert counts["forecasts_recorded"] == 0
+    assert now_payload_unavailable(db)
     rows = db.execute(select(screener_results).order_by(screener_results.c.id)).all()
-    assert len(rows) == 4 and rows[0].superseded_at == t3 and rows[0].verified_at == t2
-    now_view = cache.cached(db, "venue")
+    assert len(rows) == 2 and rows[0].superseded_at == t3 and rows[0].verified_at == t2
+    now_view = cache.cached(db, "overall")
     assert len(now_view) == 1 and now_view[0]["teams"]["home"]["form"]["sequence"].startswith("L")
-    past_view = cache.cached(db, "venue", at=t2)
+    past_view = cache.cached(db, "overall", at=t2)
     assert past_view[0]["teams"]["home"]["form"]["sequence"] == "W-W-W-W-W"
     assert json.loads(rows[0].payload)["inputs_hash"] == rows[0].inputs_hash
-    assert cache.invalidate(db, t3) == 2
-    assert cache.refresh(db, [UPCOMING_ID], t3, t3)["inserted"] == 2
+    assert cache.invalidate(db, t3) == 1
+    assert cache.refresh(db, [UPCOMING_ID], t3, t3)["inserted"] == 1
+
+
+def now_payload_unavailable(db) -> bool:
+    gm = cache.cached(db, "overall")[0]["goal_model"]
+    return gm["available"] is False and gm["reason"] == "league_prior_unavailable"
 
 
 def test_ranking_directions():
+    """Engine 3.0: ranked by the Goal Model 1.0 probability of the chosen outcome."""
     from datetime import timedelta as td
 
-    def res(fid, diff, btts, over, hours):
+    def res(fid, home, draw, btts, over, hours, available=True):
+        probs = {
+            "home": home,
+            "draw": draw,
+            "away": 1 - home - draw,
+            "btts_yes": btts,
+            "btts_no": 1 - btts,
+            "over": over,
+            "under": 1 - over,
+        }
         return {
             "fixture": {"id": fid, "kickoff": (T0 + td(hours=hours)).isoformat()},
-            "basis": "venue",
-            "match_result": {"form_difference": diff},
-            "btts": {"yes_indicator": btts},
-            "over_under_2_5": {"over_indicator": over},
+            "goal_model": {"available": available, "probabilities": probs if available else None},
         }
 
     rs = [
-        res(1, 1.2, 0.7, 0.4, 30),
-        res(2, -0.8, 0.3, 0.8, 10),
-        res(3, 0.05, 0.5, None, 20),
-        res(4, None, None, 0.6, 5),
-        res(
-            5, 1.2, 0.7, 0.4, 30
-        ),  # ties fixture 1 on everything, incl. kickoff -> id breaks the tie
+        res(1, 0.6, 0.2, 0.5, 0.6, 30),
+        res(2, 0.3, 0.3, 0.4, 0.4, 10),
+        res(3, 0.45, 0.28, 0.55, 0.5, 20),
+        res(4, 0, 0, 0, 0, 5, available=False),  # e.g. a European fixture
+        res(5, 0.6, 0.2, 0.5, 0.6, 30),  # ties fixture 1 on everything -> id breaks the tie
     ]
     ids = lambda xs: [r["fixture"]["id"] for r in xs]  # noqa: E731
     assert ids(rank(rs, "kickoff_earliest")) == [4, 2, 3, 1, 5]
     assert ids(rank(rs, "kickoff_latest")) == [5, 1, 3, 2, 4]
-    assert ids(rank(rs, "home_stronger")) == [1, 5, 3, 2, 4]  # unavailable (4) listed last
-    assert ids(rank(rs, "away_stronger")) == [2, 3, 1, 5, 4]
-    assert ids(rank(rs, "evenly_matched")) == [3, 2, 1, 5, 4]
-    assert ids(rank(rs, "btts_yes")) == [1, 5, 3, 2, 4]
-    assert ids(rank(rs, "btts_no")) == [2, 3, 1, 5, 4]
-    assert ids(rank(rs, "over")) == [2, 4, 1, 5, 3]
-    assert ids(rank(rs, "under")) == [1, 5, 4, 2, 3]
-    # thresholds filter and drop unavailable values
-    assert ids(rank(rs, "home_stronger", threshold=0.5)) == [1, 5]
-    assert ids(rank(rs, "evenly_matched", threshold=0.1)) == [3]
-    assert ids(rank(rs, "btts_no", threshold=0.6)) == [2]
+    assert ids(rank(rs, "home_win")) == [1, 5, 3, 2, 4]  # unavailable (4) listed last
+    assert ids(rank(rs, "away_win")) == [2, 3, 1, 5, 4]
+    assert ids(rank(rs, "draw")) == [2, 3, 1, 5, 4]
+    assert ids(rank(rs, "btts_yes")) == [3, 1, 5, 2, 4]
+    assert ids(rank(rs, "btts_no")) == [2, 1, 5, 3, 4]
+    assert ids(rank(rs, "over")) == [1, 5, 3, 2, 4]
+    assert ids(rank(rs, "under")) == [2, 3, 1, 5, 4]
+    # thresholds: minimum probability; unavailable fixtures are dropped
+    assert ids(rank(rs, "home_win", threshold=0.5)) == [1, 5]
+    assert ids(rank(rs, "draw", threshold=0.28)) == [2, 3]
     # deterministic: input order does not matter
-    assert ids(rank(list(reversed(rs)), "home_stronger")) == ids(rank(rs, "home_stronger"))
+    assert ids(rank(list(reversed(rs)), "home_win")) == ids(rank(rs, "home_win"))
 
 
 def test_old_engine_version_rows_are_retired(db):
@@ -443,10 +458,10 @@ def test_old_engine_version_rows_are_retired(db):
     cache.refresh(db, [UPCOMING_ID], T0, T0)
     # simulate rows calculated on the previous (-1 to 4) scale
     db.execute(update(screener_results).values(engine_version="1.2.0"))
-    assert cache.cached(db, "venue") == []  # old-version rows are never served
+    assert cache.cached(db, "overall") == []  # old-version rows are never served
     later = T0 + timedelta(hours=1)
     counts = cache.refresh(db, [UPCOMING_ID], later, later)
-    assert counts["retired_old_version"] == 2 and counts["inserted"] == 2
+    assert counts["retired_old_version"] == 1 and counts["inserted"] == 1
     active = db.execute(
         select(screener_results).where(screener_results.c.superseded_at.is_(None))
     ).all()

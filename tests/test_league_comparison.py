@@ -200,7 +200,8 @@ const { chromium, devices } = require('playwright');
     await p.waitForTimeout(800);
     if (name === 'desktop') await p.locator('tr.row').first().click();
     else await p.locator('.fx-card').first().tap();
-    await p.waitForSelector('.analysis', { timeout: 20000 });
+    await p.waitForSelector('.lab', { timeout: 20000 });
+    await p.locator('.lab .context .acc-group > details.acc > summary').nth(1).click();  // open the BTTS record
     out[name] = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     await ctx.close();
   }

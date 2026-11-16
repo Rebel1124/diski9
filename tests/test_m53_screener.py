@@ -38,8 +38,7 @@ F = Fraction
 
 # ------------------------------------------------------------- Model D
 def test_engine_version_bumped_for_current_season_baselines():
-    # 2.1.0 Model D; 2.2.0 no previous-season blend; 2.3.0 league Form Score benchmark
-    assert ENGINE_VERSION == "2.4.0"
+    assert ENGINE_VERSION == "3.0.0"
 
 
 def test_model_d_exact_formula_worked_example():
@@ -165,6 +164,8 @@ def test_venue_and_overall_windows_and_form_difference():
 
 
 def test_rankings_use_model_d_form_difference():
+    """Engine 3.0 ranks by Goal Model probabilities; the Diski Form Score is still
+    computed (Match Lab context) with the production Model D formula."""
     ms = []
     teams = list(range(1, 13))
     for k, t in enumerate(teams):  # team t: k wins, 5-k losses, at home and away
@@ -183,9 +184,6 @@ def test_rankings_use_model_d_form_difference():
         )
         for j in range(6)
     ]
-    ranked = rank(results, "home_stronger")
-    diffs = [r["match_result"]["form_difference"] for r in ranked]
-    assert diffs == sorted(diffs, reverse=True)
     for r in results:
         h = diski_form_score(
             (t.goals_for, t.goals_against)
@@ -194,6 +192,11 @@ def test_rankings_use_model_d_form_difference():
             )
         )
         assert r["match_result"]["home_form"] == float(h.score)
+        gm = r["goal_model"]
+        if gm["available"]:
+            ranked = rank(results, "home_win")
+            probs = [x["goal_model"]["probabilities"]["home"] for x in ranked]
+            assert probs == sorted(probs, reverse=True)
 
 
 def test_no_lookahead_in_form_or_baseline():
@@ -341,25 +344,19 @@ def test_record_text_counts_and_missing_history():
 def test_btts_detail_shows_three_layers_with_market_matching_odds_table(data):
     r, ov, official = data.detail(EPL_FIX, "overall")
     d = render_detail(r, ov, official, "BTTS", data)
-    summary = _text(d.children[1])  # Diski 9 Match Analysis
+    lab = _text(d.children[1])  # The Match Lab
     market = _text(d.children[2])  # Bookmaker Market Reference
-    # team 1: ten 3-0 home wins; team 2: ten 1-1 away draws
-    assert "BTTS in 0 of 10" in summary
-    assert "No BTTS in" not in summary  # complement lives in "Matches used" only
-    assert "BTTS in 10 of 10" in summary
-    # 21 current-season EPL matches in the fixture: below 30, so no percentage is shown
-    assert "League BTTS baseline" in summary and "Not enough current-season data yet" in summary
-    assert "21 of 30 eligible completed league matches" in summary
-    assert summary.startswith("Diski 9 Match Analysis")
-    # market figures live only in the bookmaker card, shown once (no duplication)
-    assert "Market-implied" not in summary
-    assert "52.6%" not in summary and "47.4%" not in summary and "1.80" not in summary
-    assert "Market-implied probabilities" in market
+    # team 1: ten 3-0 home wins; team 2: ten 1-1 away draws (Match Lab context)
+    assert "BTTS in 0 of 10" in lab and "BTTS in 10 of 10" in lab
+    # 21 current-season EPL matches in the fixture: below 30, so no league percentage
+    assert "League BTTS baseline" in lab and "Not enough current-season data yet" in lab
+    assert "21 of 30 eligible completed league matches" in lab
+    # the model's own probabilities in the baseline, market figures in the odds card
+    p = r["goal_model"]["probabilities"]
+    assert f"{p['btts_yes'] * 100:.1f}%" in lab and f"{p['btts_no'] * 100:.1f}%" in lab
+    assert "Market-implied probabilities" not in lab
     # full_book: Yes 1.80, No 2.00 -> 52.6% / 47.4%, from the same consensus as before
-    assert "52.6%" in market and "47.4%" in market
-    assert _text(d).count("47.4%") == 1  # BTTS No shown once (52.6% also = raw 1/1.90)
-    assert "Historical indicator" not in summary  # no longer the headline
-    assert "predicted probabilit" not in summary.lower().replace("not predicted probabilit", "")
+    assert "Market-implied probabilities" in market and "52.6%" in market and "47.4%" in market
 
 
 def test_over_under_detail_and_equal_pair(data):
@@ -383,14 +380,15 @@ def test_over_under_detail_and_equal_pair(data):
 
 def test_limited_and_missing_history_states(data):
     r, ov, official = data.detail(PROMOTED_FIX, "overall")
-    summary = _text(render_detail(r, ov, official, "BTTS", data).children[1])
-    assert "BTTS in 0 of 1" in summary and "Limited" in summary  # promoted team: 1 match
+    lab = _text(render_detail(r, ov, official, "BTTS", data).children[1])
+    assert "BTTS in 0 of 1" in lab and "Limited" in lab  # promoted team: 1 match
     r, ov, official = data.detail(EXTRA[0], "overall")
-    summary = _text(render_detail(r, ov, official, "BTTS", data).children[1])
-    assert summary.count("No current-season history") == 2
-    assert "0%" not in summary
+    lab = _text(render_detail(r, ov, official, "BTTS", data).children[1])
+    assert lab.count("No current-season history") == 2
+    # no matches at all: the model uses league averages only, and says so
+    assert lab.count("League average only") == 2
     row = data.row("BTTS", r)
-    assert row["home_metric"] == "—" and row["indicator"] is None
+    assert row["available"] and row["limited"]
 
 
 def test_overall_and_venue_records_differ():
@@ -406,25 +404,33 @@ def test_overall_and_venue_records_differ():
 def test_stale_and_unavailable_goals_markets(populated):
     stale = ScreenerData(populated, ttl_seconds=0, clock=lambda: T0 + 2 * timedelta(days=1))
     r, ov, official = stale.detail(EPL_FIX, "overall")
-    summary = _text(render_detail(r, ov, official, "BTTS", stale).children[2])
+    card = render_detail(r, ov, official, "BTTS", stale).children[2]
+    summary = _text(card)
     assert "Stale" in summary and "Prices may have changed" in summary and "52.6%" in summary
     assert stale.row("BTTS", r)["market_status"] == "stale"
     fresh = ScreenerData(populated, ttl_seconds=0, clock=lambda: T0)
     r, ov, official = fresh.detail(PSL_FIX, "overall")
-    summary = _text(render_detail(r, ov, official, "OU25", fresh).children[2])
-    assert "market-implied probabilities are unavailable" in summary
-    assert "%" not in summary
+    card = render_detail(r, ov, official, "OU25", fresh).children[2]
+    assert "market-implied probabilities are unavailable" in _text(card)
+    assert "%" not in _text(card.children[:-1])  # no market figure invented
     assert fresh.row("OU25", r)["market"] == "No odds"
 
 
 def test_table_columns_show_records_baseline_and_market(data):
-    p = results_payload(data, "BTTS", [39, 288], None, "2026-12-31", "overall", "btts_yes", 0, 1)
+    p = results_payload(data, "BTTS", [39], None, "2026-11-18", "overall", "kickoff_earliest", 0, 1)
     rows = p[0].children[1].children
     row = next(r for r in rows if r.id["index"] == EPL_FIX)
     cells = [_text(c) for c in row.children]
-    assert cells[4:9] == ["0/10", "10/10", "50%", "—", "53% · 47%"]
+    g = data.detail(EPL_FIX)[0]["goal_model"]
+    eg = g["estimated_goals"]
+    assert cells[4] == f"{eg['home']:.2f} – {eg['away']:.2f}"
+    assert cells[5:7] == [
+        f"{g['probabilities']['btts_yes'] * 100:.1f}%",
+        f"{g['probabilities']['btts_no'] * 100:.1f}%",
+    ]
+    assert cells[7] == "1.80 · 2.00"
     card = fixture_card("BTTS", data.row("BTTS", data.detail(EPL_FIX, "overall")[0]), None)
-    assert "BTTS records 0/10 · 10/10" in _text(card) and "Market 53% · 47%" in _text(card)
+    assert "Est. goals" in _text(card) and "Odds 1.80 · 2.00" in _text(card)
 
 
 def test_challenge_eligibility_unchanged(populated):
@@ -442,7 +448,7 @@ def test_old_engine_rows_never_served_and_banner_until_rebuilt(populated):
         conn.execute(update(screener_results).values(engine_version="2.0.0"))
     d = ScreenerData(populated, ttl_seconds=0, clock=lambda: T0)
     snap = d.snapshot()
-    assert snap.outdated_rows > 0 and not snap.results["venue"]  # nothing mixed in
+    assert snap.outdated_rows > 0 and not snap.results["overall"]  # nothing mixed in
     assert "earlier method" in _text(build_layout(d))
     with populated.begin() as conn:
         counts = cache.refresh(conn, [EPL_FIX, PSL_FIX, PROMOTED_FIX, *EXTRA], T0, T0)
@@ -452,10 +458,11 @@ def test_old_engine_rows_never_served_and_banner_until_rebuilt(populated):
                 screener_results.c.superseded_at.is_(None)
             )
         ).all()
-    assert {a[0] for a in active} == {"2.4.0"}
+    assert {a[0] for a in active} == {"3.0.0"}
     snap = d.snapshot(force=True)
-    assert snap.outdated_rows == 0 and EPL_FIX in snap.results["venue"]
+    assert snap.outdated_rows == 0 and EPL_FIX in snap.results["overall"]
     assert "earlier method" not in _text(build_layout(d))
-    payload = json.loads(json.dumps(snap.results["venue"][EPL_FIX]))
-    assert payload["engine_version"] == "2.4.0"
+    payload = json.loads(json.dumps(snap.results["overall"][EPL_FIX]))
+    assert payload["engine_version"] == "3.0.0"
+    assert payload["goal_model"]["model"]["goal_model_version"] == "1.0"
     assert payload["match_result"]["method"] == "D8-current-season"

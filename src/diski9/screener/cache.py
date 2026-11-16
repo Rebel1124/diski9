@@ -5,6 +5,8 @@
   ``verified_at`` is updated, otherwise the active row is superseded and a new
   row inserted. Rows are never deleted, so the cache state at any past moment
   can be reconstructed (``calculated_at <= t < superseded_at``).
+* Live refreshes also record the official pre-kickoff forecast snapshot
+  (``forecasts.record``; insert-only, deduplicated).
 * Live consensus odds are deliberately *not* cached here; they change far more
   often and are computed at display time from the odds tables.
 """
@@ -20,6 +22,7 @@ from sqlalchemy import Connection, and_, or_, select, update
 
 from diski9.db.schema import fixtures, screener_results
 
+from . import forecasts
 from .engine import ENGINE_VERSION, Basis, MatchStore, ScreenerConfig, compute_fixture
 
 
@@ -46,17 +49,21 @@ def refresh(
     fixture_ids: Iterable[int],
     as_of: datetime,
     now: datetime,
-    bases: tuple[Basis, ...] = ("venue", "overall"),
+    bases: tuple[Basis, ...] = ("overall",),
     config: ScreenerConfig | None = None,
     store: MatchStore | None = None,
 ) -> dict[str, int]:
     store = store or MatchStore(conn)
-    counts = {"inserted": 0, "unchanged": 0, "superseded": 0}
+    counts = {"inserted": 0, "unchanged": 0, "superseded": 0, "forecasts_recorded": 0}
+    live = as_of == now  # forecast snapshots only from live refreshes, never replays
     counts["retired_old_version"] = retire_other_versions(conn, now)
     rows = conn.execute(select(fixtures).where(fixtures.c.id.in_(list(fixture_ids)))).all()
     for fx in rows:
         for basis in bases:
             result = compute_fixture(store, fx, as_of, basis, config)
+            if basis == "overall":
+                status = forecasts.record(conn, fx, result, now, live, ENGINE_VERSION)
+                counts["forecasts_recorded"] += status == "recorded"
             active = conn.execute(
                 select(screener_results.c.id, screener_results.c.inputs_hash).where(
                     screener_results.c.fixture_id == fx.id,

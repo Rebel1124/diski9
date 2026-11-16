@@ -2,8 +2,9 @@
 
 Every ranking is deterministic: ties are broken by kickoff time, then fixture id.
 Kickoff ranking sorts on the actual UTC timestamp, never on formatted strings.
-For statistical rankings, fixtures whose indicator is unavailable are listed
-after all ranked fixtures (or removed when a threshold is set).
+Statistical rankings order fixtures by the Goal Model 1.0 probability of the
+chosen outcome; fixtures without model probabilities are listed after all ranked
+fixtures (or removed when a threshold is set).
 """
 
 from __future__ import annotations
@@ -14,9 +15,9 @@ from typing import Literal
 Direction = Literal[
     "kickoff_earliest",
     "kickoff_latest",
-    "home_stronger",
-    "away_stronger",
-    "evenly_matched",
+    "home_win",
+    "draw",
+    "away_win",
     "btts_yes",
     "btts_no",
     "over",
@@ -24,6 +25,16 @@ Direction = Literal[
 ]
 KICKOFF_DIRECTIONS = ("kickoff_earliest", "kickoff_latest")
 DEFAULT_DIRECTION: Direction = "kickoff_earliest"
+# Engine 3.0: rank by the Goal Model 1.0 probability of the chosen outcome
+OUTCOME_OF = {
+    "home_win": "home",
+    "draw": "draw",
+    "away_win": "away",
+    "btts_yes": "btts_yes",
+    "btts_no": "btts_no",
+    "over": "over",
+    "under": "under",
+}
 
 
 def _kickoff(result: dict) -> datetime:
@@ -31,34 +42,20 @@ def _kickoff(result: dict) -> datetime:
 
 
 def indicator(result: dict, direction: str) -> float | None:
-    if direction in ("home_stronger", "away_stronger", "evenly_matched"):
-        return result["match_result"]["form_difference"]
-    if direction in ("btts_yes", "btts_no"):
-        return result["btts"]["yes_indicator"]
-    if direction in ("over", "under"):
-        return result["over_under_2_5"]["over_indicator"]
-    return None
+    """Model probability of the direction's outcome; None when unavailable."""
+    gm = result.get("goal_model") or {}
+    if direction not in OUTCOME_OF or not gm.get("available"):
+        return None
+    return gm["probabilities"][OUTCOME_OF[direction]]
 
 
 def _passes(value: float, direction: str, threshold: float) -> bool:
-    if direction == "home_stronger":
-        return value >= threshold
-    if direction == "away_stronger":
-        return value <= -threshold
-    if direction == "evenly_matched":
-        return abs(value) <= threshold
-    if direction in ("btts_yes", "over"):
-        return value >= threshold
-    return (1 - value) >= threshold  # btts_no, under: threshold on the complement
+    return value >= threshold  # threshold = minimum probability of the outcome
 
 
 def _primary(value: float, direction: str) -> float:
-    """Smaller sorts first."""
-    if direction in ("home_stronger", "btts_yes", "over"):
-        return -value
-    if direction == "evenly_matched":
-        return abs(value)
-    return value  # away_stronger (most negative first), btts_no / under (lowest Yes/Over first)
+    """Smaller sorts first: highest probability first."""
+    return -value
 
 
 def rank(results: list[dict], direction: str, threshold: float | None = None) -> list[dict]:

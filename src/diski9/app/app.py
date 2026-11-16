@@ -1,17 +1,21 @@
-"""Diski 9 Statistical Screener — Plotly Dash application.
+"""Diski 9 Screener and Match Lab — Plotly Dash application (Engine 3.0).
 
 Run: ``uv run diski9 serve`` (defaults to http://127.0.0.1:8050).
 
+"We calculate the probabilities. You analyse the match. You make the call."
+
 The results list is a plain HTML table (desktop) / card list (phones) rendered
-server-side, ten fixtures per page. Ranking is a single control ("Rank by");
-clicking a sortable column header changes that control. Dash's DataTable was
-removed (deprecated in Dash 4); Dash AG Grid was evaluated but not adopted,
-because its client-side sorting would conflict with server-side ranking and
-pagination shared with the phone cards, for no visual gain over a styled table.
+server-side, ten fixtures per page, ranked by the Goal Model 1.0 probability of
+the chosen outcome. Selecting a fixture opens The Match Lab: the statistical
+baseline, match context, other factors to consider and the user's own
+estimated-goal adjustments. Adjustments live only in the browser
+(``dcc.Store``, memory), keyed by fixture: they never change the cached baseline,
+are never written to the server and are invisible to other users.
 """
 
 from __future__ import annotations
 
+import math
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -20,97 +24,74 @@ from dash.exceptions import PreventUpdate
 
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS
 
-from .data import DIRECTIONS, PAGE_SIZE, ScreenerData, paginate, valid_direction
-from .views import FORM_TOOLTIP, basis_help, info, pill, render_detail, signed_class
+from .data import DIRECTIONS, MARKET_KEYS, PAGE_SIZE, ScreenerData, paginate, valid_direction
+from .lab import ADJUST_MAX, lab_outputs, render_detail, slider_max
+from .methodology import methodology_section
+from .views import pill
 
 ASSETS = Path(__file__).parent / "assets"
 MARKETS = [("1X2", "Match result"), ("BTTS", "Both teams to score"), ("OU25", "Over/Under 2.5")]
-LIMITED_TITLE = {
-    "1X2": "Early season: fewer than eight current-season matches for at least one team",
-    "BTTS": "Limited data: fewer than six current-season matches for at least one team",
-    "OU25": "Limited data: fewer than six current-season matches for at least one team",
-}
-THRESHOLD_DISABLED = KICKOFF_DIRECTIONS + ("evenly_matched",)
-# Match Result has no basis choice since engine 2.4.0 (one current-season overall score);
-# its value is fixed to "overall" and the selector is hidden on that tab.
-DEFAULT_BASIS = {"1X2": "overall", "BTTS": "overall", "OU25": "overall"}
-STAT_PAIR = {  # header toggle between the two statistical directions of a market
-    "1X2": ("home_stronger", "away_stronger"),
+EARLY_TITLE = "Early season: at least one team has played fewer than five league matches"
+THRESHOLD_DISABLED = KICKOFF_DIRECTIONS
+STAT_PAIR = {  # header toggle between two statistical directions of a market
+    "1X2": ("home_win", "away_win"),
     "BTTS": ("btts_yes", "btts_no"),
     "OU25": ("over", "under"),
+}
+DIRECTION_OUTCOME = {
+    "home_win": "home win",
+    "draw": "draw",
+    "away_win": "away win",
+    "btts_yes": "BTTS Yes",
+    "btts_no": "BTTS No",
+    "over": "Over 2.5",
+    "under": "Under 2.5",
 }
 
 
 def columns_for(market: str) -> list[dict]:
     """Column definitions: id, label, alignment, sort key (None = not sortable)."""
-    base = [
+    cols = [
         {"id": "kickoff", "label": "Kickoff", "align": "left", "sort": "kickoff"},
         {"id": "league", "label": "League", "align": "left", "sort": None},
         {"id": "home", "label": "Home", "align": "left", "sort": None},
         {"id": "away", "label": "Away", "align": "left", "sort": None},
+        {
+            "id": "estimated_goals",
+            "label": "Est. goals",
+            "align": "right",
+            "sort": None,
+            "title": "Estimated goals (home – away) from Goal Model 1.0",
+        },
     ]
-    if market == "1X2":
-        return base + [
-            {"id": "home_metric", "label": "Home form", "align": "right", "sort": None},
-            {"id": "away_metric", "label": "Away form", "align": "right", "sort": None},
-            {"id": "indicator", "label": "Form difference", "align": "right", "sort": "stat"},
-            {"id": "odds", "label": "Odds H · D · A", "align": "right", "sort": None},
-            {"id": "limited", "label": "Data", "align": "left", "sort": None},
-        ]
-    word, market_lbl = (
-        ("BTTS", "Market Yes · No") if market == "BTTS" else ("Over 2.5", "Market Over · Under")
-    )
-    return base + [
+    for i, (key, label) in enumerate(MARKET_KEYS[market]):
+        cols.append(
+            {
+                "id": f"p_{key}",
+                "label": label,
+                "align": "right",
+                "sort": "stat" if i == 0 else None,
+                "title": f"Diski 9 model probability: {label}",
+            }
+        )
+    odds_label = {"1X2": "Odds H · D · A", "BTTS": "Odds Yes · No", "OU25": "Odds Over · Under"}
+    cols += [
         {
-            "id": "home_metric",
-            "label": "Home record",
+            "id": "odds",
+            "label": odds_label[market],
             "align": "right",
             "sort": None,
-            "title": f"Home team: {word} matches / current-season matches",
-        },
-        {
-            "id": "away_metric",
-            "label": "Away record",
-            "align": "right",
-            "sort": None,
-            "title": f"Away team: {word} matches / current-season matches",
-        },
-        {
-            "id": "indicator",
-            "label": f"Recent {word}",
-            "align": "right",
-            "sort": "stat",
-            "title": "Historical occurrence: average of the two teams' recent shares "
-            "(not a probability)",
-        },
-        {
-            "id": "baseline",
-            "label": "League",
-            "align": "right",
-            "sort": None,
-            "title": f"League {word} baseline before kickoff",
-        },
-        {
-            "id": "market",
-            "label": market_lbl,
-            "align": "right",
-            "sort": None,
-            "title": "Market-implied probabilities from consensus odds, margin removed",
+            "title": "Consensus bookmaker odds (reference only; never a model input)",
         },
         {"id": "limited", "label": "Data", "align": "left", "sort": None},
     ]
+    return cols
 
 
 def threshold_config(market: str, direction: str) -> dict:
-    """Threshold is interactive only where it is meaningful:
-    Match result - strongest home/away advantage; BTTS and O/U - the indicator rankings.
-    It is reset to 'Any' whenever the ranking changes (predictable, documented)."""
+    """The threshold is a minimum model probability for the ranked outcome; it is
+    disabled for kickoff ordering and reset whenever the ranking changes."""
     if direction in THRESHOLD_DISABLED:
-        hint = (
-            "Available for strongest home/away rankings"
-            if market == "1X2"
-            else "Available for recent-occurrence rankings"
-        )
         return {
             "min": 0,
             "max": 1,
@@ -118,33 +99,16 @@ def threshold_config(market: str, direction: str) -> dict:
             "value": 0,
             "disabled": True,
             "label": "Threshold",
-            "hint": hint,
+            "hint": "Available for probability rankings",
             "marks": {0: "Any", 1: ""},
         }
-    if market == "1X2":
-        return {
-            "min": 0,
-            "max": 5,
-            "step": 0.25,
-            "value": 0,
-            "disabled": False,
-            "label": "Minimum form difference",
-            "hint": None,
-            "marks": {0: "Any", 2.5: "2.5", 5: "5"},
-        }
-    outcome = {
-        "btts_yes": "BTTS",
-        "btts_no": "no-BTTS",
-        "over": "Over 2.5",
-        "under": "Under 2.5",
-    }[direction]
     return {
         "min": 0,
         "max": 100,
         "step": 5,
         "value": 0,
         "disabled": False,
-        "label": f"Minimum recent {outcome} occurrence",
+        "label": f"Minimum {DIRECTION_OUTCOME[direction]} probability",
         "hint": None,
         "marks": {0: "Any", 50: "50%", 100: "100%"},
     }
@@ -201,7 +165,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                     html.Div(
                         [
                             html.Span("Diski 9", className="brand"),
-                            html.Span("Statistical Screener", className="subtitle"),
+                            html.Span("Screener & Match Lab", className="subtitle"),
                         ]
                     ),
                     html.Div(
@@ -212,7 +176,12 @@ def build_layout(data: ScreenerData) -> html.Div:
                 ],
                 className="topbar",
             ),
+            html.P(
+                "We calculate the probabilities. You analyse the match. You make the call.",
+                className="tagline",
+            ),
             *banner,
+            methodology_section(),
             dcc.Tabs(
                 id="market",
                 value="1X2",
@@ -252,31 +221,6 @@ def build_layout(data: ScreenerData) -> html.Div:
                             ),
                         ],
                         className="filter",
-                    ),
-                    html.Div(
-                        [
-                            html.Div(
-                                [
-                                    html.Label("Form basis"),
-                                    info(basis_help("1X2"), "About form basis"),
-                                ],
-                                className="label-row",
-                                id="basis-label",
-                            ),
-                            dcc.RadioItems(
-                                id="basis",
-                                value="overall",
-                                inline=True,
-                                className="segmented",
-                                options=[
-                                    {"label": "Venue-specific", "value": "venue"},
-                                    {"label": "Overall", "value": "overall"},
-                                ],
-                            ),
-                        ],
-                        className="filter",
-                        id="basis-filter",
-                        style={"display": "none"},  # first tab is Match result
                     ),
                     html.Div(
                         [
@@ -334,17 +278,50 @@ def build_layout(data: ScreenerData) -> html.Div:
             ),
             dcc.Store(id="page", data=1),
             dcc.Store(id="selected"),
-            dcc.Store(id="basis-pref", storage_type="session", data={}),
+            # The user's estimated-goal adjustments, keyed by fixture id. Memory only:
+            # lives in this browser tab, never sent to storage, never shared.
+            dcc.Store(id="lab-store", storage_type="memory", data={}),
             html.Div(id="detail", className="detail-holder"),
             html.Footer(
-                "Diski 9 is a research tool. Historical indicators describe past matches and are "
-                "not predictions. Consensus odds are reference values, not offers. No betting "
-                "value or staking advice is provided.",
+                "Diski 9 is an educational football analytics tool. Probabilities are "
+                "statistical estimates from Goal Model 1.0, not guarantees. Bookmaker odds are "
+                "reference values, not offers, and are never used by the model. No betting "
+                "or staking advice is provided.",
                 className="footer muted small",
             ),
         ],
         className="page",
     )
+
+
+def _parse_goals(value) -> float | None:
+    """A typed or slid estimated-goal value, rounded to 0.01; None if invalid."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(v) or v < 0 or v > ADJUST_MAX:
+        return None
+    return round(v, 2)
+
+
+def lab_update(r: dict, trigger: str | None, values: dict, stored: dict | None) -> dict | None:
+    """Pure logic behind the adjustment callback. Returns the new adjustment for
+    this fixture ({"home": x, "away": y}) or None when back at the baseline."""
+    base = r["goal_model"]["estimated_goals"]
+    # unadjusted sides start from the baseline rounded to 0.01 (what the controls show)
+    cur = dict(stored or {"home": round(base["home"], 2), "away": round(base["away"], 2)})
+    if trigger == "lab-reset":
+        return None
+    for side in ("home", "away"):
+        for kind in ("slider", "input"):
+            if trigger == f"lab-{side}-{kind}":
+                v = _parse_goals(values.get(f"{side}_{kind}"))
+                if v is not None:
+                    cur[side] = v
+    if cur["home"] == round(base["home"], 2) and cur["away"] == round(base["away"], 2):
+        return None  # back at the baseline: show the model's own (unrounded) numbers
+    return cur
 
 
 def register_callbacks(app: Dash, data: ScreenerData) -> None:
@@ -372,31 +349,16 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Output("threshold", "marks"),
         Output("threshold", "disabled"),
         Output("threshold-label", "children"),
-        Output("basis-label", "children"),
         Output("legend", "children"),
-        Output("basis-filter", "style"),
         Input("market", "value"),
         Input("direction", "value"),
     )
     def update_controls(market, direction):
         c = threshold_config(market, valid_direction(market, direction))
-        basis_label = [html.Label("Form basis"), info(basis_help(market), "About form basis")]
-        legend = (
-            [
-                html.Span(
-                    "Form Scores (0–5) use each team's last eight current-season league matches",
-                    className="muted small",
-                ),
-                info(FORM_TOOLTIP, "About Diski Form Score"),
-            ]
-            if market == "1X2"
-            else [
-                html.Span(
-                    "Records use up to ten current-season matches; recent occurrence and league "
-                    "baselines are historical, not predicted probabilities",
-                    className="muted small",
-                )
-            ]
+        legend = html.Span(
+            "Probabilities and estimated goals come from Goal Model 1.0 (this season's goals, "
+            "Poisson distribution). Bookmaker odds are shown separately for comparison.",
+            className="muted small",
         )
         return (
             c["min"],
@@ -408,9 +370,7 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             [html.Span(c["label"]), html.Span(c["hint"], className="hint")]
             if c["hint"]
             else c["label"],
-            basis_label,
             legend,
-            {"display": "none"} if market == "1X2" else {},
         )
 
     @app.callback(
@@ -429,7 +389,6 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Input("leagues", "value"),
         Input("dates", "start_date"),
         Input("dates", "end_date"),
-        Input("basis", "value"),
         Input("direction", "value"),
         Input("threshold", "value"),
         Input("prev", "n_clicks"),
@@ -440,19 +399,7 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         State("selected", "data"),
     )
     def update_results(
-        market,
-        leagues,
-        start,
-        end,
-        basis,
-        direction,
-        threshold,
-        _p,
-        _n,
-        _rows,
-        _cards,
-        page,
-        selected,
+        market, leagues, start, end, direction, threshold, _p, _n, _rows, _cards, page, selected
     ):
         """Single source of truth for the list, the page and the selected fixture id.
 
@@ -473,42 +420,70 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         else:
             page = 1
         return results_payload(
-            data, market, leagues, start, end, basis, direction, threshold, page, selected
+            data, market, leagues, start, end, "overall", direction, threshold, page, selected
         )
-
-    @app.callback(
-        Output("basis", "value"),
-        Input("market", "value"),
-        State("basis-pref", "data"),
-    )
-    def apply_basis_default(market, prefs):
-        """Per-market Form Basis: the user's choice for that market in this session,
-        otherwise the default (overall). Match Result has no basis choice."""
-        if market == "1X2":
-            return "overall"  # no basis choice for Match Result
-        return (prefs or {}).get(market, DEFAULT_BASIS[market])
-
-    @app.callback(
-        Output("basis-pref", "data"),
-        Input("basis", "value"),
-        State("market", "value"),
-        State("basis-pref", "data"),
-    )
-    def remember_basis(basis, market, prefs):
-        prefs = dict(prefs or {})
-        if market != "1X2":
-            prefs[market] = basis
-        return prefs
 
     @app.callback(
         Output("detail", "children"),
         Input("selected", "data"),
         Input("market", "value"),
-        Input("basis", "value"),
+        State("lab-store", "data"),
     )
-    def update_detail(fid, market, basis):
-        r, ov, official = data.detail(fid, basis) if fid else (None, None, {})
-        return render_detail(r, ov, official, market, data)
+    def update_detail(fid, market, lab):
+        r, ov, official = data.detail(fid) if fid else (None, None, {})
+        adj = (lab or {}).get(str(fid)) if fid else None
+        return render_detail(r, ov, official, market, data, adj)
+
+    @app.callback(
+        Output("lab-store", "data"),
+        Output("lab-home-slider", "value"),
+        Output("lab-home-input", "value"),
+        Output("lab-away-slider", "value"),
+        Output("lab-away-input", "value"),
+        Output("lab-home-slider", "max"),
+        Output("lab-away-slider", "max"),
+        Output("lab-output", "children"),
+        Output("lab-compare", "children"),
+        Input("lab-home-slider", "value"),
+        Input("lab-home-input", "value"),
+        Input("lab-away-slider", "value"),
+        Input("lab-away-input", "value"),
+        Input("lab-reset", "n_clicks"),
+        State("selected", "data"),
+        State("market", "value"),
+        State("lab-store", "data"),
+        prevent_initial_call=True,
+    )
+    def adjust(hs, hi, as_, ai, _reset, fid, market, lab):
+        """Recalculate all seven probabilities from the user's estimated goals.
+        Pure arithmetic on the browser's own values: the baseline is untouched."""
+        if not fid:
+            raise PreventUpdate
+        r, ov, _ = data.detail(fid)
+        if r is None or not r["goal_model"].get("available"):
+            raise PreventUpdate
+        lab = dict(lab or {})
+        values = {"home_slider": hs, "home_input": hi, "away_slider": as_, "away_input": ai}
+        new = lab_update(r, ctx.triggered_id, values, lab.get(str(fid)))
+        if new is None:
+            lab.pop(str(fid), None)
+        else:
+            lab[str(fid)] = new
+        base = r["goal_model"]["estimated_goals"]
+        h = new["home"] if new else round(base["home"], 2)
+        a = new["away"] if new else round(base["away"], 2)
+        out, compare = lab_outputs(r, market, ov, new)
+        return (
+            lab,
+            h,
+            h,
+            a,
+            a,
+            slider_max(base["home"], h),
+            slider_max(base["away"], a),
+            out,
+            compare,
+        )
 
     app.clientside_callback(
         """function(fid) {
@@ -524,8 +499,8 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
 
 
 def header_sort(market: str, key: str, current: str | None) -> str:
-    """Clicking 'Kickoff' toggles earliest/latest; clicking the indicator header
-    toggles the market's two statistical rankings."""
+    """Clicking 'Kickoff' toggles earliest/latest; clicking the first probability
+    header toggles the market's two main outcomes."""
     if key == "kickoff":
         return "kickoff_latest" if current == "kickoff_earliest" else "kickoff_earliest"
     first, second = STAT_PAIR[market]
@@ -536,8 +511,6 @@ def _threshold_value(market: str, direction: str, value: float | None) -> float 
     """A disabled threshold never filters, whatever value the slider holds."""
     if value is None or direction in THRESHOLD_DISABLED:
         return None
-    if market == "1X2":
-        return None if value <= 0 else float(value)
     return None if value <= 0 else value / 100
 
 
@@ -552,7 +525,7 @@ def results_payload(
     direction = valid_direction(market, direction)
     thr = _threshold_value(market, direction, threshold)
     results = (
-        data.filtered(market, leagues, _date(start), _date(end), basis, direction, thr)
+        data.filtered(market, leagues, _date(start), _date(end), "overall", direction, thr)
         if leagues
         else []
     )
@@ -597,14 +570,8 @@ def _header(col: dict, market: str, direction: str) -> html.Th:
         active = direction in KICKOFF_DIRECTIONS
         arrow = ("▲" if direction == "kickoff_earliest" else "▼") if active else "↕"
     else:
-        active = direction in STAT_PAIR[market] or (
-            market == "1X2" and direction == "evenly_matched"
-        )
-        arrow = (
-            "↕"
-            if not active
-            else ("▼" if direction in ("home_stronger", "btts_yes", "over") else "▲")
-        )
+        active = direction in STAT_PAIR[market]
+        arrow = "↕" if not active else ("▼" if direction == STAT_PAIR[market][0] else "▲")
     return html.Th(
         html.Button(
             [col["label"], html.Span(f" {arrow}", className="arrow")],
@@ -627,29 +594,25 @@ def results_table(
         for col in cols:
             cid = col["id"]
             cls = f"col-{col['align']}"
-            if cid == "indicator":
-                value = row["indicator_display"]
-                if market == "1X2":  # only Form difference is emphasised
-                    cls += " strong " + signed_class(row["indicator"]).replace("num", "")
-            elif cid == "baseline":
-                value = row["baseline_display"]
-                cls += " muted"
-            elif cid == "market":
-                value = [row["market"]] + (
-                    [" ", pill("stale", "warn subtle")] if row["market_status"] == "stale" else []
-                )
-                cls += f" odds-{row['market_status']}"
-            elif cid == "odds":
+            if cid == "odds":
                 value = [row["odds"]] + (
                     [" ", pill("stale", "warn subtle")] if row["odds_status"] == "stale" else []
                 )
                 cls += f" odds-{row['odds_status']}"
             elif cid == "limited":
-                value = (
-                    html.Span("Limited", className="pill warn subtle", title=LIMITED_TITLE[market])
-                    if row["limited"]
-                    else ""
-                )
+                if not row["available"]:
+                    value = html.Span(
+                        "No model", className="pill subtle", title=row["unavailable_reason"]
+                    )
+                elif row["limited"]:
+                    value = html.Span(
+                        "Early season", className="pill warn subtle", title=EARLY_TITLE
+                    )
+                else:
+                    value = ""
+            elif cid.startswith("p_"):
+                value = row[cid]
+                cls += " strong"
             else:
                 value = row[cid]
             cells.append(html.Td(value, className=cls))
@@ -668,26 +631,17 @@ def results_table(
 
 
 def fixture_card(market: str, row: dict, selected: int | None) -> html.Button:
-    if market == "1X2":
-        metric = f"Form difference {row['indicator_display']}"
-        sub = f"Form {row['home_metric']} v {row['away_metric']}"
-        metric_cls = "card-metric " + signed_class(row["indicator"]).replace("num", "")
+    if row["available"]:
+        probs = " · ".join(f"{lbl} {row[f'p_{k}']}" for k, lbl in MARKET_KEYS[market])
+        metric = f"Est. goals {row['estimated_goals']}"
     else:
-        word = "BTTS" if market == "BTTS" else "Over 2.5"
-        metric = f"{word} records {row['home_metric']} · {row['away_metric']}"
-        sub = f"League {row['baseline_display']}"
-        metric_cls = "card-metric"
-    if market == "1X2":
-        odds = row["odds"] if row["odds"] in ("No odds", "—") else f"Odds {row['odds']}"
-        status = row["odds_status"]
-    else:
-        odds = row["market"] if row["market"] in ("No odds", "—") else f"Market {row['market']}"
-        status = row["market_status"]
+        probs, metric = row["unavailable_reason"], "No model estimate"
+    odds = row["odds"] if row["odds"] in ("No odds", "—") else f"Odds {row['odds']}"
     bottom = [html.Span(odds, className="muted small")]
-    if status == "stale":
+    if row["odds_status"] == "stale":
         bottom.append(pill("stale odds", "warn subtle"))
     if row["limited"]:
-        bottom.append(pill("Limited data", "warn subtle"))
+        bottom.append(pill("Early season", "warn subtle"))
     return html.Button(
         [
             html.Div(
@@ -696,7 +650,10 @@ def fixture_card(market: str, row: dict, selected: int | None) -> html.Button:
             ),
             html.Div(f"{row['home']} v {row['away']}", className="card-teams"),
             html.Div(
-                [html.Span(metric, className=metric_cls), html.Span(sub, className="muted small")]
+                [
+                    html.Span(metric, className="card-metric"),
+                    html.Span(probs, className="muted small"),
+                ]
             ),
             html.Div(bottom, className="card-bottom"),
         ],

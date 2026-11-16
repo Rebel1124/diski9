@@ -21,7 +21,7 @@ from diski9.db.schema import fixtures, ingestion_runs
 from diski9.ingestion import reference
 from diski9.ingestion.fixtures import ingest_fixtures, refresh_venue_classification
 from diski9.ingestion.quality import full_report
-from diski9.leagues import BACKFILL_SEASONS, COMPETITIONS, CURRENT_SEASON
+from diski9.leagues import BACKFILL_SEASONS, COMPETITIONS, CURRENT_SEASON, screener_competitions
 from diski9.odds.collect import collect_odds, summarise_fetch
 from diski9.odds.consensus import fixture_consensus, load_bookmakers
 
@@ -189,7 +189,7 @@ def cmd_screener_refresh(args, engine) -> None:
 
     now = datetime.now(UTC)
     as_of = datetime.fromisoformat(args.as_of) if args.as_of else now
-    comps = args.competitions or [c.id for c in COMPETITIONS.values() if c.tier == 1]
+    comps = args.competitions or screener_competitions()
     with engine.begin() as conn:
         ids = args.fixtures or cache.upcoming_fixture_ids(
             conn, comps, as_of, as_of + timedelta(days=args.days)
@@ -206,9 +206,9 @@ def cmd_screener_show(args, engine) -> None:
     market_of = {
         "kickoff_earliest": (Market.MATCH_RESULT, Outcome.HOME),
         "kickoff_latest": (Market.MATCH_RESULT, Outcome.HOME),
-        "home_stronger": (Market.MATCH_RESULT, Outcome.HOME),
-        "away_stronger": (Market.MATCH_RESULT, Outcome.AWAY),
-        "evenly_matched": (Market.MATCH_RESULT, Outcome.DRAW),
+        "home_win": (Market.MATCH_RESULT, Outcome.HOME),
+        "draw": (Market.MATCH_RESULT, Outcome.DRAW),
+        "away_win": (Market.MATCH_RESULT, Outcome.AWAY),
         "btts_yes": (Market.BTTS, Outcome.BTTS_YES),
         "btts_no": (Market.BTTS, Outcome.BTTS_NO),
         "over": (Market.OVER_UNDER_25, Outcome.OVER_25),
@@ -216,33 +216,54 @@ def cmd_screener_show(args, engine) -> None:
     }
     now = datetime.now(UTC)
     with engine.connect() as conn:
-        results = cache.cached(conn, args.basis)
+        results = cache.cached(conn, "overall")
         if args.competition:
             results = [r for r in results if r["fixture"]["competition_id"] == args.competition]
         ranked = rank(results, args.direction, args.threshold)[: args.limit]
         books = load_bookmakers(conn)
         market, outcome = market_of[args.direction]
         for r in ranked:
-            f, mr = r["fixture"], r["match_result"]
+            f, g = r["fixture"], r["goal_model"]
             odds = fixture_consensus(conn, f["id"], now, books=books)[market]
             oc = odds.outcomes[outcome]
             price = f"{oc.consensus_odds} ({odds.sources} src)" if oc.consensus_odds else "-"
-            flag = (
-                " [Limited data]"
-                if r["limited_data"]["form" if market is Market.MATCH_RESULT else "goals"]
-                else ""
-            )
-            forms = (
-                f"form {mr['home_form']:.2f}/{mr['away_form']:.2f} "
-                if mr["home_form"] is not None and mr["away_form"] is not None
-                else "form n/a "
-            )
+            if g.get("available"):
+                eg, p = g["estimated_goals"], g["probabilities"]
+                model = (
+                    f"estimated goals {eg['home']:.2f}-{eg['away']:.2f} | "
+                    f"H/D/A {p['home']:.1%}/{p['draw']:.1%}/{p['away']:.1%} | "
+                    f"BTTS {p['btts_yes']:.1%} | O2.5 {p['over']:.1%}"
+                    + (" [Early season]" if g.get("early_season") else "")
+                )
+            else:
+                model = g.get("message", "model unavailable")
             print(
-                f"{f['kickoff'][:16]} {f['home']} v {f['away']}: {forms}"
-                f"form difference {mr['form_difference_display']} | "
-                f"recent BTTS {r['btts']['yes_display']} | "
-                f"recent O2.5 {r['over_under_2_5']['over_display']} | "
-                f"consensus {outcome.value} {price}{flag}"
+                f"{f['kickoff'][:16]} {f['home']} v {f['away']}: {model} | "
+                f"consensus {outcome.value} {price}"
+            )
+
+
+def cmd_model_report(args, engine) -> None:
+    """Monthly Goal Model monitoring from official pre-kickoff forecasts (no API)."""
+    from diski9.screener.forecasts import report
+
+    now = datetime.now(UTC)
+    with engine.connect() as conn:
+        rep = report(conn, now)
+    out = Path(args.out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    path = out / f"model_report_{now:%Y%m%d}.json"
+    path.write_text(_json(rep))
+    print(f"{rep['official_forecasts']} official forecasts evaluated; report: {path}")
+    for g in rep["groups"]:
+        if g["competition_id"] == "all":
+            flag = " (preliminary)" if g["preliminary"] else ""
+            vs = g.get("log_loss_vs_baseline")
+            print(
+                f"  {g['market']:5} n={g['settled_fixtures']:4} log loss {g['log_loss']:.4f}"
+                f" brier {g['brier']:.4f}"
+                + (f" vs baseline {vs:+.4f}" if vs is not None else "")
+                + flag
             )
 
 
@@ -334,6 +355,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--as-of", default=None)
     s.set_defaults(func=cmd_screener_refresh)
 
+    s = sub.add_parser("model-report", help="Goal Model monitoring from official forecasts")
+    s.add_argument("--out-dir", default="monitoring/model")
+    s.set_defaults(func=cmd_model_report)
+
     s = sub.add_parser("screener-show", help="ranked screener view from the cache")
     s.add_argument(
         "--direction",
@@ -341,16 +366,15 @@ def build_parser() -> argparse.ArgumentParser:
         choices=[
             "kickoff_earliest",
             "kickoff_latest",
-            "home_stronger",
-            "away_stronger",
-            "evenly_matched",
+            "home_win",
+            "draw",
+            "away_win",
             "btts_yes",
             "btts_no",
             "over",
             "under",
         ],
     )
-    s.add_argument("--basis", default="venue", choices=["venue", "overall"])
     s.add_argument("--competition", type=int, default=None)
     s.add_argument("--threshold", type=float, default=None)
     s.add_argument("--limit", type=int, default=10)

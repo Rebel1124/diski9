@@ -1,5 +1,6 @@
 # ruff: noqa: F811  (pytest fixtures imported from test_app are used as arguments)
-"""Final UI refinement: two main detail cards (analysis / bookmaker market)."""
+"""Engine 3.0 detail layout: The Match Lab (A baseline, B context, C factors,
+D adjustments) followed by the Bookmaker Market Reference card."""
 
 from __future__ import annotations
 
@@ -33,87 +34,99 @@ def cards(d):
     return d.children[1], d.children[2]
 
 
+def sections(lab):
+    return [c for c in lab.children if "lab-section" in str(getattr(c, "className", ""))]
+
+
 @pytest.mark.parametrize("market", MARKETS)
-def test_two_titled_cards_in_every_market(data, market):
+def test_match_lab_then_bookmaker_card_in_every_market(data, market):
     r, ov, official = data.detail(EPL_FIX, "overall")
     d = render_detail(r, ov, official, market, data)
-    analysis, market_card = cards(d)
-    assert _text(analysis).startswith("Diski 9 Match Analysis Historical statistics")
+    lab, market_card = cards(d)
+    assert _text(lab).startswith(
+        "The Match Lab We calculate the probabilities. You analyse the match. You make the call."
+    )
+    assert [_text(s).split(" ", 2)[:2] for s in sections(lab)] == [
+        ["A.", "Statistical"],
+        ["B.", "Match"],
+        ["C.", "Other"],
+        ["D.", "Your"],
+    ]
     assert _text(market_card).startswith(
         "Bookmaker Market Reference Market-implied probabilities are derived from bookmaker "
         "prices, not Diski 9 predictions."
     )
-    # both explanation rows live inside the analysis card, collapsed by default
-    accs = _find(analysis, lambda c: isinstance(c, html.Details) and c.className == "acc")
-    assert [_text(a.children[0]) for a in accs] == ["How it's calculated", "Matches used"]
-    assert all(a.open is False for a in accs)
-    # league positions and head-to-head sit at the foot of the bookmaker card,
-    # under a "Match context" label, collapsed; no standalone cards remain
-    ctx = _find(market_card, lambda c: getattr(c, "className", "") == "acc-group context-group")
-    assert len(ctx) == 1 and market_card.children[-1] is ctx[0]
-    assert _text(ctx[0]).startswith("Match context Historical results, not bookmaker data")
-    rows = _find(ctx[0], lambda c: isinstance(c, html.Details) and c.className == "acc")
-    assert [_text(a.children[0]).split(" (")[0] for a in rows] == [
-        "League positions",
-        "Head-to-head",
+    # context lives in the Match Lab, collapsed; nothing duplicated in the odds card
+    ctx = sections(lab)[1]
+    titles = [
+        _text(a.children[0]).split(" (")[0]
+        for a in _find(ctx, lambda c: isinstance(c, html.Details) and c.className == "acc")
     ]
-    assert all(a.open is False for a in rows)
-    assert len(d.children) == 4  # heading, analysis card, bookmaker card, footnote
-    assert not _find(d, lambda c: getattr(c, "className", "") == "sections")
-    assert "Other markets" not in _text(d)
+    assert titles[0] == "Recent form" and "Head-to-head" in titles and "League positions" in titles
+    if market != "1X2":
+        assert any(t.startswith("Recent ") and "record" in t for t in titles)
+    assert not _find(
+        market_card, lambda c: getattr(c, "className", "") == "acc-group context-group"
+    )
+    assert len(d.children) == 4  # heading, lab, bookmaker card, footnote
 
 
-def test_form_difference_removed_from_detail_but_kept_in_screener(data):
-    r, ov, official = data.detail(EPL_FIX, "venue")
-    analysis, _ = cards(render_detail(r, ov, official, "1X2", data))
-    visible = [c for c in analysis.children if getattr(c, "className", "") != "acc-group"]
-    assert "Form Difference" not in _text(visible)  # no headline figure or its note
-    assert r["match_result"]["form_difference_display"] not in _text(visible)
-    assert "do not mean a draw is likely" not in _text(analysis)
-    p = payload(data, direction="home_stronger")
-    assert "Form difference" in _text(p[0].children[0])
-    first = p[0].children[1].children[0]
-    assert first.children[6].children.startswith(("+", "-", "0"))
+def test_baseline_shows_estimated_goals_and_selected_market(data):
+    r, ov, official = data.detail(EPL_FIX, "overall")
+    g = r["goal_model"]
+    for market, labels in (
+        ("1X2", ["Home win", "Draw", "Away win"]),
+        ("BTTS", ["Yes", "No"]),
+        ("OU25", ["Over 2.5", "Under 2.5"]),
+    ):
+        lab, _ = cards(render_detail(r, ov, official, market, data))
+        base = sections(lab)[0]
+        t = _text(base)
+        assert f"{g['estimated_goals']['home']:.2f} estimated goals" in t
+        assert f"{g['estimated_goals']['away']:.2f} estimated goals" in t
+        bars = _find(base, lambda c: getattr(c, "className", "") == "bar-label")
+        assert [_text(b) for b in bars] == labels
 
 
 def test_calculation_details_preserved(data):
-    r, ov, official = data.detail(EPL_FIX, "venue")
-    analysis, _ = cards(render_detail(r, ov, official, "1X2", data))
-    text = _text(analysis)
+    r, ov, official = data.detail(EPL_FIX, "overall")
+    lab, _ = cards(render_detail(r, ov, official, "1X2", data))
+    text = _text(lab)
     for phrase in (
         "Won · drawn · lost",
         "Points part = 2.5 × points ÷ 3N",
         "Goal-difference part",
         "Diski Form Score (0–5)",
         "Only matches played before kickoff",
+        "Strength (1.00 = league average)",
+        "Goal tempo (1.00 = league average)",
+        "Poisson distribution",
+        "Goal Model 1.0",
     ):
         assert phrase in text, phrase
     b = r["teams"]["home"]["form"]["breakdown"]
     assert f"2.5 × {b['points']}/{b['max_points']} = {b['points_component_display']}" in text
-    r, ov, official = data.detail(EPL_FIX, "overall")
     btts, _ = cards(render_detail(r, ov, official, "BTTS", data))
     t = _text(btts)
     assert "League BTTS baseline" in t and "current-season matches in this competition" in t
 
 
-def test_form_tiles_without_badges_and_results_in_matches_used(data):
-    r, ov, official = data.detail(EPL_FIX, "venue")
-    analysis, _ = cards(render_detail(r, ov, official, "1X2", data))
-    tiles = _find(analysis, lambda c: getattr(c, "className", "") == "tiles")[0].children
+def test_form_tiles_and_results_in_matches_used(data):
+    r, ov, official = data.detail(EPL_FIX, "overall")
+    lab, _ = cards(render_detail(r, ov, official, "1X2", data))
+    form = [
+        a
+        for a in _find(lab, lambda c: isinstance(c, html.Details) and c.className == "acc")
+        if _text(a.children[0]).startswith("Recent form")
+    ][0]
+    tiles = _find(form, lambda c: getattr(c, "className", "") == "tiles")[0].children
     for tile in tiles:
-        t = _text(tile)
-        assert "out of 5" in t and "/ 5" not in t
-        assert "points and goal difference" not in t and "matches" not in t  # simplified
-        assert not _find(tile, lambda c: "res-" in str(getattr(c, "className", "")))
+        assert "out of 5" in _text(tile) and "/ 5" not in _text(tile)
     matches = [
         a
-        for a in _find(analysis, lambda c: isinstance(c, html.Details))
+        for a in _find(form, lambda c: isinstance(c, html.Details))
         if _text(a.children[0]) == "Matches used"
     ][0]
-    # no separate W/D/L sequence above the tables; results appear once, in the
-    # Result column, one badge per match used (table order, most recent first)
-    assert not _find(matches, lambda c: getattr(c, "className", "") == "results-used")
-    assert "oldest to newest" not in _text(matches)
     tables = _find(matches, lambda c: isinstance(c, html.Table))
     assert len(tables) == 2
     for side, table in zip(("home", "away"), tables, strict=True):
@@ -122,51 +135,23 @@ def test_form_tiles_without_badges_and_results_in_matches_used(data):
             for b in _find(table, lambda c: str(getattr(c, "className", "")).startswith("res res-"))
         ]
         assert badges == r["teams"][side]["form"]["sequence"].split("-")
-        assert len(badges) == len(r["teams"][side]["form"]["matches"])
-    # BTTS keeps its record presentation
-    analysis, _ = cards(render_detail(r, ov, official, "BTTS", data))
-    assert "BTTS in" in _text(analysis) and "out of 5" not in _text(analysis)
-
-
-def test_context_rows_present_for_fresh_stale_and_unavailable_odds(populated):
-    from datetime import timedelta
-
-    from diski9.app import ScreenerData
-
-    from .test_app import T0
-
-    cases = [
-        (T0, EPL_FIX, "fresh"),
-        (T0 + timedelta(days=2), EPL_FIX, "stale"),
-        (T0, PSL_FIX, None),  # league without bookmaker odds
-    ]
-    for clock, fid, status in cases:
-        d = ScreenerData(populated, ttl_seconds=0, clock=lambda c=clock: c)
-        r, ov, official = d.detail(fid, "venue")
-        for market in MARKETS:
-            _, card = cards(render_detail(r, ov, official, market, d))
-            if status:
-                assert status in card.className
-            rows = _find(card, lambda c: isinstance(c, html.Details) and c.className == "acc")
-            titles = [_text(a.children[0]).split(" (")[0] for a in rows]
-            assert titles == ["League positions", "Head-to-head"], (fid, market, titles)
-            assert "No previous meetings in the stored leagues." in _text(card)
 
 
 def test_psl_market_card_is_small_and_honest(data):
-    r, ov, official = data.detail(PSL_FIX, "venue")
+    r, ov, official = data.detail(PSL_FIX, "overall")
     for market in MARKETS:
         _, card = cards(render_detail(r, ov, official, market, data))
         assert "compact" in card.className
         assert "No bookmaker odds are available for the PSL" in _text(card)
-        odds_part = _text(card.children[:-1])  # everything above the context rows
+        odds_part = _text(card.children[:-1])  # everything above the model comparison
         assert "%" not in odds_part and "bookmaker group" not in odds_part
+        assert "No current bookmaker prices to compare with" in _text(card.children[-1])
 
 
 BROWSER = """
 const { chromium, devices } = require('playwright');
 const state = (p) => p.evaluate(() =>
-  [...document.querySelectorAll('.analysis details.acc')].map(d => d.open));
+  [...document.querySelectorAll('.lab .context .acc-group > details.acc')].map(d => d.open));
 (async () => {
   const b = await chromium.launch();
   const out = {};
@@ -179,23 +164,18 @@ const state = (p) => p.evaluate(() =>
     await p.waitForSelector('tr.row, .fx-card', { timeout: 20000, state: 'attached' });
     if (name === 'desktop') await p.locator('tr.row').first().click();
     else await p.locator('.fx-card').first().tap();
-    await p.waitForSelector('.analysis', { timeout: 20000 });
+    await p.waitForSelector('.lab', { timeout: 20000 });
     const r = {};
     r.titles = await p.evaluate(() =>
       [...document.querySelectorAll('.detail .card-head h3')].map(h => h.innerText));
-    const acc = p.locator('.analysis details.acc > summary');
-    r.closed = await state(p);
-    await acc.nth(0).click(); r.firstOpen = await state(p);
-    await acc.nth(1).click(); r.bothOpen = await state(p);
-    await acc.nth(0).click(); r.secondOnly = await state(p);
+    r.steps = await p.evaluate(() =>
+      [...document.querySelectorAll('.lab .lab-step')].map(h => h.innerText));
+    const acc = p.locator('.lab .context .acc-group > details.acc > summary');
+    r.closed = (await state(p)).every(x => !x);
+    await acc.nth(0).click(); r.firstOpen = (await state(p))[0];
+    await acc.nth(2).focus(); await p.keyboard.press('Enter');
+    r.keyboardOpen = (await state(p))[2];
     r.summaryHeight = await acc.first().evaluate(e => e.getBoundingClientRect().height);
-    const rowsCtx = p.locator('.market .context-group details.acc');
-    r.ctxClosed = await rowsCtx.evaluateAll(ds => ds.map(d => d.open));
-    await rowsCtx.nth(0).locator('summary').click();
-    await rowsCtx.nth(1).locator('summary').focus();
-    await p.keyboard.press('Enter');  // keyboard opens the second row
-    r.ctxOpen = await rowsCtx.evaluateAll(ds => ds.map(d => d.open));
-    r.cardsBelow = await p.evaluate(() => document.querySelectorAll('.detail .sections').length);
     r.overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     out[name] = r;
     await ctx.close();
@@ -207,7 +187,7 @@ const state = (p) => p.evaluate(() =>
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not available")
-def test_browser_cards_accordions_and_mobile(data):
+def test_browser_lab_accordions_and_mobile(data):
     if subprocess.run(["node", "-e", "require('playwright')"], capture_output=True).returncode:
         pytest.skip("playwright for node not available")
     from werkzeug.serving import make_server
@@ -223,14 +203,10 @@ def test_browser_cards_accordions_and_mobile(data):
         out = json.loads(res.stdout.strip().splitlines()[-1])
         for name in ("desktop", "phone"):
             r = out[name]
-            assert r["titles"] == ["Diski 9 Match Analysis", "Bookmaker Market Reference"]
-            assert r["closed"] == [False, False]
-            assert r["firstOpen"] == [True, False]
-            assert r["bothOpen"] == [True, True]  # independently expandable
-            assert r["secondOnly"] == [False, True]
+            assert r["titles"] == ["The Match Lab", "Bookmaker Market Reference"]
+            assert [s.split(".")[0] for s in r["steps"]] == ["A", "B", "C", "D"]
+            assert r["closed"] and r["firstOpen"] and r["keyboardOpen"]
             assert r["summaryHeight"] >= 44  # comfortable touch target
             assert r["overflow"] <= 0
-            assert r["ctxClosed"] == [False, False] and r["ctxOpen"] == [True, True]
-            assert r["cardsBelow"] == 0
     finally:
         server.shutdown()

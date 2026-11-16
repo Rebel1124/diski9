@@ -308,5 +308,4 @@ def fixture_estimate(
             side for side, n in zip(("home", "away"), played, strict=True) if n == 0
         ],
         "early_season": min(played) < EARLY_SEASON_MATCHES,
-        "data_cutoff": cutoff.isoformat(),
     }
