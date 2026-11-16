@@ -1,0 +1,815 @@
+{
+  "generated": "2026-11-16T14:02:38+00:00",
+  "fixtures": 3002,
+  "excluded": {
+    "no_score": 35,
+    "no_benchmark": 200
+  },
+  "by_league": {
+    "Championship": 1249,
+    "EPL": 842,
+    "PSL": 512,
+    "PSL 1st Div": 399
+  },
+  "outcomes": {
+    "H": 1283,
+    "A": 878,
+    "D": 841
+  },
+  "complete_share": 0.972,
+  "overlap": {
+    "corr_home_venue_overall": 0.599,
+    "corr_away_venue_overall": 0.607,
+    "mean_shared_matches_home": 2.26,
+    "mean_shared_matches_away": 2.26,
+    "shared_distribution_home": {
+      "0": 3,
+      "1": 123,
+      "2": 1994,
+      "3": 857,
+      "4": 25
+    }
+  },
+  "indicator_full_sample": {
+    "venue": {
+      "home_win_if_home_above": {
+        "n": 1492,
+        "rate": 0.477,
+        "ci95": [
+          0.451,
+          0.502
+        ]
+      },
+      "home_win_if_home_below": {
+        "n": 1506,
+        "rate": 0.378,
+        "ci95": [
+          0.354,
+          0.403
+        ]
+      },
+      "away_win_if_away_above": {
+        "n": 1422,
+        "rate": 0.331,
+        "ci95": [
+          0.306,
+          0.355
+        ]
+      },
+      "away_win_if_away_below": {
+        "n": 1578,
+        "rate": 0.259,
+        "ci95": [
+          0.237,
+          0.28
+        ]
+      },
+      "auc_home_win_rel_home": 0.572,
+      "auc_away_win_rel_away": 0.571,
+      "auc_home_win_diff": 0.589,
+      "auc_away_win_neg_diff": 0.611
+    },
+    "blend_75v": {
+      "home_win_if_home_above": {
+        "n": 1468,
+        "rate": 0.478,
+        "ci95": [
+          0.453,
+          0.504
+        ]
+      },
+      "home_win_if_home_below": {
+        "n": 1534,
+        "rate": 0.379,
+        "ci95": [
+          0.354,
+          0.403
+        ]
+      },
+      "away_win_if_away_above": {
+        "n": 1451,
+        "rate": 0.336,
+        "ci95": [
+          0.312,
+          0.361
+        ]
+      },
+      "away_win_if_away_below": {
+        "n": 1551,
+        "rate": 0.251,
+        "ci95": [
+          0.23,
+          0.273
+        ]
+      },
+      "auc_home_win_rel_home": 0.576,
+      "auc_away_win_rel_away": 0.578,
+      "auc_home_win_diff": 0.596,
+      "auc_away_win_neg_diff": 0.623
+    },
+    "blend_50": {
+      "home_win_if_home_above": {
+        "n": 1461,
+        "rate": 0.477,
+        "ci95": [
+          0.451,
+          0.503
+        ]
+      },
+      "home_win_if_home_below": {
+        "n": 1539,
+        "rate": 0.381,
+        "ci95": [
+          0.357,
+          0.405
+        ]
+      },
+      "away_win_if_away_above": {
+        "n": 1475,
+        "rate": 0.344,
+        "ci95": [
+          0.319,
+          0.368
+        ]
+      },
+      "away_win_if_away_below": {
+        "n": 1527,
+        "rate": 0.243,
+        "ci95": [
+          0.221,
+          0.264
+        ]
+      },
+      "auc_home_win_rel_home": 0.577,
+      "auc_away_win_rel_away": 0.58,
+      "auc_home_win_diff": 0.599,
+      "auc_away_win_neg_diff": 0.628
+    },
+    "blend_25v": {
+      "home_win_if_home_above": {
+        "n": 1433,
+        "rate": 0.474,
+        "ci95": [
+          0.448,
+          0.5
+        ]
+      },
+      "home_win_if_home_below": {
+        "n": 1568,
+        "rate": 0.385,
+        "ci95": [
+          0.361,
+          0.409
+        ]
+      },
+      "away_win_if_away_above": {
+        "n": 1524,
+        "rate": 0.335,
+        "ci95": [
+          0.312,
+          0.359
+        ]
+      },
+      "away_win_if_away_below": {
+        "n": 1477,
+        "rate": 0.248,
+        "ci95": [
+          0.226,
+          0.271
+        ]
+      },
+      "auc_home_win_rel_home": 0.574,
+      "auc_away_win_rel_away": 0.578,
+      "auc_home_win_diff": 0.597,
+      "auc_away_win_neg_diff": 0.627
+    },
+    "overall": {
+      "home_win_if_home_above": {
+        "n": 1445,
+        "rate": 0.466,
+        "ci95": [
+          0.441,
+          0.492
+        ]
+      },
+      "home_win_if_home_below": {
+        "n": 1556,
+        "rate": 0.391,
+        "ci95": [
+          0.367,
+          0.415
+        ]
+      },
+      "away_win_if_away_above": {
+        "n": 1529,
+        "rate": 0.332,
+        "ci95": [
+          0.308,
+          0.355
+        ]
+      },
+      "away_win_if_away_below": {
+        "n": 1472,
+        "rate": 0.252,
+        "ci95": [
+          0.23,
+          0.274
+        ]
+      },
+      "auc_home_win_rel_home": 0.569,
+      "auc_away_win_rel_away": 0.573,
+      "auc_home_win_diff": 0.591,
+      "auc_away_win_neg_diff": 0.62
+    }
+  },
+  "disagreement": {
+    "home": {
+      "disagree_share": 0.307,
+      "win_rate_venue_above_overall_below": {
+        "n": 484,
+        "rate": 0.428,
+        "ci95": [
+          0.384,
+          0.472
+        ]
+      },
+      "win_rate_venue_below_overall_above": {
+        "n": 437,
+        "rate": 0.389,
+        "ci95": [
+          0.343,
+          0.435
+        ]
+      },
+      "win_rate_both_above": {
+        "n": 1008,
+        "rate": 0.5,
+        "ci95": [
+          0.469,
+          0.531
+        ]
+      },
+      "win_rate_both_below": {
+        "n": 1073,
+        "rate": 0.375,
+        "ci95": [
+          0.346,
+          0.404
+        ]
+      }
+    },
+    "away": {
+      "disagree_share": 0.293,
+      "win_rate_venue_above_overall_below": {
+        "n": 386,
+        "rate": 0.293,
+        "ci95": [
+          0.247,
+          0.338
+        ]
+      },
+      "win_rate_venue_below_overall_above": {
+        "n": 493,
+        "rate": 0.304,
+        "ci95": [
+          0.264,
+          0.345
+        ]
+      },
+      "win_rate_both_above": {
+        "n": 1036,
+        "rate": 0.345,
+        "ci95": [
+          0.316,
+          0.374
+        ]
+      },
+      "win_rate_both_below": {
+        "n": 1087,
+        "rate": 0.237,
+        "ci95": [
+          0.212,
+          0.263
+        ]
+      }
+    },
+    "fixtures_with_any_disagreement_share": 0.511
+  },
+  "oos": {
+    "test_fixtures": 1713,
+    "test_period": [
+      "2025-08-09",
+      "2026-11-08"
+    ],
+    "scores": {
+      "base": {
+        "log_loss": 1.082,
+        "brier": 0.6552,
+        "n": 1713
+      },
+      "venue:diff": {
+        "log_loss": 1.064,
+        "brier": 0.6428,
+        "n": 1713
+      },
+      "venue:rel": {
+        "log_loss": 1.0622,
+        "brier": 0.6415,
+        "n": 1713
+      },
+      "blend_75v:diff": {
+        "log_loss": 1.0597,
+        "brier": 0.64,
+        "n": 1713
+      },
+      "blend_75v:rel": {
+        "log_loss": 1.0585,
+        "brier": 0.6391,
+        "n": 1713
+      },
+      "blend_50:diff": {
+        "log_loss": 1.0572,
+        "brier": 0.6385,
+        "n": 1713
+      },
+      "blend_50:rel": {
+        "log_loss": 1.0569,
+        "brier": 0.6382,
+        "n": 1713
+      },
+      "blend_25v:diff": {
+        "log_loss": 1.0577,
+        "brier": 0.639,
+        "n": 1713
+      },
+      "blend_25v:rel": {
+        "log_loss": 1.0582,
+        "brier": 0.6392,
+        "n": 1713
+      },
+      "overall:diff": {
+        "log_loss": 1.0607,
+        "brier": 0.641,
+        "n": 1713
+      },
+      "overall:rel": {
+        "log_loss": 1.0614,
+        "brier": 0.6414,
+        "n": 1713
+      },
+      "venue+overall:diff (2 features)": {
+        "log_loss": 1.0576,
+        "brier": 0.6388,
+        "n": 1713
+      }
+    },
+    "paired_vs": {
+      "venue:diff - overall:diff": {
+        "mean": 0.00326,
+        "ci95": [
+          -0.00394,
+          0.01122
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "blend_75v:diff - venue:diff": {
+        "mean": -0.00429,
+        "ci95": [
+          -0.00636,
+          -0.00227
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      },
+      "blend_75v:diff - overall:diff": {
+        "mean": -0.00103,
+        "ci95": [
+          -0.00703,
+          0.00546
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "blend_50:diff - venue:diff": {
+        "mean": -0.00682,
+        "ci95": [
+          -0.01104,
+          -0.00263
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      },
+      "blend_50:diff - overall:diff": {
+        "mean": -0.00356,
+        "ci95": [
+          -0.00788,
+          0.00103
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "blend_25v:diff - venue:diff": {
+        "mean": -0.00628,
+        "ci95": [
+          -0.0125,
+          -0.0004
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      },
+      "blend_25v:diff - overall:diff": {
+        "mean": -0.00302,
+        "ci95": [
+          -0.00519,
+          -0.00073
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      },
+      "overall:diff - venue:diff": {
+        "mean": -0.00326,
+        "ci95": [
+          -0.01122,
+          0.00394
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "venue:rel - overall:rel": {
+        "mean": 0.00075,
+        "ci95": [
+          -0.00744,
+          0.00992
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "blend_75v:rel - venue:rel": {
+        "mean": -0.00374,
+        "ci95": [
+          -0.00598,
+          -0.00167
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      },
+      "blend_75v:rel - overall:rel": {
+        "mean": -0.00299,
+        "ci95": [
+          -0.00989,
+          0.0045
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "blend_50:rel - venue:rel": {
+        "mean": -0.00533,
+        "ci95": [
+          -0.01009,
+          -0.00096
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      },
+      "blend_50:rel - overall:rel": {
+        "mean": -0.00458,
+        "ci95": [
+          -0.00944,
+          0.00066
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "blend_25v:rel - venue:rel": {
+        "mean": -0.00404,
+        "ci95": [
+          -0.01128,
+          0.00241
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "blend_25v:rel - overall:rel": {
+        "mean": -0.00329,
+        "ci95": [
+          -0.00557,
+          -0.00083
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      },
+      "overall:rel - venue:rel": {
+        "mean": -0.00075,
+        "ci95": [
+          -0.00992,
+          0.00744
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "venue+overall:diff (2 features) - overall:diff": {
+        "mean": -0.00314,
+        "ci95": [
+          -0.00727,
+          0.00134
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "overall:diff - base": {
+        "mean": -0.02129,
+        "ci95": [
+          -0.03011,
+          -0.01278
+        ],
+        "n": 1713,
+        "clusters": 50,
+        "excludes_zero": true
+      }
+    }
+  },
+  "oos_subsets": {
+    "complete_windows": {
+      "base": {
+        "log_loss": 1.0807,
+        "brier": 0.6542,
+        "n": 1655
+      },
+      "venue:diff": {
+        "log_loss": 1.0617,
+        "brier": 0.6412,
+        "n": 1655
+      },
+      "blend_75v:diff": {
+        "log_loss": 1.0576,
+        "brier": 0.6386,
+        "n": 1655
+      },
+      "blend_50:diff": {
+        "log_loss": 1.0553,
+        "brier": 0.6372,
+        "n": 1655
+      },
+      "blend_25v:diff": {
+        "log_loss": 1.0561,
+        "brier": 0.638,
+        "n": 1655
+      },
+      "overall:diff": {
+        "log_loss": 1.0594,
+        "brier": 0.6402,
+        "n": 1655
+      }
+    },
+    "limited_history": {
+      "base": {
+        "log_loss": 1.1201,
+        "brier": 0.6821,
+        "n": 58
+      },
+      "venue:diff": {
+        "log_loss": 1.1294,
+        "brier": 0.6874,
+        "n": 58
+      },
+      "blend_75v:diff": {
+        "log_loss": 1.1211,
+        "brier": 0.6812,
+        "n": 58
+      },
+      "blend_50:diff": {
+        "log_loss": 1.1109,
+        "brier": 0.6735,
+        "n": 58
+      },
+      "blend_25v:diff": {
+        "log_loss": 1.1028,
+        "brier": 0.6675,
+        "n": 58
+      },
+      "overall:diff": {
+        "log_loss": 1.099,
+        "brier": 0.665,
+        "n": 58
+      }
+    },
+    "limited_history_paired": {
+      "venue:diff - overall:diff": {
+        "mean": 0.03046,
+        "ci95": [
+          -0.01592,
+          0.07808
+        ],
+        "n": 58,
+        "clusters": 20,
+        "excludes_zero": false
+      },
+      "blend_50:diff - overall:diff": {
+        "mean": 0.01193,
+        "ci95": [
+          -0.01273,
+          0.03733
+        ],
+        "n": 58,
+        "clusters": 20,
+        "excludes_zero": false
+      }
+    },
+    "indicators_disagree": {
+      "base": {
+        "log_loss": 1.0825,
+        "brier": 0.6556,
+        "n": 855
+      },
+      "venue:diff": {
+        "log_loss": 1.072,
+        "brier": 0.6481,
+        "n": 855
+      },
+      "blend_75v:diff": {
+        "log_loss": 1.0672,
+        "brier": 0.6449,
+        "n": 855
+      },
+      "blend_50:diff": {
+        "log_loss": 1.0645,
+        "brier": 0.6434,
+        "n": 855
+      },
+      "blend_25v:diff": {
+        "log_loss": 1.0661,
+        "brier": 0.6448,
+        "n": 855
+      },
+      "overall:diff": {
+        "log_loss": 1.0704,
+        "brier": 0.6479,
+        "n": 855
+      }
+    },
+    "indicators_disagree_paired": {
+      "venue:diff - overall:diff": {
+        "mean": 0.00159,
+        "ci95": [
+          -0.01141,
+          0.01555
+        ],
+        "n": 855,
+        "clusters": 50,
+        "excludes_zero": false
+      },
+      "blend_50:diff - overall:diff": {
+        "mean": -0.00591,
+        "ci95": [
+          -0.0136,
+          0.00262
+        ],
+        "n": 855,
+        "clusters": 50,
+        "excludes_zero": false
+      }
+    },
+    "indicators_agree": {
+      "base": {
+        "log_loss": 1.0815,
+        "brier": 0.6547,
+        "n": 858
+      },
+      "venue:diff": {
+        "log_loss": 1.056,
+        "brier": 0.6375,
+        "n": 858
+      },
+      "blend_75v:diff": {
+        "log_loss": 1.0523,
+        "brier": 0.6352,
+        "n": 858
+      },
+      "blend_50:diff": {
+        "log_loss": 1.0499,
+        "brier": 0.6336,
+        "n": 858
+      },
+      "blend_25v:diff": {
+        "log_loss": 1.0494,
+        "brier": 0.6332,
+        "n": 858
+      },
+      "overall:diff": {
+        "log_loss": 1.0511,
+        "brier": 0.6342,
+        "n": 858
+      }
+    }
+  },
+  "oos_by_league_and_period": [
+    {
+      "league": "EPL",
+      "n": 468,
+      "base": 1.0837,
+      "venue:diff": 1.0728,
+      "blend_75v:diff": 1.0671,
+      "blend_50:diff": 1.0623,
+      "blend_25v:diff": 1.0602,
+      "overall:diff": 1.0609,
+      "venue_minus_overall": 0.01189,
+      "venue_minus_overall_ci": [
+        -0.0035,
+        0.02546
+      ]
+    },
+    {
+      "league": "Championship",
+      "n": 710,
+      "base": 1.0809,
+      "venue:diff": 1.069,
+      "blend_75v:diff": 1.0676,
+      "blend_50:diff": 1.0678,
+      "blend_25v:diff": 1.07,
+      "overall:diff": 1.0732,
+      "venue_minus_overall": -0.0042,
+      "venue_minus_overall_ci": [
+        -0.01657,
+        0.00817
+      ]
+    },
+    {
+      "league": "PSL",
+      "n": 299,
+      "base": 1.0932,
+      "venue:diff": 1.0517,
+      "blend_75v:diff": 1.0442,
+      "blend_50:diff": 1.0404,
+      "blend_25v:diff": 1.0425,
+      "overall:diff": 1.049,
+      "venue_minus_overall": 0.00269,
+      "venue_minus_overall_ci": [
+        -0.01388,
+        0.02022
+      ]
+    },
+    {
+      "league": "PSL 1st Div",
+      "n": 236,
+      "base": 1.068,
+      "venue:diff": 1.047,
+      "blend_75v:diff": 1.0409,
+      "blend_50:diff": 1.0363,
+      "blend_25v:diff": 1.0353,
+      "overall:diff": 1.0377,
+      "venue_minus_overall": 0.0093,
+      "venue_minus_overall_ci": [
+        -0.00608,
+        0.02511
+      ]
+    },
+    {
+      "league": "2025/26 (Aug 2025 - Jun 2026)",
+      "n": 1312,
+      "base": 1.0801,
+      "venue:diff": 1.065,
+      "blend_75v:diff": 1.0612,
+      "blend_50:diff": 1.0589,
+      "blend_25v:diff": 1.0593,
+      "overall:diff": 1.0619,
+      "venue_minus_overall": 0.00317,
+      "venue_minus_overall_ci": [
+        -0.00527,
+        0.01285
+      ]
+    },
+    {
+      "league": "2026/27 to date",
+      "n": 401,
+      "base": 1.0884,
+      "venue:diff": 1.0606,
+      "blend_75v:diff": 1.0547,
+      "blend_50:diff": 1.0515,
+      "blend_25v:diff": 1.0526,
+      "overall:diff": 1.057,
+      "venue_minus_overall": 0.00355,
+      "venue_minus_overall_ci": [
+        -0.01062,
+        0.0156
+      ]
+    }
+  ]
+}
