@@ -781,17 +781,6 @@ def matches_section(r: dict, market: str) -> html.Details:
                 + ([" ", pill("Limited", "warn subtle")] if limited else [])
             )
         )
-        if market == "1X2" and tm["form"]["sequence"]:
-            oldest_first = "-".join(reversed(tm["form"]["sequence"].split("-")))
-            parts.append(
-                html.Div(
-                    [
-                        html.Span("Results used, oldest to newest", className="muted small"),
-                        sequence(oldest_first),
-                    ],
-                    className="results-used",
-                )
-            )
         parts.append(matches_table(tm[key]["matches"], market))
     return accordion("Matches used", *parts)
 

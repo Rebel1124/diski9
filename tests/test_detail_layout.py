@@ -109,14 +109,19 @@ def test_form_tiles_without_badges_and_results_in_matches_used(data):
         for a in _find(analysis, lambda c: isinstance(c, html.Details))
         if _text(a.children[0]) == "Matches used"
     ][0]
-    seq = r["teams"]["home"]["form"]["sequence"].split("-")
-    used = _find(matches, lambda c: getattr(c, "className", "") == "results-used")
-    assert len(used) == 2 and "oldest to newest" in _text(used[0])
-    badges = [
-        _text(b)
-        for b in _find(used[0], lambda c: str(getattr(c, "className", "")).startswith("res res-"))
-    ]
-    assert badges == list(reversed(seq))
+    # no separate W/D/L sequence above the tables; results appear once, in the
+    # Result column, one badge per match used (table order, most recent first)
+    assert not _find(matches, lambda c: getattr(c, "className", "") == "results-used")
+    assert "oldest to newest" not in _text(matches)
+    tables = _find(matches, lambda c: isinstance(c, html.Table))
+    assert len(tables) == 2
+    for side, table in zip(("home", "away"), tables, strict=True):
+        badges = [
+            _text(b)
+            for b in _find(table, lambda c: str(getattr(c, "className", "")).startswith("res res-"))
+        ]
+        assert badges == r["teams"][side]["form"]["sequence"].split("-")
+        assert len(badges) == len(r["teams"][side]["form"]["matches"])
     # BTTS keeps its record presentation
     analysis, _ = cards(render_detail(r, ov, official, "BTTS", data))
     assert "BTTS in" in _text(analysis) and "out of 5" not in _text(analysis)

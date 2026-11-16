@@ -53,7 +53,7 @@ const checks = (page) => page.evaluate(() => ({
     if (!phone) {
       await openAcc(page, "How it's calculated");
       await openAcc(page, 'Matches used');
-      report.results_used = await page.locator('.results-used').first().innerText();
+      report.result_badges = await page.locator('.analysis table .res').count();
       await page.locator('.analysis').screenshot({ path: `${out}/ui_desktop_1x2_matches_open.png` });
     }
     // BTTS (collapsed, then with "Matches used" open)

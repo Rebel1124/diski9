@@ -27,8 +27,10 @@ API requests.*
 3. **Match Result team cards:**
    * They show the team, "3.81 out of 5", "Historical performance score from
      recent points and goal difference" and the match count.
-   * The W/D/L badges moved into **Matches used**, labelled "Results used,
-     oldest to newest", above each team's match table.
+   * The W/D/L badges were removed from the cards. Results appear once, in the
+     Result column of each team's table under **Matches used**. A separate
+     "Results used" sequence was briefly added there and then removed as a
+     duplicate.
    * "How it's calculated" is unchanged. BTTS and Over/Under are unchanged.
 4. **League baseline wording:**
    * Unavailable: "Not enough current-season data yet", with "*n* of 30
