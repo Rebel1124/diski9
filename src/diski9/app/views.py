@@ -14,6 +14,7 @@ Layout (final UI refinement, after Milestone 5.3):
 
 from __future__ import annotations
 
+from fractions import Fraction
 from typing import Any
 
 from dash import html
@@ -193,7 +194,8 @@ def analysis_card(r: dict, market: str) -> html.Section:
             ],
             className="label-row",
         )
-        tiles = [record_tile(t[s], key, market) for s in ("home", "away")]
+        lb = r.get("league_baseline")
+        tiles = [record_tile(t[s], key, market, lb) for s in ("home", "away")]
         limited = r["limited_data"]["goals"]
         warning = [html.P(LIMITED_GOALS, className="muted small limited-note") if limited else None]
         baseline = league_baseline_block(r, market)
@@ -247,7 +249,45 @@ def record_text(rate: dict | None, market: str) -> tuple[str, str | None]:
     return f"Over 2.5 in {k} of {n}", f"Under 2.5 in {n - k} of {n}"
 
 
-def record_tile(team: dict, key: str, market: str) -> html.Div:
+def league_comparison(rate: dict | None, lb: dict | None, key: str) -> str | None:
+    """'above' / 'below' / 'equal' versus the league baseline, or None when either side
+    is unavailable (no team match, or baseline below its minimum sample).
+
+    The team rate is the exact fraction hits / matches; the baseline is the cached
+    float of an exact fraction. Two different fractions with denominators this small
+    differ by far more than float precision, so the comparison is exact: no rounding
+    and no tolerance or minimum difference."""
+    if not rate or not rate.get("matches") or not lb or not lb.get("available"):
+        return None
+    baseline = lb.get(key)
+    if baseline is None:
+        return None
+    team = float(Fraction(rate["hits"], rate["matches"]))
+    if team > baseline:
+        return "above"
+    if team < baseline:
+        return "below"
+    return "equal"
+
+
+COMPARISON_TEXT = {
+    "above": ("✓", "Above league average"),
+    "below": ("↓", "Below league average"),
+    "equal": ("=", "Equal to league average"),
+}
+
+
+def comparison_indicator(state: str | None) -> html.Div | None:
+    if state is None:
+        return None
+    icon, text = COMPARISON_TEXT[state]
+    return html.Div(
+        [html.Span(icon, className="cmp-icon", **{"aria-hidden": "true"}), html.Span(text)],
+        className=f"league-cmp {state} small",
+    )
+
+
+def record_tile(team: dict, key: str, market: str, lb: dict | None = None) -> html.Div:
     rate = team["goals"][key]
     main, other = record_text(rate, market)
     limited = team["goals"]["sample"]["limited_data"]
@@ -262,6 +302,7 @@ def record_tile(team: dict, key: str, market: str) -> html.Div:
                 ],
                 className="record-row",
             ),
+            comparison_indicator(league_comparison(rate, lb, key)),
             html.Div(other, className="muted small") if other else None,
             html.Div(_goals_scope(team["window"]), className="muted small"),
         ],
@@ -743,6 +784,12 @@ def goals_breakdown_table(r: dict, market: str) -> html.Div:
                 className="scroll-x",
             ),
             html.P(baseline, className="muted small"),
+            html.P(
+                "The league comparison shows whether each team's recent historical rate is "
+                "above or below the current-season league average. It describes past results "
+                "and is not a prediction of the upcoming match.",
+                className="muted small",
+            ),
             html.P(
                 f"Recent {word} occurrence (average of the two shares): {combined or '—'}. Used "
                 "only to order fixtures in the 'recent occurrence' rankings. It describes past "

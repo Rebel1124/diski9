@@ -305,3 +305,8 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .market .context-group .acc { margin-top: 0; }
 .context-head { padding: 10px 0 2px; border-top: 1px solid var(--border); gap: 10px; }
 .context-group .acc-body table { margin-top: 2px; }
+
+/* League comparison under each team's BTTS / Over 2.5 record (secondary to the record) */
+.league-cmp { display: flex; align-items: baseline; gap: 6px; margin: 1px 0 2px; color: var(--muted); }
+.league-cmp.above { color: #5fbf9a; }
+.league-cmp .cmp-icon { font-weight: 700; width: 1em; text-align: center; }
