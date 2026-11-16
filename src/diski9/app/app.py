@@ -25,12 +25,44 @@ from dash.exceptions import PreventUpdate
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS
 
 from .data import DIRECTIONS, MARKET_KEYS, PAGE_SIZE, ScreenerData, paginate, valid_direction
-from .lab import ADJUST_MAX, lab_outputs, render_detail, slider_max
+from .lab import (
+    ADJUST_MAX,
+    CATEGORY_MAX,
+    NOTE_MAX,
+    SIDES,
+    baseline_rounded,
+    breakdown,
+    category_summary,
+    category_total,
+    is_empty,
+    lab_outputs,
+    normalise_state,
+    render_detail,
+    slider_max,
+)
 from .methodology import methodology_section
 from .views import pill
 
 ASSETS = Path(__file__).parent / "assets"
-MARKETS = [("1X2", "Match result"), ("BTTS", "Both teams to score"), ("OU25", "Over/Under 2.5")]
+MARKETS = [
+    ("1X2", "Match Result (1X2)"),
+    ("BTTS", "Both Teams to Score (BTTS)"),
+    ("OU25", "Over/Under 2.5 Goals"),
+]
+
+
+def league_labels(selected: int, total: int) -> dict:
+    """Compact summary for the league multiselect plus its built-in actions."""
+    summary = (
+        f"All {total} leagues"
+        if total and selected == total
+        else "1 league selected"
+        if selected == 1
+        else "{num_selected} leagues selected"
+    )
+    return {"select_all": "Select all", "deselect_all": "Clear all", "selected_count": summary}
+
+
 EARLY_TITLE = "Early season: at least one team has played fewer than five league matches"
 THRESHOLD_DISABLED = KICKOFF_DIRECTIONS
 STAT_PAIR = {  # header toggle between two statistical directions of a market
@@ -182,28 +214,36 @@ def build_layout(data: ScreenerData) -> html.Div:
             ),
             *banner,
             methodology_section(),
-            dcc.Tabs(
-                id="market",
-                value="1X2",
-                className="tabs",
-                children=[
-                    dcc.Tab(
-                        label=lbl, value=val, className="tab", selected_className="tab--selected"
-                    )
-                    for val, lbl in MARKETS
-                ],
-            ),
             html.Div(
                 [
                     html.Div(
                         [
-                            html.Label("Leagues"),
-                            dcc.Checklist(
+                            html.Label("Market", htmlFor="market"),
+                            dcc.Dropdown(
+                                id="market",
+                                options=[{"label": lbl, "value": v} for v, lbl in MARKETS],
+                                value="1X2",
+                                clearable=False,
+                                searchable=False,
+                                className="dropdown",
+                            ),
+                        ],
+                        className="filter",
+                    ),
+                    html.Div(
+                        [
+                            html.Label("Leagues", htmlFor="leagues"),
+                            dcc.Dropdown(
                                 id="leagues",
                                 options=[{"label": n, "value": c} for c, n in leagues],
                                 value=[c for c, _ in leagues],
-                                inline=True,
-                                className="chips",
+                                multi=True,
+                                closeOnSelect=False,
+                                searchable=False,
+                                clearable=True,
+                                placeholder="Select leagues",
+                                labels=league_labels(len(leagues), len(leagues)),
+                                className="dropdown leagues",
                             ),
                         ],
                         className="filter",
@@ -248,6 +288,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                                 step=1,
                                 value=0,
                                 disabled=True,
+                                allow_direct_input=False,
                                 className="slider",
                             ),
                         ],
@@ -295,7 +336,7 @@ def build_layout(data: ScreenerData) -> html.Div:
 
 
 def _parse_goals(value) -> float | None:
-    """A typed or slid estimated-goal value, rounded to 0.01; None if invalid."""
+    """A typed or slid final estimate, rounded to 0.01; None if invalid."""
     try:
         v = float(value)
     except (TypeError, ValueError):
@@ -305,23 +346,65 @@ def _parse_goals(value) -> float | None:
     return round(v, 2)
 
 
-def lab_update(r: dict, trigger: str | None, values: dict, stored: dict | None) -> dict | None:
-    """Pure logic behind the adjustment callback. Returns the new adjustment for
-    this fixture ({"home": x, "away": y}) or None when back at the baseline."""
-    base = r["goal_model"]["estimated_goals"]
-    # unadjusted sides start from the baseline rounded to 0.01 (what the controls show)
-    cur = dict(stored or {"home": round(base["home"], 2), "away": round(base["away"], 2)})
-    if trigger == "lab-reset":
+def _parse_adjustment(value) -> float | None:
+    """A category adjustment in goals (empty means 0); None if invalid."""
+    if value is None or value == "":
+        return 0.0
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
         return None
+    if not math.isfinite(v) or abs(v) > CATEGORY_MAX:
+        return None
+    return round(v, 2)
+
+
+def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list[str]]:
+    """Pure logic behind the Match Lab callback: the fixture's new user state and any
+    messages about input that could not be used.
+
+    * a category adjustment or note (Section C) updates that category only
+    * a slider or box (Section D) sets the *final* estimate: the manual adjustment
+      becomes final - baseline - Section C total, so nothing is counted twice
+    * Reset clears all adjustments (notes are kept)
+    """
+    base_r = baseline_rounded(r)
+    state = normalise_state(stored, base_r)
+    team = r["fixture"]
+    messages: list[str] = []
+    if trigger == "lab-reset":
+        for k in state["cats"]:
+            state["cats"][k]["home"] = state["cats"][k]["away"] = 0.0
+        state["manual"] = {"home": 0.0, "away": 0.0}
+        return state, messages
+    if isinstance(trigger, dict) and trigger.get("type") == "cat-adj":
+        key, side = trigger.get("cat"), trigger.get("side")
+        if key in state["cats"] and side in SIDES:
+            v = _parse_adjustment(value)
+            if v is None:
+                messages.append(
+                    f"Category adjustments must be numbers between -{CATEGORY_MAX:g} and "
+                    f"+{CATEGORY_MAX:g} goals; the previous value for {team[side]} was kept."
+                )
+            else:
+                state["cats"][key][side] = v
+        return state, messages
+    if isinstance(trigger, dict) and trigger.get("type") == "cat-note":
+        key = trigger.get("cat")
+        if key in state["cats"]:
+            state["cats"][key]["note"] = str(value or "").strip()[:NOTE_MAX]
+        return state, messages
     for side in ("home", "away"):
-        for kind in ("slider", "input"):
-            if trigger == f"lab-{side}-{kind}":
-                v = _parse_goals(values.get(f"{side}_{kind}"))
-                if v is not None:
-                    cur[side] = v
-    if cur["home"] == round(base["home"], 2) and cur["away"] == round(base["away"], 2):
-        return None  # back at the baseline: show the model's own (unrounded) numbers
-    return cur
+        if trigger in (f"lab-{side}-slider", f"lab-{side}-input"):
+            v = _parse_goals(value)
+            if v is None:
+                messages.append(
+                    f"Estimated goals must be a number between 0 and {ADJUST_MAX:g}; "
+                    f"{team[side]}'s estimate was not changed."
+                )
+            else:
+                state["manual"][side] = round(v - base_r[side] - category_total(state, side), 2)
+    return state, messages
 
 
 def register_callbacks(app: Dash, data: ScreenerData) -> None:
@@ -340,6 +423,12 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
                 return opts, no_update
             return opts, header_sort(market, trig["key"], current)
         return opts, valid_direction(market, current)
+
+    @app.callback(
+        Output("leagues", "labels"), Input("leagues", "value"), State("leagues", "options")
+    )
+    def update_league_summary(value, options):
+        return league_labels(len(value or []), len(options or []))
 
     @app.callback(
         Output("threshold", "min"),
@@ -442,6 +531,8 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Output("lab-away-input", "value"),
         Output("lab-home-slider", "max"),
         Output("lab-away-slider", "max"),
+        Output({"type": "cat-adj", "cat": ALL, "side": ALL}, "value"),
+        Output({"type": "cat-sum", "cat": ALL}, "children"),
         Output("lab-output", "children"),
         Output("lab-compare", "children"),
         Input("lab-home-slider", "value"),
@@ -449,30 +540,35 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Input("lab-away-slider", "value"),
         Input("lab-away-input", "value"),
         Input("lab-reset", "n_clicks"),
+        Input({"type": "cat-adj", "cat": ALL, "side": ALL}, "value"),
+        Input({"type": "cat-note", "cat": ALL}, "value"),
         State("selected", "data"),
         State("market", "value"),
         State("lab-store", "data"),
         prevent_initial_call=True,
     )
-    def adjust(hs, hi, as_, ai, _reset, fid, market, lab):
-        """Recalculate all seven probabilities from the user's estimated goals.
-        Pure arithmetic on the browser's own values: the baseline is untouched."""
-        if not fid:
+    def adjust(_hs, _hi, _as, _ai, _reset, _cat_values, _notes, fid, market, lab):
+        """Sections C and D: update this fixture's state in the browser store and
+        recalculate all seven probabilities. The model baseline is never modified."""
+        if not fid or not ctx.triggered:
             raise PreventUpdate
         r, ov, _ = data.detail(fid)
         if r is None or not r["goal_model"].get("available"):
             raise PreventUpdate
         lab = dict(lab or {})
-        values = {"home_slider": hs, "home_input": hi, "away_slider": as_, "away_input": ai}
-        new = lab_update(r, ctx.triggered_id, values, lab.get(str(fid)))
-        if new is None:
+        trig = ctx.triggered_id
+        value = ctx.triggered[0].get("value")
+        state, messages = lab_update(r, trig, value, lab.get(str(fid)))
+        if is_empty(state):
             lab.pop(str(fid), None)
         else:
-            lab[str(fid)] = new
+            lab[str(fid)] = state
+        b = breakdown(baseline_rounded(r), state)
+        h, a = b["home"]["final"], b["away"]["final"]
+        cat_out = [state["cats"][o["id"]["cat"]][o["id"]["side"]] for o in ctx.outputs_list[7]]
+        sum_out = [category_summary(state, o["id"]["cat"]) for o in ctx.outputs_list[8]]
+        out, compare = lab_outputs(r, market, ov, state, messages)
         base = r["goal_model"]["estimated_goals"]
-        h = new["home"] if new else round(base["home"], 2)
-        a = new["away"] if new else round(base["away"], 2)
-        out, compare = lab_outputs(r, market, ov, new)
         return (
             lab,
             h,
@@ -481,6 +577,8 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             a,
             slider_max(base["home"], h),
             slider_max(base["away"], a),
+            cat_out,
+            sum_out,
             out,
             compare,
         )

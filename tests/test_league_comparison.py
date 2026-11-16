@@ -196,7 +196,7 @@ const { chromium, devices } = require('playwright');
     const p = await ctx.newPage();
     await p.goto(BASE);
     await p.waitForSelector('tr.row, .fx-card', { timeout: 20000, state: 'attached' });
-    await p.click('text=Both teams to score');
+    await p.locator('#market').click(); await p.locator('[role=option]', { hasText: 'Both Teams' }).click();
     await p.waitForTimeout(800);
     if (name === 'desktop') await p.locator('tr.row').first().click();
     else await p.locator('.fx-card').first().tap();

@@ -49,6 +49,7 @@ from .views import (
     pill,
     positions_section,
     record_tile,
+    sequence,
     venue_context_block,
 )
 
@@ -79,17 +80,138 @@ ESTIMATED_GOALS_HELP = (
     "calculated from goals scored and conceded in this season's league matches and the "
     "league's home and away scoring rates. They are not shot-based xG."
 )
-FACTORS = [
-    ("Injuries and suspensions", "Who is missing, and how important are they?"),
-    ("Expected starting line-ups", "Will key players start, or be rested?"),
-    ("Fixture congestion and rest days", "A midweek match or long travel can tire a squad."),
-    ("Squad rotation", "Cup or European matches nearby may change the team selected."),
-    ("Managerial or tactical changes", "A new coach or system may not show in the results yet."),
-    ("Transfers and squad changes", "New signings or departures since the results were played."),
-    ("Home advantage and unusual venues", "A neutral, shared or temporary ground."),
-    ("Weather and playing conditions", "Heavy rain, wind, heat or a poor pitch."),
-    ("Motivation and competition circumstances", "Title races, relegation, dead rubbers."),
+CATEGORIES = [
+    (
+        "squad",
+        "Squad & Availability",
+        ["Injuries", "Suspensions", "Expected starting line-ups", "Transfers and squad changes"],
+    ),
+    (
+        "fitness",
+        "Fitness & Scheduling",
+        ["Fixture congestion", "Rest days", "Travel demands", "Squad rotation"],
+    ),
+    (
+        "tactics",
+        "Tactics & Management",
+        [
+            "Managerial changes",
+            "Tactical changes",
+            "Changes in playing style",
+            "Relevant tactical matchups",
+        ],
+    ),
+    (
+        "conditions",
+        "Match Conditions & Motivation",
+        [
+            "Weather and playing conditions",
+            "Unusual venues or home advantage",
+            "Title or relegation circumstances",
+            "Competition motivation and other match-specific circumstances",
+        ],
+    ),
 ]
+CATEGORY_KEYS = tuple(k for k, _, _ in CATEGORIES)
+CATEGORY_MAX = 2.0  # largest +/- adjustment one category can carry
+NOTE_MAX = 280
+FACTORS_NOTE = (
+    "These factors are not automatically included in the statistical model. You can research "
+    "them independently and choose whether they justify adjusting either team's estimated goals."
+)
+FACTORS_CAUTION = (
+    "Some factors may overlap with recent match results. Avoid counting the same information twice."
+)
+SIDES = ("home", "away")
+
+
+# ------------------------------------------------------------ user state
+# Per fixture, in the browser's memory store only:
+#   {"cats": {category: {"note": str, "home": float, "away": float}},
+#    "manual": {"home": float, "away": float}}
+# Your estimate = model baseline (rounded to 0.01) + sum of category adjustments
+#                 + additional manual adjustment, kept within 0-10 goals.
+def new_state() -> dict:
+    return {
+        "cats": {k: {"note": "", "home": 0.0, "away": 0.0} for k in CATEGORY_KEYS},
+        "manual": {"home": 0.0, "away": 0.0},
+    }
+
+
+def baseline_rounded(r: dict) -> dict:
+    eg = r["goal_model"]["estimated_goals"]
+    return {s: round(eg[s], 2) for s in SIDES}
+
+
+def normalise_state(stored: dict | None, base_r: dict | None = None) -> dict:
+    """A complete, independent copy of a fixture's state (handles missing keys and the
+    earlier {"home": final, "away": final} format)."""
+    state = new_state()
+    if not stored:
+        return state
+    if "cats" not in stored and "manual" not in stored:
+        if base_r:
+            for s in SIDES:  # earlier format: final estimates only
+                if s in stored:
+                    state["manual"][s] = round(float(stored[s]) - base_r[s], 2)
+        return state
+    for k in CATEGORY_KEYS:
+        c = (stored.get("cats") or {}).get(k) or {}
+        state["cats"][k] = {
+            "note": str(c.get("note") or "")[:NOTE_MAX],
+            "home": float(c.get("home") or 0.0),
+            "away": float(c.get("away") or 0.0),
+        }
+    for s in SIDES:
+        state["manual"][s] = float((stored.get("manual") or {}).get(s) or 0.0)
+    return state
+
+
+def category_total(state: dict, side: str) -> float:
+    return round(sum(state["cats"][k][side] for k in CATEGORY_KEYS), 2)
+
+
+def has_adjustment(state: dict | None) -> bool:
+    if not state:
+        return False
+    return any(
+        abs(state["manual"][s]) > 1e-9 or abs(category_total(state, s)) > 1e-9 for s in SIDES
+    )
+
+
+def is_empty(state: dict) -> bool:
+    return not has_adjustment(state) and not any(state["cats"][k]["note"] for k in CATEGORY_KEYS)
+
+
+def breakdown(base_r: dict, state: dict) -> dict:
+    """Per side: baseline, Section C total, manual adjustment and the final estimate
+    (kept within 0-10 goals; ``clipped`` says when that limit applied)."""
+    out = {}
+    for s in SIDES:
+        cats = category_total(state, s)
+        raw = round(base_r[s] + cats + state["manual"][s], 2)
+        final = round(min(max(raw, 0.0), ADJUST_MAX), 2)
+        out[s] = {
+            "base": base_r[s],
+            "cats": cats,
+            "manual": round(state["manual"][s], 2),
+            "raw": raw,
+            "final": final,
+            "clipped": final != raw,
+        }
+    return out
+
+
+def user_estimates(r: dict, state: dict | None) -> dict | None:
+    """Final user estimates, or None when nothing is adjusted (the model is shown)."""
+    if not has_adjustment(state):
+        return None
+    b = breakdown(baseline_rounded(r), state)
+    return {s: b[s]["final"] for s in SIDES}
+
+
+def signed(x: float) -> str:
+    return "0.00" if abs(x) < 0.005 else f"{x:+.2f}"
 
 
 def slider_max(baseline: float, current: float | None = None) -> float:
@@ -123,6 +245,12 @@ def _eg_tile(team: str, value: float, note: str | None) -> html.Div:
     )
 
 
+def role_tag(text: str, kind: str) -> html.Span:
+    """Keeps the four kinds of information apart: model estimate, context, your
+    research / assumptions and market."""
+    return html.Span(text, className=f"role-tag role-{kind}")
+
+
 def prob_bars(probs: dict, market: str, cls: str = "") -> html.Div:
     rows = []
     for key, label in MARKET_KEYS[market]:
@@ -150,6 +278,7 @@ def baseline_section(r: dict, market: str) -> html.Div:
     head = html.Div(
         [
             html.Span("A. Statistical baseline", className="lab-step"),
+            role_tag("Model estimate", "model"),
             info(ESTIMATED_GOALS_HELP, "About estimated goals"),
         ],
         className="label-row",
@@ -320,20 +449,60 @@ def model_calculation(r: dict) -> html.Details:
 
 
 # ------------------------------------------------------------ B. context
-def context_section(r: dict, market: str, official: dict) -> html.Div:
+def _recent_summary(r: dict) -> html.Div:
+    """Last results for each team, most recent first (primary Form Score view)."""
+    rows = []
+    for s in SIDES:
+        tm = r["teams"][s]
+        seq = tm["form"]["sequence"]
+        rows.append(
+            html.Div(
+                [
+                    html.Span(tm["team"], className="recent-team"),
+                    sequence(seq) if seq else html.Span("No matches yet", className="muted small"),
+                ],
+                className="recent-row",
+            )
+        )
+    return html.Div(
+        [html.Div("Recent results (most recent first)", className="muted small"), *rows],
+        className="recent-summary",
+    )
+
+
+def form_context(r: dict) -> html.Details:
+    """Form Score in two levels: scores, league average and recent results first; the
+    arithmetic, venue context, explanations and match lists one click deeper."""
     t = r["teams"]
     bench = r["match_result"].get("league_benchmark")
-    form = accordion(
-        "Recent form (Diski Form Score)",
-        html.P(FORM_TOOLTIP, className="muted small"),
-        html.Div([form_tile(t[s], bench) for s in ("home", "away")], className="tiles"),
-        form_benchmark_block(bench),
-        venue_context_block(r),
-        form_breakdown_table(r),
-        benchmark_explanation(r),
-        matches_section(r, "1X2"),
+    detail = html.Details(
+        [
+            html.Summary("Calculation and detail"),
+            html.Div(
+                [
+                    html.P(FORM_TOOLTIP, className="muted small"),
+                    form_breakdown_table(r),
+                    venue_context_block(r),
+                    benchmark_explanation(r),
+                    matches_section(r, "1X2"),
+                ],
+                className="acc-body",
+            ),
+        ],
+        className="acc form-detail",
     )
-    parts = [form]
+    return accordion(
+        "Recent form (Diski Form Score)",
+        html.Div([form_tile(t[s], bench) for s in SIDES], className="tiles"),
+        form_benchmark_block(bench),
+        _recent_summary(r),
+        detail,
+    )
+
+
+def context_section(r: dict, market: str, official: dict) -> html.Div:
+    t = r["teams"]
+    parts = [form_context(r)]
     if market != "1X2":
         key = "btts" if market == "BTTS" else "over_2_5"
         lb = r.get("league_baseline")
@@ -346,10 +515,7 @@ def context_section(r: dict, market: str, official: dict) -> html.Div:
                     "A record describes the past; it is not a probability.",
                     className="muted small",
                 ),
-                html.Div(
-                    [record_tile(t[s], key, market, lb) for s in ("home", "away")],
-                    className="tiles",
-                ),
+                html.Div([record_tile(t[s], key, market, lb) for s in SIDES], className="tiles"),
                 html.P(LIMITED_GOALS, className="muted small")
                 if r["limited_data"]["goals"]
                 else None,
@@ -361,7 +527,13 @@ def context_section(r: dict, market: str, official: dict) -> html.Div:
     parts += [h2h_section(r), positions_section(r, official)]
     return html.Div(
         [
-            html.Div(html.Span("B. Match context", className="lab-step"), className="label-row"),
+            html.Div(
+                [
+                    html.Span("B. Match context", className="lab-step"),
+                    role_tag("Context", "context"),
+                ],
+                className="label-row",
+            ),
             html.P(CONTEXT_NOTE, className="muted small context-note"),
             html.Div(parts, className="acc-group"),
         ],
@@ -370,31 +542,113 @@ def context_section(r: dict, market: str, official: dict) -> html.Div:
 
 
 # ------------------------------------------------------------ C. factors
-def factors_section() -> html.Div:
+def category_summary(state: dict, key: str) -> list:
+    c = state["cats"][key]
+    if abs(c["home"]) < 1e-9 and abs(c["away"]) < 1e-9:
+        text, cls = "No adjustment", "cat-sum muted"
+    else:
+        text, cls = f"Home {signed(c['home'])} · Away {signed(c['away'])}", "cat-sum active"
+    out = [html.Span(text, className=cls)]
+    if c["note"]:
+        out.append(html.Span("Note", className="cat-note-flag", title=c["note"]))
+    return out
+
+
+def _cat_input(key: str, side: str, team: str, value: float) -> html.Div:
+    return html.Div(
+        [
+            html.Label(
+                f"{team} (± goals)",
+                htmlFor=f"cat-{key}-{side}",
+                className="cat-input-label",
+            ),
+            dcc.Input(
+                id={"type": "cat-adj", "cat": key, "side": side},
+                type="number",
+                step=0.05,
+                min=-CATEGORY_MAX,
+                max=CATEGORY_MAX,
+                value=value,
+                debounce=0.4,
+                className="adj-input cat-input",
+                placeholder="0.00",
+            ),
+        ],
+        className="cat-field",
+    )
+
+
+def factors_section(r: dict, state: dict) -> html.Div:
+    f = r["fixture"]
+    available = bool(r.get("goal_model", {}).get("available"))
+    cards = []
+    for key, title, items in CATEGORIES:
+        c = state["cats"][key]
+        body = [
+            html.Ul([html.Li(i) for i in items], className="cat-items"),
+            html.Div(
+                [
+                    html.Label("Research notes (optional)", className="cat-input-label"),
+                    dcc.Input(
+                        id={"type": "cat-note", "cat": key},
+                        type="text",
+                        value=c["note"],
+                        maxLength=NOTE_MAX,
+                        debounce=True,
+                        placeholder="e.g. what you found and where",
+                        className="cat-note",
+                    ),
+                ],
+                className="cat-field wide",
+            ),
+        ]
+        if available:
+            body.append(
+                html.Div(
+                    [
+                        _cat_input(key, "home", f["home"], c["home"]),
+                        _cat_input(key, "away", f["away"], c["away"]),
+                    ],
+                    className="cat-inputs",
+                )
+            )
+        cards.append(
+            html.Details(
+                [
+                    html.Summary(
+                        [
+                            html.Span(title, className="cat-title"),
+                            html.Span(
+                                category_summary(state, key),
+                                id={"type": "cat-sum", "cat": key},
+                                className="cat-sum-wrap",
+                            ),
+                        ]
+                    ),
+                    html.Div(body, className="acc-body"),
+                ],
+                className="acc cat-acc",
+            )
+        )
     return html.Div(
         [
             html.Div(
-                html.Span("C. Other factors to consider", className="lab-step"),
+                [
+                    html.Span("C. Other factors to consider", className="lab-step"),
+                    role_tag("Your research", "user"),
+                ],
                 className="label-row",
             ),
-            html.Details(
-                [
-                    html.Summary("Checklist: what the model cannot see"),
-                    html.Ul(
-                        [
-                            html.Li([html.Strong(a), html.Span(f" — {b}", className="muted")])
-                            for a, b in FACTORS
-                        ],
-                        className="factors",
-                    ),
-                    html.P(
-                        "These factors need your own research. They are not included in the "
-                        "statistical model, and Diski 9 does not supply team news.",
-                        className="muted small",
-                    ),
-                ],
-                className="acc factors-acc",
-            ),
+            html.P(FACTORS_NOTE, className="muted small"),
+            html.P(FACTORS_CAUTION, className="muted small caution"),
+            html.Div(cards, className="acc-group cat-group"),
+            html.P(
+                "Adjustments are optional and start at 0.00. Enter them in goals per team "
+                "(steps of 0.05); Diski 9 never assigns a value to a factor for you.",
+                className="muted small",
+            )
+            if available
+            else html.P("Adjustments need a model baseline.", className="muted small"),
         ],
         className="lab-section factors-section",
     )
@@ -406,7 +660,9 @@ def _adjust_row(side: str, team: str, base: float, cur: float) -> html.Div:
         [
             html.Div(
                 [
-                    html.Label(team, htmlFor=f"lab-{side}-input", className="adj-team"),
+                    html.Label(
+                        f"{team}: your estimate", htmlFor=f"lab-{side}-input", className="adj-team"
+                    ),
                     html.Span(f"model {goals2(base)}", className="muted small"),
                 ],
                 className="adj-head",
@@ -442,6 +698,39 @@ def _adjust_row(side: str, team: str, base: float, cur: float) -> html.Div:
             ),
         ],
         className="adj-row",
+    )
+
+
+def breakdown_table(r: dict, b: dict) -> html.Table:
+    f = r["fixture"]
+
+    def row(label, key, fmt, cls=""):
+        return html.Tr(
+            [html.Td(label)]
+            + [html.Td(fmt(b[s][key]), className=f"num {cls}".strip()) for s in SIDES]
+        )
+
+    return html.Table(
+        [
+            html.Thead(
+                html.Tr(
+                    [
+                        html.Th(""),
+                        html.Th(f["home"], className="num"),
+                        html.Th(f["away"], className="num"),
+                    ]
+                )
+            ),
+            html.Tbody(
+                [
+                    row("Model baseline", "base", goals2),
+                    row("Your research (Section C)", "cats", signed),
+                    row("Additional manual adjustment", "manual", signed),
+                    row("Your estimate", "final", goals2, "strong"),
+                ]
+            ),
+        ],
+        className="grid compact breakdown",
     )
 
 
@@ -481,36 +770,56 @@ def comparison_table(base: dict, mine: dict | None, markets: tuple[str, ...]) ->
     )
 
 
-def adjusted_probabilities(adj: dict | None) -> dict | None:
-    return gm.markets(adj["home"], adj["away"]) if adj else None
+def adjusted_probabilities(est: dict | None) -> dict | None:
+    return gm.markets(est["home"], est["away"]) if est else None
 
 
-def lab_outputs(r: dict, market: str, ov: OddsView | None, adj: dict | None):
-    """(adjustment results, bookmaker comparison) for the current adjustment."""
+def lab_outputs(
+    r: dict, market: str, ov: OddsView | None, state: dict | None, messages: list | None = None
+):
+    """(Section D results, bookmaker comparison) for a fixture's user state."""
     g = r["goal_model"]
     base = g["probabilities"]
-    mine = adjusted_probabilities(adj)
+    state = state or new_state()
+    b = breakdown(baseline_rounded(r), state)
+    est = user_estimates(r, state)
+    mine = adjusted_probabilities(est)
     f = r["fixture"]
-    if mine:
-        summary = html.P(
+    notes = [html.P(m, className="lab-message") for m in (messages or [])]
+    for s in SIDES:
+        if b[s]["clipped"]:
+            team = f[s]
+            notes.append(
+                html.P(
+                    f"Your adjustments would take {team} to {b[s]['raw']:.2f} goals; the estimate "
+                    f"is held at {b[s]['final']:.2f} (estimated goals must be between 0 and "
+                    f"{ADJUST_MAX:g}).",
+                    className="lab-message",
+                )
+            )
+    summary = (
+        html.P(
             [
                 "Your estimate: ",
-                html.Strong(f"{f['home']} {goals2(adj['home'])}"),
+                html.Strong(f"{f['home']} {goals2(est['home'])}"),
                 " – ",
-                html.Strong(f"{f['away']} {goals2(adj['away'])}"),
-                f" (model {goals2(g['estimated_goals']['home'])} – "
-                f"{goals2(g['estimated_goals']['away'])}).",
+                html.Strong(f"{f['away']} {goals2(est['away'])}"),
+                f" (model {goals2(b['home']['base'])} – {goals2(b['away']['base'])}).",
             ],
             className="small",
         )
-    else:
-        summary = html.P(
-            "Showing the model baseline. Move a slider or type a value to explore your own view.",
+        if mine
+        else html.P(
+            "Showing the model baseline. Add adjustments in Section C, or move a slider to set "
+            "your own estimate.",
             className="muted small",
         )
+    )
     others = tuple(m for m in ALL_MARKETS if m != market)
     out = html.Div(
         [
+            *notes,
+            breakdown_table(r, b),
             summary,
             comparison_table(base, mine, (market,)),
             html.Details(
@@ -522,23 +831,36 @@ def lab_outputs(r: dict, market: str, ov: OddsView | None, adj: dict | None):
     return out, model_comparison(market, ov, base, mine)
 
 
-def adjust_section(r: dict, market: str, ov: OddsView | None, adj: dict | None) -> html.Div:
+def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> html.Div:
     g = r["goal_model"]
-    head = html.Div(html.Span("D. Your adjustments", className="lab-step"), className="label-row")
+    head = html.Div(
+        [
+            html.Span("D. Your adjustments", className="lab-step"),
+            role_tag("Your assumptions", "user"),
+        ],
+        className="label-row",
+    )
     if not g.get("available"):
         return html.Div(
             [head, html.P("Adjustments need a model baseline.", className="muted small")],
             className="lab-section adjust",
         )
-    f, base = r["fixture"], g["estimated_goals"]
-    cur = adj or {"home": round(base["home"], 2), "away": round(base["away"], 2)}
-    out, _ = lab_outputs(r, market, ov, adj)
+    f = r["fixture"]
+    base_r = baseline_rounded(r)
+    b = breakdown(base_r, state)
+    out, _ = lab_outputs(r, market, ov, state)
     return html.Div(
         [
             head,
             html.P(ADJUST_NOTE, className="muted small"),
-            _adjust_row("home", f["home"], base["home"], cur["home"]),
-            _adjust_row("away", f["away"], base["away"], cur["away"]),
+            html.P(
+                "Your estimate = model baseline + your Section C adjustments + any additional "
+                "manual adjustment. The sliders and boxes set your final estimate directly; the "
+                "manual adjustment is worked out for you, so nothing is counted twice.",
+                className="muted small",
+            ),
+            _adjust_row("home", f["home"], base_r["home"], b["home"]["final"]),
+            _adjust_row("away", f["away"], base_r["away"], b["away"]["final"]),
             html.Div(
                 [
                     html.Button(
@@ -548,7 +870,8 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, adj: dict | None) 
                         className="pager-btn reset-btn",
                     ),
                     html.Span(
-                        "Your changes stay in this browser tab only and never change the model.",
+                        "Clears every adjustment in Sections C and D. Your research notes are "
+                        "kept. Nothing leaves this browser tab or changes the model.",
                         className="muted small",
                     ),
                 ],
@@ -605,12 +928,16 @@ def bookmaker_card(
     market: str,
     data: ScreenerData,
     league: str,
-    adj: dict | None,
+    state: dict | None,
 ) -> html.Section:
     card = _market_card(ov, MARKET_OF[market], data, league)
+    head = card.children[0]
+    head.children.append(html.Div(role_tag("Market", "market"), className="card-tag"))
     g = r["goal_model"]
     if g.get("available"):
-        compare = model_comparison(market, ov, g["probabilities"], adjusted_probabilities(adj))
+        compare = model_comparison(
+            market, ov, g["probabilities"], adjusted_probabilities(user_estimates(r, state))
+        )
     else:
         compare = html.P(g.get("message"), className="muted small")
     card.children.append(html.Div(compare, id="lab-compare"))
@@ -626,13 +953,18 @@ def render_detail(
     data: ScreenerData,
     adj: dict | None = None,
 ) -> Any:
+    """``adj`` is the fixture's user state from the browser store (or None)."""
     if r is None:
         return html.Div("Select a fixture to open The Match Lab.", className="empty")
     f = r["fixture"]
     league = LEAGUE_SHORT.get(f["competition_id"], f["competition"])
     g = r.get("goal_model") or {}
-    if not g.get("available"):
-        adj = None
+    available = bool(g.get("available"))
+    state = normalise_state(adj, baseline_rounded(r) if available else None)
+    if not available:
+        state = new_state() | {"cats": state["cats"]}  # notes kept, no adjustments
+        for k in CATEGORY_KEYS:
+            state["cats"][k]["home"] = state["cats"][k]["away"] = 0.0
     lab = html.Section(
         [
             card_head(
@@ -641,8 +973,8 @@ def render_detail(
             ),
             baseline_section(r, market),
             context_section(r, market, official),
-            factors_section(),
-            adjust_section(r, market, ov, adj),
+            factors_section(r, state),
+            adjust_section(r, market, ov, state),
         ],
         className="card lab",
     )
@@ -654,14 +986,16 @@ def render_detail(
                     html.Div(
                         f"{league} · {data.local(f['kickoff'])} {data.tz_label} · "
                         f"{MARKET_TITLE[market]}",
-                        className="muted",
+                        className="muted match-meta",
                     ),
-                    pill("Adjusted by you", "accent") if adj else None,
+                    pill("Adjusted by you", "accent")
+                    if available and has_adjustment(state)
+                    else None,
                 ],
                 className="detail-header",
             ),
             lab,
-            bookmaker_card(r, ov, market, data, league, adj),
+            bookmaker_card(r, ov, market, data, league, state if available else None),
             html.P(
                 f"Statistics use only results before {data.local(r['cutoff'])} {data.tz_label}. "
                 f"Goal Model {gm.GOAL_MODEL_VERSION}.",

@@ -627,7 +627,7 @@ def _market_card(
                 ],
                 className="label-row",
             ),
-            html.Div(cells, className="prices"),
+            html.Div(cells, className=f"prices cols-{len(cells)}"),
             html.P(" · ".join(facts), className="muted small market-facts"),
             html.P(MARGIN_NOTE, className="muted small margin-note")
             if ip is not None and ip.overround is not None
