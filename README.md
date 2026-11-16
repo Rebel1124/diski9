@@ -49,7 +49,9 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   for eight domestic leagues, The Match Lab (baseline, context, checklist, your own
   adjustments), pre-kickoff forecast snapshots and monthly monitoring:
   [`docs/engine3_match_lab.md`](docs/engine3_match_lab.md); methodology:
-  [`docs/methodology.md`](docs/methodology.md)
+  [`docs/methodology.md`](docs/methodology.md); UI refinement (filter card, market
+  dropdown, interactive factors, consolidated adjustments):
+  [`docs/ui_refinement_engine3.md`](docs/ui_refinement_engine3.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 
