@@ -1,0 +1,1138 @@
+{
+  "generated": "2026-11-16T09:05:02+00:00",
+  "dc_rho_walk_forward": {
+    "overall": {
+      "2024-08": -0.0038,
+      "2024-09": -0.0112,
+      "2024-10": -0.0067,
+      "2024-11": -0.0141,
+      "2024-12": -0.022,
+      "2025-01": -0.0223,
+      "2025-02": -0.0141,
+      "2025-03": -0.0045,
+      "2025-04": -0.0006,
+      "2025-05": 0.0011,
+      "2025-06": -0.0028,
+      "2025-07": -0.0028,
+      "2025-08": -0.0028,
+      "2025-09": 0.0038,
+      "2025-10": -0.0022,
+      "2025-11": 0.0061,
+      "2025-12": -0.0021,
+      "2026-01": -0.0028,
+      "2026-02": -0.0134,
+      "2026-03": -0.0148,
+      "2026-04": -0.0175,
+      "2026-05": -0.0241,
+      "2026-06": -0.0302,
+      "2026-07": -0.0302,
+      "2026-08": -0.0302,
+      "2026-09": -0.0321,
+      "2026-10": -0.0328,
+      "2026-11": -0.0281
+    },
+    "venue": {
+      "2024-08": 0.0044,
+      "2024-09": 0.0001,
+      "2024-10": 0.0017,
+      "2024-11": -0.0086,
+      "2024-12": -0.0182,
+      "2025-01": -0.016,
+      "2025-02": -0.0087,
+      "2025-03": 0.0013,
+      "2025-04": 0.0101,
+      "2025-05": 0.0066,
+      "2025-06": 0.0018,
+      "2025-07": 0.0018,
+      "2025-08": 0.0018,
+      "2025-09": 0.0089,
+      "2025-10": 0.0027,
+      "2025-11": 0.0132,
+      "2025-12": 0.0048,
+      "2026-01": 0.0032,
+      "2026-02": -0.0088,
+      "2026-03": -0.0107,
+      "2026-04": -0.0138,
+      "2026-05": -0.0214,
+      "2026-06": -0.0265,
+      "2026-07": -0.0265,
+      "2026-08": -0.0265,
+      "2026-09": -0.0283,
+      "2026-10": -0.0303,
+      "2026-11": -0.0262
+    }
+  },
+  "dc_rho_by_league_pre_test": {
+    "EPL": -0.0274,
+    "Championship": 0.0203,
+    "PSL": -0.0173,
+    "PSL 1st Div": -0.0268
+  },
+  "test_sample": {
+    "overall": {
+      "fixtures": 3121,
+      "period": [
+        "2024-08-16",
+        "2026-11-08"
+      ],
+      "btts_rate": 0.512,
+      "over_rate": 0.4624,
+      "by_league": {
+        "Championship": 1248,
+        "EPL": 830,
+        "PSL 1st Div": 534,
+        "PSL": 509
+      }
+    },
+    "venue": {
+      "fixtures": 3004,
+      "period": [
+        "2024-08-23",
+        "2026-11-08"
+      ],
+      "btts_rate": 0.5136,
+      "over_rate": 0.464,
+      "by_league": {
+        "Championship": 1212,
+        "EPL": 800,
+        "PSL 1st Div": 510,
+        "PSL": 482
+      }
+    }
+  },
+  "excluded_no_indicator_overall": 116,
+  "excluded_no_indicator_venue": 233,
+  "indicator_evaluation": {
+    "overall_btts": {
+      "n": 3121,
+      "observed_rate": 0.512,
+      "models": {
+        "league_rate": {
+          "brier": 0.2484,
+          "log_loss": 0.6904,
+          "auc": 0.561,
+          "ece": 0.0241,
+          "mean_forecast": 0.5018
+        },
+        "raw_indicator (experiment)": {
+          "brier": 0.2643,
+          "log_loss": 0.7402,
+          "auc": 0.539,
+          "ece": 0.1,
+          "mean_forecast": 0.5058
+        },
+        "shrunk_indicator": {
+          "brier": 0.252,
+          "log_loss": 0.6981,
+          "auc": 0.552,
+          "ece": 0.0557,
+          "mean_forecast": 0.5046
+        },
+        "recalibrated_indicator": {
+          "brier": 0.2489,
+          "log_loss": 0.691,
+          "auc": 0.538,
+          "ece": 0.0071,
+          "mean_forecast": 0.5084
+        },
+        "poisson": {
+          "brier": 0.2538,
+          "log_loss": 0.702,
+          "auc": 0.555,
+          "ece": 0.0638,
+          "mean_forecast": 0.4642
+        },
+        "dixon_coles": {
+          "brier": 0.2537,
+          "log_loss": 0.7017,
+          "auc": 0.555,
+          "ece": 0.0631,
+          "mean_forecast": 0.4655
+        },
+        "poisson+indicator (logistic)": {
+          "brier": 0.2478,
+          "log_loss": 0.6887,
+          "auc": 0.555,
+          "ece": 0.0121,
+          "mean_forecast": 0.5015
+        },
+        "poisson (logistic recalibrated)": {
+          "brier": 0.2477,
+          "log_loss": 0.6885,
+          "auc": 0.555,
+          "ece": 0.0128,
+          "mean_forecast": 0.5014
+        }
+      },
+      "paired_brier": {
+        "raw_indicator (experiment) - league_rate": {
+          "mean": 0.01581,
+          "ci95": [
+            0.01079,
+            0.02134
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "shrunk_indicator - league_rate": {
+          "mean": 0.00356,
+          "ci95": [
+            0.00102,
+            0.00601
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "recalibrated_indicator - league_rate": {
+          "mean": 0.00045,
+          "ci95": [
+            -0.00267,
+            0.00328
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": false
+        },
+        "poisson - league_rate": {
+          "mean": 0.00537,
+          "ci95": [
+            0.00176,
+            0.0087
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "dixon_coles - league_rate": {
+          "mean": 0.00525,
+          "ci95": [
+            0.00167,
+            0.00855
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "poisson+indicator (logistic) - league_rate": {
+          "mean": -0.00066,
+          "ci95": [
+            -0.00361,
+            0.00204
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": false
+        },
+        "poisson (logistic recalibrated) - league_rate": {
+          "mean": -0.00076,
+          "ci95": [
+            -0.00369,
+            0.00191
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": false
+        },
+        "shrunk_indicator - raw_indicator (experiment)": {
+          "mean": -0.01224,
+          "ci95": [
+            -0.01628,
+            -0.00891
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "dixon_coles - poisson": {
+          "mean": -0.00012,
+          "ci95": [
+            -0.00019,
+            -6e-05
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "poisson+indicator (logistic) - poisson (logistic recalibrated)": {
+          "mean": 0.0001,
+          "ci95": [
+            -1e-05,
+            0.00021
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": false
+        },
+        "poisson - shrunk_indicator": {
+          "mean": 0.00181,
+          "ci95": [
+            -0.00117,
+            0.00471
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": false
+        }
+      }
+    },
+    "overall_over": {
+      "n": 3121,
+      "observed_rate": 0.4624,
+      "models": {
+        "league_rate": {
+          "brier": 0.2433,
+          "log_loss": 0.6804,
+          "auc": 0.591,
+          "ece": 0.0253,
+          "mean_forecast": 0.4503
+        },
+        "raw_indicator (experiment)": {
+          "brier": 0.2605,
+          "log_loss": 0.7373,
+          "auc": 0.562,
+          "ece": 0.0905,
+          "mean_forecast": 0.4557
+        },
+        "shrunk_indicator": {
+          "brier": 0.2473,
+          "log_loss": 0.6895,
+          "auc": 0.581,
+          "ece": 0.0458,
+          "mean_forecast": 0.4543
+        },
+        "recalibrated_indicator": {
+          "brier": 0.2466,
+          "log_loss": 0.6865,
+          "auc": 0.56,
+          "ece": 0.0122,
+          "mean_forecast": 0.4709
+        },
+        "poisson": {
+          "brier": 0.2529,
+          "log_loss": 0.7013,
+          "auc": 0.563,
+          "ece": 0.0724,
+          "mean_forecast": 0.4421
+        },
+        "dixon_coles": {
+          "brier": 0.2529,
+          "log_loss": 0.7013,
+          "auc": 0.563,
+          "ece": 0.0724,
+          "mean_forecast": 0.4421
+        },
+        "poisson+indicator (logistic)": {
+          "brier": 0.246,
+          "log_loss": 0.685,
+          "auc": 0.562,
+          "ece": 0.0146,
+          "mean_forecast": 0.4681
+        },
+        "poisson (logistic recalibrated)": {
+          "brier": 0.246,
+          "log_loss": 0.6849,
+          "auc": 0.562,
+          "ece": 0.021,
+          "mean_forecast": 0.4675
+        }
+      },
+      "paired_brier": {
+        "raw_indicator (experiment) - league_rate": {
+          "mean": 0.01719,
+          "ci95": [
+            0.01161,
+            0.02306
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "shrunk_indicator - league_rate": {
+          "mean": 0.00399,
+          "ci95": [
+            0.00163,
+            0.00626
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "recalibrated_indicator - league_rate": {
+          "mean": 0.0033,
+          "ci95": [
+            0.00015,
+            0.0064
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "poisson - league_rate": {
+          "mean": 0.00961,
+          "ci95": [
+            0.00581,
+            0.01325
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "dixon_coles - league_rate": {
+          "mean": 0.00961,
+          "ci95": [
+            0.00581,
+            0.01325
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "poisson+indicator (logistic) - league_rate": {
+          "mean": 0.00267,
+          "ci95": [
+            -0.00064,
+            0.00582
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": false
+        },
+        "poisson (logistic recalibrated) - league_rate": {
+          "mean": 0.00262,
+          "ci95": [
+            -0.00078,
+            0.00592
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": false
+        },
+        "shrunk_indicator - raw_indicator (experiment)": {
+          "mean": -0.0132,
+          "ci95": [
+            -0.01762,
+            -0.00941
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        },
+        "dixon_coles - poisson": {
+          "mean": 0.0,
+          "ci95": [
+            -0.0,
+            0.0
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": false
+        },
+        "poisson+indicator (logistic) - poisson (logistic recalibrated)": {
+          "mean": 5e-05,
+          "ci95": [
+            -0.00034,
+            0.00047
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": false
+        },
+        "poisson - shrunk_indicator": {
+          "mean": 0.00562,
+          "ci95": [
+            0.0026,
+            0.00849
+          ],
+          "n": 3121,
+          "clusters": 86,
+          "excludes_zero": true
+        }
+      }
+    },
+    "venue_btts": {
+      "n": 3004,
+      "observed_rate": 0.5136,
+      "models": {
+        "league_rate": {
+          "brier": 0.2487,
+          "log_loss": 0.691,
+          "auc": 0.559,
+          "ece": 0.0264,
+          "mean_forecast": 0.5022
+        },
+        "raw_indicator (experiment)": {
+          "brier": 0.2718,
+          "log_loss": 0.7763,
+          "auc": 0.545,
+          "ece": 0.1126,
+          "mean_forecast": 0.5024
+        },
+        "shrunk_indicator": {
+          "brier": 0.2514,
+          "log_loss": 0.6971,
+          "auc": 0.559,
+          "ece": 0.0519,
+          "mean_forecast": 0.5026
+        },
+        "recalibrated_indicator": {
+          "brier": 0.2485,
+          "log_loss": 0.6902,
+          "auc": 0.545,
+          "ece": 0.0082,
+          "mean_forecast": 0.5112
+        },
+        "poisson": {
+          "brier": 0.2544,
+          "log_loss": 0.7034,
+          "auc": 0.558,
+          "ece": 0.0649,
+          "mean_forecast": 0.4636
+        },
+        "dixon_coles": {
+          "brier": 0.2543,
+          "log_loss": 0.7032,
+          "auc": 0.558,
+          "ece": 0.0651,
+          "mean_forecast": 0.4643
+        },
+        "poisson+indicator (logistic)": {
+          "brier": 0.2477,
+          "log_loss": 0.6886,
+          "auc": 0.556,
+          "ece": 0.0142,
+          "mean_forecast": 0.5035
+        },
+        "poisson (logistic recalibrated)": {
+          "brier": 0.2475,
+          "log_loss": 0.6881,
+          "auc": 0.558,
+          "ece": 0.0109,
+          "mean_forecast": 0.5039
+        }
+      },
+      "paired_brier": {
+        "raw_indicator (experiment) - league_rate": {
+          "mean": 0.02308,
+          "ci95": [
+            0.0168,
+            0.03019
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "shrunk_indicator - league_rate": {
+          "mean": 0.00268,
+          "ci95": [
+            0.00031,
+            0.00521
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "recalibrated_indicator - league_rate": {
+          "mean": -0.0002,
+          "ci95": [
+            -0.00317,
+            0.00275
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        },
+        "poisson - league_rate": {
+          "mean": 0.00565,
+          "ci95": [
+            0.00173,
+            0.00928
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "dixon_coles - league_rate": {
+          "mean": 0.0056,
+          "ci95": [
+            0.00171,
+            0.00924
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "poisson+indicator (logistic) - league_rate": {
+          "mean": -0.00098,
+          "ci95": [
+            -0.00405,
+            0.00179
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        },
+        "poisson (logistic recalibrated) - league_rate": {
+          "mean": -0.00125,
+          "ci95": [
+            -0.00421,
+            0.00145
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        },
+        "shrunk_indicator - raw_indicator (experiment)": {
+          "mean": -0.0204,
+          "ci95": [
+            -0.0269,
+            -0.0151
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "dixon_coles - poisson": {
+          "mean": -5e-05,
+          "ci95": [
+            -0.00011,
+            1e-05
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        },
+        "poisson+indicator (logistic) - poisson (logistic recalibrated)": {
+          "mean": 0.00028,
+          "ci95": [
+            1e-05,
+            0.00053
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "poisson - shrunk_indicator": {
+          "mean": 0.00297,
+          "ci95": [
+            -0.00059,
+            0.00608
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        }
+      }
+    },
+    "venue_over": {
+      "n": 3004,
+      "observed_rate": 0.464,
+      "models": {
+        "league_rate": {
+          "brier": 0.2441,
+          "log_loss": 0.6819,
+          "auc": 0.588,
+          "ece": 0.0253,
+          "mean_forecast": 0.4504
+        },
+        "raw_indicator (experiment)": {
+          "brier": 0.269,
+          "log_loss": 0.776,
+          "auc": 0.561,
+          "ece": 0.1166,
+          "mean_forecast": 0.4523
+        },
+        "shrunk_indicator": {
+          "brier": 0.2474,
+          "log_loss": 0.6895,
+          "auc": 0.583,
+          "ece": 0.054,
+          "mean_forecast": 0.4518
+        },
+        "recalibrated_indicator": {
+          "brier": 0.2468,
+          "log_loss": 0.6867,
+          "auc": 0.558,
+          "ece": 0.0123,
+          "mean_forecast": 0.4731
+        },
+        "poisson": {
+          "brier": 0.2519,
+          "log_loss": 0.6998,
+          "auc": 0.572,
+          "ece": 0.072,
+          "mean_forecast": 0.4401
+        },
+        "dixon_coles": {
+          "brier": 0.2519,
+          "log_loss": 0.6998,
+          "auc": 0.572,
+          "ece": 0.072,
+          "mean_forecast": 0.4401
+        },
+        "poisson+indicator (logistic)": {
+          "brier": 0.2454,
+          "log_loss": 0.6838,
+          "auc": 0.569,
+          "ece": 0.0158,
+          "mean_forecast": 0.4707
+        },
+        "poisson (logistic recalibrated)": {
+          "brier": 0.2452,
+          "log_loss": 0.6833,
+          "auc": 0.57,
+          "ece": 0.0142,
+          "mean_forecast": 0.4702
+        }
+      },
+      "paired_brier": {
+        "raw_indicator (experiment) - league_rate": {
+          "mean": 0.02497,
+          "ci95": [
+            0.01729,
+            0.03345
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "shrunk_indicator - league_rate": {
+          "mean": 0.00332,
+          "ci95": [
+            0.00099,
+            0.00577
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "recalibrated_indicator - league_rate": {
+          "mean": 0.00269,
+          "ci95": [
+            -0.00038,
+            0.00589
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        },
+        "poisson - league_rate": {
+          "mean": 0.00787,
+          "ci95": [
+            0.00401,
+            0.01177
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "dixon_coles - league_rate": {
+          "mean": 0.00787,
+          "ci95": [
+            0.00401,
+            0.01177
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "poisson+indicator (logistic) - league_rate": {
+          "mean": 0.00129,
+          "ci95": [
+            -0.00217,
+            0.00479
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        },
+        "poisson (logistic recalibrated) - league_rate": {
+          "mean": 0.00109,
+          "ci95": [
+            -0.00224,
+            0.00443
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        },
+        "shrunk_indicator - raw_indicator (experiment)": {
+          "mean": -0.02165,
+          "ci95": [
+            -0.02902,
+            -0.01544
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        },
+        "dixon_coles - poisson": {
+          "mean": -0.0,
+          "ci95": [
+            -0.0,
+            0.0
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        },
+        "poisson+indicator (logistic) - poisson (logistic recalibrated)": {
+          "mean": 0.0002,
+          "ci95": [
+            -2e-05,
+            0.00043
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": false
+        },
+        "poisson - shrunk_indicator": {
+          "mean": 0.00455,
+          "ci95": [
+            0.00174,
+            0.0073
+          ],
+          "n": 3004,
+          "clusters": 83,
+          "excludes_zero": true
+        }
+      }
+    }
+  },
+  "overall_vs_venue_common": {
+    "fixtures": 3004,
+    "btts_raw": {
+      "brier_overall": 0.2615,
+      "brier_venue": 0.2718,
+      "auc_overall": 0.538,
+      "auc_venue": 0.545,
+      "venue_minus_overall_brier": {
+        "mean": 0.0103,
+        "ci95": [
+          0.00435,
+          0.0166
+        ],
+        "n": 3004,
+        "clusters": 83,
+        "excludes_zero": true
+      }
+    },
+    "btts_shrunk": {
+      "brier_overall": 0.2524,
+      "brier_venue": 0.2514,
+      "auc_overall": 0.55,
+      "auc_venue": 0.559,
+      "venue_minus_overall_brier": {
+        "mean": -0.00099,
+        "ci95": [
+          -0.00336,
+          0.00138
+        ],
+        "n": 3004,
+        "clusters": 83,
+        "excludes_zero": false
+      }
+    },
+    "over_raw": {
+      "brier_overall": 0.2576,
+      "brier_venue": 0.269,
+      "auc_overall": 0.563,
+      "auc_venue": 0.561,
+      "venue_minus_overall_brier": {
+        "mean": 0.01139,
+        "ci95": [
+          0.00594,
+          0.01724
+        ],
+        "n": 3004,
+        "clusters": 83,
+        "excludes_zero": true
+      }
+    },
+    "over_shrunk": {
+      "brier_overall": 0.248,
+      "brier_venue": 0.2474,
+      "auc_overall": 0.579,
+      "auc_venue": 0.583,
+      "venue_minus_overall_brier": {
+        "mean": -0.00063,
+        "ci95": [
+          -0.00281,
+          0.0017
+        ],
+        "n": 3004,
+        "clusters": 83,
+        "excludes_zero": false
+      }
+    }
+  },
+  "early_season": {
+    "overall": {
+      "fixtures": 3237,
+      "no_indicator_share": 0.036,
+      "limited_share_min_n_lt_6": 0.215,
+      "full_10_share": 0.647
+    },
+    "venue": {
+      "fixtures": 3237,
+      "no_indicator_share": 0.072,
+      "limited_share_min_n_lt_6": 0.415,
+      "full_10_share": 0.383
+    }
+  },
+  "goal_rate_model": {
+    "overall": {
+      "n": 3121,
+      "mean_lambda_home": 1.363,
+      "mean_home_goals": 1.391,
+      "mean_lambda_away": 1.111,
+      "mean_away_goals": 1.111,
+      "mean_lambda_total": 2.473,
+      "mean_total_goals": 2.502,
+      "total_goals_distribution": {
+        "goals": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          "10+"
+        ],
+        "observed": [
+          0.0827,
+          0.2003,
+          0.2547,
+          0.223,
+          0.1368,
+          0.0631,
+          0.024,
+          0.0093,
+          0.0045,
+          0.0013,
+          0.0003
+        ],
+        "poisson": [
+          0.0984,
+          0.2137,
+          0.2457,
+          0.1984,
+          0.1261,
+          0.067,
+          0.0309,
+          0.0127,
+          0.0047,
+          0.0016,
+          0.0007
+        ],
+        "dixon_coles": [
+          0.0997,
+          0.2111,
+          0.247,
+          0.1984,
+          0.1261,
+          0.067,
+          0.0309,
+          0.0127,
+          0.0047,
+          0.0016,
+          0.0007
+        ]
+      },
+      "draw_rate_observed": 0.2791,
+      "draw_prob_poisson": 0.2635,
+      "draw_prob_dc": 0.2661,
+      "low_score_observed": {
+        "0-0": 0.0827,
+        "1-0": 0.1118,
+        "0-1": 0.0884,
+        "1-1": 0.1368
+      },
+      "log_loss_1x2": {
+        "poisson": 1.0568,
+        "dc": 1.0566
+      },
+      "brier_1x2": {
+        "poisson": 0.6377,
+        "dc": 0.6376
+      },
+      "dc_minus_poisson_log_loss_1x2": {
+        "mean": -0.0002,
+        "ci95": [
+          -0.00059,
+          0.00015
+        ],
+        "n": 3121,
+        "clusters": 86,
+        "excludes_zero": false
+      },
+      "ece_draw": {
+        "poisson": 0.0254,
+        "dc": 0.0233
+      },
+      "total_goals_calibration": [
+        {
+          "predicted_band": "[0, 2.25)",
+          "n": 1125,
+          "mean_predicted": 1.886,
+          "mean_observed": 2.209
+        },
+        {
+          "predicted_band": "[2.25, 2.5)",
+          "n": 523,
+          "mean_predicted": 2.377,
+          "mean_observed": 2.671
+        },
+        {
+          "predicted_band": "[2.5, 2.75)",
+          "n": 532,
+          "mean_predicted": 2.621,
+          "mean_observed": 2.633
+        },
+        {
+          "predicted_band": "[2.75, 3.0)",
+          "n": 392,
+          "mean_predicted": 2.87,
+          "mean_observed": 2.602
+        },
+        {
+          "predicted_band": "[3.0, 9)",
+          "n": 549,
+          "mean_predicted": 3.343,
+          "mean_observed": 2.741
+        }
+      ]
+    },
+    "venue": {
+      "n": 3004,
+      "mean_lambda_home": 1.37,
+      "mean_home_goals": 1.388,
+      "mean_lambda_away": 1.098,
+      "mean_away_goals": 1.111,
+      "mean_lambda_total": 2.468,
+      "mean_total_goals": 2.499,
+      "total_goals_distribution": {
+        "goals": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          "10+"
+        ],
+        "observed": [
+          0.0832,
+          0.1994,
+          0.2533,
+          0.225,
+          0.1378,
+          0.0626,
+          0.0243,
+          0.0087,
+          0.004,
+          0.0013,
+          0.0003
+        ],
+        "poisson": [
+          0.1,
+          0.2149,
+          0.2451,
+          0.1971,
+          0.1252,
+          0.0667,
+          0.031,
+          0.0128,
+          0.0048,
+          0.0017,
+          0.0008
+        ],
+        "dixon_coles": [
+          0.1007,
+          0.2135,
+          0.2457,
+          0.1971,
+          0.1252,
+          0.0667,
+          0.031,
+          0.0128,
+          0.0048,
+          0.0017,
+          0.0008
+        ]
+      },
+      "draw_rate_observed": 0.28,
+      "draw_prob_poisson": 0.2651,
+      "draw_prob_dc": 0.2665,
+      "low_score_observed": {
+        "0-0": 0.0832,
+        "1-0": 0.1095,
+        "0-1": 0.0899,
+        "1-1": 0.1368
+      },
+      "log_loss_1x2": {
+        "poisson": 1.0579,
+        "dc": 1.0578
+      },
+      "brier_1x2": {
+        "poisson": 0.6383,
+        "dc": 0.6383
+      },
+      "dc_minus_poisson_log_loss_1x2": {
+        "mean": -8e-05,
+        "ci95": [
+          -0.0004,
+          0.00024
+        ],
+        "n": 3004,
+        "clusters": 83,
+        "excludes_zero": false
+      },
+      "ece_draw": {
+        "poisson": 0.0241,
+        "dc": 0.0262
+      },
+      "total_goals_calibration": [
+        {
+          "predicted_band": "[0, 2.25)",
+          "n": 1149,
+          "mean_predicted": 1.876,
+          "mean_observed": 2.296
+        },
+        {
+          "predicted_band": "[2.25, 2.5)",
+          "n": 450,
+          "mean_predicted": 2.381,
+          "mean_observed": 2.349
+        },
+        {
+          "predicted_band": "[2.5, 2.75)",
+          "n": 477,
+          "mean_predicted": 2.622,
+          "mean_observed": 2.623
+        },
+        {
+          "predicted_band": "[2.75, 3.0)",
+          "n": 366,
+          "mean_predicted": 2.877,
+          "mean_observed": 2.694
+        },
+        {
+          "predicted_band": "[3.0, 9)",
+          "n": 562,
+          "mean_predicted": 3.352,
+          "mean_observed": 2.804
+        }
+      ]
+    }
+  }
+}

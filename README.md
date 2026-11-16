@@ -25,6 +25,12 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   market-implied goals research (offline; scripts in `scripts/research_*.py`, which
   need the dev dependencies numpy and scipy installed by `uv sync`):
   [`docs/milestone5_1_report.md`](docs/milestone5_1_report.md)
+* **Milestone 5.2** — statistical model research and validation (offline; no
+  production change): [`docs/milestone5_2_product_recommendations.md`](docs/milestone5_2_product_recommendations.md),
+  with the [baseline and reproduction guide](docs/milestone5_2_baseline.md) and reports on the
+  [Form Score](docs/milestone5_2_form_score_research.md),
+  [goal models](docs/milestone5_2_goal_model_research.md) and
+  [BTTS / Over-Under](docs/milestone5_2_goals_market_research.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 

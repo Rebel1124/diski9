@@ -1,0 +1,61 @@
+basis,market,forecast,bin,n,mean_forecast,observed
+overall,btts,raw_indicator (experiment),"[0.00, 0.20)",89,0.0823,0.427
+overall,btts,raw_indicator (experiment),"[0.20, 0.40)",530,0.3097,0.4453
+overall,btts,raw_indicator (experiment),"[0.40, 0.60)",1532,0.4875,0.5287
+overall,btts,raw_indicator (experiment),"[0.60, 0.80)",861,0.6548,0.518
+overall,btts,raw_indicator (experiment),"[0.80, 1.00]",109,0.8868,0.6239
+overall,btts,shrunk_indicator,"[0.00, 0.20)",12,0.1742,0.25
+overall,btts,shrunk_indicator,"[0.20, 0.40)",583,0.3418,0.4443
+overall,btts,shrunk_indicator,"[0.40, 0.60)",1931,0.5071,0.5173
+overall,btts,shrunk_indicator,"[0.60, 0.80)",587,0.6603,0.5622
+overall,btts,shrunk_indicator,"[0.80, 1.00]",8,0.8294,0.875
+overall,btts,poisson,"[0.00, 0.20)",30,0.1811,0.3333
+overall,btts,poisson,"[0.20, 0.40)",872,0.3302,0.4553
+overall,btts,poisson,"[0.40, 0.60)",1858,0.4959,0.5285
+overall,btts,poisson,"[0.60, 0.80)",361,0.6478,0.5789
+overall,btts,poisson,"[0.80, 1.00]",0,,
+overall,over,raw_indicator (experiment),"[0.00, 0.20)",185,0.087,0.3297
+overall,over,raw_indicator (experiment),"[0.20, 0.40)",770,0.3005,0.4078
+overall,over,raw_indicator (experiment),"[0.40, 0.60)",1474,0.4798,0.4776
+overall,over,raw_indicator (experiment),"[0.60, 0.80)",623,0.6515,0.5329
+overall,over,raw_indicator (experiment),"[0.80, 1.00]",69,0.8961,0.4638
+overall,over,shrunk_indicator,"[0.00, 0.20)",85,0.1588,0.3294
+overall,over,shrunk_indicator,"[0.20, 0.40)",930,0.3193,0.372
+overall,over,shrunk_indicator,"[0.40, 0.60)",1695,0.4952,0.5068
+overall,over,shrunk_indicator,"[0.60, 0.80)",406,0.6504,0.5148
+overall,over,shrunk_indicator,"[0.80, 1.00]",5,0.8266,0.2
+overall,over,poisson,"[0.00, 0.20)",129,0.1615,0.3023
+overall,over,poisson,"[0.20, 0.40)",1066,0.3161,0.3977
+overall,over,poisson,"[0.40, 0.60)",1512,0.4939,0.5146
+overall,over,poisson,"[0.60, 0.80)",411,0.6639,0.4842
+overall,over,poisson,"[0.80, 1.00]",3,0.8183,1.0
+venue,btts,raw_indicator (experiment),"[0.00, 0.20)",151,0.0653,0.3907
+venue,btts,raw_indicator (experiment),"[0.20, 0.40)",589,0.3056,0.472
+venue,btts,raw_indicator (experiment),"[0.40, 0.60)",1320,0.4918,0.5212
+venue,btts,raw_indicator (experiment),"[0.60, 0.80)",774,0.6669,0.5568
+venue,btts,raw_indicator (experiment),"[0.80, 1.00]",170,0.9061,0.5118
+venue,btts,shrunk_indicator,"[0.00, 0.20)",11,0.1863,0.3636
+venue,btts,shrunk_indicator,"[0.20, 0.40)",626,0.3379,0.4217
+venue,btts,shrunk_indicator,"[0.40, 0.60)",1781,0.508,0.5255
+venue,btts,shrunk_indicator,"[0.60, 0.80)",570,0.6641,0.5789
+venue,btts,shrunk_indicator,"[0.80, 1.00]",16,0.8095,0.5625
+venue,btts,poisson,"[0.00, 0.20)",26,0.1862,0.1923
+venue,btts,poisson,"[0.20, 0.40)",896,0.3271,0.4688
+venue,btts,poisson,"[0.40, 0.60)",1682,0.4961,0.5232
+venue,btts,poisson,"[0.60, 0.80)",398,0.6504,0.5955
+venue,btts,poisson,"[0.80, 1.00]",2,0.8091,0.5
+venue,over,raw_indicator (experiment),"[0.00, 0.20)",295,0.0814,0.3593
+venue,over,raw_indicator (experiment),"[0.20, 0.40)",740,0.3012,0.4203
+venue,over,raw_indicator (experiment),"[0.40, 0.60)",1285,0.4869,0.4732
+venue,over,raw_indicator (experiment),"[0.60, 0.80)",566,0.6666,0.5601
+venue,over,raw_indicator (experiment),"[0.80, 1.00]",118,0.9215,0.4407
+venue,over,shrunk_indicator,"[0.00, 0.20)",91,0.1641,0.2967
+venue,over,shrunk_indicator,"[0.20, 0.40)",946,0.3167,0.3848
+venue,over,shrunk_indicator,"[0.40, 0.60)",1567,0.4978,0.4939
+venue,over,shrunk_indicator,"[0.60, 0.80)",395,0.6547,0.5747
+venue,over,shrunk_indicator,"[0.80, 1.00]",5,0.806,0.4
+venue,over,poisson,"[0.00, 0.20)",142,0.1624,0.2887
+venue,over,poisson,"[0.20, 0.40)",1072,0.314,0.416
+venue,over,poisson,"[0.40, 0.60)",1354,0.497,0.4941
+venue,over,poisson,"[0.60, 0.80)",430,0.6615,0.5419
+venue,over,poisson,"[0.80, 1.00]",6,0.8359,0.8333

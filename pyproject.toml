@@ -42,3 +42,4 @@ select = ["E", "F", "I", "B", "UP", "SIM"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["E501"]
 "src/diski9/app/views.py" = ["E501"]  # user-facing prose strings
+"src/diski9/research/charts.py" = ["E501"]  # inline SVG markup

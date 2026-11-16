@@ -1,0 +1,25 @@
+league,model,n,log_loss
+EPL,base,440,1.0839
+EPL,a,440,1.0707
+EPL,b,440,1.0713
+EPL,c,440,1.0697
+EPL,d,440,1.0685
+EPL,ppg_gd,440,1.0662
+Championship,base,684,1.0803
+Championship,a,684,1.0669
+Championship,b,684,1.0662
+Championship,c,684,1.064
+Championship,d,684,1.0643
+Championship,ppg_gd,684,1.0647
+PSL,base,280,1.0959
+PSL,a,280,1.0492
+PSL,b,280,1.0476
+PSL,c,280,1.0503
+PSL,d,280,1.0513
+PSL,ppg_gd,280,1.0528
+PSL 1st Div,base,286,1.0738
+PSL 1st Div,a,286,1.0594
+PSL 1st Div,b,286,1.0577
+PSL 1st Div,c,286,1.0556
+PSL 1st Div,d,286,1.0546
+PSL 1st Div,ppg_gd,286,1.0562
