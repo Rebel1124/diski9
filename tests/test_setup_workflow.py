@@ -24,7 +24,7 @@ from diski9.db.schema import (
 )
 from diski9.ingestion.common import MissingReferenceData
 from diski9.ingestion.fixtures import ingest_fixtures
-from diski9.leagues import BACKFILL_SEASONS, COMPETITIONS, CURRENT_SEASON
+from diski9.leagues import BACKFILL_SEASONS, COMPETITIONS, CURRENT_SEASON, seasons_for
 
 from .conftest import envelope, json_response
 from .factories import T0, fixture_item, full_book, odds_item
@@ -232,18 +232,20 @@ def test_setup_from_empty_database_populates_everything(empty_db, api):
     res = run_setup(empty_db, client, with_odds=True)
     c = counts(empty_db)
     n_comp, n_seasons = len(COMPETITIONS), len(BACKFILL_SEASONS)
+    ingested = sum(len(seasons_for(cid)) for cid in COMPETITIONS)  # new leagues: 2025-2026
     per_season = TEAMS_PER_LEAGUE * (TEAMS_PER_LEAGUE - 1)
     assert c["competitions"] == n_comp and c["seasons"] == n_comp * n_seasons
     assert c["teams"] == n_comp * TEAMS_PER_LEAGUE and c["venues"] == n_comp * TEAMS_PER_LEAGUE
-    assert c["fixtures"] == c["distinct_fixtures"] == n_comp * n_seasons * per_season
-    assert c["team_seasons"] == n_comp * n_seasons * TEAMS_PER_LEAGUE
-    assert c["standings_snapshots"] == 2 * TEAMS_PER_LEAGUE  # EPL + PSL official tables
-    # every competition and every season 2023-2026 was fetched exactly once
+    assert c["fixtures"] == c["distinct_fixtures"] == ingested * per_season
+    assert c["team_seasons"] == ingested * TEAMS_PER_LEAGUE
+    tier1 = sum(1 for x in COMPETITIONS.values() if x.tier == 1)
+    assert c["standings_snapshots"] == tier1 * TEAMS_PER_LEAGUE  # official top-flight tables
+    # every competition and each of its backfill seasons was fetched exactly once
     assert fake.fixture_calls() == Counter(
-        {(cid, yr): 1 for cid in COMPETITIONS for yr in BACKFILL_SEASONS}
+        {(cid, yr): 1 for cid in COMPETITIONS for yr in seasons_for(cid)}
     )
-    # screener cache: 6 upcoming top-flight fixtures per league x 2 leagues x 2 bases
-    assert res.screener_fixtures == 12 and c["active_cache"] == 24
+    # Engine 3.0 screener: 6 upcoming fixtures in each of the 8 leagues, overall basis
+    assert res.screener_fixtures == 48 and c["active_cache"] == 48
     assert workflow.missing_requirements(empty_db) == []
     # reference rows were created before fixtures: no dangling foreign keys
     with empty_db.connect() as conn:
@@ -261,11 +263,12 @@ def test_setup_rerun_is_idempotent_and_skips_historical_seasons(empty_db, api):
     res = run_setup(empty_db, client)
     assert counts(empty_db) == before
     assert fake.fixture_calls() == Counter({(cid, CURRENT_SEASON): 1 for cid in COMPETITIONS})
-    assert len(res.seasons_skipped) == len(COMPETITIONS) * (len(BACKFILL_SEASONS) - 1)
-    assert res.screener["inserted"] == 0 and res.screener["unchanged"] == 24
+    ingested = sum(len(seasons_for(cid)) for cid in COMPETITIONS)
+    assert len(res.seasons_skipped) == ingested - len(COMPETITIONS)
+    assert res.screener["inserted"] == 0 and res.screener["unchanged"] == 48
     fake.calls.clear()
     run_setup(empty_db, client, force=True)  # explicit full re-fetch still creates no duplicates
-    assert sum(fake.fixture_calls().values()) == len(COMPETITIONS) * len(BACKFILL_SEASONS)
+    assert sum(fake.fixture_calls().values()) == ingested
     assert counts(empty_db) == before
 
 
@@ -314,7 +317,7 @@ def test_interrupted_setup_builds_no_cache_and_resumes(empty_db, api):
     run_setup(empty_db, client)
     fetched = fake.fixture_calls()
     assert fetched[(289, 2024)] == 1 and fetched[(39, 2023)] == 0  # resumed, not restarted
-    assert counts(empty_db)["active_cache"] == 24
+    assert counts(empty_db)["active_cache"] == 48
     assert workflow.missing_requirements(empty_db) == []
 
 
@@ -335,4 +338,4 @@ def test_odds_failure_does_not_block_screener_cache(empty_db, api):
     messages = []
     res = workflow.setup(empty_db, client, with_odds=True, clock=lambda: T0, log=messages.append)
     assert any(m.startswith("WARNING odds 39") for m in messages)
-    assert res.screener_fixtures == 12 and counts(empty_db)["active_cache"] == 24
+    assert res.screener_fixtures == 48 and counts(empty_db)["active_cache"] == 48

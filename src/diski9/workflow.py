@@ -38,7 +38,7 @@ from diski9.db.schema import competitions, fixtures, ingestion_runs, seasons
 from diski9.ingestion import reference
 from diski9.ingestion.common import MissingReferenceData, utcnow
 from diski9.ingestion.fixtures import ingest_fixtures, refresh_venue_classification
-from diski9.leagues import BACKFILL_SEASONS, COMPETITIONS, CURRENT_SEASON
+from diski9.leagues import COMPETITIONS, CURRENT_SEASON, screener_competitions, seasons_for
 from diski9.odds.collect import collect_odds
 from diski9.screener import cache
 
@@ -79,7 +79,7 @@ def _completed(engine: Engine, job: str, competition_id: int, season: int) -> bo
 def missing_requirements(
     engine: Engine,
     competition_ids: list[int] | None = None,
-    years: tuple[int, ...] = BACKFILL_SEASONS,
+    years: tuple[int, ...] | None = None,
 ) -> list[str]:
     """Human-readable list of what is missing for the screener to be valid."""
     competition_ids = competition_ids or list(COMPETITIONS)
@@ -104,7 +104,7 @@ def missing_requirements(
         if cid not in have_comp:
             problems.append(f"competition {cid} not loaded")
             continue
-        for yr in years:
+        for yr in years or seasons_for(cid):
             if (cid, yr) not in have_season:
                 problems.append(f"season row missing: competition {cid} season {yr}")
             elif not counts.get((cid, yr)) or not _completed(engine, "ingest_fixtures", cid, yr):
@@ -125,9 +125,9 @@ def _ingest_season(
 
 
 def _screener(engine: Engine, now: datetime, days: int, res: WorkflowResult) -> None:
-    top = [c.id for c in COMPETITIONS.values() if c.tier == 1]
+    comps = screener_competitions()
     with engine.begin() as conn:
-        ids = cache.upcoming_fixture_ids(conn, top, now, now + timedelta(days=days))
+        ids = cache.upcoming_fixture_ids(conn, comps, now, now + timedelta(days=days))
         res.screener = cache.refresh(conn, ids, now, now)
         res.screener_fixtures = len(ids)
 
@@ -159,7 +159,7 @@ def setup(
     with engine.connect() as conn:
         available = {(r.competition_id, r.year) for r in conn.execute(select(seasons))}
     for cid in comp_ids:
-        for yr in BACKFILL_SEASONS:
+        for yr in seasons_for(cid):
             if (cid, yr) not in available:
                 raise MissingReferenceData(
                     f"API-Football lists no season {yr} for competition {cid}"
@@ -170,7 +170,7 @@ def setup(
     log("teams and venues loaded")
 
     for cid in comp_ids:
-        for yr in BACKFILL_SEASONS:
+        for yr in seasons_for(cid):
             historical = yr != CURRENT_SEASON
             if historical and not force and _completed(engine, "ingest_fixtures", cid, yr):
                 res.seasons_skipped.append((cid, yr))
@@ -180,7 +180,7 @@ def setup(
 
     with engine.begin() as conn:
         for cid in comp_ids:
-            for yr in BACKFILL_SEASONS:
+            for yr in seasons_for(cid):
                 refresh_venue_classification(conn, cid, yr)
 
     problems = missing_requirements(engine, comp_ids)
