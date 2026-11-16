@@ -304,21 +304,30 @@ class ApiFootballClient:
         *,
         max_pages: int | None = None,
     ) -> Iterator[ApiResponse]:
-        """Yield successive pages until ``paging.total`` (or ``max_pages``) is reached.
+        """Yield successive pages until the largest ``paging.total`` seen (or ``max_pages``).
 
         Only some endpoints are paginated (e.g. ``/odds``); others return
         ``paging.total == 1`` and reject a ``page`` parameter, so the first
         request is always sent without one.
+
+        API-Football can serve pages from different cache snapshots while it
+        refreshes (observed 16 Nov 2026: page 1 said 2 pages, page 2 said 3).
+        The highest total reported by any page is therefore followed, and the
+        walk stops early at an empty page beyond the first.
         """
         base = dict(params or {})
         base.pop("page", None)
         first = self.get(endpoint, base)
         yield first
         total = first.paging_total
-        if max_pages is not None:
-            total = min(total, max_pages)
-        for page in range(2, total + 1):
-            yield self.get(endpoint, {**base, "page": page})
+        page = 2
+        while page <= total and (max_pages is None or page <= max_pages):
+            resp = self.get(endpoint, {**base, "page": page})
+            yield resp
+            if not resp.items:
+                break
+            total = max(total, resp.paging_total)
+            page += 1
 
     def get_all(
         self,

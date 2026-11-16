@@ -30,7 +30,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Connection, and_, insert, select, true, update
+from sqlalchemy import Connection, and_, func, insert, select, true, update
 
 from diski9.api_football import ApiFootballClient
 from diski9.api_football.markets import Quote, extract_quotes, parse_provider_timestamp
@@ -56,6 +56,8 @@ class FetchStats:
     quotes_disappeared: int = 0
     quotes_closed_at_kickoff: int = 0
     skipped: dict[str, int] = field(default_factory=lambda: defaultdict(int))
+    duplicate_items: int = 0
+    inconsistent_pagination: bool = False
     warnings: list[str] = field(default_factory=list)
 
 
@@ -129,6 +131,27 @@ def apply_fixture_quotes(
             .values(ended_at=retrieved_at, end_reason="disappeared")
         )
         stats.quotes_disappeared += len(gone)
+
+
+def _latest_provider_updates(conn: Connection, fixture_ids: list[int]) -> dict[int, datetime]:
+    """Newest provider ``update`` already stored per fixture."""
+    if not fixture_ids:
+        return {}
+    rows = conn.execute(
+        select(
+            odds_fixture_observations.c.fixture_id,
+            func.max(odds_fixture_observations.c.provider_updated_at),
+        )
+        .where(odds_fixture_observations.c.fixture_id.in_(fixture_ids))
+        .group_by(odds_fixture_observations.c.fixture_id)
+    ).all()
+    # max() on the ISO text column returns a string; parse back to aware datetimes
+    out = {}
+    for fid, value in rows:
+        if value is None:
+            continue
+        out[fid] = value if isinstance(value, datetime) else datetime.fromisoformat(value)
+    return out
 
 
 def close_started_fixtures(
@@ -218,43 +241,79 @@ def reconcile_pages(
             )
         )
     }
-    in_response: set[int] = set()
-    complete = False
-    for page in pages:
+    # Materialise the pages, then pick one item per fixture. Pages can come from
+    # different provider snapshots (inconsistent totals, overlapping items), so
+    # the item with the newest provider ``update`` wins; ties keep the first.
+    page_list = list(pages)
+    chosen: dict[int, tuple[dict[str, Any], datetime]] = {}
+    totals: set[int] = set()
+    duplicates = 0
+    for page in page_list:
         stats.requests += 1
         stats.pages += 1
-        complete = page.paging_current >= page.paging_total
-        retrieved_at = page.retrieved_at
+        totals.add(page.paging_total)
         for item in page.items:
             stats.fixtures_in_response += 1
             fid = int(item["fixture"]["id"])
-            in_response.add(fid)
-            fx = known.get(fid)
-            if fx is None:
-                stats.skipped["unknown_fixture"] += 1
+            if fid in chosen:
+                duplicates += 1
+                prev_item, _ = chosen[fid]
+                new_upd = parse_provider_timestamp(item.get("update"))
+                old_upd = parse_provider_timestamp(prev_item.get("update"))
+                if new_upd and (old_upd is None or new_upd > old_upd):
+                    chosen[fid] = (item, page.retrieved_at)
                 continue
-            if fx.kickoff_utc <= retrieved_at:
-                stats.skipped["kicked_off"] += 1
-                continue
-            if fx.status_short not in UPCOMING_STATUSES:
-                stats.skipped[f"status_{fx.status_short}"] += 1
-                continue
-            quotes, warnings = extract_quotes(item)
-            stats.warnings.extend(warnings)
-            for b in item.get("bookmakers") or []:
-                ensure_bookmaker(conn, int(b["id"]), b.get("name"), retrieved_at)
-            conn.execute(
-                insert(odds_fixture_observations).values(
-                    fetch_id=stats.fetch_id,
-                    fixture_id=fid,
-                    retrieved_at=retrieved_at,
-                    provider_updated_at=parse_provider_timestamp(item.get("update")),
-                    bookmakers_listed=len(item.get("bookmakers") or []),
-                    quotes_parsed=len(quotes),
-                )
+            chosen[fid] = (item, page.retrieved_at)
+    last = page_list[-1] if page_list else None
+    stats.duplicate_items = duplicates
+    stats.inconsistent_pagination = bool(duplicates) or len(totals) > 1
+    if stats.inconsistent_pagination:
+        stats.warnings.append(
+            f"inconsistent pagination: page totals {sorted(totals)}, "
+            f"{duplicates} duplicate fixture item(s); whole-fixture disappearance not inferred"
+        )
+    # Disappearance of whole fixtures is only inferred from a consistent, complete walk.
+    complete = (
+        last is not None
+        and not stats.inconsistent_pagination
+        and last.paging_current >= last.paging_total
+    )
+    in_response: set[int] = set(chosen)
+    latest_seen = _latest_provider_updates(conn, list(chosen))
+
+    for fid, (item, retrieved_at) in chosen.items():
+        fx = known.get(fid)
+        if fx is None:
+            stats.skipped["unknown_fixture"] += 1
+            continue
+        if fx.kickoff_utc <= retrieved_at:
+            stats.skipped["kicked_off"] += 1
+            continue
+        if fx.status_short not in UPCOMING_STATUSES:
+            stats.skipped[f"status_{fx.status_short}"] += 1
+            continue
+        provider_update = parse_provider_timestamp(item.get("update"))
+        seen = latest_seen.get(fid)
+        if provider_update and seen and provider_update < seen:
+            # an older snapshot than data already stored: never move prices backwards
+            stats.skipped["stale_item"] += 1
+            continue
+        quotes, warnings = extract_quotes(item)
+        stats.warnings.extend(warnings)
+        for b in item.get("bookmakers") or []:
+            ensure_bookmaker(conn, int(b["id"]), b.get("name"), retrieved_at)
+        conn.execute(
+            insert(odds_fixture_observations).values(
+                fetch_id=stats.fetch_id,
+                fixture_id=fid,
+                retrieved_at=retrieved_at,
+                provider_updated_at=provider_update,
+                bookmakers_listed=len(item.get("bookmakers") or []),
+                quotes_parsed=len(quotes),
             )
-            apply_fixture_quotes(conn, fid, quotes, retrieved_at, stats.fetch_id, stats)
-            stats.fixtures_collected += 1
+        )
+        apply_fixture_quotes(conn, fid, quotes, retrieved_at, stats.fetch_id, stats)
+        stats.fixtures_collected += 1
 
     now = clock()
     if complete:
@@ -286,7 +345,9 @@ def reconcile_pages(
         .where(odds_fetches.c.id == stats.fetch_id)
         .values(
             finished_at=now,
-            status="complete" if complete else "partial",
+            status="inconsistent"
+            if stats.inconsistent_pagination
+            else ("complete" if complete else "partial"),
             requests=stats.requests,
             pages=stats.pages,
             fixtures_in_response=stats.fixtures_in_response,

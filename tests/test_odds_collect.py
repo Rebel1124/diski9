@@ -188,3 +188,110 @@ def test_empty_response(conn, make_client, monkeypatch):
     setup(conn)
     s = run(conn, make_client, [[]], monkeypatch)
     assert s.fixtures_in_response == 0 and s.requests == 1
+
+
+# ---------------------------------------------------------------------------
+# Inconsistent provider pagination (observed live on 16 Nov 2026 ~04:56 UTC):
+# page 1 from a fresh snapshot (total 2), page 2 from a stale snapshot (total 3)
+# overlapping page 1.
+def _pages_inconsistent(fresh_upd, stale_upd, at):
+    from diski9.odds.collect import OddsPage
+
+    fresh = [
+        odds_item(1, {8: full_book(home="2.10")}, update=fresh_upd),
+        odds_item(2, {8: full_book()}, update=fresh_upd),
+    ]
+    stale = [
+        odds_item(2, {8: full_book(home="9.99")}, update=stale_upd),  # duplicate, older
+        odds_item(5, {8: full_book()}, update=stale_upd),
+    ]
+    return [OddsPage(at, fresh, 1, 2), OddsPage(at, stale, 2, 3)]
+
+
+def test_inconsistent_pages_deduplicated_newest_wins(conn):
+    from diski9.odds.collect import reconcile_pages
+
+    setup(conn, extra=[fixture_item(5, 90, 91, status="NS", kickoff=KICK)])
+    pages = _pages_inconsistent("2026-11-16T03:25:21+00:00", "2026-11-15T03:24:18+00:00", T0)
+    s = reconcile_pages(conn, 39, 2026, pages, clock=lambda: T0)
+    assert s.inconsistent_pagination and s.duplicate_items == 1
+    obs = conn.execute(select(odds_fixture_observations)).all()
+    assert sorted(o.fixture_id for o in obs) == [1, 2, 5]  # one row per fixture, no UNIQUE error
+    home2 = quotes(conn, fixture_id=2, outcome="HOME")
+    assert [q.decimal_odds for q in home2] == [
+        Decimal("2.00")
+    ]  # fresh item kept, stale 9.99 ignored
+    assert conn.execute(select(odds_fetches)).one().status == "inconsistent"
+
+
+def test_inconsistent_fetch_does_not_infer_fixture_disappearance(conn, make_client, monkeypatch):
+    from diski9.odds.collect import reconcile_pages
+
+    setup(conn)
+    # fixture 2 has active quotes; the inconsistent walk below omits it entirely
+    run(
+        conn,
+        make_client,
+        [[odds_item(1, {8: full_book()}), odds_item(2, {8: full_book()})]],
+        monkeypatch,
+    )
+    from diski9.odds.collect import OddsPage
+
+    later = T0 + timedelta(hours=3)
+    pages = [
+        OddsPage(later, [odds_item(1, {8: full_book()})], 1, 2),
+        OddsPage(later, [odds_item(1, {8: full_book()})], 2, 3),
+    ]
+    s = reconcile_pages(conn, 39, 2026, pages, clock=lambda: later)
+    assert s.inconsistent_pagination and s.quotes_disappeared == 0
+    assert all(q.ended_at is None for q in quotes(conn, fixture_id=2))
+
+
+def test_stale_item_never_moves_prices_backwards(conn):
+    from diski9.odds.collect import OddsPage, reconcile_pages
+
+    setup(conn)
+    t1 = T0
+    reconcile_pages(
+        conn,
+        39,
+        2026,
+        [
+            OddsPage(
+                t1, [odds_item(1, {8: full_book(home="2.10")}, update="2026-11-16T03:00:00+00:00")]
+            )
+        ],
+        clock=lambda: t1,
+    )
+    t2 = T0 + timedelta(hours=1)
+    s = reconcile_pages(
+        conn,
+        39,
+        2026,
+        [
+            OddsPage(
+                t2, [odds_item(1, {8: full_book(home="1.90")}, update="2026-11-15T03:00:00+00:00")]
+            )
+        ],
+        clock=lambda: t2,
+    )
+    assert s.skipped["stale_item"] == 1 and s.quotes_price_changed == 0
+    assert [q.decimal_odds for q in quotes(conn, fixture_id=1, outcome="HOME")] == [Decimal("2.10")]
+
+
+def test_paginate_follows_largest_total_and_stops_on_empty(make_client):
+    pages = {1: ([{"n": 1}], 2), 2: ([{"n": 2}], 3), 3: ([], 2)}
+
+    def handler(request):
+        page = int(request.url.params.get("page", 1))
+        items, total = pages[page]
+        return json_response(envelope(items, current=page, total=total))
+
+    client, seen = make_client(handler)
+    items = client.get_all("odds", {"league": 39})
+    assert items == [{"n": 1}, {"n": 2}]
+    assert [r.url.params.get("page") for r in seen] == [
+        None,
+        "2",
+        "3",
+    ]  # page 3 requested (total 3)

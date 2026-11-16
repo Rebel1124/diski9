@@ -208,9 +208,18 @@ def _standings_and_odds(
         log("official standings updated")
     if with_odds:
         for cid in [c.id for c in COMPETITIONS.values() if c.odds_enabled]:
-            with engine.begin() as conn:
-                st = collect_odds(conn, client, cid, CURRENT_SEASON, clock)
-            log(f"odds {cid}: {st.fixtures_collected} fixtures, {st.quotes_seen} quotes")
+            # Odds are optional context: a failure is reported (and rolled back for
+            # that competition) but never blocks the screener statistics.
+            try:
+                with engine.begin() as conn:
+                    st = collect_odds(conn, client, cid, CURRENT_SEASON, clock)
+            except Exception as exc:  # noqa: BLE001
+                log(f"WARNING odds {cid}: collection failed and was rolled back ({exc!r:.300})")
+                continue
+            note = (
+                " (provider pages inconsistent; deduplicated)" if st.inconsistent_pagination else ""
+            )
+            log(f"odds {cid}: {st.fixtures_collected} fixtures, {st.quotes_seen} quotes{note}")
 
 
 def refresh(

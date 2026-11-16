@@ -327,3 +327,12 @@ def test_ingest_without_season_row_names_the_missing_reference(empty_db, api):
         ingest_fixtures(conn, client, 39, CURRENT_SEASON)
     assert "competition 39, season 2026" in str(err.value)
     assert fake.calls == []  # checked before spending an API request
+
+
+def test_odds_failure_does_not_block_screener_cache(empty_db, api):
+    fake, client = api
+    fake.fail.add(("odds", 39, CURRENT_SEASON))
+    messages = []
+    res = workflow.setup(empty_db, client, with_odds=True, clock=lambda: T0, log=messages.append)
+    assert any(m.startswith("WARNING odds 39") for m in messages)
+    assert res.screener_fixtures == 12 and counts(empty_db)["active_cache"] == 24
