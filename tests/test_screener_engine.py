@@ -90,31 +90,38 @@ def set_venue(conn, fid, cls):
     conn.execute(update(fixtures).where(fixtures.c.id == fid).values(venue_classification=cls))
 
 
-def test_venue_windows_use_last_home_and_away_matches(db):
+def test_form_uses_last_eight_current_season_matches_home_or_away(db):
     b = Builder(db)
-    # team 1: 6 home wins 3-0 (oldest first), interleaved with away losses 0-1
+    for i in range(8):  # last season: never used by the Form Score any more
+        b.add(1, 150 + i, 0, 5, season=2025)
+    # team 1 this season: 6 home wins 3-0 interleaved with 6 away losses 0-1 (oldest first)
     for i in range(6):
-        b.add(1, 50 + i, 3, 0)
-        b.add(60 + i, 1, 1, 0)
-    # team 2: away draws 1-1
-    for i in range(6):
-        b.add(70 + i, 2, 1, 1)
+        b.add(1, 50 + i, 3, 0, season=2026)
+        b.add(60 + i, 1, 1, 0, season=2026)
+    for i in range(6):  # team 2: six away draws 1-1 this season
+        b.add(70 + i, 2, 1, 1, season=2026)
     b.upcoming(1, 2)
     b.save()
-    r = compute(db)
-    home = r["teams"]["home"]["form"]
-    # Model D: 15 pts -> 2.5 x 15/15 = 2.5; GD +15 capped at +9 -> 2.5 x 18/18 = 2.5
-    assert home["sequence"] == "W-W-W-W-W" and home["display"] == "5.00"
-    assert all(m["venue"] == "H" for m in home["matches"])
-    # away: 5 draws -> 2.5 x 5/15 = 0.83; GD 0 -> 2.5 x 9/18 = 1.25; total 2.08
-    assert r["teams"]["away"]["form"]["display"] == "2.08"
-    assert r["match_result"]["form_difference_display"] == "+2.92"
-    overall = compute(db, basis="overall")
-    assert overall["teams"]["home"]["form"]["sequence"] == "L-W-L-W-L"
-    # overall uses the same Form Difference definition (home minus away), no venue adjustment
-    mr = overall["match_result"]
-    assert mr["form_difference"] == pytest.approx(mr["home_form"] - mr["away_form"])
-    assert "venue_adjusted_difference" not in mr and "benchmark" not in mr
+    for basis in ("venue", "overall"):  # the basis no longer affects Match Result
+        r = compute(db, basis=basis)
+        home = r["teams"]["home"]["form"]
+        # last eight, newest first: L-W-L-W-L-W-L-W -> 12 of 24 pts -> 1.25;
+        # GD 4x3 - 4 = +8, cap 14.4 -> 2.5 x 22.4/28.8 = 1.94; total 3.19
+        assert home["sequence"] == "L-W-L-W-L-W-L-W" and home["display"] == "3.19"
+        assert {m["season"] for m in home["matches"]} == {2026}
+        assert home["sample"]["limited_data"] is False  # full eight-match window
+        away = r["teams"]["away"]["form"]
+        # six draws: 6 of 18 pts -> 0.83; GD 0 -> 1.25; total 2.08 (early season: 6 of 8)
+        assert away["display"] == "2.08" and away["sample"]["matches"] == 6
+        assert away["sample"]["limited_data_reasons"] == ["fewer_than_8_matches"]
+        mr = r["match_result"]
+        assert mr["form_difference"] == pytest.approx(mr["home_form"] - mr["away_form"])
+        assert "venue_adjusted_difference" not in mr and "benchmark" not in mr
+        # venue context: home team's last five home matches (5.00) vs overall (3.19)
+        vc = home["venue_context"]
+        assert vc["matches"] == 5 and vc["display"] == "5.00" and vc["available"]
+        assert vc["difference"] == pytest.approx(5.0 - home["score"])
+        assert away["venue_context"]["difference"] == pytest.approx(0.0)
 
 
 def test_goals_markets_last_ten_and_complements(db):
@@ -142,12 +149,12 @@ def test_goals_markets_last_ten_and_complements(db):
 
 def test_excluded_fixtures_never_used(db):
     b = Builder(db)
-    b.add(1, 50, 5, 0)
-    b.add(1, 51, 3, 0, status="AWD")
-    b.add(1, 52, 0, 0, status="CANC")
-    b.add(1, 53, 4, 0, round_name="Relegation Round - 1")
-    b.add(1, 54, 4, 4, status="PST")
-    b.add(70, 2, 0, 0)
+    b.add(1, 50, 5, 0, season=2026)
+    b.add(1, 51, 3, 0, status="AWD", season=2026)
+    b.add(1, 52, 0, 0, status="CANC", season=2026)
+    b.add(1, 53, 4, 0, round_name="Relegation Round - 1", season=2026)
+    b.add(1, 54, 4, 4, status="PST", season=2026)
+    b.add(70, 2, 0, 0, season=2026)
     b.upcoming(1, 2)
     b.save()
     r = compute(db)
@@ -155,45 +162,48 @@ def test_excluded_fixtures_never_used(db):
     assert r["teams"]["home"]["form"]["matches"][0]["opponent"] == "Team 50"
 
 
-def test_neutral_excluded_from_venue_windows_and_benchmark_unverified_flagged(db):
+def test_neutral_kept_in_form_excluded_from_venue_context_unverified_flagged(db):
     b = Builder(db)
-    neutral = b.add(1, 50, 3, 0)
-    unverified = b.add(1, 51, 1, 0)
-    b.add(70, 2, 0, 0)
+    neutral = b.add(1, 50, 3, 0, season=2026)
+    unverified = b.add(1, 51, 1, 0, season=2026)
+    b.add(70, 2, 0, 0, season=2026)
     b.upcoming(1, 2)
     b.save()
     set_venue(db, neutral, "neutral")
     set_venue(db, unverified, "unverified_venue")
     r = compute(db)
     home = r["teams"]["home"]["form"]
-    assert [m["fixture_id"] for m in home["matches"]] == [unverified]
+    assert [m["fixture_id"] for m in home["matches"]] == [unverified, neutral]  # overall
     assert (
         home["matches"][0]["unverified_venue"] and home["sample"]["unverified_venue_matches"] == 1
     )
-    assert (
-        compute(db, basis="overall")["teams"]["home"]["form"]["sample"]["matches"] == 2
-    )  # overall keeps neutral
+    assert home["venue_context"]["matches"] == 1  # the neutral-venue match is not a home match
     store = MatchStore(db)
-    assert neutral not in {m.fixture_id for m in store.league_matches(39, 2025, T0)}
+    assert neutral not in {m.fixture_id for m in store.league_matches(39, 2026, T0)}
 
 
-def test_promoted_team_provenance_and_limited_data(db):
+def test_promoted_team_uses_current_season_only(db):
     b = Builder(db)
     for i in range(8):  # team 3 played last season in the Championship
         b.add(3, 80 + i, 2, 0, league=40)
     b.add(3, 90, 1, 1, season=2026, gap=DAY * 100)  # one top-flight home match this season
     for i in range(6):
-        b.add(70 + i, 2, 0, 1)
+        b.add(70 + i, 2, 0, 1, season=2026)
     b.upcoming(3, 2)
     b.save()
     r = compute(db)
-    form = r["teams"]["home"]["form"]["sample"]
-    assert form["matches"] == 5 and form["current_division_matches"] == 1
-    assert form["provenance"] == {"current_season_same_division": 1, "other_division": 4}
-    assert form["limited_data_reasons"] == ["fewer_than_3_current_division_matches"]
-    assert form["note"] == "Includes 4 previous-division/other-competition matches"
+    form = r["teams"]["home"]["form"]
+    assert form["sample"]["matches"] == 1  # the Championship matches never count
+    assert form["sample"]["provenance"] == {"current_season_same_division": 1}
+    assert form["sample"]["limited_data_reasons"] == [
+        "fewer_than_8_matches",
+        "fewer_than_3_current_division_matches",
+    ]
+    assert form["sample"]["note"] is None
+    assert form["matches"][0]["competition"] == "Premier League"
+    # one 1-1 draw, normalised by one match: 2.5 x 1/3 + 1.25 = 2.08
+    assert form["display"] == "2.08"
     assert r["limited_data"]["form"]
-    assert r["teams"]["home"]["form"]["matches"][1]["competition"] == "Championship"
 
 
 def test_new_club_without_history(db):
@@ -207,7 +217,7 @@ def test_new_club_without_history(db):
     assert home["form"]["score"] is None and home["goals"]["btts"] is None  # unavailable, never 0
     assert home["form"]["display"] is None and home["form"]["breakdown"] is None
     assert home["form"]["sample"]["limited_data_reasons"] == [
-        "fewer_than_5_matches",
+        "fewer_than_8_matches",
         "fewer_than_3_current_division_matches",
     ]
     assert r["match_result"]["form_difference"] is None and r["btts"]["yes_indicator"] is None
@@ -223,15 +233,16 @@ def test_small_samples_still_calculated_and_flagged(db):
     b.save()
     r = compute(db)
     form = r["teams"]["home"]["form"]
-    # Model D, actual totals of the 4 matches: 7 pts -> 2.5 x 7/15 = 1.17;
-    # GD +2 -> 2.5 x 11/18 = 1.53; total 2.69 (no prorating, no bonuses)
+    # normalised by the 4 matches played: 7 of 12 pts -> 2.5 x 7/12 = 1.46;
+    # GD +2, cap 7.2 -> 2.5 x 9.2/14.4 = 1.60; total 3.06 (no bonuses)
     bd = form["breakdown"]
     assert bd["points"] == 7 and bd["goal_difference"] == 2 and bd["matches"] == 4
-    assert bd["points_component_display"] == "1.17"
-    assert bd["goal_difference_component_display"] == "1.53"
-    assert form["display"] == "2.69"
+    assert bd["max_points"] == 12 and bd["gd_cap"] == pytest.approx(7.2)
+    assert bd["points_component_display"] == "1.46"
+    assert bd["goal_difference_component_display"] == "1.60"
+    assert form["display"] == "3.06"
     assert not any(k.startswith("bonus") for k in bd)
-    assert form["sample"]["limited_data_reasons"] == ["fewer_than_5_matches"]  # Limited below five
+    assert form["sample"]["limited_data_reasons"] == ["fewer_than_8_matches"]  # early season
     assert r["teams"]["home"]["goals"]["btts"]["display"] == "1/4 (25%)"
     assert r["teams"]["home"]["goals"]["sample"]["limited_data_reasons"] == ["fewer_than_6_matches"]
 
@@ -265,8 +276,8 @@ def test_benchmark_current_previous_and_partial(db):
 def test_form_difference_is_plain_home_minus_away(db):
     b = Builder(db)
     for i in range(5):
-        b.add(1, 50 + i, 2, 0)  # home team: 15 pts -> 2.5, GD +10 capped at +9 -> 2.5: 5.0
-        b.add(60 + i, 2, 1, 0)  # away team (away): 0 pts -> 0, GD -5 -> 2.5 x 4/18
+        b.add(1, 50 + i, 2, 0, season=2026)  # 15 of 15 pts -> 2.5, GD +10 capped at +9 -> 2.5
+        b.add(60 + i, 2, 1, 0, season=2026)  # away team: 0 pts, GD -5 -> 2.5 x 4/18
     b.upcoming(1, 2)
     b.save()
     r = compute(db)
@@ -290,7 +301,7 @@ def test_point_in_time_later_results_do_not_leak(db):
     b.save()
     before = compute(db, as_of=T0 + 10 * DAY)  # cutoff = kickoff
     late = [
-        fixture_item(5000 + i, 1, 90 + i, kickoff=T0 + (i + 1) * DAY, ft=(5, 0), season=2026)
+        fixture_item(5000 + i, 1, 50 + i, kickoff=T0 + (i + 1) * DAY, ft=(5, 0), season=2026)
         for i in range(5)
     ]
     store_fixtures(db, late, lambda: T0)
@@ -303,13 +314,15 @@ def test_point_in_time_later_results_do_not_leak(db):
     db.execute(
         update(fixtures).where(fixtures.c.id == UPCOMING_ID).values(kickoff_utc=T0 + 9 * DAY)
     )
-    assert compute(db, as_of=T0 + 10 * DAY)["teams"]["home"]["form"]["display"] == "5.00"
+    # now eight matches: 5 later wins 5-0 and the three latest draws -> 18/24 -> 1.875;
+    # GD +25 capped at +14.4 -> 2.5: 4.38
+    assert compute(db, as_of=T0 + 10 * DAY)["teams"]["home"]["form"]["display"] == "4.38"
 
 
 def test_as_of_before_kickoff_uses_only_known_results(db):
     b = Builder(db, start=T0 - 10 * DAY)
-    first = b.add(1, 50, 3, 0)
-    b.add(1, 51, 0, 3)
+    first = b.add(1, 50, 3, 0, season=2026)
+    b.add(1, 51, 0, 3, season=2026)
     b.upcoming(1, 2)
     b.save()
     r = compute(db, as_of=fx(db, first).kickoff_utc + timedelta(hours=1))
@@ -342,8 +355,8 @@ def test_head_to_head_most_recent_five_without_affecting_indicators(db):
 def test_cache_refresh_unchanged_superseded_and_point_in_time(db):
     b = Builder(db)
     for i in range(5):
-        b.add(1, 50 + i, 1, 0)
-        b.add(60 + i, 2, 0, 0)
+        b.add(1, 50 + i, 1, 0, season=2026)
+        b.add(60 + i, 2, 0, 0, season=2026)
     b.upcoming(1, 2)
     b.save()
     t1, t2, t3 = T0, T0 + timedelta(hours=1), T0 + timedelta(hours=2)
@@ -466,11 +479,10 @@ def test_goals_use_current_season_and_division_only(db):
     assert r["btts"]["yes_display"] == "45%" and r["btts"]["no_display"] == "55%"
     assert r["limited_data"]["goals"]
     assert home["sample"]["limited_data_reasons"] == ["fewer_than_6_matches"]
-    # the Form Score window may still reach beyond the current competition/season (five most
-    # recent home matches): here the fifth is a 2026 Championship match
-    assert r["teams"]["home"]["form"]["sample"]["matches"] == 5
-    assert any(
-        m["provenance"] != "current_season_same_division"
+    # the Form Score (engine 2.4.0) is current-season, current-competition only too
+    assert r["teams"]["home"]["form"]["sample"]["matches"] == 4
+    assert all(
+        m["provenance"] == "current_season_same_division"
         for m in r["teams"]["home"]["form"]["matches"]
     )
 

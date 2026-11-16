@@ -330,7 +330,7 @@ def test_selection_cleared_when_filtered_out(data):
 def test_form_basis_defaults_and_memory(data):
     from diski9.app.app import DEFAULT_BASIS
 
-    assert DEFAULT_BASIS == {"1X2": "venue", "BTTS": "overall", "OU25": "overall"}
+    assert DEFAULT_BASIS == {"1X2": "overall", "BTTS": "overall", "OU25": "overall"}
     app = create_app(data)
     apply_cb = next(v for k, v in app.callback_map.items() if k.startswith("basis.value"))[
         "callback"
@@ -338,12 +338,15 @@ def test_form_basis_defaults_and_memory(data):
     remember = next(v for k, v in app.callback_map.items() if k.startswith("basis-pref.data"))[
         "callback"
     ].__wrapped__
-    assert apply_cb("1X2", {}) == "venue"
+    assert apply_cb("1X2", {}) == "overall"
     assert apply_cb("BTTS", {}) == "overall" and apply_cb("OU25", None) == "overall"
     prefs = remember("venue", "BTTS", {})  # user explicitly picks venue for BTTS
     assert apply_cb("BTTS", prefs) == "venue" and apply_cb("OU25", prefs) == "overall"
-    assert apply_cb("1X2", remember("overall", "1X2", prefs)) == "overall"
-    assert '"value":"venue"' in _layout_json(data)  # initial Match result view
+    # Match Result has no basis choice: never remembered, always overall
+    assert remember("venue", "1X2", prefs) == prefs
+    assert apply_cb("1X2", {"1X2": "venue"}) == "overall"
+    layout = _layout_json(data)
+    assert '"value":"overall"' in layout and '"id":"basis-filter"' in layout
 
 
 def test_league_and_date_filters(data):
@@ -437,8 +440,10 @@ def test_detail_levels_and_form_breakdown(data):
         "Diski Form Score",
         "How it's calculated",
         "Points earned",
-        "Points part = 2.5 × points ÷ 15",
-        "Goal-difference part = 2.5 × (GD + 9) ÷ 18",
+        "Points part = 2.5 × points ÷ 3N",
+        "Goal-difference part = 2.5 × (GD + 1.8N) ÷ 3.6N",
+        "Current-season form",
+        "League Form Score average",
         "No bonuses are added",
         "Matches used",
         "Head-to-head",
@@ -450,7 +455,7 @@ def test_detail_levels_and_form_breakdown(data):
     # the redundant Form Difference headline is gone from the detail (kept in the table)
     assert not _find(d, lambda c: "headline" in str(getattr(c, "className", "")))
     assert "do not mean a draw is likely" not in text
-    assert "Venue-adjusted" not in text and "benchmark" not in text.lower()
+    assert "Venue-adjusted" not in text and "Home Advantage" not in text
     assert "Raw total" not in text and "bonus" not in text.replace("No bonuses", "").lower()
     # secondary sections start collapsed
     sections = [c for c in d.children[3].children]
@@ -503,7 +508,7 @@ def test_missing_odds_psl(data):
 def test_limited_data_warnings(data):
     r, ov, official = data.detail(PROMOTED_FIX, "venue")
     text = _text(render_detail(r, ov, official, "1X2", data))
-    assert "Limited data" in text
+    assert "Early season" in text and "early-season results may be volatile" in text
     assert data.row("1X2", r)["limited"] is True
 
 
@@ -605,9 +610,14 @@ def test_phone_viewport_cards_tooltip_and_pager(data):
           out.cards = await p.locator('.fx-card').count();
           out.overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
           out.tableVisible = await p.isVisible('.table-wrap');
+          out.basisOn1X2 = await p.isVisible('#basis-filter');
+          await p.locator('.tab', {{ hasText: 'Both teams' }}).tap();
+          await p.waitForSelector('#basis-filter', {{ state: 'visible' }});
           await p.locator('#basis-label details.info > summary').tap();
           out.tooltip = await p.isVisible('#basis-label .info-pop');
           await p.locator('#basis-label details.info > summary').tap();
+          await p.locator('.tab', {{ hasText: 'Match' }}).tap();
+          await p.waitForSelector('#basis-filter', {{ state: 'hidden' }});
           await p.locator('#next').tap();
           await p.waitForFunction(() => document.querySelector('#summary').innerText.startsWith('Showing 11'));
           out.page2 = await p.locator('.fx-card').count();
@@ -626,6 +636,7 @@ def test_phone_viewport_cards_tooltip_and_pager(data):
             "cards": 10,
             "overflow": 0,
             "tableVisible": False,
+            "basisOn1X2": False,
             "tooltip": True,
             "page2": 4,
             "after": 0,
@@ -775,5 +786,50 @@ def test_browser_selection_highlight(data):
         assert out["backToPage1"] == [out["fifth"]]
         snap = data.snapshot().results["venue"][out["fifth"]]["fixture"]
         assert out["detail"] == f"{snap['home']} v {snap['away']}"
+    finally:
+        server.shutdown()
+
+
+@pytest.mark.parametrize("viewport", ["desktop", "phone"])
+def test_match_result_venue_context_and_no_basis_selector_in_browser(data, viewport):
+    if subprocess.run(["node", "-e", "require('playwright')"], capture_output=True).returncode != 0:
+        pytest.skip("playwright for node not available")
+    from werkzeug.serving import make_server
+
+    port = _free_port()
+    server = make_server("127.0.0.1", port, create_app(data).server, threaded=True)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    ctx = (
+        "{ viewport: { width: 1366, height: 900 } }"
+        if viewport == "desktop"
+        else "{ ...devices['iPhone 13'] }"
+    )
+    pick = ".fx-card" if viewport == "phone" else ".table-wrap tbody tr"
+    try:
+        script = f"""
+        const {{ chromium, devices }} = require('playwright');
+        (async () => {{
+          const b = await chromium.launch();
+          const c = await b.newContext({ctx});
+          const p = await c.newPage();
+          await p.goto('http://127.0.0.1:{port}/');
+          await p.waitForSelector('{pick}', {{ timeout: 20000 }});
+          const out = {{}};
+          out.basis = await p.isVisible('#basis-filter');
+          await p.locator('{pick}').first().click();
+          await p.waitForSelector('.venue-context', {{ timeout: 20000 }});
+          out.venue = await p.locator('.venue-context .venue-line').count();
+          out.bench = await p.isVisible('.baseline');
+          out.overflow = await p.evaluate(
+            () => document.documentElement.scrollWidth - window.innerWidth);
+          console.log(JSON.stringify(out));
+          await b.close();
+        }})().catch(e => {{ console.error(e); process.exit(1); }});
+        """
+        time.sleep(0.5)
+        res = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=120)
+        assert res.returncode == 0, res.stderr
+        out = json.loads(res.stdout.strip().splitlines()[-1])
+        assert out == {"basis": False, "venue": 2, "bench": True, "overflow": 0}
     finally:
         server.shutdown()

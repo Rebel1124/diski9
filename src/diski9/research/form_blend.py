@@ -19,8 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from fractions import Fraction
 
-from diski9.screener.calc import diski_form_score
-from diski9.screener.engine import MatchStore, ScreenerConfig, TeamMatch, form_benchmark
+from diski9.screener.engine import MatchStore, ScreenerConfig, TeamMatch
 
 WEIGHTS = {"venue": 1.0, "blend_75v": 0.75, "blend_50": 0.5, "blend_25v": 0.25, "overall": 0.0}
 
@@ -70,8 +69,10 @@ class BlendRow:
 
 
 def _score(window: list[TeamMatch]) -> float | None:
-    fs = diski_form_score((t.goals_for, t.goals_against) for t in window)
-    return None if fs is None else float(fs.score)
+    """Milestone 5.3 Model D on a five-match window (partial windows over the fixed
+    five-match denominator), independent of later production changes."""
+    s = score_n([(t.goals_for, t.goals_against) for t in window], 5)
+    return None if s is None else float(s)
 
 
 def build_rows(
@@ -89,17 +90,18 @@ def build_rows(
         if not m.stats_eligible or m.competition_id not in comps or m.season not in yrs:
             continue
         k = m.kickoff
-        hv = store.team_window(m.home_id, k, "home", config.form_window)
-        ho = store.team_window(m.home_id, k, None, config.form_window)
-        av = store.team_window(m.away_id, k, "away", config.form_window)
-        ao = store.team_window(m.away_id, k, None, config.form_window)
+        hv = store.team_window(m.home_id, k, "home", 5)  # research window: five matches
+        ho = store.team_window(m.home_id, k, None, 5)  # research window: five matches
+        av = store.team_window(m.away_id, k, "away", 5)  # research window: five matches
+        ao = store.team_window(m.away_id, k, None, 5)  # research window: five matches
         scores = [_score(w) for w in (hv, ho, av, ao)]
         if any(s is None for s in scores):
             skipped["no_score"] += 1
             continue
-        bv = form_benchmark(store, m.competition_id, m.season, k, "venue", config)
-        bo = form_benchmark(store, m.competition_id, m.season, k, "overall", config)
-        if not (bv["available"] and bo["available"]):
+        b_home = window_benchmark(store, m.competition_id, m.season, k, "home", 5, config)
+        b_away = window_benchmark(store, m.competition_id, m.season, k, "away", 5, config)
+        b_all = window_benchmark(store, m.competition_id, m.season, k, None, 5, config)
+        if b_home is None or b_away is None or b_all is None:
             skipped["no_benchmark"] += 1
             continue
         outcome = 0 if m.home_goals > m.away_goals else 1 if m.home_goals == m.away_goals else 2
@@ -119,9 +121,9 @@ def build_rows(
                 len(ho),
                 len(av),
                 len(ao),
-                bv["home"]["average"],
-                bv["away"]["average"],
-                bo["overall"]["average"],
+                b_home,
+                b_away,
+                b_all,
                 len(ids(hv) & ids(ho)),
                 len(ids(av) & ids(ao)),
             )

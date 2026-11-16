@@ -321,3 +321,8 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
   .bench-values { flex-direction: column; gap: 0; }
   .bench-sep { display: none; }
 }
+
+/* Engine 2.4.0: early-season note on Form Score tiles and the venue context lines */
+.early-note { margin-top: 2px; }
+.venue-context .venue-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 4px 0; }
+.venue-context .venue-team { font-weight: 600; }

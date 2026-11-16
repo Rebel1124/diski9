@@ -44,6 +44,7 @@ from diski9.db.schema import competitions, fixtures, teams
 from .calc import (
     FORM_MIN_MATCHES,
     GOALS_MIN_MATCHES,
+    DiskiFormScore,
     combined_indicator,
     diski_form_score,
     display,
@@ -61,16 +62,22 @@ from .calc import rate as rate_of
 # retired and never served, so no blended value can remain visible.
 # 2.3.0: league Diski Form Score benchmark (average of eligible league teams) for the
 # Match Result comparison; cached results without it are retired.
-ENGINE_VERSION = "2.3.0"
+# 2.4.0: Match Result Form Score from the last eight CURRENT-SEASON league matches,
+# normalised by the matches actually played; one overall league average; display-only
+# venue context. The Venue/Overall basis no longer affects Match Result.
+ENGINE_VERSION = "2.4.0"
 LEAGUE_BASELINE_MIN = 30  # eligible current-season league matches before a baseline is shown
-FORM_BENCHMARK_MIN_TEAMS = 12  # teams with a full five-match window
-FORM_BENCHMARK_MIN_SHARE = 0.8  # ... and at least this share of the league's members
+FORM_BENCHMARK_MIN_TEAMS = 12  # teams with at least FORM_BENCHMARK_MIN_MATCHES matches
+FORM_BENCHMARK_MIN_SHARE = 0.8  # ... and at least this share of the season's teams
+FORM_BENCHMARK_MIN_MATCHES = 3  # matches a team needs to count towards coverage
+VENUE_CONTEXT_WINDOW = 5  # current-season home (or away) matches
+VENUE_CONTEXT_MIN = 2  # below this, no numerical venue difference
 Basis = Literal["venue", "overall"]
 
 
 @dataclass(frozen=True)
 class ScreenerConfig:
-    form_window: int = 5
+    form_window: int = 8
     goals_window: int = 10
     # Minimum eligible current-season league matches before the current season
     # supplies the benchmark (spec 4.7). Default validated in
@@ -81,6 +88,9 @@ class ScreenerConfig:
     league_baseline_min: int = LEAGUE_BASELINE_MIN
     form_benchmark_min_teams: int = FORM_BENCHMARK_MIN_TEAMS
     form_benchmark_min_share: float = FORM_BENCHMARK_MIN_SHARE
+    form_benchmark_min_matches: int = FORM_BENCHMARK_MIN_MATCHES
+    venue_context_window: int = VENUE_CONTEXT_WINDOW
+    venue_context_min: int = VENUE_CONTEXT_MIN
 
     def benchmark_min(self, competition_id: int) -> int:
         return self.benchmark_min_by_competition.get(competition_id, self.benchmark_min_matches)
@@ -161,6 +171,19 @@ class MatchStore:
             )
             for r in rows
         ]
+        # The competition's published season fixture list (any status): which teams
+        # belong to a league season. Schedule only - never results - so it is safe to
+        # use point in time as the coverage denominator for the league Form Score average.
+        self.season_teams: dict[tuple[int, int], set[int]] = defaultdict(set)
+        for comp, season, h, a in conn.execute(
+            select(
+                fixtures.c.competition_id,
+                fixtures.c.season,
+                fixtures.c.home_team_id,
+                fixtures.c.away_team_id,
+            ).where(fixtures.c.stats_exclusion_reason.is_(None) | fixtures.c.is_final.is_(False))
+        ):
+            self.season_teams[(comp, season)].update((h, a))
         self._index()
 
     @classmethod
@@ -171,14 +194,21 @@ class MatchStore:
         store.team_names = team_names
         store.competition_names = competition_names
         store.matches = sorted(matches, key=lambda m: (m.kickoff, m.fixture_id))
+        store.season_teams = defaultdict(set)
+        for m in store.matches:
+            if m.stats_eligible:
+                store.season_teams[(m.competition_id, m.season)].update((m.home_id, m.away_id))
         store._index()
         return store
 
     def truncated(self, before: datetime) -> MatchStore:
-        """A store holding only matches that kicked off before ``before``."""
-        return MatchStore.from_matches(
+        """A store holding only matches that kicked off before ``before`` (the season
+        team lists - schedule information - are kept)."""
+        store = MatchStore.from_matches(
             [m for m in self.matches if m.kickoff < before], self.team_names, self.competition_names
         )
+        store.season_teams = self.season_teams
+        return store
 
     def _index(self) -> None:
         self.by_team: dict[int, list[TeamMatch]] = defaultdict(list)
@@ -382,62 +412,109 @@ def league_members(
     }
 
 
+def current_form(
+    store: MatchStore,
+    team: int,
+    competition_id: int,
+    season: int,
+    cutoff: datetime,
+    venue: Literal["home", "away"] | None,
+    n: int,
+) -> tuple[list[TeamMatch], DiskiFormScore | None]:
+    """A team's last ``n`` eligible league matches of this competition and season
+    before ``cutoff`` (never earlier seasons or other divisions) and its normalised
+    Diski Form Score (None when it has no such match)."""
+    window = store.team_window(team, cutoff, venue, n, competition_id=competition_id, season=season)
+    return window, diski_form_score((tm.goals_for, tm.goals_against) for tm in window)
+
+
 def form_benchmark(
     store: MatchStore,
     competition_id: int,
     season: int,
     cutoff: datetime,
-    basis: Basis,
     config: ScreenerConfig,
 ) -> dict:
-    """League average Diski Form Score (Model D) of the competition's teams at ``cutoff``.
+    """Current-season league average Diski Form Score at ``cutoff``.
 
-    * Population: league members (``league_members``), one score per team.
-    * Each team's score uses exactly the production window: its last five eligible
-      matches before the cutoff (venue-specific or overall), which may reach into
-      earlier seasons or other divisions as the Form Score itself does.
-    * Only full five-match windows enter the average (a short window cannot reach 5,
-      so it would bias the average down); teams without one are left out, never 0.
-    * Venue-specific: a home average over home windows and an away average over away
-      windows; Overall: one average over overall windows.
-    * Available when, for each average, at least ``form_benchmark_min_teams`` teams
-      and at least ``form_benchmark_min_share`` of the members have a full window.
+    * Each team that has played at least one eligible league match of this
+      competition and season before the cutoff contributes one score: its last (up
+      to) eight such matches, normalised by the matches it has actually played.
+      Teams with no match are excluded (never 0). Earlier seasons, other divisions
+      and anything at or after the cutoff are never used.
+    * Shown only when at least ``form_benchmark_min_teams`` teams, and at least
+      ``form_benchmark_min_share`` of the season's teams (from the published fixture
+      list), have played ``form_benchmark_min_matches`` or more matches. This keeps a
+      noisy average based on one or two matches per team, or on part of the league,
+      from being displayed.
     Historical context, not a probability.
     """
     members = league_members(store, competition_id, season, cutoff)
-    sides = (("home", "home"), ("away", "away")) if basis == "venue" else (("overall", None),)
-    out: dict[str, Any] = {
-        "basis": basis,
+    scores, counts = [], []
+    for team in sorted(members):
+        window, fs = current_form(
+            store, team, competition_id, season, cutoff, None, config.form_window
+        )
+        if fs is not None:
+            scores.append(fs.score)
+            counts.append(len(window))
+    league_size = len(store.season_teams.get((competition_id, season), set()) | members)
+    qualified = sum(c >= config.form_benchmark_min_matches for c in counts)
+    available = bool(
+        scores
+        and qualified >= config.form_benchmark_min_teams
+        and league_size
+        and qualified / league_size >= config.form_benchmark_min_share
+    )
+    avg = sum(scores, Fraction(0)) / len(scores) if scores else None
+    return {
+        "basis": "overall",
+        "available": available,
         "competition": store.competition_names.get(competition_id),
         "season_label": f"{season}/{str(season + 1)[-2:]}",
-        "members": len(members),
+        "teams": len(scores),
+        "league_teams": league_size,
+        "qualified_teams": qualified,
+        "average": float(avg) if available else None,
+        "display": display(avg) if available else None,
         "min_teams": config.form_benchmark_min_teams,
         "min_share": config.form_benchmark_min_share,
+        "min_matches": config.form_benchmark_min_matches,
+        "window": config.form_window,
     }
-    available = bool(members)
-    for side, venue in sides:
-        scores = []
-        for team in sorted(members):
-            window = store.team_window(team, cutoff, venue, config.form_window)
-            if len(window) < config.form_window:
-                continue
-            fs = diski_form_score((tm.goals_for, tm.goals_against) for tm in window)
-            scores.append(fs.score)
-        n = len(scores)
-        ok = (
-            n >= config.form_benchmark_min_teams
-            and members
-            and n / len(members) >= config.form_benchmark_min_share
-        )
-        avg = sum(scores, Fraction(0)) / n if n else None
-        out[side] = {
-            "teams": n,
-            "average": float(avg) if ok else None,
-            "display": display(avg) if ok else None,
-        }
-        available = available and bool(ok)
-    out["available"] = available
-    return out
+
+
+def venue_context(
+    store: MatchStore,
+    team: int,
+    competition_id: int,
+    season: int,
+    cutoff: datetime,
+    side: Literal["home", "away"],
+    overall: DiskiFormScore | None,
+    config: ScreenerConfig,
+) -> dict:
+    """Display-only: the team's current-season home (or away) Form Score from up to
+    its last five such matches, normalised, against its overall Form Score. Never
+    feeds the headline score, the league average or any ranking."""
+    window, fs = current_form(
+        store, team, competition_id, season, cutoff, side, config.venue_context_window
+    )
+    n = len(window)
+    enough = fs is not None and overall is not None and n >= config.venue_context_min
+    diff = (fs.score - overall.score) if enough else None
+    return {
+        "side": side,
+        "matches": n,
+        "window": config.venue_context_window,
+        "min_matches": config.venue_context_min,
+        "score": float(fs.score) if fs else None,
+        "display": display(fs.score) if fs else None,
+        "difference": float(diff) if diff is not None else None,
+        "difference_display": display(abs(diff)) if diff is not None else None,
+        "available": enough,
+        "limited": enough and n < config.venue_context_window,
+    }
 
 
 def computed_table(store: MatchStore, competition_id: int, season: int, cutoff: datetime) -> dict:
@@ -486,11 +563,11 @@ def compute_fixture(
     forms: dict[str, Any] = {}
     goal_rates: dict[str, dict[str, Any]] = {}
     for side, team_id, venue in (("home", home_id, home_venue), ("away", away_id, away_venue)):
-        fw = store.team_window(team_id, cutoff, venue, config.form_window)
+        # Match Result: last eight current-season league matches, whatever the basis
+        fw, fs = current_form(store, team_id, comp, season, cutoff, None, config.form_window)
         gw = store.team_window(
             team_id, cutoff, venue, config.goals_window, competition_id=comp, season=season
         )
-        fs = diski_form_score((tm.goals_for, tm.goals_against) for tm in fw)
         btts = rate_of([tm.goals_for > 0 and tm.goals_against > 0 for tm in gw])
         over = rate_of([tm.goals_for + tm.goals_against >= 3 for tm in gw])
         forms[side] = fs
@@ -501,6 +578,10 @@ def compute_fixture(
             "team": store.team_names.get(team_id, str(team_id)),
             "window": venue or "overall",
             "form": {
+                "window": "overall",
+                "venue_context": venue_context(
+                    store, team_id, comp, season, cutoff, side, fs, config
+                ),
                 "score": float(fs.score) if fs else None,
                 "display": display(fs.score) if fs else None,
                 "sequence": "-".join(tm.result for tm in fw),
@@ -535,7 +616,7 @@ def compute_fixture(
 
     table = computed_table(store, comp, season, cutoff)
     baseline = league_baseline(store, comp, season, cutoff, config.league_baseline_min)
-    benchmark = form_benchmark(store, comp, season, cutoff, basis, config)
+    benchmark = form_benchmark(store, comp, season, cutoff, config)
     h2h = store.head_to_head(home_id, away_id, cutoff, config.h2h_count)
 
     limited = {
@@ -564,6 +645,9 @@ def compute_fixture(
             "league_baseline_min": config.league_baseline_min,
             "form_benchmark_min_teams": config.form_benchmark_min_teams,
             "form_benchmark_min_share": config.form_benchmark_min_share,
+            "form_benchmark_min_matches": config.form_benchmark_min_matches,
+            "venue_context_window": config.venue_context_window,
+            "venue_context_min": config.venue_context_min,
         },
         "teams": teams_out,
         "match_result": {
@@ -571,7 +655,7 @@ def compute_fixture(
             "away_form": float(af.score) if af else None,
             "form_difference": float(diff) if diff is not None else None,
             "form_difference_display": _signed(diff),
-            "method": "D",
+            "method": "D8-current-season",
             "league_benchmark": benchmark,
             "note": "Similar Form Scores mean similar recent performance; "
             "they do not mean a draw is likely.",

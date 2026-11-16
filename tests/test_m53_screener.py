@@ -39,7 +39,7 @@ F = Fraction
 # ------------------------------------------------------------- Model D
 def test_engine_version_bumped_for_current_season_baselines():
     # 2.1.0 Model D; 2.2.0 no previous-season blend; 2.3.0 league Form Score benchmark
-    assert ENGINE_VERSION == "2.3.0"
+    assert ENGINE_VERSION == "2.4.0"
 
 
 def test_model_d_exact_formula_worked_example():
@@ -52,7 +52,7 @@ def test_model_d_exact_formula_worked_example():
     assert b["points_component_display"] == "1.67"
     assert b["goal_difference_component_display"] == "1.81"
     assert b["form_score_display"] == "3.47"
-    assert b["method"] == "D"
+    assert b["method"].startswith("D")
 
 
 def test_model_d_bounds_and_extremes():
@@ -98,11 +98,13 @@ def test_points_component_is_linear_and_no_bonuses():
 
 
 def test_partial_window_and_missing_history():
-    two = diski_form_score([(2, 0), (2, 0)])  # actual totals: 6 points, GD +4
-    assert two.score == F(5, 2) * F(6, 15) + F(5, 2) * F(13, 18)
-    assert diski_form_score([(5, 0)] * 4).score < 5  # a short window cannot reach 5
+    # engine 2.4.0: normalised by the N matches actually played (cap 1.8 per match)
+    two = diski_form_score([(2, 0), (2, 0)])  # 6 of 6 points; GD +4 > cap 3.6
+    assert two.score == 5
+    three = diski_form_score([(1, 0), (0, 0), (0, 2)])  # 4 of 9 points, GD -1, cap 5.4
+    assert three.score == F(5, 2) * F(4, 9) + F(5, 2) * (F(-1) + F(27, 5)) / (2 * F(27, 5))
     one_draw = diski_form_score([(1, 1)])
-    assert one_draw.score == F(5, 2) * F(1, 15) + F(5, 4)  # level GD still counts 1.25
+    assert one_draw.score == F(5, 2) * F(1, 3) + F(5, 4)  # level GD still counts 1.25
     assert diski_form_score([]) is None  # Unavailable, never 0
 
 
@@ -151,12 +153,14 @@ def test_venue_and_overall_windows_and_form_difference():
     venue = compute_fixture(store, fx, fx.kickoff_utc, "venue")
     overall = compute_fixture(store, fx, fx.kickoff_utc, "overall")
     hv, ho = venue["teams"]["home"]["form"], overall["teams"]["home"]["form"]
-    assert hv["sequence"] == "W-W-W-W-W" and hv["display"] == "5.00"
-    # overall: last five of ten alternating -> L W L W L, 6 points, GD 3x(-1) + 2x(+3) = +3
-    assert ho["sequence"] == "L-W-L-W-L"
-    assert ho["breakdown"]["points"] == 6 and ho["breakdown"]["goal_difference"] == 3
+    assert hv["score"] == ho["score"]  # the basis no longer changes Match Result
+    # last eight of ten alternating (newest first): L W L W L W L W -> 12 points,
+    # GD 4x(+3) + 4x(-1) = +8
+    assert ho["sequence"] == "L-W-L-W-L-W-L-W"
+    assert ho["breakdown"]["points"] == 12 and ho["breakdown"]["goal_difference"] == 8
+    assert ho["venue_context"]["display"] == "5.00"  # five home wins, display only
     mr = venue["match_result"]
-    assert mr["method"] == "D"
+    assert mr["method"] == "D8-current-season"
     assert mr["form_difference"] == pytest.approx(mr["home_form"] - mr["away_form"])
 
 
@@ -186,7 +190,7 @@ def test_rankings_use_model_d_form_difference():
         h = diski_form_score(
             (t.goals_for, t.goals_against)
             for t in store.team_window(
-                r["teams"]["home"]["team_id"], T + timedelta(days=40), "home", 5
+                r["teams"]["home"]["team_id"], T + timedelta(days=40), None, 8, 39, 2026
             )
         )
         assert r["match_result"]["home_form"] == float(h.score)
@@ -448,9 +452,10 @@ def test_old_engine_rows_never_served_and_banner_until_rebuilt(populated):
                 screener_results.c.superseded_at.is_(None)
             )
         ).all()
-    assert {a[0] for a in active} == {"2.3.0"}
+    assert {a[0] for a in active} == {"2.4.0"}
     snap = d.snapshot(force=True)
     assert snap.outdated_rows == 0 and EPL_FIX in snap.results["venue"]
     assert "earlier method" not in _text(build_layout(d))
     payload = json.loads(json.dumps(snap.results["venue"][EPL_FIX]))
-    assert payload["engine_version"] == "2.3.0" and payload["match_result"]["method"] == "D"
+    assert payload["engine_version"] == "2.4.0"
+    assert payload["match_result"]["method"] == "D8-current-season"

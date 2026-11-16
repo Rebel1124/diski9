@@ -1,5 +1,6 @@
 # ruff: noqa: F811  (pytest fixtures imported from test_app are used as arguments)
-"""League Diski Form Score benchmark (engine 2.3.0) and the simplified team cards."""
+"""Engine 2.4.0: current-season eight-match Form Score, the current-season league
+average, display-only venue context and the Match Result team cards."""
 
 from __future__ import annotations
 
@@ -17,6 +18,7 @@ from diski9.app.views import (
 )
 from diski9.screener.calc import diski_form_score
 from diski9.screener.engine import (
+    ENGINE_VERSION,
     Match,
     MatchStore,
     ScreenerConfig,
@@ -27,11 +29,12 @@ from diski9.screener.engine import (
 
 from .test_app import EPL_FIX, PSL_FIX, _find, _text, data, populated  # noqa: F401
 
-T = datetime(2026, 9, 1, 15, tzinfo=UTC)
+T = datetime(2026, 8, 15, 15, tzinfo=UTC)
 CFG = ScreenerConfig()
+F = Fraction
 
 
-def _m(fid, days, comp, season, h, a, hg, ag, eligible=True):
+def _m(fid, days, comp, season, h, a, hg, ag, eligible=True, venue="verified"):
     return Match(
         fid,
         T + timedelta(days=days),
@@ -41,7 +44,7 @@ def _m(fid, days, comp, season, h, a, hg, ag, eligible=True):
         a,
         hg,
         ag,
-        "verified",
+        venue,
         eligible,
         None,
         None,
@@ -50,242 +53,269 @@ def _m(fid, days, comp, season, h, a, hg, ag, eligible=True):
     )
 
 
-def league(n_teams=14, comp=39, season=2026, start=0):
-    """Double round robin; team i beats team j at home when i < j (deterministic)."""
-    ms, fid, day = [], 10_000 * comp + 1, start
-    teams = list(range(1, n_teams + 1))
-    for h in teams:
-        for a in teams:
-            if h == a:
-                continue
-            ms.append(_m(fid, day, comp, season, h, a, *((2, 0) if h < a else (1, 1))))
-            fid += 1
-            day += 0.05
-    return ms
-
-
 def store_of(ms):
     names = {i: f"T{i}" for i in range(1, 1000)}
     return MatchStore.from_matches(ms, names, {39: "EPL", 40: "Ch"})
 
 
-CUT = T + timedelta(days=60)
+def rounds(n_rounds, n_teams=16, comp=39, season=2026, start=0.0):
+    """Round-robin style rounds: in round r team i hosts team i + n/2 (rotated)."""
+    ms, fid = [], 100_000 * (comp - 38) + 10_000 * (season - 2024)
+    half = n_teams // 2
+    for r in range(n_rounds):
+        for i in range(half):
+            h = 1 + (i + r) % n_teams
+            a = 1 + (i + half + r) % n_teams
+            score = (2, 1) if (h + r) % 3 == 0 else (1, 1) if (h + r) % 3 == 1 else (0, 1)
+            ms.append(_m(fid, start + r * 7 + i * 0.01, comp, season, h, a, *score))
+            fid += 1
+    return ms
 
 
-def _expected(store, teams, venue):
-    scores = []
-    for t in teams:
-        w = store.team_window(t, CUT, venue, 5)
-        if len(w) == 5:
-            scores.append(diski_form_score((x.goals_for, x.goals_against) for x in w).score)
-    return float(sum(scores, Fraction(0)) / len(scores)), len(scores)
-
-
-def test_overall_average_one_score_per_team():
-    store = store_of(league())
-    b = form_benchmark(store, 39, 2026, CUT, "overall", CFG)
-    avg, n = _expected(store, range(1, 15), None)
-    assert b["available"] and b["members"] == 14 and b["overall"]["teams"] == n == 14
-    assert b["overall"]["average"] == pytest.approx(avg, abs=1e-12)
-    assert b["overall"]["average"] != 2.5  # not a fixed mid-scale value
-
-
-def test_venue_has_separate_home_and_away_averages():
-    store = store_of(league())
-    b = form_benchmark(store, 39, 2026, CUT, "venue", CFG)
-    home, _ = _expected(store, range(1, 15), "home")
-    away, _ = _expected(store, range(1, 15), "away")
-    assert b["home"]["average"] == pytest.approx(home) and b["away"]["average"] == pytest.approx(
-        away
-    )
-    assert b["home"]["average"] > b["away"]["average"]  # home sides never lose here
-
-
-def test_point_in_time_no_future_matches_and_fixture_excluded():
-    ms = league()
-    store = store_of(ms)
-    before = form_benchmark(store, 39, 2026, CUT, "overall", CFG)
-    later = store_of(ms + [_m(90_000 + i, 61 + i, 39, 2026, 1, 2, 0, 9) for i in range(5)])
-    assert form_benchmark(later, 39, 2026, CUT, "overall", CFG) == before
-    # a match kicking off exactly at the cutoff (the fixture itself) is not used
-    at_cut = store_of(ms + [_m(99_999, 60, 39, 2026, 3, 4, 0, 9)])
-    assert form_benchmark(at_cut, 39, 2026, CUT, "overall", CFG) == before
-
-
-def test_membership_is_point_in_time_and_competition_specific():
-    ms = league()
-    ms += league(n_teams=6, comp=40)  # teams 1..6 in the Championship too
-    ms += [_m(70_000 + i, -200 + i, 39, 2025, 500, 501 + i, 1, 0) for i in range(6)]  # relegated
-    ms += [_m(80_000 + i, i, 40, 2026, 600, 601 + i, 1, 0) for i in range(6)]  # other comp only
-    store = store_of(ms)
-    members = league_members(store, 39, 2026, CUT)
-    assert members == set(range(1, 15))  # neither team 500 (last season) nor 600 (other comp)
-    # a team only counts once it has played this season, before the cutoff
-    assert league_members(store, 39, 2026, T) == set()
-
-
-def test_promoted_team_window_uses_other_division_history_like_production():
-    ms = league()
-    ms += [_m(60_000 + i, -100 + i, 40, 2025, 77, 700 + i, 3, 0) for i in range(5)]  # tier 2
-    ms.append(_m(61_000, 50, 39, 2026, 77, 1, 0, 1))  # one top-flight match this season
-    store = store_of(ms)
-    b = form_benchmark(store, 39, 2026, CUT, "overall", CFG)
-    assert b["members"] == 15 and b["overall"]["teams"] == 15  # 77 included, full window
-    w = store.team_window(77, CUT, None, 5)
-    assert {x.match.competition_id for x in w} == {39, 40}
-    avg, _ = _expected(store, list(range(1, 15)) + [77], None)
-    assert b["overall"]["average"] == pytest.approx(avg)
-
-
-def test_short_windows_excluded_not_zero_and_minimum_rules():
-    # 14 teams, 6 matches total: nobody has five matches -> unavailable, nothing averaged
-    few = store_of([_m(i, i, 39, 2026, 2 * i + 1, 2 * i + 2, 1, 0) for i in range(6)])
-    b = form_benchmark(few, 39, 2026, CUT, "overall", CFG)
-    assert not b["available"] and b["overall"]["teams"] == 0
-    assert b["overall"]["average"] is None and b["overall"]["display"] is None
-    # 14-team league: available at the default 12-team / 80% rule
-    store = store_of(league())
-    assert form_benchmark(store, 39, 2026, CUT, "overall", CFG)["available"]
-    # thresholds are configurable
-    strict = ScreenerConfig(form_benchmark_min_teams=15)
-    assert not form_benchmark(store, 39, 2026, CUT, "overall", strict)["available"]
-    # members without a full window lower the share: 14 full + 6 new teams with 1 match
-    extra = league() + [_m(50_000 + i, 59, 39, 2026, 200 + i, 300 + i, 1, 0) for i in range(3)]
-    b = form_benchmark(store_of(extra), 39, 2026, CUT, "overall", CFG)
-    assert b["members"] == 20 and b["overall"]["teams"] == 14
-    assert not b["available"]  # 14 / 20 = 70% < 80%
-
-
-def test_benchmark_in_compute_fixture_and_teams_with_few_matches():
-    ms = league() + [_m(51_000, 59, 39, 2026, 900, 1, 0, 0)]  # team 900: one match
-    store = store_of(ms)
-    fx = SimpleNamespace(
+def fixture(home, away, days, comp=39, season=2026):
+    return SimpleNamespace(
         id=1,
-        competition_id=39,
-        season=2026,
-        home_team_id=900,
-        away_team_id=2,
-        kickoff_utc=CUT,
+        competition_id=comp,
+        season=season,
+        home_team_id=home,
+        away_team_id=away,
+        kickoff_utc=T + timedelta(days=days),
     )
-    r = compute_fixture(store, fx, CUT, "overall")
+
+
+def test_engine_version():
+    assert ENGINE_VERSION == "2.4.0" and CFG.form_window == 8
+
+
+# ------------------------------------------------------------ team scores
+@pytest.mark.parametrize("n", [1, 3, 5, 8])
+def test_team_scores_normalised_by_matches_played(n):
+    ms = [_m(i, i, 39, 2026, 1, 50 + i, 2, 1) for i in range(n)]  # n wins 2-1
+    ms += [_m(500 + i, -300 + i, 39, 2025, 1, 60 + i, 0, 5) for i in range(8)]  # last season
+    ms += [_m(600 + i, -200 + i, 40, 2026, 1, 70 + i, 0, 5) for i in range(8)]  # other division
+    store = store_of(ms)
+    r = compute_fixture(store, fixture(1, 2, 30), T + timedelta(days=30))
+    form = r["teams"]["home"]["form"]
+    b = form["breakdown"]
+    assert b["matches"] == n and b["max_points"] == 3 * n  # current season only
+    assert b["gd_cap"] == pytest.approx(1.8 * n)
+    # n wins by one goal: 2.5 x 3n/3n + 2.5 x (n + 1.8n)/(3.6n) = 2.5 + 2.5 x 2.8/3.6
+    assert form["score"] == pytest.approx(2.5 + 2.5 * 2.8 / 3.6)  # same for every n
+    assert {m["season"] for m in form["matches"]} == {2026}
+    assert {m["competition"] for m in form["matches"]} == {"EPL"}
+    assert form["sample"]["limited_data"] is (n < 8)
+
+
+def test_first_fixture_of_the_season_is_unavailable_not_zero():
+    ms = [_m(i, -300 + i, 39, 2025, 1, 2, 3, 0) for i in range(10)]  # only last season
+    store = store_of(ms)
+    r = compute_fixture(store, fixture(1, 2, 0), T)
+    for side in ("home", "away"):
+        f = r["teams"][side]["form"]
+        assert f["score"] is None and f["display"] is None and f["sample"]["matches"] == 0
+        assert f["venue_context"]["available"] is False and f["venue_context"]["matches"] == 0
+    assert r["match_result"]["form_difference"] is None
     bench = r["match_result"]["league_benchmark"]
-    assert bench["available"] and bench["overall"]["teams"] == 14  # 900 not averaged
-    assert r["teams"]["home"]["form"]["score"] is not None  # its own score is unchanged
-    assert r["config"]["form_benchmark_min_teams"] == 12
+    assert bench["available"] is False and bench["teams"] == 0 and bench["average"] is None
 
 
-def test_unrounded_comparison_and_tolerance():
-    bench = {"available": True, "basis": "overall", "overall": {"average": 2.4083333333333}}
-    assert form_comparison(2.41, bench, "overall") == "above"  # both display as 2.41
-    assert form_comparison(2.4083, bench, "overall") == "below"
-    exact = {"available": True, "basis": "overall", "overall": {"average": float(Fraction(29, 12))}}
-    assert form_comparison(float(Fraction(58, 24)), exact, "overall") == "equal"
-    assert form_comparison(float(Fraction(29, 12)) + 1e-12, exact, "overall") == "equal"
-    assert form_comparison(None, exact, "overall") is None
-    assert form_comparison(3.0, {"available": False}, "overall") is None
-    venue = {
-        "available": True,
-        "basis": "venue",
-        "home": {"average": 2.7},
-        "away": {"average": 2.0},
-    }
-    assert form_comparison(2.5, venue, "home") == "below"
-    assert form_comparison(2.5, venue, "away") == "above"  # like with like
-
-
-# --------------------------------------------------------------------- display
-def _card(basis):
-    store = store_of(league())
-    fx = SimpleNamespace(
-        id=1,
-        competition_id=39,
-        season=2026,
-        home_team_id=1,
-        away_team_id=14,
-        kickoff_utc=CUT,
+def test_last_eight_only_and_point_in_time():
+    ms = [_m(i, i, 39, 2026, 1, 50 + i, 1 if i < 4 else 0, 0 if i < 4 else 1) for i in range(12)]
+    store = store_of(ms)
+    r = compute_fixture(store, fixture(1, 2, 30), T + timedelta(days=30))
+    assert r["teams"]["home"]["form"]["sequence"] == "L-L-L-L-L-L-L-L"  # newest eight
+    later = store_of(ms + [_m(900 + i, 31 + i, 39, 2026, 1, 80 + i, 9, 0) for i in range(5)])
+    r2 = compute_fixture(later, fixture(1, 2, 30), T + timedelta(days=60))
+    assert r2["teams"]["home"]["form"] == r["teams"]["home"]["form"]
+    # a match kicking off exactly at the cutoff (the fixture itself) is not used
+    same = store_of(ms + [_m(999, 30, 39, 2026, 1, 99, 9, 0)])
+    assert (
+        compute_fixture(same, fixture(1, 2, 30), T + timedelta(days=30))["teams"]["home"]["form"]
+        == r["teams"]["home"]["form"]
     )
-    r = compute_fixture(store, fx, CUT, basis)
+
+
+# ------------------------------------------------------------ venue context
+@pytest.mark.parametrize(
+    "n_home,available,limited",
+    [
+        (0, False, False),
+        (1, False, False),
+        (2, True, True),
+        (4, True, True),
+        (5, True, False),
+        (7, True, False),
+    ],
+)
+def test_venue_context_partial_windows(n_home, available, limited):
+    ms = [_m(i, i, 39, 2026, 1, 50 + i, 3, 0) for i in range(n_home)]  # home wins 3-0
+    ms += [_m(100 + i, 20 + i, 39, 2026, 60 + i, 1, 1, 1) for i in range(3)]  # away draws
+    store = store_of(ms)
+    r = compute_fixture(store, fixture(1, 2, 40), T + timedelta(days=40))
+    vc = r["teams"]["home"]["form"]["venue_context"]
+    assert vc["matches"] == min(n_home, 5) and vc["side"] == "home"
+    assert vc["available"] is available and vc["limited"] is limited
+    if available:
+        home = diski_form_score([(3, 0)] * min(n_home, 5)).score
+        assert vc["difference"] == pytest.approx(float(home) - r["teams"]["home"]["form"]["score"])
+    else:
+        assert vc["difference"] is None
+    # never changes the headline score, the league average or the Form Difference
+    mr = r["match_result"]
+    assert (
+        mr["form_difference"] == pytest.approx((mr["home_form"] or 0) - (mr["away_form"] or 0))
+        or mr["away_form"] is None
+    )
+
+
+def test_away_venue_context_uses_away_matches():
+    ms = [_m(i, i, 39, 2026, 50 + i, 2, 0, 2) for i in range(3)]  # team 2 away wins
+    ms += [_m(10 + i, 10 + i, 39, 2026, 2, 60 + i, 0, 1) for i in range(3)]  # home losses
+    store = store_of(ms)
+    r = compute_fixture(store, fixture(1, 2, 30), T + timedelta(days=30))
+    vc = r["teams"]["away"]["form"]["venue_context"]
+    assert vc["side"] == "away" and vc["matches"] == 3 and vc["limited"]
+    assert vc["difference"] > 0  # away form better than overall
+
+
+# --------------------------------------------------------- league average
+def test_league_average_current_season_one_score_per_team():
+    ms = rounds(5) + rounds(30, season=2025, start=-400)  # last season never used
+    store = store_of(ms)
+    cut = T + timedelta(days=40)
+    b = form_benchmark(store, 39, 2026, cut, CFG)
+    scores = []
+    for t in sorted(league_members(store, 39, 2026, cut)):
+        w = store.team_window(t, cut, None, 8, competition_id=39, season=2026)
+        scores.append(diski_form_score([(x.goals_for, x.goals_against) for x in w]).score)
+    assert b["available"] and b["teams"] == 16 == b["league_teams"]
+    assert b["average"] == pytest.approx(float(sum(scores, F(0)) / len(scores)))
+    assert b["qualified_teams"] == 16 and b["average"] != 2.5
+
+
+def test_league_average_early_season_policy():
+    cut = lambda r: T + timedelta(days=7 * r)  # noqa: E731  after r rounds
+    # after two rounds nobody has three matches -> not shown
+    two = form_benchmark(store_of(rounds(2)), 39, 2026, cut(2), CFG)
+    assert not two["available"] and two["teams"] == 16 and two["qualified_teams"] == 0
+    assert two["average"] is None and two["display"] is None
+    # after three rounds every team has three -> shown
+    three = form_benchmark(store_of(rounds(3)), 39, 2026, cut(3), CFG)
+    assert three["available"] and three["qualified_teams"] == 16
+    # coverage is measured against the season's team list (schedule), not just teams
+    # that have played: 14 of 16 teams with three matches is 87.5%, 12 of 16 is 75%
+    ms = [m for m in rounds(3) if not ({m.home_id, m.away_id} & {1, 9})]
+    store = store_of(ms)
+    store.season_teams[(39, 2026)] = set(range(1, 17))
+    b = form_benchmark(store, 39, 2026, cut(3), CFG)
+    assert b["league_teams"] == 16 and b["teams"] < 16
+    assert b["available"] is (b["qualified_teams"] / 16 >= 0.8 and b["qualified_teams"] >= 12)
+    # thresholds are configurable
+    strict = ScreenerConfig(form_benchmark_min_matches=4)
+    assert not form_benchmark(store_of(rounds(3)), 39, 2026, cut(3), strict)["available"]
+
+
+def test_league_average_excludes_other_competitions_and_teams_without_matches():
+    ms = rounds(4) + rounds(4, comp=40)
+    store = store_of(ms)
+    store.season_teams[(39, 2026)] = set(range(1, 17)) | {700}  # 700 scheduled, not played
+    b = form_benchmark(store, 39, 2026, T + timedelta(days=30), CFG)
+    assert b["teams"] == 16 and b["league_teams"] == 17  # 700 counted in coverage only
+    assert b["available"]  # 16 / 17 = 94% have three or more matches
+
+
+def test_league_average_point_in_time():
+    ms = rounds(6)
+    cut = T + timedelta(days=30)
+    a = form_benchmark(store_of(ms), 39, 2026, cut, CFG)
+    later = ms + [_m(990_000 + i, 31 + i, 39, 2026, 1 + i, 2 + i, 9, 0) for i in range(5)]
+    assert form_benchmark(store_of(later), 39, 2026, cut, CFG) == a
+
+
+def test_unrounded_comparison():
+    bench = {"available": True, "average": 2.4083333333333}
+    assert form_comparison(2.41, bench) == "above"  # both display as 2.41
+    assert form_comparison(2.4083, bench) == "below"
+    exact = {"available": True, "average": float(F(29, 12))}
+    assert form_comparison(float(F(58, 24)), exact) == "equal"
+    assert form_comparison(None, exact) is None
+    assert form_comparison(3.0, {"available": False}) is None
+
+
+# ------------------------------------------------------------------ display
+def _card(n_rounds=6, home=1, away=9):
+    store = store_of(rounds(n_rounds))
+    r = compute_fixture(store, fixture(home, away, 7 * n_rounds), T + timedelta(days=7 * n_rounds))
     return r, analysis_card(r, "1X2")
 
 
-def _states(card):
-    return [
+def test_cards_early_season_note_and_benchmark():
+    r, card = _card(6)
+    text = _text(card)
+    assert "Based on 6 of 8 matches — early-season results may be volatile." in text
+    assert "Early season" in text and "out of 5" in text and "/ 5" not in text
+    b = r["match_result"]["league_benchmark"]
+    assert f"{b['display']} out of 5" in text and "EPL 2026/27 — 16 teams evaluated" in text
+    states = [
         c.className.split()[1]
         for c in _find(card, lambda c: str(getattr(c, "className", "")).startswith("league-cmp"))
     ]
+    assert states == [form_comparison(r["teams"][s]["form"]["score"], b) for s in ("home", "away")]
+    # a full eight-match window: no early-season note
+    r8, card8 = _card(9)
+    assert "early-season" not in _text(card8) and "Early season" not in _text(card8)
 
 
-def test_cards_show_indicator_and_benchmark_overall():
-    r, card = _card("overall")
-    text = _text(card)
-    bench = r["match_result"]["league_benchmark"]
-    assert f"{bench['overall']['display']} out of 5" in text
-    assert "EPL 2026/27 — 14 teams evaluated" in text
-    exp = [
-        form_comparison(r["teams"][s]["form"]["score"], bench, "overall") for s in ("home", "away")
-    ]
-    assert _states(card) == exp and set(exp) <= {"above", "below", "equal"}
-    # spot-check against the raw numbers (unrounded)
-    for s, state in zip(("home", "away"), exp, strict=True):
-        score = r["teams"][s]["form"]["score"]
-        assert (score > bench["overall"]["average"]) == (state == "above")
-    assert "/ 5" not in text
+def test_venue_context_wording():
+    r, card = _card(6)
+    block = _find(card, lambda c: "venue-context" in str(getattr(c, "className", "")))[0]
+    t = _text(block)
+    assert t.startswith("Venue context")
+    for s, where in (("home", "Home"), ("away", "Away")):
+        vc = r["teams"][s]["form"]["venue_context"]
+        if not vc["available"]:
+            assert "Not enough venue history" in t
+        elif abs(vc["difference"]) < 1e-9:
+            assert f"{where} form the same as overall" in t
+        else:
+            word = "higher" if vc["difference"] > 0 else "lower"
+            assert f"{where} form {vc['difference_display']} points {word} than overall" in t
+    assert "Home Advantage" not in t
 
 
-def test_cards_venue_compare_home_and_away_averages():
-    r, card = _card("venue")
-    b = r["match_result"]["league_benchmark"]
-    text = _text(card)
-    assert f"Home: {b['home']['display']} out of 5" in text
-    assert f"Away: {b['away']['display']} out of 5" in text
-    exp = [form_comparison(r["teams"][s]["form"]["score"], b, s) for s in ("home", "away")]
-    assert _states(card) == exp
-    explain = _text(calculation_section(r, "1X2"))
-    assert "home team is compared with the average of every team's home Form Score" in explain
-    assert "full five-match window" in explain and "not the probability of winning" in explain
+def test_venue_context_not_enough_history():
+    ms = [_m(1, 0, 39, 2026, 1, 50, 1, 0)] + [_m(2, 1, 39, 2026, 60, 1, 0, 0)]
+    r = compute_fixture(store_of(ms), fixture(1, 2, 10), T + timedelta(days=10))
+    t = _text(analysis_card(r, "1X2"))
+    assert "Not enough venue history (1 home match this season)." in t
 
 
-def test_unavailable_benchmark_omits_indicator_and_explains(data):
+def test_unavailable_benchmark_explained(data):
     r, ov, official = data.detail(EPL_FIX, "overall")
-    assert r["match_result"]["league_benchmark"]["available"] is False  # tiny test league
     card = analysis_card(r, "1X2")
-    assert _states(card) == []
     text = _text(card)
-    assert "Not enough league data yet" in text and "2.5 out of 5" not in text
-    assert "no 2.5 or zero is substituted" in _text(calculation_section(r, "1X2"))
+    if not r["match_result"]["league_benchmark"]["available"]:
+        assert "Not enough current-season data yet" in text
+        assert "no 2.5 or zero is substituted" in _text(calculation_section(r, "1X2"))
+
+
+def test_calculation_text_explains_current_season_and_normalisation():
+    r, _ = _card(6)
+    t = _text(calculation_section(r, "1X2"))
+    for phrase in (
+        "last eight league matches of the current season",
+        "earlier seasons and other divisions are never used",
+        "Points part = 2.5 × points ÷ 3N",
+        "Goal-difference part = 2.5 × (GD + 1.8N) ÷ 3.6N",
+        "Venue context",
+        "does not change the headline score",
+    ):
+        assert phrase in t, phrase
 
 
 @pytest.mark.parametrize("market", ["1X2", "BTTS", "OU25"])
-def test_simplified_cards_and_out_of_5_everywhere(data, market):
+def test_out_of_5_everywhere_and_simplified_cards(data, market):
     for fid in (EPL_FIX, PSL_FIX):
-        r, ov, official = data.detail(fid, "venue")
+        r, ov, official = data.detail(fid, "overall")
         d = render_detail(r, ov, official, market, data)
-        text = _text(d)
-        assert "/ 5" not in text and "/5" not in text
-        tiles = _find(d, lambda c: getattr(c, "className", "") == "tiles")[0]
-        t = _text(tiles)
-        assert "current-season matches" not in t
-        assert "Historical performance score" not in t
-        assert "No BTTS in" not in t and "Under 2.5 in" not in t
-        if market == "1X2":
-            assert "out of 5" in t and " matches" not in t
-
-
-def test_benchmark_block_layout_separator_and_source_line():
-    r, card = _card("venue")
-    block = _find(card, lambda c: "form-benchmark" in str(getattr(c, "className", "")))[0]
-    values = _find(block, lambda c: getattr(c, "className", "") == "bench-values")[0]
-    parts = [getattr(c, "className", "") for c in values.children]
-    assert parts == ["bench-value", "bench-sep", "bench-value"]  # Home | Away
-    assert _text(values).replace(" ", "").count("|") == 1
-    source = _find(block, lambda c: "bench-source" in str(getattr(c, "className", "")))[0]
-    assert _text(source) == "EPL 2026/27 — 14 teams evaluated"
-    assert "out of 5" not in _text(source)
-    _, overall = _card("overall")
-    block = _find(overall, lambda c: "form-benchmark" in str(getattr(c, "className", "")))[0]
-    values = _find(block, lambda c: getattr(c, "className", "") == "bench-values")[0]
-    assert [getattr(c, "className", "") for c in values.children] == ["bench-value"]  # no sep
-    css = (
-        __import__("pathlib").Path(__file__).parents[1] / "src/diski9/app/assets/style.css"
-    ).read_text()
-    assert ".bench-sep { display: none; }" in css  # hidden when stacked on narrow screens
+        assert "/ 5" not in _text(d) and "/5" not in _text(d)

@@ -26,12 +26,14 @@ from .views import FORM_TOOLTIP, basis_help, info, pill, render_detail, signed_c
 ASSETS = Path(__file__).parent / "assets"
 MARKETS = [("1X2", "Match result"), ("BTTS", "Both teams to score"), ("OU25", "Over/Under 2.5")]
 LIMITED_TITLE = {
-    "1X2": "Limited data: fewer than five eligible matches for at least one team",
+    "1X2": "Early season: fewer than eight current-season matches for at least one team",
     "BTTS": "Limited data: fewer than six current-season matches for at least one team",
     "OU25": "Limited data: fewer than six current-season matches for at least one team",
 }
 THRESHOLD_DISABLED = KICKOFF_DIRECTIONS + ("evenly_matched",)
-DEFAULT_BASIS = {"1X2": "venue", "BTTS": "overall", "OU25": "overall"}
+# Match Result has no basis choice since engine 2.4.0 (one current-season overall score);
+# its value is fixed to "overall" and the selector is hidden on that tab.
+DEFAULT_BASIS = {"1X2": "overall", "BTTS": "overall", "OU25": "overall"}
 STAT_PAIR = {  # header toggle between the two statistical directions of a market
     "1X2": ("home_stronger", "away_stronger"),
     "BTTS": ("btts_yes", "btts_no"),
@@ -263,7 +265,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                             ),
                             dcc.RadioItems(
                                 id="basis",
-                                value="venue",
+                                value="overall",
                                 inline=True,
                                 className="segmented",
                                 options=[
@@ -273,6 +275,8 @@ def build_layout(data: ScreenerData) -> html.Div:
                             ),
                         ],
                         className="filter",
+                        id="basis-filter",
+                        style={"display": "none"},  # first tab is Match result
                     ),
                     html.Div(
                         [
@@ -370,6 +374,7 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Output("threshold-label", "children"),
         Output("basis-label", "children"),
         Output("legend", "children"),
+        Output("basis-filter", "style"),
         Input("market", "value"),
         Input("direction", "value"),
     )
@@ -378,7 +383,10 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         basis_label = [html.Label("Form basis"), info(basis_help(market), "About form basis")]
         legend = (
             [
-                html.Span("Form scores are Diski Form Scores (0–5)", className="muted small"),
+                html.Span(
+                    "Form Scores (0–5) use each team's last eight current-season league matches",
+                    className="muted small",
+                ),
                 info(FORM_TOOLTIP, "About Diski Form Score"),
             ]
             if market == "1X2"
@@ -402,6 +410,7 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             else c["label"],
             basis_label,
             legend,
+            {"display": "none"} if market == "1X2" else {},
         )
 
     @app.callback(
@@ -474,7 +483,9 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
     )
     def apply_basis_default(market, prefs):
         """Per-market Form Basis: the user's choice for that market in this session,
-        otherwise the default (Match result: venue; BTTS and O/U: overall)."""
+        otherwise the default (overall). Match Result has no basis choice."""
+        if market == "1X2":
+            return "overall"  # no basis choice for Match Result
         return (prefs or {}).get(market, DEFAULT_BASIS[market])
 
     @app.callback(
@@ -485,7 +496,8 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
     )
     def remember_basis(basis, market, prefs):
         prefs = dict(prefs or {})
-        prefs[market] = basis
+        if market != "1X2":
+            prefs[market] = basis
         return prefs
 
     @app.callback(

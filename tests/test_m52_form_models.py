@@ -18,7 +18,7 @@ from diski9.research.form_models import (
     score,
     symmetric_gd_component,
 )
-from diski9.screener.calc import banded_form_score
+from diski9.screener.calc import banded_form_score, diski_form_score
 from diski9.screener.engine import Match, MatchStore, compute_fixture
 
 T = datetime(2025, 8, 1, 15, tzinfo=UTC)
@@ -216,9 +216,10 @@ def test_no_duplicate_rows_and_promoted_flag():
     assert not r5.changed_division
 
 
-def test_row_d_score_matches_production_engine():
+def test_production_engine_2_4_uses_current_season_eight_match_window():
+    """Research Model D (five matches, may cross seasons) is kept for reproducibility;
+    production since engine 2.4.0 scores the last eight current-season matches."""
     store = store_of(synthetic())
-    rows = build_rows(store, (39,), (2025,))
     fx = SimpleNamespace(
         id=7,
         competition_id=39,
@@ -229,10 +230,10 @@ def test_row_d_score_matches_production_engine():
     )
     for basis in ("venue", "overall"):
         prod = compute_fixture(store, fx, fx.kickoff_utc + timedelta(days=1), basis)
-        row = [r for r in rows if r.fixture_id == 7 and r.basis == basis][0]
-        assert row.scores["d"] == (
-            prod["match_result"]["home_form"],
-            prod["match_result"]["away_form"],
+        w = store.team_window(1, fx.kickoff_utc, None, 8, competition_id=39, season=2025)
+        assert {t.match.season for t in w} == {2025}  # the 2024 Championship match is out
+        assert prod["match_result"]["home_form"] == float(
+            diski_form_score([(t.goals_for, t.goals_against) for t in w]).score
         )
 
 
@@ -250,6 +251,6 @@ def test_research_model_d_equals_production_engine_2_1():
 
     rng = random.Random(4)
     for _ in range(2000):
-        w = random_window(rng)
+        w = random_window(rng, 5)  # full windows: engine 2.4.0 normalises partial ones
         assert score("d", w) == diski_form_score(w).score
     assert diski_form_score([]) is None

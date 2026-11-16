@@ -34,6 +34,9 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
 * **Milestone 5.3** — Diski Form Score Model D (engine 2.1.0), BTTS / Over-Under shown as
   records, league baseline and market-implied probabilities:
   [`docs/milestone5_3_report.md`](docs/milestone5_3_report.md)
+* **Engine 2.4.0** — Match Result Form Score from the last eight current-season matches
+  (normalised for shorter windows), current-season league average, display-only venue
+  context: [`docs/form_current_season.md`](docs/form_current_season.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 
@@ -104,20 +107,27 @@ and it refuses with a clear message if `setup` has not completed. Without
 
 Restart `serve` (or wait up to 5 minutes) for the app to show refreshed data.
 
-### Methodology (engine 2.3.0)
+### Methodology (engine 2.4.0)
 
-* **Diski Form Score (0–5)**, Model D, from the last five eligible matches:
-  2.5 × points ÷ 15 + 2.5 × (goal difference clipped to ±9, + 9) ÷ 18. No bonuses;
-  no history means Unavailable. **Form Difference** = home − away. Each team is
-  compared with the **league Form Score average** (eligible league teams, one score
-  each; home/away averages for venue-specific form).
+All three markets use **current-season league matches only** (never earlier seasons
+or other divisions), point in time, with the actual number of matches as the
+denominator and Unavailable (never zero) when a team has no matches yet.
+
+* **Diski Form Score (0–5)**, Model D, from each team's last **eight** current-season
+  league matches, home or away (fewer early in the season, normalised by N):
+  2.5 × points ÷ 3N + 2.5 × (goal difference clipped to ±1.8N, + 1.8N) ÷ 3.6N.
+  Fewer than eight matches shows an **Early season** note. Each team is compared with
+  one **league Form Score average** (current season; shown once at least 12 teams and
+  80% of the season's teams have three or more matches). **Venue context** (last five
+  home / away matches vs overall) is display only.
 * **BTTS / Over 2.5**: team records (up to ten current-season matches in the
   current competition), a point-in-time **league baseline** (current season only;
   shown from 30 completed league matches), and market-implied probabilities.
 * **Reference odds**: Fresh, Stale (last valid consensus, labelled) or
   Unavailable. Stale odds are never eligible for the Challenge.
 
-Full details: [`docs/milestone5_3_model_migration.md`](docs/milestone5_3_model_migration.md),
+Full details: [`docs/form_current_season.md`](docs/form_current_season.md),
+[`docs/milestone5_3_model_migration.md`](docs/milestone5_3_model_migration.md),
 [`docs/milestone5_3_screener_ux.md`](docs/milestone5_3_screener_ux.md),
 [`docs/ui_cleanup_and_baseline.md`](docs/ui_cleanup_and_baseline.md),
 [`docs/form_benchmark.md`](docs/form_benchmark.md) and

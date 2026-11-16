@@ -108,7 +108,10 @@ def test_score_n_equals_production_at_five_and_scales_consistently():
     rng = random.Random(8)
     for _ in range(2000):
         w = [(rng.randint(0, 5), rng.randint(0, 5)) for _ in range(rng.randint(1, 5))]
-        assert score_n(w, 5) == diski_form_score(w).score  # identical to Model D
+        # production (engine 2.4.0) normalises by the matches actually played
+        assert score_n(w, len(w)) == diski_form_score(w).score
+        if len(w) == 5:
+            assert score_n(w, 5) == diski_form_score(w).score
     for n in (7, 8, 10):
         assert score_n([(3, 0)] * n, n) == 5 and score_n([(0, 3)] * n, n) == 0
         # level goal difference -> 1.25; all draws -> 2.5 x 1/3 + 1.25

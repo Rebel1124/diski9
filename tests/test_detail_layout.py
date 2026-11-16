@@ -82,14 +82,14 @@ def test_calculation_details_preserved(data):
     text = _text(analysis)
     for phrase in (
         "Won · drawn · lost",
-        "Points part = 2.5 × points ÷ 15",
+        "Points part = 2.5 × points ÷ 3N",
         "Goal-difference part",
         "Diski Form Score (0–5)",
         "Only matches played before kickoff",
     ):
         assert phrase in text, phrase
     b = r["teams"]["home"]["form"]["breakdown"]
-    assert f"2.5 × {b['points']}/15 = {b['points_component_display']}" in text
+    assert f"2.5 × {b['points']}/{b['max_points']} = {b['points_component_display']}" in text
     r, ov, official = data.detail(EPL_FIX, "overall")
     btts, _ = cards(render_detail(r, ov, official, "BTTS", data))
     t = _text(btts)

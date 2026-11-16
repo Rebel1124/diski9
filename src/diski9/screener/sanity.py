@@ -8,8 +8,9 @@ been at kickoff, then checked:
 2. ``independent_reconstruction``: recomputing from a store that physically
    contains only matches before kickoff gives an identical result hash, so
    later results cannot have influenced it.
-3. ``independent_form_check``: the home team's venue Diski Form Score is
-   re-derived with a separate SQL query and separate scoring code.
+3. ``independent_form_check``: the home team's Diski Form Score (last eight
+   current-season league matches) is re-derived with a separate SQL query and
+   separate scoring code.
 4. ``bounds``: Form Scores within [0, 5]; rates and combined indicators in [0, 1].
 5. ``deterministic``: computing twice gives the same hash.
 6. ``current_season_goals``: every BTTS / Over 2.5 match used belongs to the
@@ -32,25 +33,34 @@ from diski9.db.schema import fixtures
 from .engine import MatchStore, ScreenerConfig, compute_fixture
 
 
-def _sql_home_form(conn: Connection, team_id: int, before: datetime, n: int = 5) -> float | None:
-    """Independent re-implementation of the Diski Form Score, Model D (venue: home matches)."""
+def _sql_home_form(
+    conn: Connection, team_id: int, comp: int, season: int, before: datetime, n: int = 8
+) -> float | None:
+    """Independent re-implementation of the Diski Form Score (engine 2.4.0): the team's
+    last ``n`` eligible league matches of this competition and season, home or away,
+    normalised by the number actually played."""
+    is_home = fixtures.c.home_team_id == team_id
     rows = conn.execute(
-        select(fixtures.c.ft_home, fixtures.c.ft_away)
+        select(fixtures.c.home_team_id, fixtures.c.ft_home, fixtures.c.ft_away)
         .where(
-            fixtures.c.home_team_id == team_id,
+            is_home | (fixtures.c.away_team_id == team_id),
+            fixtures.c.competition_id == comp,
+            fixtures.c.season == season,
             fixtures.c.kickoff_utc < before,
+            fixtures.c.is_final.is_(True),
             fixtures.c.stats_exclusion_reason.is_(None),
-            fixtures.c.venue_classification != "neutral",
         )
         .order_by(fixtures.c.kickoff_utc.desc(), fixtures.c.id.desc())
         .limit(n)
     ).all()
     if not rows:
         return None
-    pts = sum(3 if h > a else 1 if h == a else 0 for h, a in rows)
-    gd = sum(h - a for h, a in rows)
-    # Model D (engine 2.1.0), written independently of calc.DiskiFormScore
-    return 2.5 * pts / 15 + 2.5 * (max(-9, min(9, gd)) + 9) / 18
+    gf_ga = [(h, a) if home == team_id else (a, h) for home, h, a in rows]
+    k = len(gf_ga)
+    pts = sum(3 if f > a else 1 if f == a else 0 for f, a in gf_ga)
+    gd = sum(f - a for f, a in gf_ga)
+    cap = 1.8 * k
+    return 2.5 * pts / (3 * k) + 2.5 * (max(-cap, min(cap, gd)) + cap) / (2 * cap)
 
 
 def _sql_current_season_count(
@@ -94,7 +104,9 @@ def check_fixture(conn: Connection, store: MatchStore, fx: Any, config: Screener
     if truncated["inputs_hash"] != r["inputs_hash"]:
         failures.append("independent_reconstruction")
 
-    sql_form = _sql_home_form(conn, fx.home_team_id, kickoff, config.form_window)
+    sql_form = _sql_home_form(
+        conn, fx.home_team_id, fx.competition_id, fx.season, kickoff, config.form_window
+    )
     engine_form = r["match_result"]["home_form"]
     if (sql_form is None) != (engine_form is None) or (
         sql_form is not None and abs(sql_form - engine_form) > 1e-9

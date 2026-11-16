@@ -43,26 +43,25 @@ def display(value: Fraction | float | None, places: int = 2) -> str | None:
 
 
 # ------------------------------------------- Diski Form Score (Model D, 5.3)
-FULL_WINDOW = 5
-GD_LIMIT = 9
+FULL_WINDOW = 8  # engine 2.4.0: last eight current-season league matches
+GD_PER_MATCH = Fraction(9, 5)  # goal-difference cap: 1.8 per match (+/-9 over five)
 HALF_SCALE = Fraction(5, 2)
 
 
 @dataclass(frozen=True)
 class DiskiFormScore:
-    """Diski Form Score, Model D (engine 2.1.0, Milestone 5.3), from up to five
-    eligible matches, most recent first.
+    """Diski Form Score (generalised Model D, engine 2.4.0) from the N eligible
+    matches used (most recent first; N is at most eight in the Screener).
 
-        points component        = 2.5 x P / 15
-        goal-difference component = 2.5 x (clip(GD, -9, +9) + 9) / 18
-        Diski Form Score        = points component + goal-difference component
+        points component          = 2.5 x P / (3N)
+        goal-difference component = 2.5 x (clip(GD, -1.8N, +1.8N) + 1.8N) / (3.6N)
+        Diski Form Score          = points component + goal-difference component
 
-    P is the points earned (3 per win, 1 per draw), GD goals for minus goals
-    against. Bounded 0 to 5; no bonuses. Partial windows use the actual totals of
-    the matches available - nothing is prorated - so a short window cannot reach
-    5. Because the goal-difference component is symmetric (1.25 at GD 0), a team
-    with very few matches can still score above 0; the Limited-data flag marks
-    such windows. Not a probability.
+    P is the points earned (3 per win, 1 per draw), GD goals for minus goals against.
+    Normalised by the actual number of matches, so a team is not penalised for
+    having played fewer than eight; early-season scores are more volatile and are
+    flagged in the UI. With N = 5 this is the Milestone 5.3 Model D. Bounded 0-5, no
+    bonuses, not a probability. No matches -> None (Unavailable), never 0.
     """
 
     results: tuple[str, ...]  # "W"/"D"/"L", most recent first
@@ -90,12 +89,20 @@ class DiskiFormScore:
         return 3 * self.wins + self.draws
 
     @property
+    def max_points(self) -> int:
+        return 3 * self.matches
+
+    @property
     def goal_difference(self) -> int:
         return self.goals_for - self.goals_against
 
     @property
-    def goal_difference_capped(self) -> int:
-        return max(-GD_LIMIT, min(GD_LIMIT, self.goal_difference))
+    def gd_cap(self) -> Fraction:
+        return GD_PER_MATCH * self.matches
+
+    @property
+    def goal_difference_capped(self) -> Fraction:
+        return max(-self.gd_cap, min(self.gd_cap, Fraction(self.goal_difference)))
 
     @property
     def full_window(self) -> bool:
@@ -103,29 +110,36 @@ class DiskiFormScore:
 
     @property
     def points_component(self) -> Fraction:
-        return HALF_SCALE * Fraction(self.points, 15)
+        return HALF_SCALE * Fraction(self.points, self.max_points)
 
     @property
     def goal_difference_component(self) -> Fraction:
-        return HALF_SCALE * Fraction(self.goal_difference_capped + GD_LIMIT, 2 * GD_LIMIT)
+        c = self.gd_cap
+        return HALF_SCALE * (self.goal_difference_capped + c) / (2 * c)
 
     @property
     def score(self) -> Fraction:
         return self.points_component + self.goal_difference_component
 
     def breakdown(self) -> dict:
+        capped = self.goal_difference_capped
         return {
-            "method": "D",
+            "method": "D (current season, last 8, normalised)",
             "matches": self.matches,
             "full_window": self.full_window,
+            "window": FULL_WINDOW,
             "wins": self.wins,
             "draws": self.draws,
             "losses": self.losses,
             "points": self.points,
+            "max_points": self.max_points,
             "goals_for": self.goals_for,
             "goals_against": self.goals_against,
             "goal_difference": self.goal_difference,
-            "goal_difference_capped": self.goal_difference_capped,
+            "gd_cap": float(self.gd_cap),
+            "gd_cap_display": display(self.gd_cap, 1),
+            "goal_difference_capped": float(capped),
+            "goal_difference_capped_display": display(capped, 1),
             "points_component": float(self.points_component),
             "points_component_display": display(self.points_component),
             "goal_difference_component": float(self.goal_difference_component),
@@ -153,6 +167,7 @@ def diski_form_score(results: Iterable[tuple[int, int]]) -> DiskiFormScore | Non
 
 
 # ------------------------------------- legacy banded Diski Form Score (Model A)
+BANDED_FULL_WINDOW = 5  # legacy Model A: five-match window
 FORM_RAW_MAX = Fraction(13, 2)  # 2.5 + 2.5 + 0.5 + 0.5 + 0.5
 FORM_SCALE = Fraction(5)
 BONUS = Fraction(1, 2)
@@ -216,7 +231,7 @@ class BandedFormScore:
 
     @property
     def full_window(self) -> bool:
-        return self.matches >= FULL_WINDOW
+        return self.matches >= BANDED_FULL_WINDOW
 
     @property
     def points_award(self) -> Fraction:
@@ -476,7 +491,7 @@ def combined_indicator(home: Rate | None, away: Rate | None) -> Fraction | None:
 
 
 # ------------------------------------------------------------- limited data
-FORM_MIN_MATCHES = 5  # Diski Form Score: Limited data below a full five-match window
+FORM_MIN_MATCHES = 8  # Diski Form Score: "early season" below eight current-season matches
 GOALS_MIN_MATCHES = 6
 CURRENT_DIVISION_MIN = 3
 
