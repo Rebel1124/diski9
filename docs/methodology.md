@@ -268,7 +268,7 @@ Screener and The Match Lab); margin removal is `normalise` in
 * The final column shows only the single strongest outcome and adapts to the
   ranking: Market / Edge, Best edge or Best EV.
 * For 1X2, a positive pick is coloured by **outcome identity**: Home blue,
-  Draw amber, Away teal. The same colours are used in the market-probability bar.
+  Draw teal, Away amber. The same colours are used in the market-probability bar.
   * The colour names the outcome, never "good value".
   * Negative, zero, missing and stale cells stay neutral.
   * The outcome is always written out as well.

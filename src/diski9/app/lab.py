@@ -1356,7 +1356,12 @@ def value_check(market: str, ov: OddsView | None, base: dict, mine: dict | None)
         verdict = html.P(
             [
                 f"Positive estimated EV based on {'your estimate' if mine else 'the model'}: ",
-                html.Strong(f"{label} {ev_text(best.ev)}"),
+                html.Strong(
+                    f"{label} {ev_text(best.ev)}",
+                    # 1X2: the outcome's identity colour (style.css --out-*); two-way
+                    # markets keep the neutral positive colour
+                    className=f"out-{best.key}" if market == "1X2" else None,
+                ),
                 " at the consensus odds. Potential value only if the probability is right.",
             ],
             className="small val-pos-text",

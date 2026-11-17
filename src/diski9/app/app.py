@@ -930,7 +930,7 @@ def results_table(
 
 
 def outcome_class(v: dict) -> str:
-    """Outcome colour (Home blue, Draw amber, Away teal) for a positive 1X2 pick only;
+    """Outcome colour (Home blue, Draw teal, Away amber) for a positive 1X2 pick only;
     negative, zero, missing and stale values keep the neutral style."""
     return f" v-out-{v['outcome']}" if v.get("outcome") and v["cls"] == "pos" else ""
 

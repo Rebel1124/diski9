@@ -45,7 +45,7 @@ OUT = {"Home": "home", "Draw": "draw", "Away": "away"}
 
 # ------------------------------------------------------- 1. outcome colours
 def test_outcome_palette_defined_and_shared():
-    for name, hexv in (("home", "#60a5fa"), ("draw", "#e5ae52"), ("away", "#36c9a8")):
+    for name, hexv in (("home", "#60a5fa"), ("draw", "#36c9a8"), ("away", "#e5ae52")):
         assert f"--out-{name}: {hexv};" in CSS
         assert f".seg-{name} {{ background: var(--out-{name}); }}" in CSS  # market bar too
         assert (
@@ -332,6 +332,8 @@ const { chromium } = require('playwright');
     await p.waitForTimeout(500);
     r.panes = await p.evaluate(() => [...document.querySelectorAll('.lab-tables .lab-pane')]
       .map(e => { const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width)]; }));
+    r.summary = await p.evaluate(() => { const e = document.querySelector('.val-pos-text strong');
+      return e ? [e.innerText, getComputedStyle(e).color] : null; });
     r.tableClip = await p.evaluate(() => [...document.querySelectorAll('.lab-tables table')]
       .map(t => t.scrollWidth - t.parentElement.clientWidth));
     // Section B: open, move the compact slider with the keyboard, then type in the box
@@ -368,7 +370,7 @@ const { chromium } = require('playwright');
   await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
 """
-RGB = {"Home": "rgb(96, 165, 250)", "Draw": "rgb(229, 174, 82)", "Away": "rgb(54, 201, 168)"}
+RGB = {"Home": "rgb(96, 165, 250)", "Draw": "rgb(54, 201, 168)", "Away": "rgb(229, 174, 82)"}
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not available")
@@ -402,6 +404,9 @@ def test_browser_outcome_colours_section_d_and_sliders(valued):
                 assert left[1] == right[1] and right[0] > left[0], (name, r["panes"])
                 assert abs(left[2] - right[2]) <= 2
             assert all(c <= 0 for c in r["tableClip"]), (name, r["tableClip"])
+            if r["summary"]:  # Section D positive-EV outcome in its identity colour
+                label = r["summary"][0].split()[0]
+                assert r["summary"][1] == RGB[label], (name, r["summary"])
             assert r["boxAfterSlider"] == "+0.15" and r["sliderAfterBox"] == "-0.4", name
             assert "+0.15" in r["breakdownAfterSlider"], name
             assert r["thumbSize"] < r["mainThumbSize"], name  # visually secondary
@@ -431,3 +436,35 @@ def test_draw_and_away_picks_are_coloured_too(valued):
             if cell["outcome"]:
                 seen.add(cell["outcome"])
     assert {"home", "away"} <= seen
+
+
+# ------------------------------------- Section D positive-EV summary colour
+@pytest.mark.parametrize("key", ["home", "draw", "away"])
+def test_value_check_summary_takes_outcome_colour(data, key):
+    from diski9.app.lab import value_check
+
+    r, ov, _ = data.detail(EPL_FIX)
+    base = r["goal_model"]["probabilities"]
+    mine = {k: (0.8 if k == key else 0.1) for k in ("home", "draw", "away")}
+    vc = value_check("1X2", ov, base, mine)
+    summary = _find(vc, lambda c: "val-pos-text" in (getattr(c, "className", "") or ""))
+    strong = _find(summary[0], lambda c: isinstance(c, html.Strong))
+    assert len(strong) == 1 and strong[0].className == f"out-{key}"
+    label = {"home": "Home win", "draw": "Draw", "away": "Away win"}[key]
+    assert _text(strong[0]).startswith(label)
+    # the table's EV values keep their positive/negative formatting
+    cells = _find(vc, lambda c: "val-pos" in (getattr(c, "className", "") or "").split())
+    assert cells
+
+
+def test_value_check_summary_two_way_markets_stay_neutral(data):
+    from diski9.app.lab import value_check
+
+    r, ov, _ = data.detail(EPL_FIX)
+    vc = value_check(
+        "BTTS", ov, r["goal_model"]["probabilities"], {"btts_yes": 0.9, "btts_no": 0.1}
+    )
+    strong = _find(vc, lambda c: isinstance(c, html.Strong))
+    assert strong and not strong[0].className
+    for name in ("home", "draw", "away"):
+        assert f".val-pos-text strong.out-{name} {{ color: var(--out-{name}); }}" in CSS

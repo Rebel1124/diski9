@@ -17,8 +17,8 @@
   --loss: #f85149;
   /* outcome identity: Home, Draw, Away (never a "good" / "bad" signal) */
   --out-home: #60a5fa;
-  --out-draw: #e5ae52;
-  --out-away: #36c9a8;
+  --out-draw: #36c9a8;
+  --out-away: #e5ae52;
   --radius: 10px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color-scheme: dark;
@@ -595,6 +595,10 @@ table.results td.value-cell { white-space: nowrap; }
 .value-table td, .value-table th { white-space: nowrap; }
 .value-check { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 10px; }
 .val-pos-text strong { color: #56d364; }
+/* Section D summary: a positive 1X2 outcome takes its identity colour */
+.val-pos-text strong.out-home { color: var(--out-home); }
+.val-pos-text strong.out-draw { color: var(--out-draw); }
+.val-pos-text strong.out-away { color: var(--out-away); }
 .value-help { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
 .value-help li { margin-bottom: 4px; }
 .ev-caution { color: var(--warn); }
