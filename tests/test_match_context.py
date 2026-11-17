@@ -340,3 +340,20 @@ def test_section_b_note_comes_before_inputs_like_section_c(data):
         body = acc.children[1].children
         kinds = [getattr(c, "className", "") for c in body]
         assert kinds.index("cat-field wide") < kinds.index("cat-inputs"), acc_cls
+
+
+def test_recent_form_summary_two_columns(data):
+    r, ov, off = data.detail(EPL_FIX)
+    d = render_detail(r, ov, off, "1X2", data)
+    grid = _find(d, lambda c: getattr(c, "className", "") == "form-summary-grid")
+    assert len(grid) == 1
+    left, right = grid[0].children
+    assert "League Form Score average" in _text(left) and "baseline" in left.className
+    assert right.className == "recent-summary" and "Recent results" in _text(right)
+    assert (
+        ".form-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr))"
+        in CSS
+    )
+    assert (
+        "@media (max-width: 760px) {\n  .form-summary-grid { grid-template-columns: 1fr; }" in CSS
+    )

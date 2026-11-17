@@ -307,3 +307,17 @@ The column is gone from all three markets. The same flags now appear inside the
 logic behind them is unchanged. The remaining columns fill the table width.
 
 Screenshot: `screenshots/table_without_data_column.png`.
+
+## Recent form layout
+
+Under the two team Form Score cards, which are unchanged, the content is now in two
+columns:
+* left: the league Form Score average, with the league, season and number of teams
+  evaluated
+* right: each team's recent W/D/L results
+
+The columns stack below 760 px, and the badges wrap if needed. The calculations and
+the "Calculation and detail" expander are unchanged.
+
+Screenshots: `screenshots/form_summary_desktop.png`, `form_summary_tablet.png`,
+`form_summary_phone.png`.

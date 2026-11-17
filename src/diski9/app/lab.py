@@ -528,8 +528,10 @@ def form_context(r: dict) -> html.Details:
     return accordion(
         "Recent form (Diski Form Score)",
         html.Div([form_tile(t[s], bench) for s in SIDES], className="tiles"),
-        form_benchmark_block(bench),
-        _recent_summary(r),
+        html.Div(
+            [form_benchmark_block(bench), _recent_summary(r)],
+            className="form-summary-grid",
+        ),
         detail,
     )
 
