@@ -80,11 +80,27 @@ Functions:
 **Numerics:**
 * **Odds** are stored and used as exact 2-decimal values (`Decimal`, or integer
   hundredths).
-* **Payouts are exact rationals:** stake (integer credits) × product of odds.
-  Recovery compares the exact payout against 100, so it is never subject to
-  floating-point error. Ties at exactly 100 are impossible for a single bucket
-  (30·O = 100 needs O = 10/3, which has no finite 2-decimal factorisation), but
-  are handled exactly anyway.
+* **Combined odds are exact:** a product of 2-decimal odds, kept as an exact
+  `Decimal` (6 decimals for a bucket, 18 for the nine-fold).
+* **One settlement-precision policy** (R-09, confirmation D-15) for every
+  modelled and settled payout:
+  * accumulator payout = round_half_up(stake × exact combined odds, 0.01);
+  * state gross = the sum of the winning accumulators' payouts.
+  * Recovery is `state_gross >= Decimal("100.00")`, an exact decimal comparison,
+    never floating point and never display-rounded values.
+  * The frontier (x and y), summary, payout chart and settlement all use these
+    same state values, so they agree to the cent.
+  * Example: R1's all-win state is 116.58 + 176.83 + 100.70 + 768.81 = 1,162.92.
+    Rounding the exact total (1,162.913…) would give 1,162.91. The policy
+    deliberately uses the former.
+* **Why the policy rarely changes anything, and how it is tested:**
+  * Rounding can only change a recovery decision when a state's exact gross is
+    within 0.005 credit per accumulator of 100.
+  * There were no such cases in 8,960 real-slate state comparisons (Phase 5B
+    snapshot, all 280 partitions × 8 states × 4 slates), nor in 640,000 random
+    ones.
+  * Constructed knife-edge cases are covered by tests (implementation plan,
+    Phase 1).
 * **Probabilities** are binary floats, products of nine model probabilities (each
   stored at full precision in the round sheet). P(recover) is a sum of exact
   state indicators times float state probabilities.
@@ -103,11 +119,19 @@ Functions:
 
 Tests (numpy available in dev) cross-check the production module against
 `diski9.research.challenge_portfolio` on all 17 Phase 5B slates, the frozen real
-snapshot included:
+snapshot included.
+
+**In the module's `precision="exact"` test mode** (unrounded payouts, as in the
+research):
 * identical partition IDs;
 * recovery equal;
 * E[R], SD and payouts equal to 5× the research values;
 * identical efficient sets and recommendations.
+
+**In the product's `precision="settlement"` mode:**
+* every recovery decision equals the exact mode's, except where a state's exact
+  gross lies within the rounding band around 100 (none occur in these slates);
+* E[R] differs from the exact mode by less than 0.03 credits.
 
 The research module stays research-only and is never imported by the app.
 
@@ -118,19 +142,22 @@ A pure function in the same module:
 ```python
 @dataclass(frozen=True)
 class PayoutOutcome:
-    gross: Decimal                     # exact credits
+    gross: Decimal                     # settlement-precision credits (0.01)
     probability: float                 # P(R = gross)
     states: tuple[tuple[int, int, int], ...]   # which bucket-win states give it
     at_least: float                    # P(R >= gross)
 
 def payout_distribution(result: PortfolioResult) -> list[PayoutOutcome]   # ascending gross
+def at_least(dist: list[PayoutOutcome], x: Decimal) -> float              # P(R >= x)
 ```
 
 **Construction:**
 * Take the eight states of the selected grouping (the same `PortfolioResult` the
   frontier uses, at 30/30/30/10).
-* Group them by **exact** gross payout (`Decimal` equality: merging is exact, never
-  tolerance-based). This gives 1–8 distinct outcomes.
+* Group them by gross payout at settlement precision. This is `Decimal` equality,
+  so merging is exact and never tolerance-based. It gives 1–8 distinct outcomes.
+  For example, the "nothing wins" state is always 0, and two buckets with
+  identical payouts merge.
 * Sort ascending.
 * Set `at_least` to the suffix sum of `probability`.
 
@@ -138,8 +165,11 @@ def payout_distribution(result: PortfolioResult) -> list[PayoutOutcome]   # asce
 * Σ probability = 1, to within 1e-12.
 * `at_least` is non-increasing, and the first value is 1.0 (gross 0 is always
   reached).
-* P(R ≥ 100), from the step function, equals `result.p_recover` **exactly**: the
-  same states are counted.
+* `at_least(dist, Decimal("100.00"))` equals `result.p_recover` **exactly**: the
+  same states are counted, compared at settlement precision.
+* The nine-fold payout appears only in the (1,1,1) outcome.
+* Selecting the same grouping again returns an identical distribution.
+* All outcomes come from the cached `PortfolioResult`, with no I/O.
 * The last outcome is the all-win payout 30·(O_A + O_B + O_C) + 10·O_9, with
   probability P_A·P_B·P_C (= P_9).
 * Σ gross × probability = `result.expected_gross`.
@@ -151,8 +181,10 @@ def payout_distribution(result: PortfolioResult) -> list[PayoutOutcome]   # asce
   (r₁, S₁), (r₂, S₂), …, (r_max, S_max), (r_max, 0), where Sₖ = P(R ≥ rₖ). This
   makes the curve drop at 0⁺ to P(R > 0), hold each level up to the next payout,
   and fall to 0 after the maximum.
-* The exact view uses stems (a bar trace with a very narrow width, or a segment
-  trace).
+* The exact view is a discrete probability-mass bar chart:
+  * one narrow bar per distinct payout (Plotly `Bar` with a fixed narrow width,
+    so bars do not imply ranges);
+  * heights sum to 100%.
 * Both are recalculated in the same callback that updates the details panel,
   keyed by `(round_id, selections, partition_id)`, using the cached
   `PortfolioResult`. Cost: microseconds.

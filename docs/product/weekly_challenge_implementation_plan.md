@@ -53,17 +53,65 @@ imported by the app).
 * recommendation always efficient, with deterministic tie-breaks;
 * `hypothesis` property tests on random slates (bounded odds and
   probabilities);
-* payout distribution:
-  * exact merging of equal payouts;
-  * probabilities sum to 1;
-  * `at_least` non-increasing and starting at 1;
-  * P(R ≥ 100) from the step function == `p_recover` exactly;
-  * maximum outcome = all-win payout with probability P_A·P_B·P_C;
-  * Σ gross·probability = E[R];
-  * the R1 worked example (UX §4.3) reproduced to 0.01 credit and 0.001%;
-  * identical-bucket slates merge to fewer outcomes.
+* payout distribution: see "Payout Probability acceptance tests" below;
+* settlement-precision policy:
+  * accumulator payouts rounded half-up to 0.01;
+  * state gross = sum of the rounded payouts;
+  * recovery = `gross >= 100.00`, compared as decimals;
+  * the same function is used by settlement (Phase 5) and by the explorer.
 
-**Scaling regression tests (required):**
+**Payout Probability acceptance tests (required; addendum §8, items 1–9):**
+
+1. **Exact eight-state calculation.**
+   * The distribution matches an exact `Fraction` reference over the eight states
+     for random slates (`hypothesis`).
+   * The R1 worked example is reproduced: 0.00 / 100.70 / 116.58 / 176.83 /
+     217.28 / 277.53 / 293.41 / 1,162.92 credits, with probabilities to 0.001%.
+2. **Non-increasing cumulative probabilities.**
+   * `at_least` is monotone non-increasing.
+   * The first value is exactly 1.0.
+   * The value just above the maximum is 0.
+   * The chart's vertices never rise.
+3. **Exact probabilities sum to 100%,** to within 1e-12, including when outcomes
+   merge.
+4. **Nine-fold treatment.**
+   * The nine-fold payout is present only in the (1,1,1) outcome.
+   * The maximum = 30·(O_A + O_B + O_C) + 10·O_9 at settlement precision, with
+     probability P_A·P_B·P_C.
+   * No state with fewer than three winning buckets contains the nine-fold.
+5. **100-credit threshold.**
+   * `at_least(dist, 100.00)` = the sum over the states with settled gross
+     ≥ 100.00.
+   * Covers the threshold inside a flat step (R1) and exactly at a payout
+     (constructed case where a state settles at exactly 100.00).
+6. **Agreement with the summary and the frontier.**
+   * For every one of the 280 partitions on several slates, the chart threshold
+     value == the summary recovery == the frontier x, compared as identical
+     floats from one code path.
+   * Maximum == the summary "maximum potential payout".
+7. **Identical payouts aggregated.**
+   * Slates with identical bucket odds (e.g. all p 0.5 @ 2.00) give merged
+     outcomes, for example 4 instead of 8.
+   * Probabilities are summed.
+   * No duplicate x values.
+8. **Deterministic updates.**
+   * Selecting grouping A, then B, then A again yields identical figures for A
+     both times.
+   * Figure JSON is byte-identical for the same inputs.
+   * The callback makes no network call (a test fails if the API client is used)
+     and writes nothing to the database.
+9. **Settlement rounding and threshold comparisons.**
+   * Constructed knife-edge cases: an exact gross of 99.996 settles at 100.00, so
+     it counts as recovered under the policy; an exact gross of 99.994 settles at
+     99.99, so it does not.
+   * Two accumulators each rounding up (e.g. 50.004 + 49.996 → 50.00 + 50.00 =
+     100.00).
+   * The modelled payout for each state equals the settlement engine's payout for
+     the same results (shared function).
+   * Display rounding never feeds back into calculations.
+
+**Scaling regression tests (required; run in `precision="exact"` mode, to match
+Phase 5B's unrounded research arithmetic):**
 1. For every Phase 5B slate and all 280 partitions, `p_recover₁₀₀ == p_recover₂₀`
    exactly (same exact threshold decisions).
 2. `E₁₀₀ == 5·E₂₀`, `σ₁₀₀ == 5·σ₂₀`, `net₁₀₀ == 5·net₂₀`, and every state return
@@ -134,7 +182,7 @@ cache.
 * callback unit tests (replace on the same fixture, 9-pick limit, the
   ineligible outcome is not selectable);
 * chart figure tests (trace counts, `customdata`, tie markers);
-* payout chart figure tests:
+* payout chart figure tests (addendum items 2, 3, 5, 6):
   * step vertices only, no spline;
   * x range from 0 to the maximum payout;
   * threshold marker at 100 with the exact probability;
@@ -144,7 +192,8 @@ cache.
 * Playwright at three widths (pick nine, explore, select an efficient point,
   click a dominated point to no effect, keyboard list, the payout chart redraws
   after selecting another efficient point, toggle between the at-least and
-  exactly views);
+  exactly views, the summary row and the threshold label show the same
+  recovery value, the "All possible outcomes" table is hidden by default);
 * the existing Screener and Match Lab browser tests stay green.
 
 ## Phase 4: Identity and immutable submissions

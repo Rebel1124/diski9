@@ -18,7 +18,7 @@
 | C-05 | Recommended = the efficient portfolio with the highest recovery probability; ties: higher expected return, then the lowest canonical ID |
 | C-06 | Goal Model 1.0 unchanged; existing consensus odds and eligibility (≥ 3 groups, fresh) |
 | C-07 | Weekly leaderboard by net virtual credits; no real money, prizes, affiliate links or staking advice |
-| C-08 | "Your Payout Probability" chart for the selected grouping. Main view: X = gross payout from 0 to the maximum; Y = chance of at least that payout; exact eight-state steps, no smoothing; 100-credit threshold and maximum marked. Secondary view: chance of each exact payout. Labelled as conditional on Goal Model 1.0 |
+| C-08 | **"Your Payout Probability"** (Phase 5C addendum), beneath the selected grouping's buckets and nine-fold. View A: X = gross payout in credits (0 to the maximum), Y = chance of at least that payout; exact eight-state downward steps, no smoothing; nine-fold only when all three buckets win; 100-credit threshold with its exact probability, equal to the summary and the frontier. View B: discrete probability-mass bars for exact payouts, with identical payouts aggregated, summing to 100%. Updated with every efficient selection from the same frozen inputs, with no API calls. Credits only, never percentages; labelled as conditional on Goal Model 1.0; the eight states hidden unless requested |
 
 **Verified:** uniform 5× scaling preserves recovery and the efficient set, and
 multiplies expected return, SD and net by 5. No contradiction with Phase 5B
@@ -36,7 +36,7 @@ multiplies expected return, SD and net by 5. No contradiction with Phase 5B
 | R-06 | Production maths as a **dependency-free port** of Phase 5B, with exact decimal payouts; equivalence tests against the research code | numpy and scipy are dev-only; exact threshold comparisons |
 | R-07 | Settle on the **90-minute score**; ignore extra time and penalties | Matches stored `ft_home`/`ft_away` and the market definitions |
 | R-08 | **Void selection = odds 1.00** in every accumulator containing it; probabilities at submission are not recomputed | Simple, common, explainable; all-void returns the stake |
-| R-09 | Payout per accumulator computed exactly, then **rounded half-up to 0.01 credit** | One rounding step; reproducible |
+| R-09 | Payout per accumulator computed exactly, then **rounded half-up to 0.01 credit**. The same rounded values drive every modelled figure (frontier, summary, payout chart) and settlement | One rounding step; reproducible; the chart's threshold value always equals what settlement would pay (addendum §3). Confirmation: D-15 |
 | R-10 | Weekly ties **share a rank** (1, 2, 2, 4); no hidden tie-breakers | Transparent |
 | R-11 | Three new routes (`/challenge`, `/challenge/me`, `/leaderboards`) plus header navigation; the Screener is unchanged at `/` | Minimum screens; natural extension |
 | R-12 | Market-implied probabilities shown per pick (tooltips and review), never on chart axes | Transparency without clutter |
@@ -61,6 +61,7 @@ multiplies expected return, SD and net by 5. No contradiction with Phase 5B
 | D-11 | **Round calendar** | Weekend window Fri 00:00 – Mon 23:59 UTC; publish Thursday 06:00 UTC after the odds refresh; no round when fewer than 9 eligible fixtures | As stated | Phase 2 |
 | D-12 | **PSL coverage** | API-Football currently has no qualifying odds for the PSL or PSL 1st Division, so they cannot appear in rounds. Accept, or pursue another odds source (a separate project) | Accept for the MVP; state it in the UI ("PSL fixtures will join when reference odds are available") | Phase 2 |
 | D-13 | **Season definition** | Calendar-based (European season Aug–May) or a rolling year; PSL and European calendars differ | Aug–May season matching the leagues with odds | Phase 6 |
+| D-15 | **Settlement-precision policy for modelled figures.** The addendum requires threshold probabilities to follow "the agreed settlement-precision policy" | (a) R-09 everywhere: each accumulator rounded half-up to 0.01; state gross = sum of the rounded payouts; recovery = gross ≥ 100.00 (modelled = settled, to the cent). (b) Exact unrounded payouts for modelled figures, with rounding only at settlement (may differ from the settled amount by a cent, and in rare knife-edge cases flip recovery) | (a). No recovery flips occurred in 8,960 real or 640,000 random state comparisons, but (a) guarantees agreement by construction. Note it shows R1's maximum as 1,162.92 (sum of rounded payouts), not 1,162.91 | Phase 1 |
 | D-14 | **Phase 5B merge** | Merge the research branch into `main`, or keep it separate and copy the reference into tests | Merge the research branch (code is research-only and tested) before Phase 1 | Phase 1 |
 
 ## Issues to resolve before implementation

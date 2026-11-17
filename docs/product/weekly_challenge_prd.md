@@ -173,41 +173,89 @@ Creating an entry requires signing in (identity model: decision D-01).
 
 ### 5.4a "Your Payout Probability" chart
 
-A second educational chart, separate from the frontier. The frontier helps a
-player **choose between groupings**; this chart explains **the spread of possible
-outcomes for the grouping they selected**.
+A second educational chart, separate from the frontier:
+* the **frontier** helps a player **choose between groupings**;
+* **Your Payout Probability** explains **the spread of possible returns for the
+  grouping they selected**.
 
-* FR-D1. Shown in the portfolio details for the selected efficient grouping. It is
-  recalculated whenever a different efficient grouping is selected, including the
-  pre-selected recommendation.
-* FR-D2. **Main view: "Chance of at least…"** (cumulative).
-  * X = gross payout in credits, from 0 to the maximum possible payout.
+**Placement and updates**
+
+* FR-D1. Shown beneath the selected grouping's three buckets and nine-fold, in
+  the portfolio details.
+* FR-D2. Selecting a different efficient grouping (or loading the pre-selected
+  recommendation) updates, together and deterministically:
+  * the three bucket compositions;
+  * bucket odds and potential payouts;
+  * recovery probability;
+  * expected return;
+  * this chart.
+
+  All of them come from the same frozen round sheet (model probabilities and
+  reference odds). Chart interactions make no API requests and no database
+  writes.
+
+**Primary view: "At least this payout"**
+
+* FR-D3. A survival-function chart:
+  * X = gross virtual payout in credits, from 0 to the maximum possible payout;
   * Y = probability (%) of receiving **at least** that payout:
-    P(R ≥ x) = sum of the probabilities of the states with R(s) ≥ x.
-  * Drawn as a downward-stepping curve, never smoothed.
-* FR-D3. **Exact eight-state distribution, fixed 30/30/30/10.**
-  * States with an identical gross payout are merged, so at most 8 distinct
-    payouts appear.
-  * The figures come from the same calculation as the frontier, never a
-    simulation.
-* FR-D4. **Threshold marker.**
-  * The 100-credit recovery threshold is marked, labelled with its exact
-    probability, P(R ≥ 100).
-  * That value must equal the selected grouping's x-coordinate on the frontier.
-* FR-D5. **Maximum marker.** The maximum possible gross payout (all three buckets
-  plus the nine-fold, when all nine selections win) is marked with its
-  probability.
-* FR-D6. **Secondary view: "Chance of exactly…".**
-  * The probability of each exact payout outcome (bars or stems), with which
+    P(R ≥ x) = Σ P(s) over the states s with R(s) ≥ x.
+  * Drawn as a **downward-stepping** line that never increases as x grows.
+    Never smoothed or interpolated.
+* FR-D4. **Exact eight-state distribution at the fixed 30 / 30 / 30 / 10
+  credits.**
+  * The nine-fold payout is included **only** in the state where all three
     buckets win.
-  * The probabilities sum to 100%.
-  * A table form is available for accessibility.
-* FR-D7. **Wording keeps the two views distinct:**
-  * cumulative: "at least X credits";
-  * exact: "exactly X credits".
-  * Never just "chance of X".
-* FR-D8. Every figure is labelled as conditional on Goal Model 1.0 and the frozen
-  reference odds.
+  * Never simulated.
+
+**Recovery threshold and maximum**
+
+* FR-D5. The 100-credit recovery threshold is clearly marked and labelled with
+  the exact modelled P(R ≥ 100).
+  * This value **must equal** the recovery probability on the frontier and in the
+    portfolio summary: one calculation, one value.
+* FR-D6. The maximum possible gross payout (all three buckets plus the nine-fold,
+  when all nine selections win) is marked with its probability.
+* FR-D7. A compact summary above the chart shows the chance of getting at least
+  100 credits back and the maximum potential payout.
+
+**Precision**
+
+* FR-D8. Every payout, threshold comparison and modelled figure uses the single
+  agreed **settlement-precision policy** (R-09, confirmation D-15):
+  * each accumulator's payout = stake × exact combined odds, rounded half-up to
+    0.01 credit;
+  * a state's gross = the sum of its winning accumulators' payouts.
+  * Threshold comparisons use these values exactly (`≥ 100.00`). They never use
+    display-rounded numbers or floating-point approximations.
+  * The frontier, summary, chart and settlement therefore all agree to the cent.
+
+**Secondary view: "Exactly this payout"**
+
+* FR-D9. A toggle switches to a **discrete probability-mass bar chart**, not a
+  line:
+  * one bar per distinct gross payout;
+  * states with identical payouts are aggregated;
+  * bar heights sum to 100%;
+  * each bar notes which buckets win.
+
+**Wording and education**
+
+* FR-D10. The two views are always distinguished: "at least X credits"
+  (cumulative) vs "exactly X credits" (exact). "Chance of X credits" alone is
+  never used.
+* FR-D11. A short explanation: "As the payout target increases, the probability
+  of reaching it generally decreases or stays the same." Plus notes that:
+  * the chart shows modelled probabilities, not guarantees (conditional on Goal
+    Model 1.0 and the frozen reference odds);
+  * gross payout includes returned virtual credits;
+  * 100 credits means recovering the weekly allocation;
+  * above 100 credits is a positive net return;
+  * virtual credits have no cash value.
+* FR-D12. Allocations and payouts are always expressed in credits
+  (30 / 30 / 30 / 10). Never percentages.
+* FR-D13. The full list of eight states is hidden by default, behind an "All
+  possible outcomes" disclosure (which is also the accessible table form).
 
 ### 5.5 Recommendation
 
@@ -267,8 +315,13 @@ outcomes for the grouping they selected**.
 
 ## 6. Non-functional requirements
 
-* **Correctness:** exact eight-state maths; integer credits; exact decimal
-  payouts; deterministic tie-breaks; the 20→100 scaling invariants are tested.
+* **Correctness:**
+  * exact eight-state maths;
+  * integer credits;
+  * exact decimal combined odds;
+  * one settlement-precision policy for every payout and threshold (FR-D8);
+  * deterministic tie-breaks;
+  * the 20→100 scaling invariants are tested.
 * **Determinism:** the same round sheet and the same nine selections always give
   the same 280 results, efficient set and recommendation.
 * **Immutability:**
@@ -342,11 +395,24 @@ outcomes for the grouping they selected**.
    rerunning it changes nothing.
 7. Weekly and season leaderboards match hand-calculated examples, including ties
    and skipped rounds.
-8. "Your Payout Probability" shows the exact step function and outcome
-   probabilities for the selected grouping, recalculated on every selection:
-   * its 100-credit value equals the frontier recovery probability;
-   * its maximum equals the all-win payout;
-   * the exact-outcome probabilities sum to 100%.
+8. "Your Payout Probability" meets all of the following (tests in the
+   implementation plan, Phases 1 and 3):
+   1. Probabilities come from the exact eight-state distribution.
+   2. Cumulative probabilities are non-increasing in the payout threshold and
+      start at 100%.
+   3. Exact-payout probabilities sum to 100%.
+   4. The nine-fold is included only in the all-buckets-win state; the maximum
+      equals the all-win payout, with probability P_A·P_B·P_C.
+   5. The 100-credit threshold value is P(R ≥ 100.00) computed from
+      settlement-precision payouts.
+   6. That value is identical to the portfolio summary and the frontier recovery
+      probability.
+   7. Identical payouts are aggregated into one outcome.
+   8. Selecting another efficient grouping updates the buckets, odds, payouts,
+      recovery, expected return and the chart deterministically (the same inputs
+      always give the same output), with no API request.
+   9. Settlement rounding and threshold comparisons follow FR-D8 exactly, so the
+      modelled payouts equal what settlement would pay.
 9. The whole existing test suite still passes. The Screener and Match Lab are
    unchanged. Goal Model 1.0 is unchanged.
 
@@ -373,6 +439,14 @@ Phase 5B used 6 / 6 / 6 / 2 with a 20-credit threshold. The MVP uses
   maximum recovery probability (ties broken by higher expected return) cannot be
   dominated: a dominator would need higher recovery, or equal recovery and higher
   expected return.
+* **Precision note:**
+  * These invariants hold exactly in unrounded arithmetic, which is how the
+    regression tests check them (`precision="exact"`).
+  * The product rounds each accumulator payout to 0.01 credit (FR-D8, D-15).
+    That can differ from 5× a 20-credit figure by at most a cent per accumulator,
+    and could change a recovery decision only if a state's exact gross lies
+    within that band of 100.
+  * No such case occurred in the Phase 5B slates.
 * **No contradiction found.**
 * **One Phase 5B finding the product must respect:** the identity of the best
   arrangement is sensitive to small model-probability changes. The UI therefore

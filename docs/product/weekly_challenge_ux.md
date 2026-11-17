@@ -99,7 +99,7 @@ snapshot. The other chip percentages and prices are illustrative.
 │ Expected return (credits)                             │ SELECTED  ★ Recommended  #024|158|367 │
 │ 57 ┤                    ●●                            │ Chance of getting 100 back   37.1%    │
 │ 55 ┤        ·  ·  ·· ●     ★                          │ Expected return       52.5 credits    │
-│ 53 ┤   · ·· ···· ··· ·· ●                             │ Best case (all win)  1,163 credits    │
+│ 53 ┤   · ·· ···· ··· ·· ●                             │ Best case (all win) 1,162.92 credits  │
 │ 51 ┤  ·· ··· ·· ·   ·                                 │ ┌ Bucket A · 30 cr ── wins 14.1% ───┐ │
 │    └──────────────────────────────────────────▶       │ │ Man City Home · Como Home · …    │ │
 │     10%     20%      30%     40%                      │ │ odds 3.89 → pays 116.6  ✓ alone  │ │
@@ -158,7 +158,7 @@ Bucket A · 30 credits                               Wins 15.7% (modelled)
 * Allocated: 100 credits (30 + 30 + 30 + 10)
 * Chance of getting 100 back (modelled)
 * Expected return, e.g. "52.5 credits (−47.5 net)"
-* Best case if everything wins: "1,163 credits"
+* Best case if everything wins: "1,162.92 credits"
 
 **Potential vs expected:**
 * Potential returns are labelled "if it wins".
@@ -167,79 +167,112 @@ Bucket A · 30 credits                               Wins 15.7% (modelled)
 * No 30% figure is ever shown next to a probability, so the allocation cannot be
   read as a chance.
 
-### 4.3 "Your Payout Probability" (second chart, in the details panel)
+### 4.3 "Your Payout Probability" (second chart, beneath the buckets)
 
 **Purpose:** "What could this grouping actually pay, and how likely is each
-amount?" The frontier compares groupings; this chart explains the one you picked.
-It sits below the bucket cards, as the panel's "Your Payout Probability" section.
+amount?"
+* The frontier compares groupings.
+* This chart explains the one you picked.
 
-**Worked example** (real numbers):
-* Phase 5B slate R1, recommended grouping `024|158|367`, at 30/30/30/10.
+It sits directly beneath the three bucket cards and the nine-fold card. It
+updates together with them whenever another efficient grouping is selected.
+
+**Layout (desktop):**
+
+```
+Your Payout Probability                               [ At least this payout | Exactly this payout ]
+Chance of getting 100 credits back: 37.1%  ·  Maximum potential payout: 1,162.92 credits
+As the payout target increases, the probability of reaching it generally decreases or stays the same.
+
+Chance of getting AT LEAST this much back (modelled)
+100% ┤█
+ 37% ┤╞════╗ ◀ 100 credits back (your weekly allocation): 37.1%
+ 21% ┤│    ╚═╗
+ 10% ┤│      ╚════╗
+  5% ┤│           ╚═══╗
+0.2% ┤│               ╚════════════════════════════════════════════╗ all nine win: 1,162.92 credits · 0.2%
+   0 ┼┴──────┬──────────────┬─────────────────────────────────────┴──▶
+      0    100           300                                   1,163   Gross payout (credits)
+Above 100 credits = a positive net return. Gross payout includes your returned credits.
+Modelled with Goal Model 1.0 and reference odds frozen on Thu 19 Nov. Not a guarantee. Credits have no cash value.
+▸ All possible outcomes (8)
+```
+
+(This is a schematic. The real chart draws all seven drops, at 100.70, 116.58,
+176.83, 217.28, 277.53, 293.41 and 1,162.92 credits.)
+
+**Worked example:**
+* Phase 5B slate R1, recommended grouping `024|158|367`, at 30 / 30 / 30 / 10
+  credits, settlement precision.
 * Bucket payouts: C 100.70, A 116.58, B 176.83. Nine-fold 768.81.
 
-| Buckets that win | Gross payout | Chance of exactly this | Chance of at least this |
+| Buckets that win | Gross payout (credits) | Chance of exactly this | Chance of at least this |
 |---|---:|---:|---:|
 | none | 0.00 | 62.9% | 100% |
 | C | 100.70 | 16.5% | 37.1% |
 | A | 116.58 | 10.3% | 20.6% |
 | B | 176.83 | 5.2% | 10.3% |
 | A + C | 217.28 | 2.7% | 5.1% |
-| B + C | 277.52 | 1.4% | 2.4% |
+| B + C | 277.53 | 1.4% | 2.4% |
 | A + B | 293.41 | 0.8% | 1.1% |
-| all three + nine-fold | 1,162.91 | 0.2% | 0.2% |
+| all three + nine-fold | 1,162.92 | 0.2% | 0.2% |
 
-The 100-credit line falls inside the flat step that runs up to 100.70, so
-"at least 100 credits" = 37.1%: the same figure as this grouping's point on the
-frontier.
+The 100-credit line falls inside the flat step that runs up to 100.70. So
+"at least 100 credits" is 37.1%: the same figure as the summary and as this
+grouping's point on the frontier. This table is what "All possible outcomes"
+reveals. It is hidden by default.
 
-#### Main view: "Chance of at least…"
-
-```
-Your Payout Probability                         [At least ▾ | Exactly]   [Full range | Focus on buckets]
-Chance of getting at least this much back (modelled)
-100% ┤█
-     │█
- 37% ┤╞════╗ ◀ 100 credits back: 37.1%
- 21% ┤│    ╚═╗
- 10% ┤│      ╚════╗
-  5% ┤│           ╚═══╗
-0.2% ┤│               ╚════════════════════════════════════════════╗ all nine win: 1,162.91 cr · 0.2%
-   0 ┼┴──────┬──────────────┬─────────────────────────────────────┴──▶
-      0    100           300                                   1,163   Gross payout (credits)
-Figures assume Goal Model 1.0 probabilities and reference odds frozen on Thu 19 Nov.
-```
-
-(This is a schematic. The real chart draws all seven drops, at 100.70, 116.58,
-176.83, 217.28, 277.52, 293.41 and 1,162.91 credits.)
+#### View A: "At least this payout" (default)
 
 | Element | Specification |
 |---|---|
-| Shape | A step line through explicit vertices: (0, 100%) → (0, S₁) → (r₁, S₁) → (r₁, S₂) → … → (r_max, S_max) → (r_max, 0). For x in (r_{k−1}, r_k] the level is P(R ≥ r_k). Vertical drops at each payout. No smoothing, no interpolation. |
-| X axis | 0 to the maximum payout, padded 3%, in credits. **Full range is the default.** The optional "Focus on buckets" toggle limits the axis to 1.1 × the largest payout without the nine-fold, and shows an off-scale label for the all-win point. |
-| Y axis | 0–100%, linear, ticks in %. Values below 0.1% are printed "<0.1%". |
-| 100-credit marker | Dashed vertical line at 100, plus a dot where it meets the curve, labelled "100 credits back: 37.1%". Always shown, even if it lies inside a flat step. |
-| Maximum marker | Dot at the right end: "All nine win: 1,162.91 credits · 0.2%". |
-| Hover / tap on a step | "At least 176.83 credits: 10.3% · happens if Bucket B wins (with or without others)". |
-| Update | The figure is rebuilt from the selected grouping on every selection change. |
-| Caption | "Chance of getting at least this much back, according to Goal Model 1.0. It is not a promise: real results can differ." |
+| Shape | A step line through explicit vertices: (0, 100%) → (0, S₁) → (r₁, S₁) → (r₁, S₂) → … → (r_max, S_max) → (r_max, 0). The level on (r_{k−1}, r_k] is P(R ≥ r_k). Non-increasing; vertical drops at each payout; no smoothing or interpolation. |
+| X axis | "Gross payout (credits)", 0 to the maximum payout, padded 3%. Full range by default. The optional "Focus on buckets" toggle (R-15) limits the axis to 1.1 × the largest payout without the nine-fold, with an off-scale label for the all-win point. |
+| Y axis | "Chance of getting at least this much back", 0–100%, linear. Values below 0.1% are printed "<0.1%". |
+| 100-credit marker | A dashed vertical line at 100, with a dot where it meets the curve, labelled "100 credits back (your weekly allocation): 37.1%". Always shown. The value is computed, never read off the drawing. |
+| Maximum marker | A dot at the right end: "All nine win: 1,162.92 credits · 0.2%". |
+| Hover / tap | On a step: "At least 176.83 credits: 10.3%". On the threshold: "At least 100 credits: 37.1% (recovers your weekly allocation)". |
+| Summary row | "Chance of getting 100 credits back: 37.1% · Maximum potential payout: 1,162.92 credits". The same values as the portfolio summary. |
 
-#### Secondary view: "Chance of exactly…"
+#### View B: "Exactly this payout"
 
-* A toggle switches to thin vertical stems (not wide bars, which would imply
-  ranges) at each distinct payout. Height = probability of exactly that payout.
-* Each stem is labelled with which buckets win.
-* A note says that 0 credits ("no bucket wins") is the most likely single outcome
-  when it is.
-* Stem probabilities sum to 100%, stated in the caption.
-* "Show as table" opens the eight-row table above. This is also the accessible
-  form of both views.
+* A discrete probability-mass bar chart: one narrow bar per distinct gross
+  payout, never a line.
+* Y axis: "Chance of getting exactly this amount".
+* Each bar's hover shows the payout, its probability and which buckets win
+  ("Exactly 217.28 credits: 2.7% · Buckets A and C win").
+* Identical payouts appear as one bar.
+* Caption: "These chances add up to 100%."
+* If "nothing wins" (0 credits) is the most likely single outcome, a note says
+  so plainly: "Most likely single outcome: no bucket wins (62.9%)."
+
+**Educational copy** (beneath the chart; short, always visible):
+* "As the payout target increases, the probability of reaching it generally
+  decreases or stays the same."
+* "Gross payout includes your returned credits. 100 credits means getting your
+  weekly allocation back; anything above 100 is a positive net return."
+* "Modelled with Goal Model 1.0 and frozen reference odds. These are estimates,
+  not guarantees. Credits are virtual and have no cash value."
 
 **Wording rules (cumulative vs exact):**
-* **Cumulative:** "Chance of getting **at least** X credits".
-* **Exact:** "Chance of getting **exactly** X credits".
-* The two views never share a heading. Each axis title repeats "at least" or
-  "exactly".
-* "Chance of 100 credits" on its own is never used.
+* Cumulative: "Chance of getting **at least** X credits".
+* Exact: "Chance of getting **exactly** X credits".
+* The views never share a heading or axis title.
+* Allocations are always "30 credits", never "30%".
+
+**Accessibility:**
+* The chart has an `aria-label` summary, for example: "Your Payout Probability.
+  Chance of getting at least 100 credits back: 37.1 percent. Maximum potential
+  payout 1,162.92 credits, chance 0.2 percent. Eight possible outcomes."
+* The view toggle is a two-button segmented control with `aria-pressed`.
+* "All possible outcomes" is a real table, keyboard reachable.
+
+**Mobile:**
+* 240 px high, full width.
+* The segmented toggle sits above the chart.
+* The summary row wraps onto two lines.
+* Tapping shows the same hover text as a tooltip.
+* No horizontal page scroll.
 
 ### Mobile
 
