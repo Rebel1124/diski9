@@ -163,7 +163,9 @@ def test_all_seven_recalculated_and_baseline_untouched(data):
     t = _text(out)
     for k in ("home", "draw", "away", "btts_yes", "btts_no", "over", "under"):
         assert f"{mine[k] * 100:.1f}%" in t
-    assert f"{mine['over'] * 100:.1f}%" in _text(compare)
+    # the bookmaker card compares the model baseline; Section D uses your probability
+    assert f"{before['probabilities']['over'] * 100:.1f}%" in _text(compare)
+    assert f"{mine['over'] * 100:.1f}%" in _text(out.children[-1])  # Your value check
     assert r["goal_model"] == before
     eg = before["estimated_goals"]
     assert before["probabilities"] == pytest.approx(gm.markets(eg["home"], eg["away"]))
@@ -237,7 +239,7 @@ def test_bookmaker_two_column_layout_fresh_and_stale(populated, market, n):
         assert ("no longer current" in st) is stale
         # the comparison table stays below, full width
         assert card.children[-1].id == "lab-compare"
-        assert "Compare with Diski 9" in _text(card.children[-1])
+        assert "Model vs market" in _text(card.children[-1])
     assert (
         ".market-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr)"
         in CSS
@@ -252,7 +254,7 @@ def test_missing_odds_card_unchanged(data):
         assert "compact" in card.className
         assert not _find(card, lambda c: getattr(c, "className", "") == "market-grid")
         assert "No bookmaker odds are available" in _text(card)
-        assert "No current bookmaker prices to compare with" in _text(card)
+        assert "Market data unavailable: no bookmaker prices to compare with" in _text(card)
 
 
 BROWSER = """

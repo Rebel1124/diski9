@@ -578,3 +578,28 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
   .form-summary-grid .recent-row { gap: 2px 10px; margin-bottom: 4px; }
   .form-summary-grid .recent-row .sequence { margin: 2px 0; }
 }
+
+/* model vs market: edge and EV (signs are always in the text; colour is a restrained extra) */
+table.results td.value-cell { white-space: nowrap; }
+.value-cell .v-main { display: block; font-weight: 600; }
+.value-cell .v-sub { display: block; }
+.value-cell.v-pos .v-main, .val-pos, .card-value.v-pos { color: #56d364; }
+.value-cell.v-zero .v-main, .value-cell.v-na .v-main, .val-zero, .val-na { color: var(--muted); font-weight: 500; }
+.val-neg, .card-value.v-neg { color: #d47a75; }
+.value-cell.odds-stale .v-main { color: var(--muted); font-weight: 500; }
+.value-table { width: 100%; }
+.value-table td, .value-table th { white-space: nowrap; }
+.value-check { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 10px; }
+.val-pos-text strong { color: #56d364; }
+.value-help { margin: 6px 0 0; padding-left: 18px; color: var(--muted); }
+.value-help li { margin-bottom: 4px; }
+.ev-caution { color: var(--warn); }
+.card-value { font-weight: 600; }
+@media (max-width: 600px) {
+  table.grid.value-table, table.grid.value-table th { font-size: 11.5px; }
+  table.grid.value-table th, table.grid.value-table td { padding-left: 3px; padding-right: 3px; }
+  table.grid.value-table th, table.grid.value-table td { white-space: normal; }
+  table.grid.value-table th:first-child, table.grid.value-table td:first-child { padding-left: 0; }
+  table.grid.value-table th:last-child, table.grid.value-table td:last-child { padding-right: 0; }
+}
+.value-table .odds-at { display: block; font-size: 11.5px; }

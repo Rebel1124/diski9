@@ -402,10 +402,10 @@ def test_columns_alignment_and_names():
     assert cols["p_home"]["align"] == "right" and cols["home"]["align"] == "left"
     assert "xG" not in json.dumps(columns_for("1X2"))
     goals = [c["label"] for c in columns_for("OU25")]
-    assert goals[4:] == ["Est. goals", "Over 2.5", "Under 2.5", "Odds Over · Under"]
+    assert goals[4:] == ["Est. goals", "Over 2.5", "Under 2.5", "Market / Edge"]
     assert all(c["label"] != "Data" for m in ("1X2", "BTTS", "OU25") for c in columns_for(m))
     assert [c["label"] for c in columns_for("BTTS")][5:7] == ["Yes", "No"]
-    assert "never a model input" in cols["odds"]["title"]
+    assert "never a model input" in cols["value"]["title"]
 
 
 def test_rows_use_readable_dates_and_signed_differences(data):
@@ -450,7 +450,7 @@ def test_detail_levels_and_form_breakdown(data):
         "League positions",
         "Consensus reference odds",
         "Avoid counting the same information twice",
-        "Compare with Diski 9",
+        "Model vs market",
     ):
         assert phrase in text, phrase
     assert "xG" not in text.replace("not shot-based xG", "")
@@ -458,8 +458,10 @@ def test_detail_levels_and_form_breakdown(data):
     accs = _find(d, lambda c: isinstance(c, html.Details) and c.className == "acc")
     assert accs and all(getattr(a, "open", False) is False for a in accs)
     lowered = text.lower()
-    for banned in ("expected value", "value bet", "betting edge", "stake "):
-        assert banned not in lowered
+    # EV and edge are explained (market-edge enhancement), never oversold or staked
+    banned = ("value bet", "betting edge", "stake ", "guaranteed profit", "sure bet", "risk-free")
+    for phrase in banned + ("easy money", "guaranteed value", "recommended stake"):
+        assert phrase not in lowered
 
 
 def test_fresh_and_stale_odds_in_detail(populated):
@@ -711,7 +713,9 @@ def test_market_implied_probabilities_in_1x2_summary(populated):
     card = render_detail(r, ov, official, "1X2", d).children[2]
     text = _text(card)
     assert "market-implied probabilities are unavailable" in text
-    assert "No current bookmaker prices to compare with" in text  # nothing invented
+    assert (
+        "Market data unavailable: no bookmaker prices to compare with" in text
+    )  # nothing invented
 
 
 def test_compact_limited_marker_in_table(data):

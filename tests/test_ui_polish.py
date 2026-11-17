@@ -31,7 +31,8 @@ from .test_app import _free_port, _text, data, page_ids, populated  # noqa: F401
 
 ASSETS = Path(__file__).parents[1] / "src/diski9/app/assets"
 PROB_DIRECTIONS = {
-    m: [d for d, _ in DIRECTIONS[m] if not d.startswith("kickoff")] for m in DIRECTIONS
+    m: [d for d, _ in DIRECTIONS[m] if not d.startswith("kickoff") and d not in ("edge", "ev")]
+    for m in DIRECTIONS
 }
 
 

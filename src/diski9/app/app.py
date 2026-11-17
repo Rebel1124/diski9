@@ -22,7 +22,7 @@ from pathlib import Path
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 
-from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS
+from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DIRECTIONS
 
 from .data import (
     DIRECTIONS,
@@ -94,8 +94,31 @@ DIRECTION_OUTCOME = {
 }
 
 
-def columns_for(market: str) -> list[dict]:
-    """Column definitions: id, label, alignment, sort key (None = not sortable)."""
+VALUE_LABEL = {"edge": "Best edge", "ev": "Best EV"}
+VALUE_TITLE = (
+    "Model vs market: the outcome where the model probability most exceeds the "
+    "margin-adjusted market probability (percentage points). Hover a cell for the "
+    "consensus odds; select a match for every outcome."
+)
+EV_TITLE = (
+    "Expected value at the consensus reference odds: model probability × odds − 1. A "
+    "theoretical return per unit staked if the model's probability is right; not a "
+    "promise of profit and not an offer from any single bookmaker."
+)
+VALUE_LEGEND = (
+    " Edge = model probability − market probability (bookmaker margin removed), in percentage "
+    "points. EV = model probability × consensus odds − 1. Only fresh prices are ranked. A "
+    "positive value is not proof the market is wrong; select a match for the full comparison."
+)
+THRESHOLD_VALUE_HINT = (
+    " The minimum model probability still applies: edge and EV only consider outcomes the "
+    "model rates at least that likely."
+)
+
+
+def columns_for(market: str, direction: str | None = None) -> list[dict]:
+    """Column definitions: id, label, alignment, sort key (None = not sortable). The
+    final column adapts to the ranking: Market / Edge, Best edge or Best EV."""
     cols = [
         {"id": "kickoff", "label": "Kickoff", "align": "left", "sort": "kickoff"},
         {"id": "league", "label": "League", "align": "left", "sort": None},
@@ -119,16 +142,16 @@ def columns_for(market: str) -> list[dict]:
                 "title": f"Diski 9 model probability: {label}",
             }
         )
-    odds_label = {"1X2": "Odds H · D · A", "BTTS": "Odds Yes · No", "OU25": "Odds Over · Under"}
-    cols += [
+    cols.append(
         {
-            "id": "odds",
-            "label": odds_label[market],
+            "id": "value",
+            "label": VALUE_LABEL.get(direction or "", "Market / Edge"),
             "align": "right",
             "sort": None,
-            "title": "Consensus bookmaker odds (reference only; never a model input)",
-        },
-    ]
+            "title": (EV_TITLE if direction == "ev" else VALUE_TITLE)
+            + " Bookmaker odds are never a model input.",
+        }
+    )
     return cols
 
 
@@ -153,6 +176,15 @@ def threshold_config(market: str, direction: str, preferred: float | None = 0) -
             "tooltip": None,
         }
     value = int(round(min(max(float(preferred or 0), 0), 100)))
+    if direction in VALUE_DIRECTIONS:  # still a minimum *model* probability
+        return {
+            **base,
+            "value": value,
+            "disabled": False,
+            "label": "Minimum model probability",
+            "hint": None,  # explained in the legend (a hint here would sit under the tooltip)
+            "tooltip": THRESHOLD_TOOLTIP,
+        }
     outcome = DIRECTION_OUTCOME[direction]
     return {
         **base,
@@ -516,7 +548,8 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         c = threshold_config(market, valid_direction(market, direction), preferred)
         legend = html.Span(
             "Probabilities and estimated goals come from Goal Model 1.0 (this season's goals, "
-            "Poisson distribution). Bookmaker odds are shown separately for comparison.",
+            "Poisson distribution). Bookmaker odds are shown separately for comparison."
+            + (VALUE_LEGEND + THRESHOLD_VALUE_HINT if direction in VALUE_DIRECTIONS else ""),
             className="muted small",
         )
         return (
@@ -774,7 +807,10 @@ def results_payload(
     if selected is not None and selected not in {r["fixture"]["id"] for r in results}:
         selected = None
     pg = paginate(results, page)
-    rows = [data.row(market, r) for r in pg.results]
+    rows = [
+        data.row(market, r) | {"value": data.value_cell(market, r, direction, thr)}
+        for r in pg.results
+    ]
     if not leagues:
         empty = html.Div("Select at least one league to see fixtures.", className="empty")
     elif not results:
@@ -830,18 +866,19 @@ def _header(col: dict, market: str, direction: str) -> html.Th:
 def results_table(
     market: str, direction: str, rows: list[dict], selected: int | None
 ) -> html.Table:
-    cols = columns_for(market)
+    cols = columns_for(market, direction)
     body = []
     for row in rows:
         cells = []
         for col in cols:
             cid = col["id"]
             cls = f"col-{col['align']}"
-            if cid == "odds":
-                value = [row["odds"]] + (
-                    [" ", pill("stale", "warn subtle")] if row["odds_status"] == "stale" else []
-                )
-                cls += f" odds-{row['odds_status']}"
+            if cid == "value":
+                v = row["value"]
+                value = value_lines(v)
+                cls += f" value-cell v-{v['cls']} odds-{v['status']}"
+                cells.append(html.Td(value, className=cls, title=v["title"]))
+                continue
             elif cid == "estimated_goals":
                 # Data-quality flags (formerly a separate, usually empty "Data" column)
                 if not row["available"]:
@@ -876,6 +913,14 @@ def results_table(
     )
 
 
+def value_lines(v: dict) -> list:
+    """Two compact lines: the highlighted outcome and its market % (or odds for EV)."""
+    out = [html.Span(v["main"], className="v-main")]
+    if v["sub"]:
+        out.append(html.Span(v["sub"], className="v-sub muted small"))
+    return out
+
+
 def fixture_card(market: str, row: dict, selected: int | None) -> html.Button:
     if row["available"]:
         probs = " · ".join(f"{lbl} {row[f'p_{k}']}" for k, lbl in MARKET_KEYS[market])
@@ -886,6 +931,11 @@ def fixture_card(market: str, row: dict, selected: int | None) -> html.Button:
     bottom = [html.Span(odds, className="muted small")]
     if row["odds_status"] == "stale":
         bottom.append(pill("stale odds", "warn subtle"))
+    v = row.get("value")
+    if v and v["status"] == "fresh" and v["main"] not in (None, "—"):
+        label = "Best EV" if v["mode"] == "ev" else "Edge"
+        text = f"{label}: {v['main']}" + (f" · {v['sub']}" if v["sub"] else "")
+        bottom.append(html.Span(text, className=f"small card-value v-{v['cls']}"))
     if row["limited"]:
         bottom.append(pill("Early season", "warn subtle"))
     return html.Button(

@@ -177,6 +177,78 @@ def _params_table() -> html.Table:
     )
 
 
+def market_value_block() -> html.Div:
+    """Downstream bookmaker comparison - kept apart from the model's calibration and
+    validation: odds are never a model input and nothing here recalibrates the model."""
+    return _block(
+        "Understanding Market Probabilities and Expected Value",
+        _p(
+            "This is a comparison layer on top of the model, not part of it. Bookmaker odds "
+            "never change Goal Model 1.0's estimated goals or probabilities, and the model's "
+            "settings, calibration and validation above are unaffected.",
+            "muted small",
+        ),
+        html.Ul(
+            [
+                html.Li(
+                    [
+                        html.Strong("Model probability: "),
+                        "the probability estimated by Goal Model 1.0.",
+                    ]
+                ),
+                html.Li(
+                    [
+                        html.Strong("Market probability: "),
+                        "1 ÷ odds for each outcome, then scaled so the outcomes of a market add "
+                        "up to 100% (Home, Draw and Away together; BTTS Yes and No; Over and "
+                        "Under 2.5). This removes the bookmaker margin. It is a simple "
+                        "proportional method, not a perfect estimate of what the market "
+                        "really believes, and it needs a price for every outcome.",
+                    ]
+                ),
+                html.Li(
+                    [
+                        html.Strong("Probability edge: "),
+                        "model (or your) probability minus market probability, in percentage "
+                        "points. 45% vs 38% is +7.0 pp, not +18%.",
+                    ]
+                ),
+                html.Li(
+                    [
+                        html.Strong("Expected value (EV): "),
+                        "probability × decimal odds − 1, using the original odds, margin "
+                        "included. 55% at 2.10 gives (0.55 × 2.10) − 1 = +15.5%: a theoretical "
+                        "average return per unit staked if the probability is right. It is not "
+                        "a 15.5% chance of winning and not a guaranteed return.",
+                    ]
+                ),
+                html.Li(
+                    [
+                        html.Strong("Positive EV "),
+                        "means a potentially favourable price, conditional on the probability "
+                        "being accurate. A positive edge is not proof the bookmaker is wrong.",
+                    ]
+                ),
+            ]
+        ),
+        _p(
+            "A larger edge does not always give a larger EV, because EV also depends on the "
+            "price: a long-priced outcome with a small edge can have a higher EV than a short-"
+            "priced outcome with a big edge. That is why the Screener can rank by either."
+        ),
+        _p(
+            "The odds are Diski 9 consensus reference odds: for each outcome, the median price "
+            "across independent bookmakers that each quote the whole market (brands under common "
+            "ownership count once). They are the prices shown in the app, but not an offer from "
+            "any single bookmaker, so EV is a reference figure. The Screener ranks fresh prices "
+            "only and uses the model's own probabilities; The Match Lab's value check uses your "
+            "adjusted probabilities. Odds are collected for the Premier League and PSL only.",
+            "muted small",
+        ),
+        cls="wide",
+    )
+
+
 def methodology_section() -> html.Details:
     return html.Details(
         [
@@ -307,6 +379,7 @@ def methodology_section() -> html.Details:
                         ],
                         className="meth-grid",
                     ),
+                    market_value_block(),
                     _block(
                         "Model version",
                         html.Table(

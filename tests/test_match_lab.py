@@ -100,7 +100,9 @@ def test_adjustment_recalculates_all_seven_and_never_touches_baseline(data):
         "Your final estimate",
     ):
         assert label in t
-    assert "Your estimate" in t and "Yours" in _text(compare)
+    # the user's probabilities live in Section D; the bookmaker card keeps the baseline
+    assert "Your estimate" in t and "Your value check" in t and "Your final probability" in t
+    assert "Model vs market" in _text(compare)
     assert r == before  # the cached baseline is never modified
     d = render_detail(r, *data.detail(EPL_FIX)[1:], "1X2", data, st)
     base_section = _text(d.children[1].children[1])
