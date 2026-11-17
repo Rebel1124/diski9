@@ -362,7 +362,8 @@ def test_league_and_date_filters(data):
 def test_threshold_enabled_only_where_meaningful():
     for d in ("kickoff_earliest", "kickoff_latest"):
         c = threshold_config("1X2", d)
-        assert c["disabled"] is True and c["hint"] == "Available for probability rankings"
+        assert c["disabled"] is True and c["hint"] == "Available when ranking by a probability"
+        assert c["value"] == 0 and c["tooltip"] is None  # never filters, no floating value
     for d in ("home_win", "draw", "away_win"):
         assert threshold_config("1X2", d)["disabled"] is False
     assert threshold_config("1X2", "home_win")["label"] == "Minimum home win probability"

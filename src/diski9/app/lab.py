@@ -210,6 +210,11 @@ def user_estimates(r: dict, state: dict | None) -> dict | None:
     return {s: b[s]["final"] for s in SIDES}
 
 
+def adjustment_text(x: float) -> str:
+    """Category adjustment as shown in its box: 0.00, -0.15, 0.05 (two decimals)."""
+    return "0.00" if abs(x) < 0.005 else f"{x:.2f}"
+
+
 def signed(x: float) -> str:
     return "0.00" if abs(x) < 0.005 else f"{x:+.2f}"
 
@@ -554,23 +559,19 @@ def category_summary(state: dict, key: str) -> list:
     return out
 
 
-def _cat_input(key: str, side: str, team: str, value: float) -> html.Div:
-    return html.Div(
+def _cat_input(key: str, side: str, team: str, value: float) -> html.Label:
+    """The label wraps its box, so screen readers announce which team it adjusts."""
+    return html.Label(
         [
-            html.Label(
-                f"{team} (± goals)",
-                htmlFor=f"cat-{key}-{side}",
-                className="cat-input-label",
-            ),
+            html.Span(f"{team} (± goals)", className="cat-input-label"),
             dcc.Input(
                 id={"type": "cat-adj", "cat": key, "side": side},
-                type="number",
-                step=0.05,
-                min=-CATEGORY_MAX,
-                max=CATEGORY_MAX,
-                value=value,
+                type="text",
+                inputMode="decimal",
+                value=adjustment_text(value),
                 debounce=0.4,
-                className="adj-input cat-input",
+                pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
+                className="adj-input cat-input goal-input step-005 allow-negative",
                 placeholder="0.00",
             ),
         ],
@@ -586,9 +587,9 @@ def factors_section(r: dict, state: dict) -> html.Div:
         c = state["cats"][key]
         body = [
             html.Ul([html.Li(i) for i in items], className="cat-items"),
-            html.Div(
+            html.Label(
                 [
-                    html.Label("Research notes (optional)", className="cat-input-label"),
+                    html.Span("Research notes (optional)", className="cat-input-label"),
                     dcc.Input(
                         id={"type": "cat-note", "cat": key},
                         type="text",
@@ -685,13 +686,12 @@ def _adjust_row(side: str, team: str, base: float, cur: float) -> html.Div:
                     ),
                     dcc.Input(
                         id=f"lab-{side}-input",
-                        type="number",
-                        min=0,
-                        max=ADJUST_MAX,
-                        step=0.01,
-                        value=round(cur, 2),
+                        type="text",
+                        inputMode="decimal",
+                        value=goals2(cur),
                         debounce=True,
-                        className="adj-input",
+                        pattern=r"[0-9]+([.,][0-9]{0,2})?",
+                        className="adj-input goal-input step-001",
                     ),
                 ],
                 className="adj-controls",

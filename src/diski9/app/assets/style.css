@@ -341,8 +341,8 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .methodology > summary::-webkit-details-marker { display: none; }
 .methodology > summary::before { content: "ⓘ  "; }
 .methodology[open] > summary { border-bottom: 1px solid var(--border); }
-.methodology-body { padding: 4px 18px 16px; max-width: 860px; }
-.methodology-body h4 { margin: 16px 0 6px; font-size: 14.5px; }
+.methodology-body { padding: 4px 18px 14px; }
+.methodology-body h4 { margin: 12px 0 4px; font-size: 14.5px; }
 .methodology-body p, .methodology-body li { color: var(--text); font-size: 14px; }
 .methodology-body ul { padding-left: 18px; margin: 4px 0; }
 .methodology-body pre { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; font-size: 12.5px;
@@ -463,3 +463,50 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
   .cat-group .cat-acc > summary { flex-direction: column; align-items: flex-start; gap: 2px; padding-right: 24px; }
 }
 .adj-head .muted { white-space: nowrap; }
+
+/* ------------------------------------------------------- final UI polish */
+/* League multiselect: one clean summary when closed. With two or more leagues the
+   native count ("All 8 leagues", "5 leagues selected") replaces the name list; one
+   league shows its name; none shows the placeholder. Names appear when opened. */
+.leagues .dash-dropdown-trigger:has(.dash-dropdown-value-count) .dash-dropdown-value { display: none; }
+.leagues .dash-dropdown-value-count { background: none; padding: 0; color: var(--text); font-size: 14px;
+  border: none; margin: 0; }
+.leagues .dash-dropdown-clear { display: none; }  /* "Clear all" lives in the open menu */
+
+/* Probability threshold: exact value above the thumb, never clipped at the ends */
+.filters .filter:has(#threshold) { padding: 0 14px; }
+#threshold .dash-slider-tooltip { background: var(--surface-2); color: var(--accent); border: 1px solid var(--border);
+  border-radius: 6px; font-size: 12px; font-weight: 650; padding: 1px 7px; white-space: nowrap;
+  font-variant-numeric: tabular-nums; }
+#threshold[data-disabled], #threshold .dash-slider-root[data-disabled] { opacity: .45; }
+.filter:has(#threshold) .hint { min-height: 1.3em; }
+.threshold-filter > label#threshold-label { white-space: normal; line-height: 1.25; }
+.threshold-filter #threshold { margin-top: 26px; }  /* room for the value above the thumb */
+.threshold-hint { margin-top: 4px; }
+.threshold-hint:empty { display: none; }
+@media (min-width: 1180px) {
+  .filters { grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(0, 1.25fr); }
+}
+/* the hint (kickoff ordering only) takes the space the floating value uses otherwise */
+.threshold-filter { display: flex; flex-direction: column; }
+.threshold-filter > label#threshold-label { order: 0; margin-bottom: 0; }
+.threshold-filter .threshold-hint { order: 1; margin: 4px 0 0; line-height: 1.25; min-height: 18px; }
+.threshold-filter #threshold { order: 2; }
+.threshold-filter:has(.threshold-hint:not(:empty)) #threshold { margin-top: 4px; }
+
+/* methodology: use the card width; paragraphs keep a comfortable measure */
+.meth-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
+.meth-block { min-width: 0; }
+.meth-block p, .meth-block li { max-width: 78ch; margin: 0 0 6px; line-height: 1.5; }
+.meth-block.wide p { max-width: 110ch; }
+.meth-block ul { margin: 2px 0 4px; }
+.methodology-body .grid { width: 100%; margin: 4px 0 6px; }
+.meth-table td:nth-child(3), .meth-table th:nth-child(3) { color: var(--muted); }
+.methodology-body pre { padding: 8px 12px; margin: 4px 0 8px; }
+.methodology-body > .acc { margin-top: 10px; }
+@media (max-width: 999px) {
+  .meth-grid { grid-template-columns: 1fr; }
+}
+/* labels align with the other filters; only the slider keeps side room for its value */
+.filters .filter.threshold-filter { padding: 0; }
+.threshold-filter #threshold { margin-inline: 14px; width: auto; }

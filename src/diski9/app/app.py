@@ -24,12 +24,21 @@ from dash.exceptions import PreventUpdate
 
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS
 
-from .data import DIRECTIONS, MARKET_KEYS, PAGE_SIZE, ScreenerData, paginate, valid_direction
+from .data import (
+    DIRECTIONS,
+    MARKET_KEYS,
+    PAGE_SIZE,
+    ScreenerData,
+    goals2,
+    paginate,
+    valid_direction,
+)
 from .lab import (
     ADJUST_MAX,
     CATEGORY_MAX,
     NOTE_MAX,
     SIDES,
+    adjustment_text,
     baseline_rounded,
     breakdown,
     category_summary,
@@ -120,29 +129,35 @@ def columns_for(market: str) -> list[dict]:
     return cols
 
 
-def threshold_config(market: str, direction: str) -> dict:
-    """The threshold is a minimum model probability for the ranked outcome; it is
-    disabled for kickoff ordering and reset whenever the ranking changes."""
+THRESHOLD_MARKS = {0: "Any", 50: "50%", 100: "100%"}
+# Floating value above the thumb: "Any" at 0, otherwise the exact whole percentage
+# (window.dccFunctions.thresholdLabel in assets/diski9.js).
+THRESHOLD_TOOLTIP = {"always_visible": True, "placement": "top", "transform": "thresholdLabel"}
+
+
+def threshold_config(market: str, direction: str, preferred: float | None = 0) -> dict:
+    """The threshold is a minimum model probability (whole percentages) for the ranked
+    outcome. For kickoff ordering it is disabled, shows Any and never filters; the
+    user's last probability threshold is restored when a probability ranking returns."""
+    base = {"min": 0, "max": 100, "step": 1, "marks": THRESHOLD_MARKS}
     if direction in THRESHOLD_DISABLED:
         return {
-            "min": 0,
-            "max": 1,
-            "step": 1,
+            **base,
             "value": 0,
             "disabled": True,
-            "label": "Threshold",
-            "hint": "Available for probability rankings",
-            "marks": {0: "Any", 1: ""},
+            "label": "Minimum probability",
+            "hint": "Available when ranking by a probability",
+            "tooltip": None,
         }
+    value = int(round(min(max(float(preferred or 0), 0), 100)))
+    outcome = DIRECTION_OUTCOME[direction]
     return {
-        "min": 0,
-        "max": 100,
-        "step": 5,
-        "value": 0,
+        **base,
+        "value": value,
         "disabled": False,
-        "label": f"Minimum {DIRECTION_OUTCOME[direction]} probability",
-        "hint": None,
-        "marks": {0: "Any", 50: "50%", 100: "100%"},
+        "label": f"Minimum {outcome} probability",
+        "hint": None,  # the label already names the outcome
+        "tooltip": THRESHOLD_TOOLTIP,
     }
 
 
@@ -284,15 +299,17 @@ def build_layout(data: ScreenerData) -> html.Div:
                             dcc.Slider(
                                 id="threshold",
                                 min=0,
-                                max=1,
+                                max=100,
                                 step=1,
                                 value=0,
+                                marks=THRESHOLD_MARKS,
                                 disabled=True,
                                 allow_direct_input=False,
                                 className="slider",
                             ),
+                            html.Div(id="threshold-hint", className="hint threshold-hint"),
                         ],
-                        className="filter",
+                        className="filter threshold-filter",
                     ),
                 ],
                 className="filters",
@@ -318,6 +335,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                 id="pager",
             ),
             dcc.Store(id="page", data=1),
+            dcc.Store(id="threshold-pref", data=0),
             dcc.Store(id="selected"),
             # The user's estimated-goal adjustments, keyed by fixture id. Memory only:
             # lives in this browser tab, never sent to storage, never shared.
@@ -335,10 +353,17 @@ def build_layout(data: ScreenerData) -> html.Div:
     )
 
 
+def _number(value) -> float:
+    """float() that also accepts text with a decimal comma (raises on invalid input)."""
+    if isinstance(value, str):
+        value = value.strip().replace(",", ".")
+    return float(value)
+
+
 def _parse_goals(value) -> float | None:
     """A typed or slid final estimate, rounded to 0.01; None if invalid."""
     try:
-        v = float(value)
+        v = _number(value)
     except (TypeError, ValueError):
         return None
     if not math.isfinite(v) or v < 0 or v > ADJUST_MAX:
@@ -348,10 +373,10 @@ def _parse_goals(value) -> float | None:
 
 def _parse_adjustment(value) -> float | None:
     """A category adjustment in goals (empty means 0); None if invalid."""
-    if value is None or value == "":
+    if value is None or (isinstance(value, str) and not value.strip()):
         return 0.0
     try:
-        v = float(value)
+        v = _number(value)
     except (TypeError, ValueError):
         return None
     if not math.isfinite(v) or abs(v) > CATEGORY_MAX:
@@ -437,13 +462,16 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Output("threshold", "value"),
         Output("threshold", "marks"),
         Output("threshold", "disabled"),
+        Output("threshold", "tooltip"),
         Output("threshold-label", "children"),
+        Output("threshold-hint", "children"),
         Output("legend", "children"),
         Input("market", "value"),
         Input("direction", "value"),
+        State("threshold-pref", "data"),
     )
-    def update_controls(market, direction):
-        c = threshold_config(market, valid_direction(market, direction))
+    def update_controls(market, direction, preferred):
+        c = threshold_config(market, valid_direction(market, direction), preferred)
         legend = html.Span(
             "Probabilities and estimated goals come from Goal Model 1.0 (this season's goals, "
             "Poisson distribution). Bookmaker odds are shown separately for comparison.",
@@ -456,11 +484,24 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             c["value"],
             c["marks"],
             c["disabled"],
-            [html.Span(c["label"]), html.Span(c["hint"], className="hint")]
-            if c["hint"]
-            else c["label"],
+            c["tooltip"],
+            c["label"],
+            c["hint"],
             legend,
         )
+
+    @app.callback(
+        Output("threshold-pref", "data"),
+        Input("threshold", "value"),
+        State("direction", "value"),
+        prevent_initial_call=True,
+    )
+    def remember_threshold(value, direction):
+        """The last threshold chosen for a probability ranking (kept while kickoff
+        ordering is shown, restored afterwards)."""
+        if direction in THRESHOLD_DISABLED or value is None:
+            raise PreventUpdate
+        return value
 
     @app.callback(
         Output("results-table", "children"),
@@ -565,16 +606,19 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             lab[str(fid)] = state
         b = breakdown(baseline_rounded(r), state)
         h, a = b["home"]["final"], b["away"]["final"]
-        cat_out = [state["cats"][o["id"]["cat"]][o["id"]["side"]] for o in ctx.outputs_list[7]]
+        cat_out = [
+            adjustment_text(state["cats"][o["id"]["cat"]][o["id"]["side"]])
+            for o in ctx.outputs_list[7]
+        ]
         sum_out = [category_summary(state, o["id"]["cat"]) for o in ctx.outputs_list[8]]
         out, compare = lab_outputs(r, market, ov, state, messages)
         base = r["goal_model"]["estimated_goals"]
         return (
             lab,
             h,
-            h,
+            goals2(h),
             a,
-            a,
+            goals2(a),
             slider_max(base["home"], h),
             slider_max(base["away"], a),
             cat_out,

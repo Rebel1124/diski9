@@ -140,7 +140,7 @@ def test_adjust_callback_keyed_by_fixture_and_isolated(data):
         {s: round(v, 2) for s, v in _result(data)["goal_model"]["estimated_goals"].items()},
         store[str(EPL_FIX)],
     )
-    assert b["home"]["final"] == 2.4 and out[1] == out[2] == 2.4
+    assert b["home"]["final"] == 2.4 and out[1] == 2.4 and out[2] == "2.40"  # box: 2 dp
     assert other == snapshot  # input store not mutated
     # a second user's (empty) store is unaffected: state lives in each browser only
     _trigger("lab-reset.n_clicks", 1)
@@ -168,7 +168,9 @@ def test_market_switch_keeps_adjustment(data):
             lambda c: getattr(c, "id", None) == {"type": "cat-adj", "cat": "squad", "side": "home"},
         )
         note = _find(d, lambda c: getattr(c, "id", None) == {"type": "cat-note", "cat": "squad"})
-        assert cat[0].value == -0.15 and note[0].value == "Striker out"
+        assert cat[0].value == "-0.15" and note[0].value == "Striker out"
+        box = _find(d, lambda c: getattr(c, "id", None) == "lab-home-input")
+        assert box[0].value == "2.50"  # two decimals, not 2.5
         assert "Adjusted by you" in _text(d)
     # another fixture has its own (empty) state
     d = func(PSL_FIX, "1X2", lab)
@@ -527,7 +529,7 @@ def test_section_c_structure_and_education(data):
     inputs = _find(
         sec, lambda c: isinstance(getattr(c, "id", None), dict) and c.id.get("type") == "cat-adj"
     )
-    assert len(inputs) == 8 and all(i.value == 0.0 and i.step == 0.05 for i in inputs)
+    assert len(inputs) == 8 and all(i.value == "0.00" and "step-005" in i.className for i in inputs)
     for label in ("Model estimate", "Context", "Your research", "Your assumptions", "Market"):
         assert label in _text(d)
 
@@ -635,7 +637,7 @@ const { chromium, devices } = require('playwright');
     const cats = p.locator('.cat-acc');
     for (const [i, v] of [[0, '-0.15'], [1, '-0.10']]) {
       await cats.nth(i).locator('summary').click();
-      const inp = cats.nth(i).locator('input[type=number]').first();
+      const inp = cats.nth(i).locator('.cat-input input').first();
       await inp.fill(v); await inp.press('Tab'); await p.waitForTimeout(700);
     }
     r.afterC = Math.round((parseFloat(await p.locator('#lab-home-input').inputValue()) - base) * 100) / 100;

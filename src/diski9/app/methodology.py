@@ -136,154 +136,201 @@ def technical_detail() -> html.Details:
     )
 
 
-def methodology_section() -> html.Details:
+def _block(title: str, *children, cls: str = "") -> html.Div:
+    return html.Div([html.H4(title), *children], className=f"meth-block {cls}".strip())
+
+
+def _params_table() -> html.Table:
     k = gm.PARAMS
+    rows = [
+        (
+            "Strength smoothing",
+            k.k_s,
+            "After 12 matches, half of a team's strength comes from its own results.",
+        ),
+        (
+            "Goal tempo smoothing",
+            k.k_t,
+            "Goal totals vary a lot by chance, so they move towards a team's record slowly.",
+        ),
+        (
+            "League-average prior",
+            k.m0,
+            "Last season's league averages count as 30 matches at the start of a season.",
+        ),
+    ]
+    return html.Table(
+        [
+            html.Thead(
+                html.Tr(
+                    [html.Th("Setting"), html.Th("Value", className="num"), html.Th("What it does")]
+                )
+            ),
+            html.Tbody(
+                [
+                    html.Tr([html.Td(a), html.Td(f"{v:g}", className="num"), html.Td(c)])
+                    for a, v, c in rows
+                ]
+            ),
+        ],
+        className="grid compact meth-table",
+    )
+
+
+def methodology_section() -> html.Details:
     return html.Details(
         [
             html.Summary("How Diski 9 Calculates Probabilities"),
             html.Div(
                 [
-                    html.H4("The short version"),
-                    _p(
-                        "We estimate how many goals each team is likely to score using goals "
-                        "scored and conceded this season, adjusted for the opponent and the "
-                        "league's home and away scoring patterns. We then use a Poisson goal "
-                        "distribution to calculate the probabilities of different match "
-                        "outcomes."
-                    ),
-                    _p(
-                        "Early in the season, teams have played relatively few matches. We "
-                        "therefore rely more on league averages until enough results become "
-                        "available. One 4–0 win does not make a team world-beaters."
-                    ),
-                    _p(
-                        "We do not use betting odds to build these numbers. Bookmaker odds are "
-                        "shown separately, for comparison only. Estimated goals are model-based "
-                        "goal expectations from match results, not shot-based xG."
-                    ),
-                    html.H4("A worked example"),
-                    worked_example(),
-                    html.H4("What changes and what stays fixed"),
-                    html.Ul(
+                    html.Div(
                         [
-                            html.Li(
-                                [
-                                    html.Strong("Match statistics update "),
-                                    "after every completed match: league averages, goals "
-                                    "scored and conceded, and so the estimated goals.",
-                                ]
+                            _block(
+                                "The short version",
+                                _p(
+                                    "We estimate how many goals each team is likely to score "
+                                    "using goals scored and conceded this season, adjusted for "
+                                    "the opponent and the league's home and away scoring "
+                                    "patterns. We then use a Poisson goal distribution to "
+                                    "calculate the probabilities of different match outcomes."
+                                ),
+                                _p(
+                                    "Early in the season, teams have played relatively few "
+                                    "matches. We therefore rely more on league averages until "
+                                    "enough results become available. One 4–0 win does not make "
+                                    "a team world-beaters."
+                                ),
+                                _p(
+                                    "We do not use betting odds to build these numbers. "
+                                    "Bookmaker odds are shown separately, for comparison only. "
+                                    "Estimated goals are model-based goal expectations from "
+                                    "match results, not shot-based xG."
+                                ),
                             ),
-                            html.Li(
-                                [
-                                    html.Strong("Model settings stay fixed "),
-                                    "for the whole season, so a team's numbers only change "
-                                    "because of results, never because we tweaked the model.",
-                                ]
-                            ),
-                        ]
+                            _block("A worked example", worked_example()),
+                        ],
+                        className="meth-grid",
                     ),
-                    html.Table(
+                    html.Div(
                         [
-                            html.Thead(
-                                html.Tr(
+                            _block(
+                                "What changes and what stays fixed",
+                                html.Ul(
                                     [
-                                        html.Th("Setting"),
-                                        html.Th("Value", className="num"),
-                                        html.Th("What it does"),
+                                        html.Li(
+                                            [
+                                                html.Strong("Match statistics update "),
+                                                "after every completed match: league averages, "
+                                                "goals scored and conceded, and so the estimated "
+                                                "goals.",
+                                            ]
+                                        ),
+                                        html.Li(
+                                            [
+                                                html.Strong("Model settings stay fixed "),
+                                                "for the whole season, so a team's numbers only "
+                                                "change because of results, never because we "
+                                                "tweaked the model.",
+                                            ]
+                                        ),
                                     ]
-                                )
+                                ),
                             ),
-                            html.Tbody(
-                                [
-                                    html.Tr(
-                                        [
-                                            html.Td("Strength smoothing"),
-                                            html.Td(f"{k.k_s:g}", className="num"),
-                                            html.Td(
-                                                "After 12 matches, half of a team's strength "
-                                                "comes from its own results."
-                                            ),
-                                        ]
-                                    ),
-                                    html.Tr(
-                                        [
-                                            html.Td("Goal tempo smoothing"),
-                                            html.Td(f"{k.k_t:g}", className="num"),
-                                            html.Td(
-                                                "Goal totals vary a lot by chance, so they "
-                                                "move towards a team's record slowly."
-                                            ),
-                                        ]
-                                    ),
-                                    html.Tr(
-                                        [
-                                            html.Td("League-average prior"),
-                                            html.Td(f"{k.m0:g}", className="num"),
-                                            html.Td(
-                                                "Last season's league averages count as 30 "
-                                                "matches at the start of a season."
-                                            ),
-                                        ]
-                                    ),
-                                ]
+                            _block("The fixed settings", _params_table()),
+                        ],
+                        className="meth-grid",
+                    ),
+                    _block(
+                        "How the settings were chosen and tested",
+                        _p(
+                            "Strength smoothing (12) and goal tempo smoothing (96) were chosen "
+                            "by comparing candidate values on earlier seasons of the English "
+                            "Premier League, Championship, South African Premiership and First "
+                            "Division (2023/24–2025/26), keeping the values that best explained "
+                            "the actual scorelines in those seasons. The same values were picked "
+                            "in each of three tuning periods, and they were then tested on later "
+                            "seasons they had not seen (3,237 matches)."
+                        ),
+                        _p(
+                            "The league-average prior (30) was not tuned in the same way: it "
+                            "was set to match the 30-match minimum Diski 9 uses for league "
+                            "averages elsewhere, and a sensitivity check (10, 30 and 100 "
+                            "matches) gave very similar early-season results."
+                        ),
+                        _p(
+                            "The settings were then independently validated, without any "
+                            "change, on 4,515 matches from La Liga, Ligue 1, the Bundesliga and "
+                            "Serie A (2023/24–2026/27). In every league the model's Match Result "
+                            "probabilities beat a simple league-average baseline. One shared set "
+                            "of settings is used because league-specific tuning added almost "
+                            "nothing. Not every competition was used to choose the settings."
+                        ),
+                        _p(
+                            "The Champions League and Europa League were tested too, but teams "
+                            "play too few matches in them for this model to be reliable, so no "
+                            "probabilities are shown for European competitions yet.",
+                            "muted small",
+                        ),
+                        cls="wide",
+                    ),
+                    html.Div(
+                        [
+                            _block("Known limitations", html.Ul([html.Li(x) for x in LIMITATIONS])),
+                            _block(
+                                "How the model is maintained",
+                                html.Ul(
+                                    [
+                                        html.Li(
+                                            "Results and statistics update after completed matches."
+                                        ),
+                                        html.Li("Settings stay fixed during the season."),
+                                        html.Li(
+                                            "Accuracy is monitored monthly against the "
+                                            "league-average baseline, using only forecasts "
+                                            "recorded before kickoff."
+                                        ),
+                                        html.Li(
+                                            "A formal review takes place once a year after "
+                                            "the domestic seasons end. Settings change only "
+                                            "if a held-out season shows a clear improvement "
+                                            "(at least 0.005 in Match Result log loss, "
+                                            "statistically supported, with no league or "
+                                            "market clearly worse)."
+                                        ),
+                                        html.Li(
+                                            "Every model version, change and its evidence "
+                                            "is published."
+                                        ),
+                                    ]
+                                ),
                             ),
                         ],
-                        className="grid compact",
+                        className="meth-grid",
                     ),
-                    html.H4("How the settings were chosen and tested"),
-                    _p(
-                        "The settings were chosen once, from historical results only, by finding "
-                        "the values that best explained actual scorelines in earlier seasons of "
-                        "the English Premier League, Championship, South African Premiership and "
-                        "First Division (2023/24–2025/26). They were then tested on later seasons "
-                        "they had not seen (3,237 matches)."
-                    ),
-                    _p(
-                        "They were independently validated, without any change, on 4,515 matches "
-                        "from La Liga, Ligue 1, the Bundesliga and Serie A (2023/24–2026/27). In "
-                        "every league the model's Match Result probabilities beat a simple "
-                        "league-average baseline. One shared set of settings is used because "
-                        "league-specific tuning added almost nothing. Not every competition was "
-                        "used to choose the settings."
-                    ),
-                    _p(
-                        "The Champions League and Europa League were tested too, but teams play "
-                        "too few matches in them for this model to be reliable, so no "
-                        "probabilities are shown for European competitions yet.",
-                        "muted small",
-                    ),
-                    html.H4("Known limitations"),
-                    html.Ul([html.Li(x) for x in LIMITATIONS]),
-                    html.H4("How the model is maintained"),
-                    html.Ul(
-                        [
-                            html.Li("Results and statistics update after completed matches."),
-                            html.Li("Settings stay fixed during the season."),
-                            html.Li(
-                                "Accuracy is monitored monthly against the league-average "
-                                "baseline, using only forecasts recorded before kickoff."
-                            ),
-                            html.Li(
-                                "A formal review takes place once a year after the domestic "
-                                "seasons end. Settings change only if a held-out season "
-                                "shows a clear improvement (at least 0.005 in Match Result "
-                                "log loss, statistically supported, with no league or market "
-                                "clearly worse)."
-                            ),
-                            html.Li("Every model version, change and its evidence is published."),
-                        ]
-                    ),
-                    html.H4("Model version"),
-                    html.Table(
-                        html.Tbody(
-                            [html.Tr([html.Td(v), html.Td(d), html.Td(n)]) for v, d, n in CHANGELOG]
+                    _block(
+                        "Model version",
+                        html.Table(
+                            [
+                                html.Thead(
+                                    html.Tr(
+                                        [html.Th("Version"), html.Th("Released"), html.Th("Notes")]
+                                    )
+                                ),
+                                html.Tbody(
+                                    [
+                                        html.Tr([html.Td(v), html.Td(d), html.Td(n)])
+                                        for v, d, n in CHANGELOG
+                                    ]
+                                ),
+                            ],
+                            className="grid compact meth-table",
                         ),
-                        className="grid compact",
-                    ),
-                    _p(
-                        f"Current: Goal Model {gm.GOAL_MODEL_VERSION} in Engine 3.0. Full "
-                        "methodology: docs/methodology.md.",
-                        "muted small",
+                        _p(
+                            f"Current: Goal Model {gm.GOAL_MODEL_VERSION} in Engine 3.0. Full "
+                            "methodology: docs/methodology.md.",
+                            "muted small",
+                        ),
+                        cls="wide",
                     ),
                     technical_detail(),
                 ],
