@@ -207,3 +207,64 @@ Screenshots in `screenshots/`:
   browsers. Very old browsers would show the name list as well.
 * Adjustments are per browser tab and are lost when the tab closes, by design: no
   accounts or saved histories.
+
+## Match Lab and bookmaker refinements
+
+**Section D inputs.** The final-estimate boxes now show their numbers
+right-aligned (two decimals, keyboard editing and validation unchanged).
+
+**Bookmaker Market Reference.**
+* On desktop the upper part is two columns:
+  * left: market-implied probabilities, the consensus odds cards (equal width,
+    centred) and the number of bookmaker groups
+  * right: "Reading these numbers", which explains raw versus margin-adjusted
+    probabilities and margin removal, plus a stale-price note when the prices are
+    stale
+* "Compare with Diski 9" stays underneath at full width.
+* Phones (900 px and narrower) stack the sections.
+* Missing-odds cards are unchanged.
+* The odds calculations are untouched.
+
+**Section B: Your Match Context Adjustment.** An optional, collapsible subsection at
+the foot of Section B, labelled **Your assumptions**:
+* one adjustment per team, from −1.00 to +1.00 goals in steps of 0.05, shown
+  signed (+0.15, −0.20)
+* a default of 0.00
+* an optional note: "Why are you making this adjustment?"
+* a **Clear Section B adjustments** button, which clears only these two numbers
+  (the note is kept)
+
+The explanation warns that much of Section B is already reflected in the model.
+Values are never derived from the Form Score, head-to-head or positions. The range
+is a guardrail, not a validated effect size.
+
+**How the sections combine:**
+
+```
+Your final estimate = model baseline + Section B match context
+                      + Section C other factors + additional manual adjustment
+```
+
+Section D's breakdown shows all five rows for each team.
+* Editing the final estimate directly sets
+  `manual = final − baseline − Section B − Section C`.
+* Changing Section B or C keeps the manual adjustment and moves the final estimate.
+* The final estimate stays within 0–10 goals, with an explanation when a limit
+  applies.
+* **Reset to model** clears Sections B, C and D and keeps the notes in B and C.
+
+Section B state is stored with the fixture's other adjustments in the browser tab's
+memory. It persists across market and fixture switches, stays separate per fixture
+and per user, and never reaches the forecast snapshots.
+
+Screenshots in `screenshots/`:
+
+| What | Files |
+|---|---|
+| Section B | `rf_section_b.png`, `rf_section_b_mobile.png` |
+| Section D | `rf_section_d.png`, `rf_section_d_mobile.png` |
+| Bookmaker card, desktop | `rf_bookmaker_1x2.png`, `rf_bookmaker_btts.png`, `rf_bookmaker_ou25.png` |
+| Bookmaker card, phone | `rf_bookmaker_1x2_mobile.png`, `rf_bookmaker_btts_mobile.png`, `rf_bookmaker_ou25_mobile.png` |
+
+The odds had gone stale by the time these were captured, so the cards show the
+stale-price note.
