@@ -57,8 +57,10 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   * a full model vs market table for each match
   * The Match Lab's "Your value check" with an EV explainer
   * details: section 9 of [`docs/methodology.md`](docs/methodology.md)
-* **Phase 5A: odds for all eight leagues**:
+* **Phase 5A: odds for all eight leagues (v3.2.0)**:
   * pre-match odds are collected for every Goal Model 1.0 league
+  * what is available depends on provider coverage and quote freshness; the PSL
+    and PSL 1st Division currently have no qualifying odds
   * `odds-coverage` reports availability per league and market
   * details: [`docs/odds_coverage_phase5a.md`](docs/odds_coverage_phase5a.md)
 

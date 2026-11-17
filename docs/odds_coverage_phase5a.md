@@ -1,5 +1,23 @@
 # Phase 5A — bookmaker odds for all eight leagues
 
+## Release v3.2.0 — Eight-League Bookmaker Odds Coverage
+
+* **Odds collection is enabled for all eight Goal Model 1.0 leagues:** EPL,
+  Championship, PSL, PSL 1st Division, La Liga, Ligue 1, Bundesliga and Serie A.
+* **What is actually available depends on the provider:** its coverage, and how
+  fresh its quotes are under the existing 24-hour rule.
+  * The PSL and PSL 1st Division currently have no qualifying odds. Their
+    fixtures stay visible for statistics with the existing "No odds" state.
+* **New `uv run diski9 odds-coverage` command:** availability per league and
+  market, from the local database (no API requests).
+* **Unchanged:**
+  * the consensus rules, including the Screener's minimum-bookmaker rule and the
+    3-bookmaker Challenge requirement
+  * margin removal and the Edge/EV calculations
+  * Goal Model 1.0 (k_s 12, k_t 96, m0 30, version 1.0), forecast snapshots and
+    the database schema
+  * the approved odds trial (EPL + PSL)
+
 Branch `feature/eight-league-odds` (from `main` at v3.1.0). Odds coverage only:
 no Weekly Challenge work, no new markets, competitions or providers, and no
 change to Goal Model 1.0, forecast snapshots, the database schema or the odds

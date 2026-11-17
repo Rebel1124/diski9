@@ -243,7 +243,8 @@ def market_value_block() -> html.Div:
             "any single bookmaker, so EV is a reference figure. The Screener ranks fresh prices "
             "only and uses the model's own probabilities; The Match Lab's value check uses your "
             "adjusted probabilities. Odds are collected for all eight leagues; where the "
-            "provider has no prices (currently the PSL), no odds are shown.",
+            "provider has no qualifying prices (currently the PSL and PSL 1st Division), "
+            "no odds are shown.",
             "muted small",
         ),
         cls="wide",
