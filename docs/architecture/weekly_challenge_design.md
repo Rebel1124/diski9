@@ -111,7 +111,60 @@ snapshot included:
 
 The research module stays research-only and is never imported by the app.
 
-### 3.3 Caching
+### 3.3 Payout distribution ("Your Payout Probability")
+
+A pure function in the same module:
+
+```python
+@dataclass(frozen=True)
+class PayoutOutcome:
+    gross: Decimal                     # exact credits
+    probability: float                 # P(R = gross)
+    states: tuple[tuple[int, int, int], ...]   # which bucket-win states give it
+    at_least: float                    # P(R >= gross)
+
+def payout_distribution(result: PortfolioResult) -> list[PayoutOutcome]   # ascending gross
+```
+
+**Construction:**
+* Take the eight states of the selected grouping (the same `PortfolioResult` the
+  frontier uses, at 30/30/30/10).
+* Group them by **exact** gross payout (`Decimal` equality: merging is exact, never
+  tolerance-based). This gives 1–8 distinct outcomes.
+* Sort ascending.
+* Set `at_least` to the suffix sum of `probability`.
+
+**Invariants** (tested):
+* Σ probability = 1, to within 1e-12.
+* `at_least` is non-increasing, and the first value is 1.0 (gross 0 is always
+  reached).
+* P(R ≥ 100), from the step function, equals `result.p_recover` **exactly**: the
+  same states are counted.
+* The last outcome is the all-win payout 30·(O_A + O_B + O_C) + 10·O_9, with
+  probability P_A·P_B·P_C (= P_9).
+* Σ gross × probability = `result.expected_gross`.
+
+**Chart data:**
+* The step polyline (UX §4.3) is built server-side from the outcomes.
+* No interpolation, no Plotly `line_shape="spline"`. Either explicit vertices,
+  or `line_shape="vh"` (vertical, then horizontal) on the points (0, 1),
+  (r₁, S₁), (r₂, S₂), …, (r_max, S_max), (r_max, 0), where Sₖ = P(R ≥ rₖ). This
+  makes the curve drop at 0⁺ to P(R > 0), hold each level up to the next payout,
+  and fall to 0 after the maximum.
+* The exact view uses stems (a bar trace with a very narrow width, or a segment
+  trace).
+* Both are recalculated in the same callback that updates the details panel,
+  keyed by `(round_id, selections, partition_id)`, using the cached
+  `PortfolioResult`. Cost: microseconds.
+
+**Storage:**
+* Nothing new is persisted. The distribution is a pure function of the stored
+  inputs.
+* Optionally, the submission keeps the eight `(gross, probability)` pairs inside
+  the existing `portfolio_points` JSON, so the receipt can redraw exactly what
+  was shown.
+
+### 3.4 Caching
 
 * The round sheet is cached per round (it never changes after publishing).
 * Explorer results are cached in an LRU per process, keyed by

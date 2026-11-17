@@ -171,6 +171,44 @@ Creating an entry requires signing in (identity model: decision D-01).
 * FR-P7. Selecting a point never submits. Submission happens only on the review
   step, with explicit confirmation.
 
+### 5.4a "Your Payout Probability" chart
+
+A second educational chart, separate from the frontier. The frontier helps a
+player **choose between groupings**; this chart explains **the spread of possible
+outcomes for the grouping they selected**.
+
+* FR-D1. Shown in the portfolio details for the selected efficient grouping. It is
+  recalculated whenever a different efficient grouping is selected, including the
+  pre-selected recommendation.
+* FR-D2. **Main view: "Chance of at least…"** (cumulative).
+  * X = gross payout in credits, from 0 to the maximum possible payout.
+  * Y = probability (%) of receiving **at least** that payout:
+    P(R ≥ x) = sum of the probabilities of the states with R(s) ≥ x.
+  * Drawn as a downward-stepping curve, never smoothed.
+* FR-D3. **Exact eight-state distribution, fixed 30/30/30/10.**
+  * States with an identical gross payout are merged, so at most 8 distinct
+    payouts appear.
+  * The figures come from the same calculation as the frontier, never a
+    simulation.
+* FR-D4. **Threshold marker.**
+  * The 100-credit recovery threshold is marked, labelled with its exact
+    probability, P(R ≥ 100).
+  * That value must equal the selected grouping's x-coordinate on the frontier.
+* FR-D5. **Maximum marker.** The maximum possible gross payout (all three buckets
+  plus the nine-fold, when all nine selections win) is marked with its
+  probability.
+* FR-D6. **Secondary view: "Chance of exactly…".**
+  * The probability of each exact payout outcome (bars or stems), with which
+    buckets win.
+  * The probabilities sum to 100%.
+  * A table form is available for accessibility.
+* FR-D7. **Wording keeps the two views distinct:**
+  * cumulative: "at least X credits";
+  * exact: "exactly X credits".
+  * Never just "chance of X".
+* FR-D8. Every figure is labelled as conditional on Goal Model 1.0 and the frozen
+  reference odds.
+
 ### 5.5 Recommendation
 
 * FR-Rec1. Recommended = the efficient arrangement with the highest recovery
@@ -262,6 +300,7 @@ Creating an entry requires signing in (identity model: decision D-01).
 * round sheet;
 * picker;
 * explorer;
+* "Your Payout Probability" chart (cumulative and exact views);
 * recommendation;
 * review, submit and resubmit before the deadline;
 * lock;
@@ -303,7 +342,12 @@ Creating an entry requires signing in (identity model: decision D-01).
    rerunning it changes nothing.
 7. Weekly and season leaderboards match hand-calculated examples, including ties
    and skipped rounds.
-8. The whole existing test suite still passes. The Screener and Match Lab are
+8. "Your Payout Probability" shows the exact step function and outcome
+   probabilities for the selected grouping, recalculated on every selection:
+   * its 100-credit value equals the frontier recovery probability;
+   * its maximum equals the all-win payout;
+   * the exact-outcome probabilities sum to 100%.
+9. The whole existing test suite still passes. The Screener and Match Lab are
    unchanged. Goal Model 1.0 is unchanged.
 
 ## 9. Mathematical consistency check (100-credit scaling)

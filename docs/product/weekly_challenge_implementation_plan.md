@@ -27,7 +27,8 @@ imported by the app).
   * dependency-free;
   * `Allocation(30, 30, 30, 10, target=100)`;
   * partitions, eight-state evaluation, Pareto, recommendation;
-  * exact decimal payouts.
+  * exact decimal payouts;
+  * `payout_distribution()` for "Your Payout Probability".
 
 **Dependencies:** Phase 5B research code (for tests).
 
@@ -51,7 +52,16 @@ imported by the app).
 * Pareto dominance, ties, order invariance;
 * recommendation always efficient, with deterministic tie-breaks;
 * `hypothesis` property tests on random slates (bounded odds and
-  probabilities).
+  probabilities);
+* payout distribution:
+  * exact merging of equal payouts;
+  * probabilities sum to 1;
+  * `at_least` non-increasing and starting at 1;
+  * P(R ≥ 100) from the step function == `p_recover` exactly;
+  * maximum outcome = all-win payout with probability P_A·P_B·P_C;
+  * Σ gross·probability = E[R];
+  * the R1 worked example (UX §4.3) reproduced to 0.01 credit and 0.001%;
+  * identical-bucket slates merge to fewer outcomes.
 
 **Scaling regression tests (required):**
 1. For every Phase 5B slate and all 280 partitions, `p_recover₁₀₀ == p_recover₂₀`
@@ -101,6 +111,8 @@ cache.
 * picker;
 * slip store;
 * explorer chart, list and details;
+* "Your Payout Probability" chart (cumulative and exact views, table form, 100-credit
+  and maximum markers);
 * review step (Submit disabled until Phase 4).
 
 **Dependencies:** Phases 1 and 2.
@@ -114,14 +126,25 @@ cache.
 * 280 points with correct styling;
 * dominated points unselectable;
 * recommended point preselected;
+* the payout-probability chart updates on every selection, with its 100-credit
+  label equal to the frontier recovery;
 * no page overflow at 390, 900 and 1440 px.
 
 **Tests:**
 * callback unit tests (replace on the same fixture, 9-pick limit, the
   ineligible outcome is not selectable);
 * chart figure tests (trace counts, `customdata`, tie markers);
+* payout chart figure tests:
+  * step vertices only, no spline;
+  * x range from 0 to the maximum payout;
+  * threshold marker at 100 with the exact probability;
+  * stems in the exact view sum to 100%;
+  * "at least" / "exactly" labels;
+  * Goal Model caption present;
 * Playwright at three widths (pick nine, explore, select an efficient point,
-  click a dominated point to no effect, keyboard list);
+  click a dominated point to no effect, keyboard list, the payout chart redraws
+  after selecting another efficient point, toggle between the at-least and
+  exactly views);
 * the existing Screener and Match Lab browser tests stay green.
 
 ## Phase 4: Identity and immutable submissions

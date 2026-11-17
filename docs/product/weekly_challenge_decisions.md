@@ -18,6 +18,7 @@
 | C-05 | Recommended = the efficient portfolio with the highest recovery probability; ties: higher expected return, then the lowest canonical ID |
 | C-06 | Goal Model 1.0 unchanged; existing consensus odds and eligibility (≥ 3 groups, fresh) |
 | C-07 | Weekly leaderboard by net virtual credits; no real money, prizes, affiliate links or staking advice |
+| C-08 | "Your Payout Probability" chart for the selected grouping. Main view: X = gross payout from 0 to the maximum; Y = chance of at least that payout; exact eight-state steps, no smoothing; 100-credit threshold and maximum marked. Secondary view: chance of each exact payout. Labelled as conditional on Goal Model 1.0 |
 
 **Verified:** uniform 5× scaling preserves recovery and the efficient set, and
 multiplies expected return, SD and net by 5. No contradiction with Phase 5B
@@ -41,6 +42,7 @@ multiplies expected return, SD and net by 5. No contradiction with Phase 5B
 | R-12 | Market-implied probabilities shown per pick (tooltips and review), never on chart axes | Transparency without clutter |
 | R-13 | No smoothing, no jitter; ties drawn as one counted marker; an efficient list as an accessible alternative | Honest chart; works on mobile |
 | R-14 | Settlement correction window of 24 hours before a round is final; later corrections only via an audited `--reopen` | Balances accuracy and finality |
+| R-15 | **"Your Payout Probability"** (owner requirement, added to Phase 5C). Cumulative step chart as the default view; exact-outcome stems as the secondary view, with a table form; full payout range by default, plus an optional "Focus on buckets" zoom | The all-win payout is often 4–10× the bucket payouts, so it squeezes the steps that matter; the zoom keeps them readable without hiding the maximum |
 
 ## Requires your approval
 
