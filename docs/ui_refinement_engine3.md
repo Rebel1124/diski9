@@ -271,8 +271,12 @@ stale-price note.
 
 ## Odds availability filter
 
-"Only show matches with odds" is a checkbox in a slim row under the filter controls.
-It is unchecked by default.
+"Only show matches with odds" is an on/off switch in a slim row under the filter
+controls. It is off by default.
+
+The switch is the same native checkbox component, restyled in CSS: teal when on, a
+focus ring for keyboard users, and `role="switch"` so screen readers announce it as a
+toggle. Space toggles it, and the filtering is unchanged.
 
 * **When checked,** the Screener lists only fixtures whose selected market has usable
   bookmaker odds, fresh or stale. It uses the same availability as the odds column
@@ -286,7 +290,7 @@ It is unchecked by default.
 * **No results:** the message reads "No matches with bookmaker odds available for
   these filters."
 
-Screenshots: `screenshots/odds_filter_desktop.png`, `screenshots/odds_filter_mobile.png`.
+Screenshots: `screenshots/odds_toggle_desktop.png`, `screenshots/odds_toggle_mobile.png`.
 
 ## Screener table: Data column removed
 

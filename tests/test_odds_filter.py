@@ -136,3 +136,18 @@ def test_checkbox_in_layout_and_callback_and_kept_across_markets(data):
             None,
         )
         assert out[2] == "Showing 1–1 of 1 fixture" or "of 1 fixture" in out[2]
+
+
+def test_odds_filter_is_styled_as_an_accessible_switch():
+    from pathlib import Path
+
+    assets = Path(__file__).parents[1] / "src/diski9/app/assets"
+    css, js = (assets / "style.css").read_text(), (assets / "diski9.js").read_text()
+    assert (
+        "appearance: none" in css
+        and ".odds-only input.dash-options-list-option-checkbox:checked" in css
+    )
+    assert (
+        "background: var(--accent)" in css and ":focus-visible" in css
+    )  # teal when on, focus ring
+    assert 'box.setAttribute("role", "switch")' in js  # announced as an on/off switch

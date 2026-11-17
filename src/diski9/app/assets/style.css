@@ -541,3 +541,24 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 /* "Only show matches with odds": a slim row under the filter controls */
 .filters .filter-row { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 2px; }
 .odds-only label { margin: 0; font-size: 14px; }
+
+/* "Only show matches with odds" as an on/off switch (the native checkbox, restyled:
+   same component, value and callback; Space toggles it, role="switch" is set in diski9.js) */
+.odds-only .dash-options-list-option { display: inline-flex; align-items: center; gap: 10px; cursor: pointer;
+  background: none; padding: 0; }
+.odds-only .dash-options-list-option-wrapper { display: inline-flex; }
+.odds-only input.dash-options-list-option-checkbox {
+  appearance: none; -webkit-appearance: none; margin: 0; position: relative; flex: none;
+  width: 40px; height: 22px; border-radius: 999px; cursor: pointer;
+  background: var(--surface-2); border: 1px solid var(--border);
+  transition: background .15s ease, border-color .15s ease; }
+.odds-only input.dash-options-list-option-checkbox::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--muted); transition: transform .15s ease, background .15s ease; }
+.odds-only input.dash-options-list-option-checkbox:checked { background: var(--accent-dim); border-color: var(--accent); }
+.odds-only input.dash-options-list-option-checkbox:checked::before { transform: translateX(18px); background: var(--accent); }
+.odds-only input.dash-options-list-option-checkbox:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.odds-only .dash-options-list-option-text { color: var(--text); font-size: 14px; }
+@media (prefers-reduced-motion: reduce) {
+  .odds-only input.dash-options-list-option-checkbox, .odds-only input.dash-options-list-option-checkbox::before { transition: none; }
+}
