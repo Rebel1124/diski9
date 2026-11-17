@@ -268,3 +268,22 @@ Screenshots in `screenshots/`:
 
 The odds had gone stale by the time these were captured, so the cards show the
 stale-price note.
+
+## Odds availability filter
+
+"Only show matches with odds" is a checkbox in a slim row under the filter controls.
+It is unchecked by default.
+
+* **When checked,** the Screener lists only fixtures whose selected market has usable
+  bookmaker odds, fresh or stale. It uses the same availability as the odds column
+  (`ScreenerData.odds_summary`), so fixtures showing "No odds" are left out.
+* **Per market:** it applies separately to Match Result, BTTS and Over/Under.
+* **Before pagination:** it filters before ranking and paging, so counts, pages and
+  sorting stay correct.
+* **With other filters:** it combines with leagues, dates, ranking and the
+  probability threshold.
+* **Market switches** keep the checkbox state.
+* **No results:** the message reads "No matches with bookmaker odds available for
+  these filters."
+
+Screenshots: `screenshots/odds_filter_desktop.png`, `screenshots/odds_filter_mobile.png`.

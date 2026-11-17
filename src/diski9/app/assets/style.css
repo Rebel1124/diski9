@@ -537,3 +537,7 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .ctx-acc { margin-top: 2px; }
 .ctx-acc .cat-title { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ctx-acc > summary .cat-sum-wrap { margin-left: auto; }
+
+/* "Only show matches with odds": a slim row under the filter controls */
+.filters .filter-row { grid-column: 1 / -1; border-top: 1px solid var(--border); padding-top: 10px; margin-top: 2px; }
+.odds-only label { margin: 0; font-size: 14px; }

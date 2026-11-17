@@ -270,8 +270,11 @@ class ScreenerData:
         basis: str,
         direction: str,
         threshold: float | None,
+        odds_only: bool = False,
     ) -> list[dict]:
-        """Filter first, then rank (deterministic)."""
+        """Filter first, then rank (deterministic). ``odds_only`` keeps fixtures whose
+        selected market has usable bookmaker odds (fresh or stale), using the same
+        availability as the odds column (``odds_summary``)."""
         snap = self.snapshot()
         results = list(snap.results.get("overall", {}).values())
         if leagues is not None:
@@ -283,7 +286,16 @@ class ScreenerData:
                 return (start is None or d >= start) and (end is None or d <= end)
 
             results = [r for r in results if in_range(r)]
+        if odds_only:
+            results = [r for r in results if self.has_odds(market, r)]
         return rank(results, valid_direction(market, direction), threshold)
+
+    def has_odds(self, market: str, r: dict) -> bool:
+        """True when the fixture shows usable odds for the market (fresh or stale),
+        i.e. anything but the 'No odds' / unavailable state."""
+        ov = self.snapshot().odds.get(r["fixture"]["id"])
+        status, _ = self.odds_summary(ov, MARKET_OF[market])
+        return status in ("fresh", "stale")
 
     def row(self, market: str, r: dict) -> dict[str, Any]:
         """Display-ready values for one fixture row/card (Goal Model 1.0)."""

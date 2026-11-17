@@ -315,6 +315,15 @@ def build_layout(data: ScreenerData) -> html.Div:
                         ],
                         className="filter threshold-filter",
                     ),
+                    html.Div(
+                        dcc.Checklist(
+                            id="odds-only",
+                            options=[{"label": "Only show matches with odds", "value": ODDS_ONLY}],
+                            value=[],
+                            className="chips odds-only",
+                        ),
+                        className="filter-row",
+                    ),
                 ],
                 className="filters",
             ),
@@ -555,6 +564,7 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Input("dates", "end_date"),
         Input("direction", "value"),
         Input("threshold", "value"),
+        Input("odds-only", "value"),
         Input("prev", "n_clicks"),
         Input("next", "n_clicks"),
         Input({"type": "row", "index": ALL}, "n_clicks"),
@@ -563,7 +573,19 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         State("selected", "data"),
     )
     def update_results(
-        market, leagues, start, end, direction, threshold, _p, _n, _rows, _cards, page, selected
+        market,
+        leagues,
+        start,
+        end,
+        direction,
+        threshold,
+        odds_only,
+        _p,
+        _n,
+        _rows,
+        _cards,
+        page,
+        selected,
     ):
         """Single source of truth for the list, the page and the selected fixture id.
 
@@ -584,7 +606,17 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         else:
             page = 1
         return results_payload(
-            data, market, leagues, start, end, "overall", direction, threshold, page, selected
+            data,
+            market,
+            leagues,
+            start,
+            end,
+            "overall",
+            direction,
+            threshold,
+            page,
+            selected,
+            odds_only=ODDS_ONLY in (odds_only or []),
         )
 
     @app.callback(
@@ -704,14 +736,38 @@ def _date(value: str | None) -> date | None:
     return date.fromisoformat(value[:10]) if value else None
 
 
+ODDS_ONLY = "odds"
+NO_ODDS_MESSAGE = "No matches with bookmaker odds available for these filters."
+
+
 def results_payload(
-    data, market, leagues, start, end, basis, direction, threshold, page, selected=None
+    data,
+    market,
+    leagues,
+    start,
+    end,
+    basis,
+    direction,
+    threshold,
+    page,
+    selected=None,
+    odds_only=False,
 ):
-    """Pure function behind the results callback (also used by tests)."""
+    """Pure function behind the results callback (also used by tests). All filters,
+    including "only matches with odds", apply before ranking and pagination."""
     direction = valid_direction(market, direction)
     thr = _threshold_value(market, direction, threshold)
     results = (
-        data.filtered(market, leagues, _date(start), _date(end), "overall", direction, thr)
+        data.filtered(
+            market,
+            leagues,
+            _date(start),
+            _date(end),
+            "overall",
+            direction,
+            thr,
+            odds_only=bool(odds_only),
+        )
         if leagues
         else []
     )
@@ -724,7 +780,9 @@ def results_payload(
         empty = html.Div("Select at least one league to see fixtures.", className="empty")
     elif not results:
         empty = html.Div(
-            "No fixtures match these filters. Try a wider date range or a lower threshold.",
+            NO_ODDS_MESSAGE
+            if odds_only
+            else "No fixtures match these filters. Try a wider date range or a lower threshold.",
             className="empty",
         )
     else:
