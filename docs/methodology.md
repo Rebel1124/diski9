@@ -267,6 +267,11 @@ Screener and The Match Lab); margin removal is `normalise` in
   edge and the best EV outcome can differ.
 * The final column shows only the single strongest outcome and adapts to the
   ranking: Market / Edge, Best edge or Best EV.
+* For 1X2, a positive pick is coloured by **outcome identity**: Home blue,
+  Draw amber, Away teal. The same colours are used in the market-probability bar.
+  * The colour names the outcome, never "good value".
+  * Negative, zero, missing and stale cells stay neutral.
+  * The outcome is always written out as well.
 * Ordering is computed over the full filtered set before pagination:
   1. positive values, highest first
   2. fixtures with market data but no positive value, by kickoff
@@ -284,6 +289,14 @@ Screener and The Match Lab); margin removal is `normalise` in
 * The bookmaker card's *Model vs market* table shows Model, Market, Edge, Odds
   and EV (model baseline) for every outcome, with the number of bookmaker groups
   and the price range.
+* Sections B and C have compact secondary sliders beside the precise number
+  boxes:
+  * ranges: ±1.00 goal for Section B and ±2.00 per category in Section C (the
+    existing limits), in steps of 0.05
+  * each slider and its box are two views of one value, so nothing is counted
+    twice
+* Section D shows the estimated-goals breakdown and the resulting probabilities
+  side by side (stacked on narrow screens).
 * Section D's *Your value check* shows your final probability, the market
   probability, your edge and **your EV = your probability × odds − 1**.
   * It shows the model's EV beside yours once you adjust.

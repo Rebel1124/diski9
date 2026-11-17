@@ -52,6 +52,7 @@ from .lab import (
     render_detail,
     signed_text,
     slider_max,
+    slider_value,
 )
 from .methodology import methodology_section
 from .views import pill
@@ -443,6 +444,8 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
     * a match-context adjustment or note (Section B) updates Section B only;
       "Clear Section B adjustments" clears its numbers (the note is kept)
     * a category adjustment or note (Section C) updates that category only
+    * the compact B / C sliders and their number boxes are two views of ONE value:
+      either trigger sets it, and the callback writes it back to both
     * a slider or box (Section D) sets the *final* estimate: the manual adjustment
       becomes final - baseline - Section B - Section C, so nothing is counted twice
     * Reset clears all adjustments in B, C and D (notes are kept)
@@ -463,8 +466,8 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
     if trigger == "ctx-note":
         state["context"]["note"] = str(value or "").strip()[:NOTE_MAX]
         return state, messages
-    if trigger in ("ctx-home", "ctx-away"):
-        side = trigger.split("-")[1]
+    if trigger in ("ctx-home", "ctx-away", "ctx-home-slider", "ctx-away-slider"):
+        side = trigger.split("-")[1]  # slider and box share one Section B value
         v = _parse_context(value)
         if v is None:
             messages.append(
@@ -474,7 +477,7 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
         else:
             state["context"][side] = v
         return state, messages
-    if isinstance(trigger, dict) and trigger.get("type") == "cat-adj":
+    if isinstance(trigger, dict) and trigger.get("type") in ("cat-adj", "cat-slider"):
         key, side = trigger.get("cat"), trigger.get("side")
         if key in state["cats"] and side in SIDES:
             v = _parse_adjustment(value)
@@ -677,6 +680,9 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Output("ctx-home", "value"),
         Output("ctx-away", "value"),
         Output("ctx-sum", "children"),
+        Output({"type": "cat-slider", "cat": ALL, "side": ALL}, "value"),
+        Output("ctx-home-slider", "value"),
+        Output("ctx-away-slider", "value"),
         Input("lab-home-slider", "value"),
         Input("lab-home-input", "value"),
         Input("lab-away-slider", "value"),
@@ -688,14 +694,18 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Input("ctx-away", "value"),
         Input("ctx-note", "value"),
         Input("ctx-clear", "n_clicks"),
+        Input({"type": "cat-slider", "cat": ALL, "side": ALL}, "value"),
+        Input("ctx-home-slider", "value"),
+        Input("ctx-away-slider", "value"),
         State("selected", "data"),
         State("market", "value"),
         State("lab-store", "data"),
         prevent_initial_call=True,
     )
-    def adjust(_hs, _hi, _as, _ai, _reset, _cats, _notes, _ch, _ca, _cn, _cc, fid, market, lab):
+    def adjust(*args):
         """Sections B, C and D: update this fixture's state in the browser store and
         recalculate all seven probabilities. The model baseline is never modified."""
+        fid, market, lab = args[-3:]
         if not fid or not ctx.triggered:
             raise PreventUpdate
         r, ov, _ = data.detail(fid)
@@ -733,6 +743,12 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             signed_text(state["context"]["home"]),
             signed_text(state["context"]["away"]),
             context_summary(state),
+            [
+                slider_value(state["cats"][o["id"]["cat"]][o["id"]["side"]], CATEGORY_MAX)
+                for o in ctx.outputs_list[14]
+            ],
+            slider_value(state["context"]["home"], CONTEXT_MAX),
+            slider_value(state["context"]["away"], CONTEXT_MAX),
         )
 
     app.clientside_callback(
@@ -876,7 +892,7 @@ def results_table(
             if cid == "value":
                 v = row["value"]
                 value = value_lines(v)
-                cls += f" value-cell v-{v['cls']} odds-{v['status']}"
+                cls += f" value-cell v-{v['cls']} odds-{v['status']}" + outcome_class(v)
                 cells.append(html.Td(value, className=cls, title=v["title"]))
                 continue
             elif cid == "estimated_goals":
@@ -913,6 +929,12 @@ def results_table(
     )
 
 
+def outcome_class(v: dict) -> str:
+    """Outcome colour (Home blue, Draw amber, Away teal) for a positive 1X2 pick only;
+    negative, zero, missing and stale values keep the neutral style."""
+    return f" v-out-{v['outcome']}" if v.get("outcome") and v["cls"] == "pos" else ""
+
+
 def value_lines(v: dict) -> list:
     """Two compact lines: the highlighted outcome and its market % (or odds for EV)."""
     out = [html.Span(v["main"], className="v-main")]
@@ -935,7 +957,9 @@ def fixture_card(market: str, row: dict, selected: int | None) -> html.Button:
     if v and v["status"] == "fresh" and v["main"] not in (None, "—"):
         label = "Best EV" if v["mode"] == "ev" else "Edge"
         text = f"{label}: {v['main']}" + (f" · {v['sub']}" if v["sub"] else "")
-        bottom.append(html.Span(text, className=f"small card-value v-{v['cls']}"))
+        bottom.append(
+            html.Span(text, className=f"small card-value v-{v['cls']}" + outcome_class(v))
+        )
     if row["limited"]:
         bottom.append(pill("Early season", "warn subtle"))
     return html.Button(

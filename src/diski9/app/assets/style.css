@@ -15,6 +15,10 @@
   --win: #3fb950;
   --draw: #8b98a5;
   --loss: #f85149;
+  /* outcome identity: Home, Draw, Away (never a "good" / "bad" signal) */
+  --out-home: #60a5fa;
+  --out-draw: #e5ae52;
+  --out-away: #36c9a8;
   --radius: 10px;
   --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color-scheme: dark;
@@ -232,9 +236,9 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .prob-bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--surface-2);
   margin: 8px 0 6px; max-width: 520px; }
 .prob-bar .seg { height: 100%; }
-.seg-home { background: var(--accent); }
-.seg-draw { background: #8b98a5; }
-.seg-away { background: var(--info); }
+.seg-home { background: var(--out-home); }
+.seg-draw { background: var(--out-draw); }
+.seg-away { background: var(--out-away); }
 .prob-values { display: flex; gap: 10px; flex-wrap: wrap; font-variant-numeric: tabular-nums; font-size: 15px; }
 .prob-values .sep { color: var(--border); }
 .odds-strip.stale .prob-bar { opacity: .55; }
@@ -603,3 +607,43 @@ table.results td.value-cell { white-space: nowrap; }
   table.grid.value-table th:last-child, table.grid.value-table td:last-child { padding-right: 0; }
 }
 .value-table .odds-at { display: block; font-size: 11.5px; }
+
+/* Screener: positive 1X2 picks take the outcome's identity colour */
+.value-cell.v-pos.v-out-home .v-main, .card-value.v-pos.v-out-home { color: var(--out-home); }
+.value-cell.v-pos.v-out-draw .v-main, .card-value.v-pos.v-out-draw { color: var(--out-draw); }
+.value-cell.v-pos.v-out-away .v-main, .card-value.v-pos.v-out-away { color: var(--out-away); }
+
+/* Section D: breakdown and probabilities side by side (stacked when narrow) */
+.lab-tables { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px 24px;
+  align-items: start; margin: 6px 0 4px; }
+.lab-pane { min-width: 0; }
+.lab-subhead { font-size: 11.5px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  color: var(--muted); margin: 2px 0 2px; }
+.lab-tables .breakdown { margin: 0; }
+.lab-tables table.grid th, .lab-tables table.grid td { padding: 5px 6px; }
+.lab-tables table.grid th:first-child, .lab-tables table.grid td:first-child { padding-left: 0; }
+.lab-tables table.grid th:last-child, .lab-tables table.grid td:last-child { padding-right: 0; }
+.lab-tables th.team-col { white-space: normal; overflow-wrap: anywhere; max-width: 9em; }
+.lab-tables tr:last-child td { border-bottom: none; }
+.breakdown td.final-row { color: var(--text); }
+.breakdown tr:last-child td { border-top: 1px solid var(--border); }
+@media (max-width: 720px) { .lab-tables { grid-template-columns: minmax(0, 1fr); } }
+
+/* Sections B and C: compact secondary sliders (Section D's teal sliders stay primary).
+   Centred on zero: no fill from the left; a small tick marks 0.00. */
+.mini-adjust { display: grid; grid-template-columns: minmax(0, 1fr) 76px; align-items: center; gap: 8px; }
+.mini-slider { min-width: 0; }
+.mini-slider .dash-slider-root { padding: 8px 0; height: 10px; --radix-slider-thumb-width: 12px; }
+.mini-slider .dash-slider-track { height: 3px; background: var(--border); overflow: visible; }
+.mini-slider .dash-slider-track::after { content: ""; position: absolute; left: 50%; top: -3px; width: 1px;
+  height: 9px; background: var(--muted); transform: translateX(-0.5px); }
+.mini-slider .dash-slider-root .dash-slider-track .dash-slider-range { background-color: transparent; }
+.mini-slider .dash-slider-thumb { width: 12px; height: 12px; background: var(--muted); border: 2px solid var(--surface);
+  box-shadow: none; }
+.mini-slider .dash-slider-thumb:hover, .mini-slider .dash-slider-thumb:focus { transform: scale(1.15);
+  background: var(--warn); }
+.mini-slider .dash-slider-thumb:focus-visible { outline: 2px solid var(--warn); outline-offset: 2px; }
+.cat-inputs { grid-template-columns: repeat(2, minmax(0, 300px)); }
+@media (max-width: 720px) {
+  .cat-inputs { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}

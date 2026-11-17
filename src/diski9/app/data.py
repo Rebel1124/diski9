@@ -116,6 +116,9 @@ def record_short(rate: dict | None) -> str:
     return f"{rate['hits']}/{rate['matches']}"
 
 
+# Outcome identity colours (style.css --out-home / --out-draw / --out-away). They name
+# the outcome; they never signal that a value is positive or profitable.
+OUTCOME_COLOUR_KEY = {Outcome.HOME: "home", Outcome.DRAW: "draw", Outcome.AWAY: "away"}
 _ODDS_ORDER = {"1X2": "home · draw · away", "BTTS": "yes · no", "OU25": "over · under"}
 
 
@@ -379,6 +382,7 @@ class ScreenerData:
             "sub": None,
             "cls": "na",
             "title": None,
+            "outcome": None,  # 1X2 outcome colour key, set only for a positive value
         }
         if status == "unavailable":
             cell["main"] = odds_text  # "No odds" (league without odds) or "—"
@@ -402,6 +406,8 @@ class ScreenerData:
             cell["cls"] = "zero"
             return cell
         label = OUTCOME_LABEL[pick.outcome]
+        if market == "1X2":  # Home / Draw / Away colours identify the outcome only
+            cell["outcome"] = OUTCOME_COLOUR_KEY.get(pick.outcome)
         if mode == "edge":
             cell.update(
                 main=f"{label} {edge_text(pick.edge)}",

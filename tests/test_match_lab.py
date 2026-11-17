@@ -94,9 +94,9 @@ def test_adjustment_recalculates_all_seven_and_never_touches_baseline(data):
     assert pp(mine["home"] - b["home"]) in t
     for label in (
         "Model baseline",
-        "Section B — Match context",
-        "Section C — Other factors",
-        "Additional manual adjustment",
+        "B · Match context",
+        "C · Other factors",
+        "Manual adjustment",
         "Your final estimate",
     ):
         assert label in t
@@ -501,9 +501,20 @@ def _call(func, data, lab, value):
             for s in ("home", "away")
         ],
         [{"id": {"type": "cat-sum", "cat": k}} for k in CATEGORY_KEYS],
+        None,
+        None,
+        None,
+        None,
+        None,
+        [
+            {"id": {"type": "cat-slider", "cat": k, "side": s}}
+            for k in CATEGORY_KEYS
+            for s in ("home", "away")
+        ],
     ]
     ctxv["triggered_inputs"][0]["value"] = value
-    return func(None, None, None, None, 0, [], [], None, None, None, 0, EPL_FIX, "BTTS", lab)
+    args = (None, None, None, None, 0, [], [], None, None, None, 0, [], None, None)
+    return func(*args, EPL_FIX, "BTTS", lab)
 
 
 def test_section_c_structure_and_education(data):

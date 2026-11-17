@@ -566,22 +566,62 @@ def context_summary(state: dict) -> list:
     return out
 
 
-def _ctx_input(side: str, team: str, value: float) -> html.Label:
-    return html.Label(
+def slider_value(value: float, limit: float) -> float:
+    """The mini slider's position for an adjustment (always within its range)."""
+    return round(min(max(float(value or 0.0), -limit), limit), 2)
+
+
+def _mini_adjust(
+    label: str, slider_id, input_id, value: float, limit: float, text: str
+) -> html.Div:
+    """A compact secondary slider plus the precise number box, both bound to ONE
+    adjustment value (the callback writes the same state value back to both)."""
+    return html.Div(
         [
-            html.Span(f"{team} (± goals)", className="cat-input-label"),
-            dcc.Input(
-                id=f"ctx-{side}",
-                type="text",
-                inputMode="decimal",
-                value=signed_text(value),
-                debounce=0.4,
-                pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
-                className="adj-input cat-input goal-input step-005 allow-negative",
-                placeholder="0.00",
+            html.Span(label, className="cat-input-label"),
+            html.Div(
+                [
+                    html.Div(
+                        dcc.Slider(
+                            id=slider_id,
+                            min=-limit,
+                            max=limit,
+                            step=SLIDER_STEP,
+                            value=slider_value(value, limit),
+                            marks=None,
+                            updatemode="drag",
+                            allow_direct_input=False,  # the number box beside it is the input
+                            tooltip=None,
+                        ),
+                        className="mini-slider",
+                        title=f"{-limit:+.2f} to {limit:+.2f} goals, steps of 0.05",
+                    ),
+                    dcc.Input(
+                        id=input_id,
+                        type="text",
+                        inputMode="decimal",
+                        value=text,
+                        debounce=0.4,
+                        pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
+                        className="adj-input cat-input goal-input step-005 allow-negative",
+                        placeholder="0.00",
+                    ),
+                ],
+                className="mini-adjust",
             ),
         ],
         className="cat-field",
+    )
+
+
+def _ctx_input(side: str, team: str, value: float) -> html.Div:
+    return _mini_adjust(
+        f"{team} (± goals)",
+        f"ctx-{side}-slider",
+        f"ctx-{side}",
+        value,
+        CONTEXT_MAX,
+        signed_text(value),
     )
 
 
@@ -709,23 +749,14 @@ def category_summary(state: dict, key: str) -> list:
     return out
 
 
-def _cat_input(key: str, side: str, team: str, value: float) -> html.Label:
-    """The label wraps its box, so screen readers announce which team it adjusts."""
-    return html.Label(
-        [
-            html.Span(f"{team} (± goals)", className="cat-input-label"),
-            dcc.Input(
-                id={"type": "cat-adj", "cat": key, "side": side},
-                type="text",
-                inputMode="decimal",
-                value=adjustment_text(value),
-                debounce=0.4,
-                pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
-                className="adj-input cat-input goal-input step-005 allow-negative",
-                placeholder="0.00",
-            ),
-        ],
-        className="cat-field",
+def _cat_input(key: str, side: str, team: str, value: float) -> html.Div:
+    return _mini_adjust(
+        f"{team} (± goals)",
+        {"type": "cat-slider", "cat": key, "side": side},
+        {"type": "cat-adj", "cat": key, "side": side},
+        value,
+        CATEGORY_MAX,
+        adjustment_text(value),
     )
 
 
@@ -865,19 +896,19 @@ def breakdown_table(r: dict, b: dict) -> html.Table:
             html.Thead(
                 html.Tr(
                     [
-                        html.Th(""),
-                        html.Th(f["home"], className="num"),
-                        html.Th(f["away"], className="num"),
+                        html.Th("Component"),
+                        html.Th(f["home"], className="num team-col", title=f["home"]),
+                        html.Th(f["away"], className="num team-col", title=f["away"]),
                     ]
                 )
             ),
             html.Tbody(
                 [
                     row("Model baseline", "base", goals2),
-                    row("Section B — Match context", "context", signed),
-                    row("Section C — Other factors", "cats", signed),
-                    row("Additional manual adjustment", "manual", signed),
-                    row("Your final estimate", "final", goals2, "strong"),
+                    row("B · Match context", "context", signed),
+                    row("C · Other factors", "cats", signed),
+                    row("Manual adjustment", "manual", signed),
+                    row("Your final estimate", "final", goals2, "strong final-row"),
                 ]
             ),
         ],
@@ -970,9 +1001,30 @@ def lab_outputs(
     out = html.Div(
         [
             *notes,
-            breakdown_table(r, b),
             summary,
-            comparison_table(base, mine, (market,)),
+            # Estimated goals breakdown -> resulting probabilities, side by side on wide
+            # screens (stacked on narrow ones); the market comparison follows below.
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Div("Estimated goals breakdown", className="lab-subhead"),
+                            breakdown_table(r, b),
+                        ],
+                        className="lab-pane",
+                    ),
+                    html.Div(
+                        [
+                            html.Div(
+                                f"{MARKET_TITLE[market]} probabilities", className="lab-subhead"
+                            ),
+                            comparison_table(base, mine, (market,)),
+                        ],
+                        className="lab-pane",
+                    ),
+                ],
+                className="lab-tables",
+            ),
             html.Details(
                 [html.Summary("All markets"), comparison_table(base, mine, others)],
                 className="acc all-markets",
