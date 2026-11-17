@@ -36,6 +36,7 @@ from .data import (
 from .lab import (
     ADJUST_MAX,
     CATEGORY_MAX,
+    CONTEXT_MAX,
     NOTE_MAX,
     SIDES,
     adjustment_text,
@@ -43,10 +44,13 @@ from .lab import (
     breakdown,
     category_summary,
     category_total,
+    context_summary,
+    context_total,
     is_empty,
     lab_outputs,
     normalise_state,
     render_detail,
+    signed_text,
     slider_max,
 )
 from .methodology import methodology_section
@@ -384,14 +388,24 @@ def _parse_adjustment(value) -> float | None:
     return round(v, 2)
 
 
+def _parse_context(value) -> float | None:
+    """A Section B match-context adjustment (empty means 0); None if invalid."""
+    v = _parse_adjustment(value)
+    if v is None or abs(v) > CONTEXT_MAX:
+        return None
+    return v
+
+
 def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list[str]]:
     """Pure logic behind the Match Lab callback: the fixture's new user state and any
     messages about input that could not be used.
 
+    * a match-context adjustment or note (Section B) updates Section B only;
+      "Clear Section B adjustments" clears its numbers (the note is kept)
     * a category adjustment or note (Section C) updates that category only
     * a slider or box (Section D) sets the *final* estimate: the manual adjustment
-      becomes final - baseline - Section C total, so nothing is counted twice
-    * Reset clears all adjustments (notes are kept)
+      becomes final - baseline - Section B - Section C, so nothing is counted twice
+    * Reset clears all adjustments in B, C and D (notes are kept)
     """
     base_r = baseline_rounded(r)
     state = normalise_state(stored, base_r)
@@ -400,7 +414,25 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
     if trigger == "lab-reset":
         for k in state["cats"]:
             state["cats"][k]["home"] = state["cats"][k]["away"] = 0.0
+        state["context"]["home"] = state["context"]["away"] = 0.0
         state["manual"] = {"home": 0.0, "away": 0.0}
+        return state, messages
+    if trigger == "ctx-clear":
+        state["context"]["home"] = state["context"]["away"] = 0.0
+        return state, messages
+    if trigger == "ctx-note":
+        state["context"]["note"] = str(value or "").strip()[:NOTE_MAX]
+        return state, messages
+    if trigger in ("ctx-home", "ctx-away"):
+        side = trigger.split("-")[1]
+        v = _parse_context(value)
+        if v is None:
+            messages.append(
+                f"Match context adjustments must be numbers between -{CONTEXT_MAX:.2f} and "
+                f"+{CONTEXT_MAX:.2f} goals; the previous value for {team[side]} was kept."
+            )
+        else:
+            state["context"][side] = v
         return state, messages
     if isinstance(trigger, dict) and trigger.get("type") == "cat-adj":
         key, side = trigger.get("cat"), trigger.get("side")
@@ -428,7 +460,9 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
                     f"{team[side]}'s estimate was not changed."
                 )
             else:
-                state["manual"][side] = round(v - base_r[side] - category_total(state, side), 2)
+                state["manual"][side] = round(
+                    v - base_r[side] - context_total(state, side) - category_total(state, side), 2
+                )
     return state, messages
 
 
@@ -576,6 +610,9 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Output({"type": "cat-sum", "cat": ALL}, "children"),
         Output("lab-output", "children"),
         Output("lab-compare", "children"),
+        Output("ctx-home", "value"),
+        Output("ctx-away", "value"),
+        Output("ctx-sum", "children"),
         Input("lab-home-slider", "value"),
         Input("lab-home-input", "value"),
         Input("lab-away-slider", "value"),
@@ -583,13 +620,17 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Input("lab-reset", "n_clicks"),
         Input({"type": "cat-adj", "cat": ALL, "side": ALL}, "value"),
         Input({"type": "cat-note", "cat": ALL}, "value"),
+        Input("ctx-home", "value"),
+        Input("ctx-away", "value"),
+        Input("ctx-note", "value"),
+        Input("ctx-clear", "n_clicks"),
         State("selected", "data"),
         State("market", "value"),
         State("lab-store", "data"),
         prevent_initial_call=True,
     )
-    def adjust(_hs, _hi, _as, _ai, _reset, _cat_values, _notes, fid, market, lab):
-        """Sections C and D: update this fixture's state in the browser store and
+    def adjust(_hs, _hi, _as, _ai, _reset, _cats, _notes, _ch, _ca, _cn, _cc, fid, market, lab):
+        """Sections B, C and D: update this fixture's state in the browser store and
         recalculate all seven probabilities. The model baseline is never modified."""
         if not fid or not ctx.triggered:
             raise PreventUpdate
@@ -625,6 +666,9 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             sum_out,
             out,
             compare,
+            signed_text(state["context"]["home"]),
+            signed_text(state["context"]["away"]),
+            context_summary(state),
         )
 
     app.clientside_callback(

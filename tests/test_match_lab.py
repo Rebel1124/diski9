@@ -94,9 +94,10 @@ def test_adjustment_recalculates_all_seven_and_never_touches_baseline(data):
     assert pp(mine["home"] - b["home"]) in t
     for label in (
         "Model baseline",
-        "Your research (Section C)",
+        "Section B — Match context",
+        "Section C — Other factors",
         "Additional manual adjustment",
-        "Your estimate",
+        "Your final estimate",
     ):
         assert label in t
     assert "Your estimate" in t and "Yours" in _text(compare)
@@ -500,7 +501,7 @@ def _call(func, data, lab, value):
         [{"id": {"type": "cat-sum", "cat": k}} for k in CATEGORY_KEYS],
     ]
     ctxv["triggered_inputs"][0]["value"] = value
-    return func(None, None, None, None, 0, [], [], EPL_FIX, "BTTS", lab)
+    return func(None, None, None, None, 0, [], [], None, None, None, 0, EPL_FIX, "BTTS", lab)
 
 
 def test_section_c_structure_and_education(data):
@@ -643,8 +644,8 @@ const { chromium, devices } = require('playwright');
     r.afterC = Math.round((parseFloat(await p.locator('#lab-home-input').inputValue()) - base) * 100) / 100;
     await p.locator('#lab-home-input').fill((base - 0.5).toFixed(2));
     await p.locator('#lab-home-input').press('Enter');
-    await p.waitForFunction(() => document.querySelectorAll('.breakdown tr')[3].innerText.includes('-0.25'), null, { timeout: 10000 }).catch(() => {});
-    r.manualRow = (await p.locator('.breakdown tr').nth(3).innerText()).includes('-0.25');
+    await p.waitForFunction(() => document.querySelectorAll('.breakdown tr')[4].innerText.includes('-0.25'), null, { timeout: 10000 }).catch(() => {});
+    r.manualRow = (await p.locator('.breakdown tr').nth(4).innerText()).includes('-0.25');
     await p.locator('#market').click();
     await p.locator('[role=option]', { hasText: 'Over/Under' }).click();
     await p.waitForFunction(() => document.querySelector('#lab-output') && document.querySelector('#lab-output').innerText.includes('Over 2.5'));

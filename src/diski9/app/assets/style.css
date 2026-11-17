@@ -510,3 +510,31 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 /* labels align with the other filters; only the slider keeps side room for its value */
 .filters .filter.threshold-filter { padding: 0; }
 .threshold-filter #threshold { margin-inline: 14px; width: auto; }
+
+/* ------------------------------------------- Match Lab / bookmaker refinements */
+/* Section D: numbers right-aligned inside the boxes */
+.adj-controls .adj-input .dash-input-element, .adj-controls .adj-input input { text-align: right;
+  font-variant-numeric: tabular-nums; }
+
+/* Bookmaker card: market figures left, explanations right; comparison full width */
+.market-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 4px 28px;
+  align-items: start; }
+.market-main .market-probs { margin-top: 4px; }
+.market-main .prices { max-width: none; }
+.market-side { padding-top: 6px; }
+.market-side p { margin: 4px 0 6px; max-width: 70ch; line-height: 1.5; }
+.market-side .label { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.stale-note { color: var(--warn); }
+.card.market .status-row { margin-bottom: 2px; }
+.card.market .market-facts { margin: 4px 0 0; }
+.card.market .model-compare { margin-top: 10px; }
+@media (max-width: 900px) {
+  .market-grid { grid-template-columns: 1fr; }
+  .market-side { padding-top: 0; }
+}
+
+/* Section B: match-context adjustment shares Section C's look */
+.ctx-acc { margin-top: 2px; }
+.ctx-acc .cat-title { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ctx-note-field { margin-top: 10px; }
+.ctx-acc > summary .cat-sum-wrap { margin-left: auto; }

@@ -511,6 +511,17 @@ MARGIN_NOTE = (
 )
 
 
+RAW_NOTE = (
+    "Each card shows the consensus price and its raw implied probability (1 ÷ odds). The "
+    "market-implied probabilities on the left remove the bookmaker margin, so each market adds "
+    "up to 100%."
+)
+STALE_NOTE = (
+    "These prices are the last valid consensus and are no longer current: they may have "
+    "changed and are shown for reference only."
+)
+
+
 def context_group(*sections: Any) -> html.Div:
     """League positions and head-to-head: historical context shown at the foot of the
     bookmaker card for a compact layout, labelled so it is never read as market data."""
@@ -614,24 +625,45 @@ def _market_card(
                 ],
                 className="label-row status-row",
             ),
-            probs,
             html.Div(
                 [
-                    html.Span("Consensus reference odds", className="label"),
-                    info(
-                        "The median price across independent bookmakers (brands under common "
-                        "ownership count once). Raw implied probability = 1 ÷ odds, before the "
-                        "margin is removed. Not an offer from any bookmaker.",
-                        "About reference odds",
+                    html.Div(
+                        [
+                            probs,
+                            html.Div(
+                                [
+                                    html.Span("Consensus reference odds", className="label"),
+                                    info(
+                                        "The median price across independent bookmakers "
+                                        "(brands under common ownership count once). Raw "
+                                        "implied probability = 1 ÷ odds, before the margin is "
+                                        "removed. Not an offer from any bookmaker.",
+                                        "About reference odds",
+                                    ),
+                                ],
+                                className="label-row",
+                            ),
+                            html.Div(cells, className=f"prices cols-{len(cells)}"),
+                            html.P(" · ".join(facts), className="muted small market-facts"),
+                        ],
+                        className="market-main",
+                    ),
+                    html.Div(
+                        [
+                            html.Div("Reading these numbers", className="label"),
+                            html.P(RAW_NOTE, className="muted small"),
+                            html.P(MARGIN_NOTE, className="muted small margin-note")
+                            if ip is not None and ip.overround is not None
+                            else None,
+                            html.P(STALE_NOTE, className="small stale-note")
+                            if dm.status == "stale"
+                            else None,
+                        ],
+                        className="market-side",
                     ),
                 ],
-                className="label-row",
+                className="market-grid",
             ),
-            html.Div(cells, className=f"prices cols-{len(cells)}"),
-            html.P(" · ".join(facts), className="muted small market-facts"),
-            html.P(MARGIN_NOTE, className="muted small margin-note")
-            if ip is not None and ip.overround is not None
-            else None,
         ],
         className=f"card market {dm.status}",
     )

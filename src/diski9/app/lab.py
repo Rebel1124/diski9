@@ -123,6 +123,12 @@ FACTORS_CAUTION = (
     "Some factors may overlap with recent match results. Avoid counting the same information twice."
 )
 SIDES = ("home", "away")
+CONTEXT_MAX = 1.0  # Section B guardrail: +/- 1 goal (not a validated effect size)
+CONTEXT_ADJUST_NOTE = (
+    "Recent form, league position and head-to-head results can help you assess a match. "
+    "However, some of this information is already reflected in the model's goal estimates. "
+    "Only adjust if you believe the context reveals something the model has not fully captured."
+)
 
 
 # ------------------------------------------------------------ user state
@@ -133,6 +139,7 @@ SIDES = ("home", "away")
 #                 + additional manual adjustment, kept within 0-10 goals.
 def new_state() -> dict:
     return {
+        "context": {"note": "", "home": 0.0, "away": 0.0},
         "cats": {k: {"note": "", "home": 0.0, "away": 0.0} for k in CATEGORY_KEYS},
         "manual": {"home": 0.0, "away": 0.0},
     }
@@ -149,7 +156,7 @@ def normalise_state(stored: dict | None, base_r: dict | None = None) -> dict:
     state = new_state()
     if not stored:
         return state
-    if "cats" not in stored and "manual" not in stored:
+    if "cats" not in stored and "manual" not in stored and "context" not in stored:
         if base_r:
             for s in SIDES:  # earlier format: final estimates only
                 if s in stored:
@@ -162,6 +169,12 @@ def normalise_state(stored: dict | None, base_r: dict | None = None) -> dict:
             "home": float(c.get("home") or 0.0),
             "away": float(c.get("away") or 0.0),
         }
+    ctx = stored.get("context") or {}
+    state["context"] = {
+        "note": str(ctx.get("note") or "")[:NOTE_MAX],
+        "home": float(ctx.get("home") or 0.0),
+        "away": float(ctx.get("away") or 0.0),
+    }
     for s in SIDES:
         state["manual"][s] = float((stored.get("manual") or {}).get(s) or 0.0)
     return state
@@ -171,28 +184,39 @@ def category_total(state: dict, side: str) -> float:
     return round(sum(state["cats"][k][side] for k in CATEGORY_KEYS), 2)
 
 
+def context_total(state: dict, side: str) -> float:
+    return round(state["context"][side], 2)
+
+
 def has_adjustment(state: dict | None) -> bool:
     if not state:
         return False
     return any(
-        abs(state["manual"][s]) > 1e-9 or abs(category_total(state, s)) > 1e-9 for s in SIDES
+        abs(state["manual"][s]) > 1e-9
+        or abs(category_total(state, s)) > 1e-9
+        or abs(context_total(state, s)) > 1e-9
+        for s in SIDES
     )
 
 
 def is_empty(state: dict) -> bool:
-    return not has_adjustment(state) and not any(state["cats"][k]["note"] for k in CATEGORY_KEYS)
+    notes = [state["context"]["note"], *(state["cats"][k]["note"] for k in CATEGORY_KEYS)]
+    return not has_adjustment(state) and not any(notes)
 
 
 def breakdown(base_r: dict, state: dict) -> dict:
-    """Per side: baseline, Section C total, manual adjustment and the final estimate
-    (kept within 0-10 goals; ``clipped`` says when that limit applied)."""
+    """Per side: baseline, Section B (match context), Section C total, manual adjustment
+    and the final estimate (kept within 0-10 goals; ``clipped`` says when that limit
+    applied)."""
     out = {}
     for s in SIDES:
+        ctx = context_total(state, s)
         cats = category_total(state, s)
-        raw = round(base_r[s] + cats + state["manual"][s], 2)
+        raw = round(base_r[s] + ctx + cats + state["manual"][s], 2)
         final = round(min(max(raw, 0.0), ADJUST_MAX), 2)
         out[s] = {
             "base": base_r[s],
+            "context": ctx,
             "cats": cats,
             "manual": round(state["manual"][s], 2),
             "raw": raw,
@@ -213,6 +237,11 @@ def user_estimates(r: dict, state: dict | None) -> dict | None:
 def adjustment_text(x: float) -> str:
     """Category adjustment as shown in its box: 0.00, -0.15, 0.05 (two decimals)."""
     return "0.00" if abs(x) < 0.005 else f"{x:.2f}"
+
+
+def signed_text(x: float) -> str:
+    """Section B box value with an explicit sign: +0.15, -0.20, 0.00."""
+    return "0.00" if abs(x) < 0.005 else f"{x:+.2f}"
 
 
 def signed(x: float) -> str:
@@ -505,7 +534,110 @@ def form_context(r: dict) -> html.Details:
     )
 
 
-def context_section(r: dict, market: str, official: dict) -> html.Div:
+def context_summary(state: dict) -> list:
+    c = state["context"]
+    if abs(c["home"]) < 1e-9 and abs(c["away"]) < 1e-9:
+        out = [html.Span("No adjustment", className="cat-sum muted")]
+    else:
+        out = [
+            html.Span(
+                f"Home {signed_text(c['home'])} · Away {signed_text(c['away'])}",
+                className="cat-sum active",
+            )
+        ]
+    if c["note"]:
+        out.append(html.Span("Note", className="cat-note-flag", title=c["note"]))
+    return out
+
+
+def _ctx_input(side: str, team: str, value: float) -> html.Label:
+    return html.Label(
+        [
+            html.Span(f"{team} (± goals)", className="cat-input-label"),
+            dcc.Input(
+                id=f"ctx-{side}",
+                type="text",
+                inputMode="decimal",
+                value=signed_text(value),
+                debounce=0.4,
+                pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
+                className="adj-input cat-input goal-input step-005 allow-negative",
+                placeholder="0.00",
+            ),
+        ],
+        className="cat-field",
+    )
+
+
+def context_adjustment(r: dict, state: dict) -> html.Details:
+    """One overall, optional adjustment per team from the user's reading of Section B.
+    Never derived from the Form Score, head-to-head or positions: the user chooses."""
+    f, c = r["fixture"], state["context"]
+    return html.Details(
+        [
+            html.Summary(
+                [
+                    html.Span(
+                        ["Your Match Context Adjustment ", role_tag("Your assumptions", "user")],
+                        className="cat-title",
+                    ),
+                    html.Span(context_summary(state), id="ctx-sum", className="cat-sum-wrap"),
+                ]
+            ),
+            html.Div(
+                [
+                    html.P(CONTEXT_ADJUST_NOTE, className="muted small"),
+                    html.Div(
+                        [
+                            _ctx_input("home", f["home"], c["home"]),
+                            _ctx_input("away", f["away"], c["away"]),
+                        ],
+                        className="cat-inputs",
+                    ),
+                    html.Label(
+                        [
+                            html.Span(
+                                "Why are you making this adjustment? (optional)",
+                                className="cat-input-label",
+                            ),
+                            dcc.Input(
+                                id="ctx-note",
+                                type="text",
+                                value=c["note"],
+                                maxLength=NOTE_MAX,
+                                debounce=True,
+                                placeholder="e.g. what in the context the model may have missed",
+                                className="cat-note",
+                            ),
+                        ],
+                        className="cat-field wide ctx-note-field",
+                    ),
+                    html.Div(
+                        [
+                            html.Button(
+                                "Clear Section B adjustments",
+                                id="ctx-clear",
+                                n_clicks=0,
+                                className="pager-btn reset-btn",
+                            ),
+                            html.Span(
+                                f"Each team: between -{CONTEXT_MAX:.2f} and +{CONTEXT_MAX:.2f} "
+                                "goals, in steps of 0.05. This range is a guardrail, not a "
+                                "validated effect size. Your note is kept.",
+                                className="muted small",
+                            ),
+                        ],
+                        className="adj-actions",
+                    ),
+                ],
+                className="acc-body",
+            ),
+        ],
+        className="acc cat-acc ctx-acc",
+    )
+
+
+def context_section(r: dict, market: str, official: dict, state: dict | None = None) -> html.Div:
     t = r["teams"]
     parts = [form_context(r)]
     if market != "1X2":
@@ -530,6 +662,8 @@ def context_section(r: dict, market: str, official: dict) -> html.Div:
             )
         )
     parts += [h2h_section(r), positions_section(r, official)]
+    if state is not None and r.get("goal_model", {}).get("available"):
+        parts.append(context_adjustment(r, state))
     return html.Div(
         [
             html.Div(
@@ -724,9 +858,10 @@ def breakdown_table(r: dict, b: dict) -> html.Table:
             html.Tbody(
                 [
                     row("Model baseline", "base", goals2),
-                    row("Your research (Section C)", "cats", signed),
+                    row("Section B — Match context", "context", signed),
+                    row("Section C — Other factors", "cats", signed),
                     row("Additional manual adjustment", "manual", signed),
-                    row("Your estimate", "final", goals2, "strong"),
+                    row("Your final estimate", "final", goals2, "strong"),
                 ]
             ),
         ],
@@ -810,8 +945,8 @@ def lab_outputs(
         )
         if mine
         else html.P(
-            "Showing the model baseline. Add adjustments in Section C, or move a slider to set "
-            "your own estimate.",
+            "Showing the model baseline. Add adjustments in Section B or C, or move a slider to "
+            "set your own estimate.",
             className="muted small",
         )
     )
@@ -854,9 +989,10 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> ht
             head,
             html.P(ADJUST_NOTE, className="muted small"),
             html.P(
-                "Your estimate = model baseline + your Section C adjustments + any additional "
-                "manual adjustment. The sliders and boxes set your final estimate directly; the "
-                "manual adjustment is worked out for you, so nothing is counted twice.",
+                "Your estimate = model baseline + Section B match context + Section C other "
+                "factors + any additional manual adjustment. The sliders and boxes set your final "
+                "estimate directly; the manual adjustment is worked out for you, so nothing is "
+                "counted twice.",
                 className="muted small",
             ),
             _adjust_row("home", f["home"], base_r["home"], b["home"]["final"]),
@@ -870,8 +1006,9 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> ht
                         className="pager-btn reset-btn",
                     ),
                     html.Span(
-                        "Clears every adjustment in Sections C and D. Your research notes are "
-                        "kept. Nothing leaves this browser tab or changes the model.",
+                        "Clears every adjustment in Sections B, C and D and restores the model "
+                        "estimates. Your notes in Sections B and C are kept. Nothing leaves this "
+                        "browser tab or changes the model.",
                         className="muted small",
                     ),
                 ],
@@ -972,7 +1109,7 @@ def render_detail(
                 "We calculate the probabilities. You analyse the match. You make the call.",
             ),
             baseline_section(r, market),
-            context_section(r, market, official),
+            context_section(r, market, official, state),
             factors_section(r, state),
             adjust_section(r, market, ov, state),
         ],
