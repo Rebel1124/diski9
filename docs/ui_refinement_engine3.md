@@ -133,11 +133,77 @@ All files are in `screenshots/`:
 | Form Score primary view | `ui_form_score_primary.png` |
 | Mobile | `ui_screener_mobile.png`, `ui_match_lab_mobile.png` |
 
+## Final polish
+
+**League multiselect.** A closed dropdown shows one clean summary:
+
+| Selection | Display |
+|---|---|
+| All eight leagues | "All 8 leagues" |
+| Several leagues | "5 leagues selected" |
+| One league | its name, e.g. "EPL" |
+| None | "Select leagues" |
+
+* Names appear only when the dropdown is opened.
+* Select all and Clear all live in the open menu.
+* This uses the Dash 4 dropdown's own count label; CSS hides the duplicate name
+  list and the × button.
+
+**Exact threshold.**
+* The slider moves in whole percentages from 0 to 100.
+* The value floats above the thumb ("Any", "30%", "100%") and updates while
+  dragging. It uses Dash's native slider tooltip, formatted by
+  `window.dccFunctions.thresholdLabel` in `assets/diski9.js`.
+* It equals the value used for filtering, and works with mouse, touch and
+  keyboard.
+* The Any / 50% / 100% marks are kept.
+
+**Threshold behaviour.**
+* The label names the outcome, for example "Minimum home win probability".
+* With kickoff ordering the slider is disabled, shows Any with no floating value,
+  never filters, and says "Available when ranking by a probability".
+* The last probability threshold is remembered and restored when you rank by a
+  probability again, including after a market switch.
+
+**Two decimals.** Estimated-goal boxes always show two decimals (1.60, -0.15,
+0.00).
+* Dash's number input drops trailing zeros, so these are text inputs with numeric
+  validation on the server.
+* A decimal comma is accepted.
+* Arrow keys still step the boxes (0.01 for final estimates, 0.05 for category
+  adjustments).
+* Calculations keep full precision.
+
+**Methodology layout.**
+* The content uses the full card width. Related blocks sit side by side on
+  desktop: short version | worked example; what changes | settings table;
+  limitations | maintenance.
+* Sequential material ("How the settings were chosen and tested", the version
+  table and formulas) spans the full width, and paragraphs keep a readable line
+  length.
+* Spacing is tighter, and everything is one column below 1,000 px.
+
+**Wording.**
+* k_s 12 and k_t 96 were chosen by comparing candidate values on earlier seasons.
+* m0 30 was set to match Diski 9's 30-match league minimum and checked by
+  sensitivity analysis (10, 30, 100). It was not tuned.
+* None of the settings is described as optimal.
+
+Screenshots in `screenshots/`:
+
+| What | Files |
+|---|---|
+| Filter card, desktop | `polish_filters_desktop.png` |
+| Threshold at 30%, desktop | `polish_threshold_30.png` |
+| Phone filters | `polish_filters_mobile.png`, `polish_threshold_mobile.png` |
+| Methodology | `polish_methodology_desktop.png`, `polish_methodology_tablet.png`, `polish_methodology_mobile.png` |
+| Phone Screener and Match Lab | `polish_screener_mobile.png`, `polish_match_lab_adjust_mobile.png` |
+
 ## Known limitations
 
-* The league summary chip ("All 8 leagues") sits next to a truncated list of
-  names. That is how the Dash 4 dropdown renders a multiselect.
-* Number boxes show Dash 4's own −/+ steppers, and values display without
-  trailing zeros (for example 1.6).
+* Estimated-goal boxes are text inputs, so they have no −/+ spinner buttons;
+  arrow keys and typing still work.
+* The league summary relies on CSS `:has()`, which is supported by all current
+  browsers. Very old browsers would show the name list as well.
 * Adjustments are per browser tab and are lost when the tab closes, by design: no
   accounts or saved histories.

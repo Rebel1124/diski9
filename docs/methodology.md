@@ -114,10 +114,14 @@ home team to 1.55 recalculates every market:
 | League-average prior `m0` | 30 | Last season's league averages count as 30 matches at the start of a season |
 
 **How they were chosen:**
-* Once, by maximum likelihood of the actual scorelines.
-* Using earlier seasons only, then tested on later unseen seasons.
+* **Strength smoothing (12) and goal tempo smoothing (96)** were chosen by comparing
+  candidate values on earlier seasons only, keeping those that best explained the
+  actual scorelines (maximum likelihood). The same values were picked in each of three
+  tuning periods, and they were then tested on later, unseen seasons.
+* **The league-average prior (30)** was not tuned in the same way. It was set to match
+  the 30-match minimum Diski 9 uses for league averages elsewhere, and a sensitivity
+  check (10, 30 and 100 matches) gave very similar early-season results.
 * No betting odds were used.
-* The values were stable across three tuning periods.
 
 **What changes and what stays fixed:**
 * **Dynamic match statistics** (league averages, goals scored and conceded, and so
