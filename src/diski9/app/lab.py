@@ -12,8 +12,13 @@ Detail panel for a selected fixture:
                    C. Other factors to consider - an educational checklist
                    D. Your adjustments - estimated-goal sliders, recalculated
                       probabilities for all markets, reset
-  Bookmaker card   odds, raw implied, margin, market-implied probabilities and a
-                   comparison with the model baseline / the user's estimate
+  Bookmaker card   odds, raw implied, margin, market-implied probabilities and the
+                   full model vs market comparison (model baseline: market
+                   probability, edge, odds, EV for every outcome)
+
+Section D also shows "Your value check": the user's final probability against the
+market (edge and EV at the consensus odds) next to the model's. Edge and EV come
+from ``diski9.odds.value`` - the same implementation the Screener ranks with.
 
 Pure rendering functions; callbacks live in ``app.py``. User adjustments are a
 plain dict passed in from the browser's memory store and are never persisted.
@@ -27,6 +32,15 @@ from typing import Any
 from dash import dcc, html
 
 from diski9.api_football.markets import Outcome
+from diski9.odds.value import (
+    MarketValue,
+    compare,
+    edge_text,
+    ev_text,
+    positive_edge,
+    positive_ev,
+    sign_class,
+)
 from diski9.screener import goal_model as gm
 
 from .data import LEAGUE_SHORT, MARKET_KEYS, MARKET_OF, OddsView, ScreenerData, goals2, pct1
@@ -552,22 +566,62 @@ def context_summary(state: dict) -> list:
     return out
 
 
-def _ctx_input(side: str, team: str, value: float) -> html.Label:
-    return html.Label(
+def slider_value(value: float, limit: float) -> float:
+    """The mini slider's position for an adjustment (always within its range)."""
+    return round(min(max(float(value or 0.0), -limit), limit), 2)
+
+
+def _mini_adjust(
+    label: str, slider_id, input_id, value: float, limit: float, text: str
+) -> html.Div:
+    """A compact secondary slider plus the precise number box, both bound to ONE
+    adjustment value (the callback writes the same state value back to both)."""
+    return html.Div(
         [
-            html.Span(f"{team} (± goals)", className="cat-input-label"),
-            dcc.Input(
-                id=f"ctx-{side}",
-                type="text",
-                inputMode="decimal",
-                value=signed_text(value),
-                debounce=0.4,
-                pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
-                className="adj-input cat-input goal-input step-005 allow-negative",
-                placeholder="0.00",
+            html.Span(label, className="cat-input-label"),
+            html.Div(
+                [
+                    html.Div(
+                        dcc.Slider(
+                            id=slider_id,
+                            min=-limit,
+                            max=limit,
+                            step=SLIDER_STEP,
+                            value=slider_value(value, limit),
+                            marks=None,
+                            updatemode="drag",
+                            allow_direct_input=False,  # the number box beside it is the input
+                            tooltip=None,
+                        ),
+                        className="mini-slider",
+                        title=f"{-limit:+.2f} to {limit:+.2f} goals, steps of 0.05",
+                    ),
+                    dcc.Input(
+                        id=input_id,
+                        type="text",
+                        inputMode="decimal",
+                        value=text,
+                        debounce=0.4,
+                        pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
+                        className="adj-input cat-input goal-input step-005 allow-negative",
+                        placeholder="0.00",
+                    ),
+                ],
+                className="mini-adjust",
             ),
         ],
         className="cat-field",
+    )
+
+
+def _ctx_input(side: str, team: str, value: float) -> html.Div:
+    return _mini_adjust(
+        f"{team} (± goals)",
+        f"ctx-{side}-slider",
+        f"ctx-{side}",
+        value,
+        CONTEXT_MAX,
+        signed_text(value),
     )
 
 
@@ -695,23 +749,14 @@ def category_summary(state: dict, key: str) -> list:
     return out
 
 
-def _cat_input(key: str, side: str, team: str, value: float) -> html.Label:
-    """The label wraps its box, so screen readers announce which team it adjusts."""
-    return html.Label(
-        [
-            html.Span(f"{team} (± goals)", className="cat-input-label"),
-            dcc.Input(
-                id={"type": "cat-adj", "cat": key, "side": side},
-                type="text",
-                inputMode="decimal",
-                value=adjustment_text(value),
-                debounce=0.4,
-                pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
-                className="adj-input cat-input goal-input step-005 allow-negative",
-                placeholder="0.00",
-            ),
-        ],
-        className="cat-field",
+def _cat_input(key: str, side: str, team: str, value: float) -> html.Div:
+    return _mini_adjust(
+        f"{team} (± goals)",
+        {"type": "cat-slider", "cat": key, "side": side},
+        {"type": "cat-adj", "cat": key, "side": side},
+        value,
+        CATEGORY_MAX,
+        adjustment_text(value),
     )
 
 
@@ -851,19 +896,19 @@ def breakdown_table(r: dict, b: dict) -> html.Table:
             html.Thead(
                 html.Tr(
                     [
-                        html.Th(""),
-                        html.Th(f["home"], className="num"),
-                        html.Th(f["away"], className="num"),
+                        html.Th("Component"),
+                        html.Th(f["home"], className="num team-col", title=f["home"]),
+                        html.Th(f["away"], className="num team-col", title=f["away"]),
                     ]
                 )
             ),
             html.Tbody(
                 [
                     row("Model baseline", "base", goals2),
-                    row("Section B — Match context", "context", signed),
-                    row("Section C — Other factors", "cats", signed),
-                    row("Additional manual adjustment", "manual", signed),
-                    row("Your final estimate", "final", goals2, "strong"),
+                    row("B · Match context", "context", signed),
+                    row("C · Other factors", "cats", signed),
+                    row("Manual adjustment", "manual", signed),
+                    row("Your final estimate", "final", goals2, "strong final-row"),
                 ]
             ),
         ],
@@ -956,16 +1001,38 @@ def lab_outputs(
     out = html.Div(
         [
             *notes,
-            breakdown_table(r, b),
             summary,
-            comparison_table(base, mine, (market,)),
+            # Estimated goals breakdown -> resulting probabilities, side by side on wide
+            # screens (stacked on narrow ones); the market comparison follows below.
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            html.Div("Estimated goals breakdown", className="lab-subhead"),
+                            breakdown_table(r, b),
+                        ],
+                        className="lab-pane",
+                    ),
+                    html.Div(
+                        [
+                            html.Div(
+                                f"{MARKET_TITLE[market]} probabilities", className="lab-subhead"
+                            ),
+                            comparison_table(base, mine, (market,)),
+                        ],
+                        className="lab-pane",
+                    ),
+                ],
+                className="lab-tables",
+            ),
             html.Details(
                 [html.Summary("All markets"), comparison_table(base, mine, others)],
                 className="acc all-markets",
             ),
+            value_check(market, ov, base, mine),
         ]
     )
-    return out, model_comparison(market, ov, base, mine)
+    return out, model_comparison(market, ov, base)
 
 
 def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> html.Div:
@@ -1022,42 +1089,324 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> ht
     )
 
 
-# ----------------------------------------------------- bookmaker compare
-def model_comparison(market: str, ov: OddsView | None, base: dict, mine: dict | None) -> html.Div:
-    """Model baseline, the user's estimate and the margin-adjusted market probabilities,
-    side by side. A comparison only: no recommendation is made from the differences."""
-    implied = None
-    if ov is not None and ov.league_has_odds:
-        dm = ov.markets[MARKET_OF[market]]
-        if dm.status != "unavailable" and dm.implied and dm.implied.margin_adjusted:
-            implied = {OUTCOME_KEY[o]: float(v) for o, v in dm.implied.margin_adjusted.items()}
-    head = [html.Th("Outcome"), html.Th("Diski 9", className="num", title="Model baseline")]
-    if mine:
-        head.append(html.Th("Yours", className="num", title="Your adjusted estimate"))
-    head.append(html.Th("Market", className="num", title="Market-implied, margin removed"))
+# ----------------------------------------------------- model vs market
+MODEL_PROB_HELP = "Model probability: the probability estimated by Goal Model 1.0."
+MARKET_PROB_HELP = (
+    "Market probability: inferred from the bookmaker odds (1 ÷ odds), then scaled so the "
+    "outcomes add up to 100% to remove the bookmaker margin. A simple proportional method, "
+    "not a perfect reading of the market's true beliefs."
+)
+EDGE_HELP = (
+    "Probability edge: probability minus market probability, in percentage points (pp). "
+    "55% vs 48% is +7.0 pp. An edge is not proof that the bookmaker is wrong."
+)
+EV_HELP = (
+    "Expected value (EV): probability × decimal odds − 1, using the original odds (with the "
+    "margin). A theoretical average return per unit staked, assuming the probability is right."
+)
+ODDS_SOURCE = (
+    "Odds are Diski 9 consensus reference odds: for each outcome, the median price across "
+    "independent bookmakers that quote the whole market. They are not an offer from any single "
+    "bookmaker, so EV is a reference figure; individual bookmakers' prices (range shown) differ."
+)
+EDGE_VS_EV = (
+    "A larger edge does not always mean a larger EV: EV also depends on the odds, so a longer-"
+    "priced outcome can have a smaller edge but a higher EV. That is why the Screener offers "
+    "both rankings."
+)
+EV_SHORT = (
+    "Expected Value measures the average theoretical return of a bet based on your estimated "
+    "probability and the bookmaker's odds. A positive EV means your estimated probability is "
+    "higher than the break-even probability implied by the offered odds."
+)
+EV_CAUTION = (
+    "Positive EV does not guarantee a winning bet or long-term profit. Your estimates may be "
+    "wrong, and individual results remain uncertain."
+)
+
+
+def displayed_market(ov: OddsView | None, market: str):
+    """The bookmaker card's displayed consensus (fresh or stale), or None."""
+    if ov is None or not ov.league_has_odds:
+        return None
+    dm = ov.markets[MARKET_OF[market]]
+    return None if dm.status == "unavailable" else dm
+
+
+def market_value(market: str, ov: OddsView | None, probs: dict | None) -> MarketValue | None:
+    dm = displayed_market(ov, market)
+    if dm is None or not probs:
+        return None
+    return compare(MARKET_OF[market], probs, dm.consensus)
+
+
+def _signed_cell(value, text: str, positive) -> html.Td:
+    return html.Td(text, className=f"num val-{sign_class(value, positive)}")
+
+
+def _price(x) -> str:
+    return f"{float(x):.2f}"
+
+
+def _range(ov_row) -> str | None:
+    """Spread of the individual bookmaker prices behind a consensus price."""
+    if ov_row.min_odds is None or ov_row.max_odds is None:
+        return None
+    if ov_row.min_odds == ov_row.max_odds:
+        return _price(ov_row.min_odds)
+    return f"{_price(ov_row.min_odds)}–{_price(ov_row.max_odds)}"
+
+
+def value_glossary() -> html.Details:
+    return html.Details(
+        [
+            html.Summary("What do model, market, edge and EV mean?"),
+            html.Ul(
+                [
+                    html.Li(MODEL_PROB_HELP),
+                    html.Li(MARKET_PROB_HELP),
+                    html.Li(EDGE_HELP),
+                    html.Li(EV_HELP),
+                    html.Li(
+                        "Positive EV: a potentially favourable price, but only if the "
+                        "estimated probability is accurate."
+                    ),
+                    html.Li(EDGE_VS_EV),
+                    html.Li(ODDS_SOURCE),
+                ],
+                className="small value-help",
+            ),
+        ],
+        className="acc value-glossary",
+    )
+
+
+def model_comparison(market: str, ov: OddsView | None, base: dict) -> html.Div:
+    """Full model vs market breakdown for every outcome of the selected market, using
+    the model baseline (as the Screener does). Comparison only: no recommendation."""
+    mv = market_value(market, ov, base)
+    head_row = html.Div(html.Span("Model vs market", className="label"), className="label-row")
+    if mv is None:
+        return html.Div(
+            [
+                head_row,
+                html.P(
+                    "Market data unavailable: no bookmaker prices to compare with.",
+                    className="muted small",
+                ),
+            ],
+            className="model-compare",
+        )
+    dm = displayed_market(ov, market)
     rows = []
-    for key, label in MARKET_KEYS[market]:
-        cells = [html.Td(label), html.Td(pct1(base[key]), className="num")]
-        if mine:
-            cells.append(html.Td(pct1(mine[key]), className="num strong"))
-        cells.append(html.Td(pct1(implied[key]) if implied else "—", className="num"))
-        rows.append(html.Tr(cells))
-    note = (
-        "Market-implied probabilities remove the bookmaker margin. Differences show where your "
-        "view and the market's differ; they are not betting advice."
-        if implied
-        else "No current bookmaker prices to compare with."
+    for o in mv.outcomes:
+        label = dict(MARKET_KEYS[market])[o.key]
+        rows.append(
+            html.Tr(
+                [
+                    html.Td(label),
+                    html.Td(pct1(o.probability), className="num"),
+                    html.Td(pct1(o.market_probability), className="num"),
+                    _signed_cell(o.edge, edge_text(o.edge), positive_edge),
+                    html.Td(
+                        str(o.odds) if o.odds else "—",
+                        className="num",
+                        title=f"Bookmaker prices {_range(o)}" if _range(o) else None,
+                    ),
+                    _signed_cell(o.ev, ev_text(o.ev) if o.odds else "EV unavailable", positive_ev),
+                ]
+            )
+        )
+    head = html.Tr(
+        [
+            html.Th("Outcome"),
+            html.Th("Model", className="num", title=MODEL_PROB_HELP),
+            html.Th("Market", className="num", title=MARKET_PROB_HELP),
+            html.Th("Edge", className="num", title=EDGE_HELP),
+            html.Th("Odds", className="num", title=ODDS_SOURCE),
+            html.Th("EV", className="num", title=EV_HELP),
+        ]
+    )
+    notes = []
+    if not mv.complete:
+        notes.append(
+            "Not every outcome is priced, so market probabilities and edges are "
+            "unavailable. EV is shown only where a price exists."
+        )
+    ranges = [f"{dict(MARKET_KEYS[market])[o.key]} {r}" for o in mv.outcomes if (r := _range(o))]
+    src = (
+        f"Model baseline vs consensus reference odds from {dm.consensus.sources} independent "
+        f"bookmaker group{'s' if dm.consensus.sources != 1 else ''}."
+    )
+    if ranges:
+        src += " Individual bookmaker prices: " + "; ".join(ranges) + "."
+    notes.append(src)
+    if dm.status == "stale":
+        notes.append(
+            "These prices are stale and may no longer be available; the Screener "
+            "does not rank stale prices."
+        )
+    notes.append(
+        "Differences show where the model and the market disagree; they are not "
+        "betting advice and not proof that the market is wrong."
     )
     return html.Div(
         [
-            html.Div(html.Span("Compare with Diski 9", className="label"), className="label-row"),
+            head_row,
             html.Div(
-                html.Table([html.Thead(html.Tr(head)), html.Tbody(rows)], className="grid compact"),
+                html.Table(
+                    [html.Thead(head), html.Tbody(rows)], className="grid compact value-table"
+                ),
                 className="scroll-x",
             ),
-            html.P(note, className="muted small"),
+            *[html.P(n, className="muted small") for n in notes],
+            value_glossary(),
         ],
         className="model-compare",
+    )
+
+
+def ev_explainer() -> html.Details:
+    return html.Details(
+        [
+            html.Summary("What is Expected Value (EV)?"),
+            html.P(EV_SHORT, className="small"),
+            html.P(
+                [
+                    "Example: you estimate a 55% chance and the odds are 2.10. ",
+                    html.Strong("(0.55 × 2.10) − 1 = +15.5%"),
+                    ". This suggests a positive theoretical return over many comparable bets, "
+                    "provided your probability estimates are accurate. The break-even "
+                    "probability at 2.10 is 1 ÷ 2.10 = 47.6%.",
+                ],
+                className="small",
+            ),
+            html.P(
+                "EV uses the original bookmaker odds. The market probability (margin removed) "
+                "is used only for the probability edge.",
+                className="muted small",
+            ),
+            html.P(EV_CAUTION, className="small ev-caution"),
+        ],
+        className="acc ev-explainer",
+    )
+
+
+def value_check(market: str, ov: OddsView | None, base: dict, mine: dict | None) -> html.Div:
+    """Section D: your final probability vs the market. Final EV = your probability ×
+    consensus odds − 1; with no adjustments your probability is the model's."""
+    yours = mine or base
+    mv = market_value(market, ov, yours)
+    model_mv = market_value(market, ov, base)
+    head = html.Div(
+        [html.Span("Your value check", className="label"), role_tag("Market", "market")],
+        className="label-row",
+    )
+    if mv is None:
+        return html.Div(
+            [
+                head,
+                html.P(
+                    "Market data unavailable: EV unavailable for this market.",
+                    className="muted small",
+                ),
+                ev_explainer(),
+            ],
+            className="value-check",
+        )
+    model_by_key = {o.key: o for o in model_mv.outcomes}
+    rows = []
+    for o in mv.outcomes:
+        m = model_by_key[o.key]
+        cells = [
+            html.Td(  # the odds the EV uses sit under the outcome (keeps phones scroll-free)
+                [
+                    html.Span(dict(MARKET_KEYS[market])[o.key]),
+                    html.Span(
+                        f"at {o.odds}" if o.odds else "no price", className="muted small odds-at"
+                    ),
+                ]
+            ),
+            html.Td(pct1(o.probability), className="num strong"),
+            html.Td(pct1(o.market_probability), className="num"),
+            _signed_cell(o.edge, edge_text(o.edge), positive_edge),
+        ]
+        if mine:
+            cells.append(
+                _signed_cell(m.ev, ev_text(m.ev) if m.odds else "EV unavailable", positive_ev)
+            )
+        cells.append(_signed_cell(o.ev, ev_text(o.ev) if o.odds else "EV unavailable", positive_ev))
+        rows.append(html.Tr(cells))
+    th = [
+        html.Th("Outcome · odds", title=ODDS_SOURCE),
+        html.Th(
+            "Your final probability" if mine else "Your probability",
+            className="num",
+            title="Probability after your optional adjustments",
+        ),
+        html.Th("Market", className="num", title=MARKET_PROB_HELP),
+        html.Th("Your edge", className="num", title=EDGE_HELP),
+    ]
+    if mine:
+        th.append(html.Th("Model EV", className="num", title="EV at the model baseline"))
+    th.append(html.Th("Your EV", className="num", title=EV_HELP))
+    best = mv.best_ev()
+    if best is not None:
+        label = dict(MARKET_KEYS[market])[best.key]
+        verdict = html.P(
+            [
+                f"Positive estimated EV based on {'your estimate' if mine else 'the model'}: ",
+                html.Strong(
+                    f"{label} {ev_text(best.ev)}",
+                    # 1X2: the outcome's identity colour (style.css --out-*); two-way
+                    # markets keep the neutral positive colour
+                    className=f"out-{best.key}" if market == "1X2" else None,
+                ),
+                " at the consensus odds. Potential value only if the probability is right.",
+            ],
+            className="small val-pos-text",
+        )
+    else:
+        verdict = html.P("No positive estimated EV at these odds.", className="small")
+    notes = [verdict]
+    if not mine:
+        notes.append(
+            html.P(
+                "No adjustments yet: your probability equals the model "
+                "probability. Adjust the estimated goals above to see how the "
+                "probability, edge and EV change.",
+                className="muted small",
+            )
+        )
+    if not mv.complete:
+        notes.append(
+            html.P(
+                "Not every outcome is priced, so the market probability and edge are unavailable.",
+                className="muted small",
+            )
+        )
+    dm = displayed_market(ov, market)
+    if dm is not None and dm.status == "stale":
+        notes.append(
+            html.P(
+                "Based on stale prices that may no longer be available.",
+                className="small stale-note",
+            )
+        )
+    return html.Div(
+        [
+            head,
+            html.Div(
+                html.Table(
+                    [html.Thead(html.Tr(th)), html.Tbody(rows)],
+                    className="grid compact value-table",
+                ),
+                className="scroll-x",
+            ),
+            *notes,
+            ev_explainer(),
+        ],
+        className="value-check",
     )
 
 
@@ -1074,9 +1423,7 @@ def bookmaker_card(
     head.children.append(html.Div(role_tag("Market", "market"), className="card-tag"))
     g = r["goal_model"]
     if g.get("available"):
-        compare = model_comparison(
-            market, ov, g["probabilities"], adjusted_probabilities(user_estimates(r, state))
-        )
+        compare = model_comparison(market, ov, g["probabilities"])
     else:
         compare = html.P(g.get("message"), className="muted small")
     card.children.append(html.Div(compare, id="lab-compare"))

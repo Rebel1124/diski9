@@ -215,7 +215,96 @@ Not every competition was used to choose the parameters. Full reports:
   actually kicked off.
 * Your own Match Lab adjustments are never stored and never count.
 
-## 9. Model version and changelog
+## 9. Understanding Market Probabilities and Expected Value
+
+A downstream comparison layer, **separate from the model** and from its
+calibration and validation (sections 5–6). Bookmaker odds are never a Goal Model
+input, nothing here recalibrates the model, and forecast snapshots are unchanged.
+Implementation: `src/diski9/odds/value.py` (one implementation used by the
+Screener and The Match Lab); margin removal is `normalise` in
+`src/diski9/odds/implied.py`.
+
+**Definitions**
+
+* **Model probability:** the Goal Model 1.0 probability.
+* **Market probability:** `(1 / odds_i) / Σ(1 / odds)` over the complete outcome
+  set: Home/Draw/Away, BTTS Yes/No, Over/Under 2.5. A simple proportional margin
+  removal, not a perfect estimate of the market's true beliefs (it ignores, for
+  example, favourite–longshot bias). It is unavailable unless every outcome has
+  a valid price (> 1). Missing prices are never treated as zero.
+* **Probability edge (pp)** = `100 × (probability − market probability)`, in
+  percentage points (45% vs 38% → +7.0 pp).
+* **Expected value** = `probability × decimal odds − 1`, using the *original*
+  displayed odds, margin included (55% at 2.10 → +15.5%). It needs only that
+  outcome's price. It is a theoretical return per unit staked *if the probability
+  is right*; not a probability of winning and not a guaranteed profit.
+* A larger edge does not imply a larger EV, because EV also depends on the price.
+* Values that round to zero at display precision (0.1 pp / 0.1%) are treated as
+  zero, so nothing shown as "+0.0" is called positive.
+
+**Odds source policy**
+
+* The odds are the existing **consensus reference odds**:
+  * for each outcome, the median price across independent, eligible bookmakers
+    (affiliated brands count once)
+  * each contributing bookmaker must quote the complete market inside the 24-hour
+    freshness rules
+* They are the prices displayed in the app and are used unchanged (2 decimals) for
+  both the market probability and EV.
+* They are an aggregate, **not an executable quote from one bookmaker**, so EV is
+  labelled a reference figure. The detail view shows the range of individual
+  bookmaker prices behind each consensus price.
+* **Screener rankings use fresh consensus only.** Stale prices appear in the match
+  detail, labelled stale, and are listed as "Prices stale / Not ranked" in the
+  Screener.
+* Odds are collected for the Premier League and PSL only. Other leagues show
+  "No odds".
+
+**Screener**
+
+* Two extra *Rank by* options: highest model vs market edge, and highest EV.
+* Each ranking evaluates every outcome of the market independently, so the best
+  edge and the best EV outcome can differ.
+* The final column shows only the single strongest outcome and adapts to the
+  ranking: Market / Edge, Best edge or Best EV.
+* For 1X2, a positive pick is coloured by **outcome identity**: Home blue,
+  Draw teal, Away amber. The same colours are used in the market-probability bar.
+  * The colour names the outcome, never "good value".
+  * Negative, zero, missing and stale cells stay neutral.
+  * The outcome is always written out as well.
+* Ordering is computed over the full filtered set before pagination:
+  1. positive values, highest first
+  2. fixtures with market data but no positive value, by kickoff
+  3. fixtures without usable market data, by kickoff
+
+  Ties are broken by kickoff, then fixture id.
+* The **minimum probability** control keeps its meaning (a minimum *model*
+  probability):
+  * fixtures with no outcome that likely are removed
+  * only such outcomes are considered for the edge/EV pick
+* Rankings always use the **model baseline**, never Match Lab adjustments.
+
+**The Match Lab**
+
+* The bookmaker card's *Model vs market* table shows Model, Market, Edge, Odds
+  and EV (model baseline) for every outcome, with the number of bookmaker groups
+  and the price range.
+* Sections B and C have compact secondary sliders beside the precise number
+  boxes:
+  * ranges: ±1.00 goal for Section B and ±2.00 per category in Section C (the
+    existing limits), in steps of 0.05
+  * each slider and its box are two views of one value, so nothing is counted
+    twice
+* Section D shows the estimated-goals breakdown and the resulting probabilities
+  side by side (stacked on narrow screens).
+* Section D's *Your value check* shows your final probability, the market
+  probability, your edge and **your EV = your probability × odds − 1**.
+  * It shows the model's EV beside yours once you adjust.
+  * It recalculates on every adjustment.
+  * With no adjustments, your probability equals the model's.
+* No stake sizes or staking strategies are suggested.
+
+## 10. Model version and changelog
 
 **Current: Goal Model 1.0 (Engine 3.0).** See
 [`model_changelog.md`](model_changelog.md).

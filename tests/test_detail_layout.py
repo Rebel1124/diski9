@@ -145,7 +145,9 @@ def test_psl_market_card_is_small_and_honest(data):
         assert "No bookmaker odds are available for the PSL" in _text(card)
         odds_part = _text(card.children[:-1])  # everything above the model comparison
         assert "%" not in odds_part and "bookmaker group" not in odds_part
-        assert "No current bookmaker prices to compare with" in _text(card.children[-1])
+        assert "Market data unavailable: no bookmaker prices to compare with" in _text(
+            card.children[-1]
+        )
 
 
 BROWSER = """

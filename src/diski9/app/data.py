@@ -22,9 +22,19 @@ from diski9.db.schema import competitions, fixtures, odds_quotes, screener_resul
 from diski9.ingestion.reference import latest_standings
 from diski9.odds.consensus import load_bookmakers
 from diski9.odds.display import DisplayedMarket, display_consensus
+from diski9.odds.value import (
+    MarketValue,
+    OutcomeValue,
+    compare,
+    edge_text,
+    ev_text,
+    positive_edge,
+    positive_ev,
+    sign_class,
+)
 from diski9.screener import cache
 from diski9.screener.engine import ENGINE_VERSION
-from diski9.screener.rank import DEFAULT_DIRECTION, rank
+from diski9.screener.rank import DEFAULT_DIRECTION, VALUE_DIRECTIONS, rank, rank_by_value
 
 PAGE_SIZE = 10
 LEAGUE_SHORT = {
@@ -56,6 +66,11 @@ KICKOFF_OPTIONS = [
     ("kickoff_earliest", "Kickoff: earliest first"),
     ("kickoff_latest", "Kickoff: latest first"),
 ]
+# Model vs market rankings (model baseline vs fresh consensus odds; see odds/value.py)
+VALUE_OPTIONS = [
+    ("edge", "Highest model vs market edge"),
+    ("ev", "Highest expected value (EV)"),
+]
 DIRECTIONS = {
     # Engine 3.0: ranked by the Goal Model 1.0 probability of the outcome
     "1X2": KICKOFF_OPTIONS
@@ -63,17 +78,20 @@ DIRECTIONS = {
         ("home_win", "Highest home-win probability"),
         ("draw", "Highest draw probability"),
         ("away_win", "Highest away-win probability"),
-    ],
+    ]
+    + VALUE_OPTIONS,
     "BTTS": KICKOFF_OPTIONS
     + [
         ("btts_yes", "Highest BTTS Yes probability"),
         ("btts_no", "Highest BTTS No probability"),
-    ],
+    ]
+    + VALUE_OPTIONS,
     "OU25": KICKOFF_OPTIONS
     + [
         ("over", "Highest Over 2.5 probability"),
         ("under", "Highest Under 2.5 probability"),
-    ],
+    ]
+    + VALUE_OPTIONS,
 }
 MARKET_KEYS = {  # model probability keys per market, in display order
     "1X2": (("home", "Home win"), ("draw", "Draw"), ("away", "Away win")),
@@ -96,6 +114,12 @@ def record_short(rate: dict | None) -> str:
     if not rate or not rate["matches"]:
         return "—"
     return f"{rate['hits']}/{rate['matches']}"
+
+
+# Outcome identity colours (style.css --out-home / --out-draw / --out-away). They name
+# the outcome; they never signal that a value is positive or profitable.
+OUTCOME_COLOUR_KEY = {Outcome.HOME: "home", Outcome.DRAW: "draw", Outcome.AWAY: "away"}
+_ODDS_ORDER = {"1X2": "home · draw · away", "BTTS": "yes · no", "OU25": "over · under"}
 
 
 def valid_direction(market: str, direction: str | None) -> str:
@@ -288,7 +312,115 @@ class ScreenerData:
             results = [r for r in results if in_range(r)]
         if odds_only:
             results = [r for r in results if self.has_odds(market, r)]
-        return rank(results, valid_direction(market, direction), threshold)
+        direction = valid_direction(market, direction)
+        if direction in VALUE_DIRECTIONS:
+            return self.rank_value(market, results, direction, threshold)
+        return rank(results, direction, threshold)
+
+    # --------------------------------------------------- model vs market value
+    def market_value(self, market: str, r: dict, fresh_only: bool = True) -> MarketValue | None:
+        """Model baseline vs consensus odds for the fixture's market. The Screener uses
+        fresh consensus only (``fresh_only``); the match detail also shows stale prices."""
+        gm = r.get("goal_model") or {}
+        if not gm.get("available"):
+            return None
+        ov = self.snapshot().odds.get(r["fixture"]["id"])
+        if ov is None:
+            return None
+        dm = ov.markets[MARKET_OF[market]]
+        if dm.status == "unavailable" or (fresh_only and dm.status != "fresh"):
+            return None
+        return compare(MARKET_OF[market], gm["probabilities"], dm.consensus)
+
+    def value_pick(
+        self, market: str, r: dict, direction: str, threshold: float | None
+    ) -> tuple[MarketValue | None, OutcomeValue | None]:
+        """(market comparison, highlighted outcome). Edge and EV are chosen
+        independently over every outcome the model rates at least ``threshold``."""
+        mv = self.market_value(market, r)
+        if mv is None:
+            return None, None
+        return mv, (mv.best_ev(threshold) if direction == "ev" else mv.best_edge(threshold))
+
+    def rank_value(
+        self, market: str, results: list[dict], direction: str, threshold: float | None
+    ) -> list[dict]:
+        """Edge / EV ranking over the full filtered set (before pagination). The
+        threshold keeps its meaning - a minimum *model* probability: fixtures with no
+        outcome that likely are removed, and only such outcomes are considered."""
+        if threshold is not None:
+            keys = [k for k, _ in MARKET_KEYS[market]]
+
+            def qualifies(r: dict) -> bool:
+                gm = r.get("goal_model") or {}
+                probs = gm.get("probabilities") or {}
+                return bool(gm.get("available")) and any(probs.get(k, 0) >= threshold for k in keys)
+
+            results = [r for r in results if qualifies(r)]
+
+        def value_of(r: dict) -> tuple[bool, float | None]:
+            mv, pick = self.value_pick(market, r, direction, threshold)
+            has = mv is not None and (mv.complete if direction == "edge" else True)
+            if pick is None:
+                return has, None
+            return True, pick.ev if direction == "ev" else pick.edge
+
+        return rank_by_value(results, value_of)
+
+    def value_cell(
+        self, market: str, r: dict, direction: str, threshold: float | None = None
+    ) -> dict[str, Any]:
+        """The compact final column: the single strongest outcome (best edge, or best
+        EV when ranking by EV). Two short lines plus a hover title with the odds."""
+        ov = self.snapshot().odds.get(r["fixture"]["id"])
+        status, odds_text = self.odds_summary(ov, MARKET_OF[market])
+        mode = "ev" if direction == "ev" else "edge"
+        cell: dict[str, Any] = {
+            "mode": mode,
+            "status": status,
+            "main": None,
+            "sub": None,
+            "cls": "na",
+            "title": None,
+            "outcome": None,  # 1X2 outcome colour key, set only for a positive value
+        }
+        if status == "unavailable":
+            cell["main"] = odds_text  # "No odds" (league without odds) or "—"
+            return cell
+        cell["title"] = (
+            f"Consensus odds {odds_text} ({_ODDS_ORDER[market]}). Market % has the bookmaker "
+            "margin removed. Reference prices, not an offer from any single bookmaker."
+        )
+        if status == "stale":
+            cell.update(main="Prices stale", sub="Not ranked")
+            return cell
+        mv, pick = self.value_pick(market, r, mode, threshold)
+        if mv is None:
+            cell["main"] = "No model" if not (r.get("goal_model") or {}).get("available") else "—"
+            return cell
+        if mode == "edge" and not mv.complete:
+            cell.update(main="Incomplete market", sub="Edge unavailable")
+            return cell
+        if pick is None:
+            cell.update(main="No positive edge" if mode == "edge" else "No positive EV")
+            cell["cls"] = "zero"
+            return cell
+        label = OUTCOME_LABEL[pick.outcome]
+        if market == "1X2":  # Home / Draw / Away colours identify the outcome only
+            cell["outcome"] = OUTCOME_COLOUR_KEY.get(pick.outcome)
+        if mode == "edge":
+            cell.update(
+                main=f"{label} {edge_text(pick.edge)}",
+                sub=f"Market {pct1(pick.market_probability)}",
+                cls=sign_class(pick.edge, positive_edge),
+            )
+        else:
+            cell.update(
+                main=f"{label} {ev_text(pick.ev)} EV",
+                sub=f"at {pick.odds}",
+                cls=sign_class(pick.ev, positive_ev),
+            )
+        return cell
 
     def has_odds(self, market: str, r: dict) -> bool:
         """True when the fixture shows usable odds for the market (fresh or stale),

@@ -428,7 +428,17 @@ def test_table_columns_show_records_baseline_and_market(data):
         f"{g['probabilities']['btts_yes'] * 100:.1f}%",
         f"{g['probabilities']['btts_no'] * 100:.1f}%",
     ]
-    assert cells[7] == "1.80 · 2.00"
+    # final column: the single best positive edge (model vs margin-adjusted market)
+    market_no = (1 / 2.00) / (1 / 1.80 + 1 / 2.00)
+    market_yes = 1 - market_no
+    edges = {
+        "Yes": (g["probabilities"]["btts_yes"] - market_yes) * 100,
+        "No": (g["probabilities"]["btts_no"] - market_no) * 100,
+    }
+    best = max(edges, key=edges.get)
+    mkt = market_no if best == "No" else market_yes
+    assert cells[7] == f"{best} {edges[best]:+.1f} pp Market {mkt * 100:.1f}%"
+    assert "Consensus odds 1.80 · 2.00" in row.children[7].title
     card = fixture_card("BTTS", data.row("BTTS", data.detail(EPL_FIX, "overall")[0]), None)
     assert "Est. goals" in _text(card) and "Odds 1.80 · 2.00" in _text(card)
 

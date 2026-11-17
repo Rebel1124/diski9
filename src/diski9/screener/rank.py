@@ -5,6 +5,12 @@ Kickoff ranking sorts on the actual UTC timestamp, never on formatted strings.
 Statistical rankings order fixtures by the Goal Model 1.0 probability of the
 chosen outcome; fixtures without model probabilities are listed after all ranked
 fixtures (or removed when a threshold is set).
+
+Model vs market rankings ("edge", "ev") are ordered by a value supplied by the
+caller (see ``ScreenerData.filtered`` and ``diski9.odds.value``): fixtures with a
+positive value first (highest first), then fixtures with market data but no
+positive value, then fixtures without usable market data - the last two groups by
+kickoff. A non-positive value is never promoted above a positive one.
 """
 
 from __future__ import annotations
@@ -22,8 +28,11 @@ Direction = Literal[
     "btts_no",
     "over",
     "under",
+    "edge",
+    "ev",
 ]
 KICKOFF_DIRECTIONS = ("kickoff_earliest", "kickoff_latest")
+VALUE_DIRECTIONS = ("edge", "ev")
 DEFAULT_DIRECTION: Direction = "kickoff_earliest"
 # Engine 3.0: rank by the Goal Model 1.0 probability of the chosen outcome
 OUTCOME_OF = {
@@ -79,3 +88,23 @@ def rank(results: list[dict], direction: str, threshold: float | None = None) ->
         else sorted(unavailable, key=lambda r: (_kickoff(r), r["fixture"]["id"]))
     )
     return [r for r, _ in ranked] + tail
+
+
+def rank_by_value(results: list[dict], value_of) -> list[dict]:
+    """Order by a model-vs-market value. ``value_of(result)`` returns
+    ``(has_market_data, positive_value_or_None)``. Deterministic ties: kickoff, id."""
+    positive, no_positive, no_data = [], [], []
+    for r in results:
+        has_data, value = value_of(r)
+        if value is not None:
+            positive.append((r, value))
+        elif has_data:
+            no_positive.append(r)
+        else:
+            no_data.append(r)
+    positive.sort(key=lambda x: (-x[1], _kickoff(x[0]), x[0]["fixture"]["id"]))
+
+    def by_kickoff(rs: list[dict]) -> list[dict]:
+        return sorted(rs, key=lambda r: (_kickoff(r), r["fixture"]["id"]))
+
+    return [r for r, _ in positive] + by_kickoff(no_positive) + by_kickoff(no_data)

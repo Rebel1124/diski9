@@ -52,6 +52,11 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   [`docs/methodology.md`](docs/methodology.md); UI refinement (filter card, market
   dropdown, interactive factors, consolidated adjustments):
   [`docs/ui_refinement_engine3.md`](docs/ui_refinement_engine3.md)
+* **Model vs market edge and EV**:
+  * Screener rankings by probability edge and by expected value
+  * a full model vs market table for each match
+  * The Match Lab's "Your value check" with an EV explainer
+  * details: section 9 of [`docs/methodology.md`](docs/methodology.md)
 
 Not yet built: Challenge, user accounts, leaderboards.
 
@@ -138,6 +143,13 @@ Restart `serve` (or wait up to 5 minutes) for the app to show refreshed data.
 * **Context** (Form Score, recent records, head-to-head, league positions) is shown in
   The Match Lab and never changes the model. **Bookmaker odds** are a separate
   comparison and never a model input. **UEFA** competitions get no model probabilities.
+* **Model vs market** (downstream, never a model input):
+  * market probability removes the bookmaker margin proportionally
+  * edge = model − market, in percentage points
+  * EV = probability × consensus odds − 1
+  * the Screener can rank by edge or EV (fresh prices only, model baseline)
+  * The Match Lab's value check uses your adjusted probability
+  * see section 9 of the methodology
 * **Forecast snapshots** record the official pre-kickoff baseline (insert-only);
   `uv run diski9 model-report` evaluates them monthly against the league baseline.
 
@@ -215,4 +227,6 @@ docs/                       verification report and summary JSON
 * API-Football `/predictions` is blocked in the client and must not be used.
 * Historical bookmaker odds are **not** backfilled. Only current/upcoming
   pre-match odds are collected, from the point collection starts.
-* Statistical indicators are descriptive, never presented as predictions or edges.
+* Statistical indicators are descriptive. Probability edges and EV are clearly
+  labelled downstream comparisons with the market (no staking advice, never a model
+  input).
