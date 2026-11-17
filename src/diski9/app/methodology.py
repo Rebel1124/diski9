@@ -242,7 +242,8 @@ def market_value_block() -> html.Div:
             "ownership count once). They are the prices shown in the app, but not an offer from "
             "any single bookmaker, so EV is a reference figure. The Screener ranks fresh prices "
             "only and uses the model's own probabilities; The Match Lab's value check uses your "
-            "adjusted probabilities. Odds are collected for the Premier League and PSL only.",
+            "adjusted probabilities. Odds are collected for all eight leagues; where the "
+            "provider has no prices (currently the PSL), no odds are shown.",
             "muted small",
         ),
         cls="wide",

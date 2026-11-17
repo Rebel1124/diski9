@@ -33,11 +33,19 @@ from typing import Any
 from sqlalchemy import Connection, and_, func, insert, select, true, update
 
 from diski9.api_football import ApiFootballClient
+from diski9.api_football.errors import (
+    ApiFootballAuthError,
+    ApiFootballQuotaExceededError,
+    QuotaGuardError,
+)
 from diski9.api_football.markets import Quote, extract_quotes, parse_provider_timestamp
 from diski9.db.schema import fixtures, odds_fetches, odds_fixture_observations, odds_quotes
 from diski9.ingestion.classify import UPCOMING_STATUSES
 from diski9.ingestion.common import Clock, utcnow
 from diski9.ingestion.reference import ensure_bookmaker
+
+# Errors that stop a multi-league collection: every later request would fail too.
+FATAL_ERRORS = (QuotaGuardError, ApiFootballQuotaExceededError, ApiFootballAuthError)
 
 QuoteKey = tuple[int, str, str]  # (bookmaker_id, market, outcome)
 

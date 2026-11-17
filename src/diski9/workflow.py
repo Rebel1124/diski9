@@ -38,8 +38,14 @@ from diski9.db.schema import competitions, fixtures, ingestion_runs, seasons
 from diski9.ingestion import reference
 from diski9.ingestion.common import MissingReferenceData, utcnow
 from diski9.ingestion.fixtures import ingest_fixtures, refresh_venue_classification
-from diski9.leagues import COMPETITIONS, CURRENT_SEASON, screener_competitions, seasons_for
-from diski9.odds.collect import collect_odds
+from diski9.leagues import (
+    COMPETITIONS,
+    CURRENT_SEASON,
+    odds_competitions,
+    screener_competitions,
+    seasons_for,
+)
+from diski9.odds.collect import FATAL_ERRORS, collect_odds
 from diski9.screener import cache
 
 Log = Callable[[str], None]
@@ -207,12 +213,16 @@ def _standings_and_odds(
                 reference.sync_standings(conn, client, cid, CURRENT_SEASON, clock)
         log("official standings updated")
     if with_odds:
-        for cid in [c.id for c in COMPETITIONS.values() if c.odds_enabled]:
+        for cid in odds_competitions():
             # Odds are optional context: a failure is reported (and rolled back for
-            # that competition) but never blocks the screener statistics.
+            # that competition) but never blocks the screener statistics. Quota and
+            # authentication errors skip the remaining leagues.
             try:
                 with engine.begin() as conn:
                     st = collect_odds(conn, client, cid, CURRENT_SEASON, clock)
+            except FATAL_ERRORS as exc:
+                log(f"WARNING odds {cid}: stopped ({exc!r:.300}); remaining leagues skipped")
+                break
             except Exception as exc:  # noqa: BLE001
                 log(f"WARNING odds {cid}: collection failed and was rolled back ({exc!r:.300})")
                 continue

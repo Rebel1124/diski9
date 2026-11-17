@@ -257,8 +257,9 @@ Screener and The Match Lab); margin removal is `normalise` in
 * **Screener rankings use fresh consensus only.** Stale prices appear in the match
   detail, labelled stale, and are listed as "Prices stale / Not ranked" in the
   Screener.
-* Odds are collected for the Premier League and PSL only. Other leagues show
-  "No odds".
+* Odds are collected for all eight leagues (Phase 5A). A league or fixture without
+  provider odds shows "No odds" or the existing unavailable state. The PSL
+  currently has no provider odds coverage.
 
 **Screener**
 
