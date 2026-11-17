@@ -330,3 +330,13 @@ def test_browser_section_b_alignment_and_bookmaker_layout(data):
 
 def test_timedelta_import_used():
     assert timedelta(days=1) == DAY
+
+
+def test_section_b_note_comes_before_inputs_like_section_c(data):
+    r, ov, off = data.detail(EPL_FIX)
+    d = render_detail(r, ov, off, "1X2", data)
+    for acc_cls in ("ctx-acc", "cat-acc"):
+        acc = _find(d, lambda c, k=acc_cls: isinstance(c, html.Details) and k in c.className)[0]
+        body = acc.children[1].children
+        kinds = [getattr(c, "className", "") for c in body]
+        assert kinds.index("cat-field wide") < kinds.index("cat-inputs"), acc_cls

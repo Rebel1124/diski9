@@ -536,5 +536,4 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 /* Section B: match-context adjustment shares Section C's look */
 .ctx-acc { margin-top: 2px; }
 .ctx-acc .cat-title { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.ctx-note-field { margin-top: 10px; }
 .ctx-acc > summary .cat-sum-wrap { margin-left: auto; }

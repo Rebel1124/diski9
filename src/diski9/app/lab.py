@@ -587,13 +587,6 @@ def context_adjustment(r: dict, state: dict) -> html.Details:
             html.Div(
                 [
                     html.P(CONTEXT_ADJUST_NOTE, className="muted small"),
-                    html.Div(
-                        [
-                            _ctx_input("home", f["home"], c["home"]),
-                            _ctx_input("away", f["away"], c["away"]),
-                        ],
-                        className="cat-inputs",
-                    ),
                     html.Label(
                         [
                             html.Span(
@@ -610,7 +603,14 @@ def context_adjustment(r: dict, state: dict) -> html.Details:
                                 className="cat-note",
                             ),
                         ],
-                        className="cat-field wide ctx-note-field",
+                        className="cat-field wide",
+                    ),
+                    html.Div(
+                        [
+                            _ctx_input("home", f["home"], c["home"]),
+                            _ctx_input("away", f["away"], c["away"]),
+                        ],
+                        className="cat-inputs",
                     ),
                     html.Div(
                         [
