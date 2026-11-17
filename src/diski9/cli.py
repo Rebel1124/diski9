@@ -21,7 +21,14 @@ from diski9.db.schema import fixtures, ingestion_runs
 from diski9.ingestion import reference
 from diski9.ingestion.fixtures import ingest_fixtures, refresh_venue_classification
 from diski9.ingestion.quality import full_report
-from diski9.leagues import BACKFILL_SEASONS, COMPETITIONS, CURRENT_SEASON, screener_competitions
+from diski9.leagues import (
+    BACKFILL_SEASONS,
+    COMPETITIONS,
+    CURRENT_SEASON,
+    ODDS_TRIAL_COMPETITIONS,
+    odds_competitions,
+    screener_competitions,
+)
 from diski9.odds.collect import collect_odds, summarise_fetch
 from diski9.odds.consensus import fixture_consensus, load_bookmakers
 
@@ -92,13 +99,45 @@ def cmd_ingest_fixtures(args, engine) -> None:
 
 
 def cmd_collect_odds(args, engine) -> None:
-    targets = args.competitions or [c.id for c in COMPETITIONS.values() if c.odds_enabled]
+    """Collect odds league by league (all eight by default). A failure in one league
+    is rolled back and reported without stopping the others; quota and
+    authentication errors stop the run (later requests would fail the same way)."""
+    from diski9.odds.collect import FATAL_ERRORS
+
+    targets = args.competitions or odds_competitions()
+    failed: list[int] = []
     with ApiFootballClient.from_settings() as client:
         for cid in targets:
-            with engine.begin() as conn:
-                stats = collect_odds(conn, client, cid, args.season)
+            try:
+                with engine.begin() as conn:
+                    stats = collect_odds(conn, client, cid, args.season)
+            except FATAL_ERRORS as exc:
+                print(f"{cid}/{args.season}: STOPPED ({exc!r:.300}); remaining leagues skipped")
+                failed.append(cid)
+                break
+            except Exception as exc:  # noqa: BLE001
+                print(f"{cid}/{args.season}: FAILED and rolled back ({exc!r:.300})")
+                failed.append(cid)
+                continue
             print(f"{cid}/{args.season}: {_json(summarise_fetch(stats))}")
         print(f"API requests: {client.quota_requests_made}")
+    if failed:
+        raise SystemExit(f"odds collection failed for: {failed}")
+
+
+def cmd_odds_coverage(args, engine) -> None:
+    """Coverage diagnostics from the local database (no API requests)."""
+    from diski9.odds.coverage import coverage_report, format_table
+
+    with engine.connect() as conn:
+        report = coverage_report(
+            conn, datetime.now(UTC), args.competitions, horizon_days=args.horizon_days
+        )
+    text = _json(report) if args.json else format_table(report)
+    if args.out:
+        Path(args.out).write_text(_json(report) + "\n", encoding="utf-8")
+        print(f"Wrote {args.out}")
+    print(text)
 
 
 def cmd_quality_report(args, engine) -> None:
@@ -144,7 +183,8 @@ def cmd_consensus(args, engine) -> None:
 def cmd_monitor_odds(args, engine) -> None:
     from diski9.odds.monitor import DEFAULT_DIR, run_monitor
 
-    targets = args.competitions or [c.id for c in COMPETITIONS.values() if c.odds_enabled]
+    # The trial keeps its approved scope (EPL + PSL) unless competitions are given.
+    targets = args.competitions or list(ODDS_TRIAL_COMPETITIONS)
     until = datetime.fromisoformat(args.until) if args.until else None
     with ApiFootballClient.from_settings() as client:
         summary = run_monitor(
@@ -336,6 +376,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--competitions", type=int, nargs="+", default=None)
     s.add_argument("--season", type=int, default=CURRENT_SEASON)
     s.set_defaults(func=cmd_collect_odds)
+
+    s = sub.add_parser(
+        "odds-coverage", help="odds availability per league from the local database (no API)"
+    )
+    s.add_argument("--competitions", type=int, nargs="+", default=None)
+    s.add_argument("--horizon-days", type=int, default=14)
+    s.add_argument("--json", action="store_true", help="print the full JSON report")
+    s.add_argument("--out", default=None, help="also write the JSON report to this file")
+    s.set_defaults(func=cmd_odds_coverage)
 
     s = sub.add_parser("quality-report", help="data-quality and exclusion report")
     s.add_argument("--seasons", type=int, nargs="+", default=list(BACKFILL_SEASONS))

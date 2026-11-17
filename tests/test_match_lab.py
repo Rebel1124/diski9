@@ -44,7 +44,10 @@ def test_eight_domestic_leagues_with_shared_parameters():
     assert all(c in LEAGUE_SHORT for c in comps)
     for c in (140, 61, 78, 135):
         assert seasons_for(c) == (2025, 2026)  # previous-season prior + current season
-        assert COMPETITIONS[c].odds_enabled is False  # odds trial scope unchanged
+        assert COMPETITIONS[c].odds_enabled is True  # Phase 5A: odds for all eight
+    from diski9.leagues import ODDS_TRIAL_COMPETITIONS
+
+    assert ODDS_TRIAL_COMPETITIONS == (39, 288)  # the odds trial keeps its scope
     assert 2 not in COMPETITIONS and 3 not in COMPETITIONS  # UEFA never in the Screener
     # one frozen parameter set: nothing league-specific exists in the model
     assert not any(isinstance(v, dict) for v in vars(gm.PARAMS).values())
