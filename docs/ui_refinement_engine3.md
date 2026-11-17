@@ -287,3 +287,19 @@ It is unchecked by default.
   these filters."
 
 Screenshots: `screenshots/odds_filter_desktop.png`, `screenshots/odds_filter_mobile.png`.
+
+## Screener table: Data column removed
+
+The **Data** column held a data-quality flag:
+* **"Early season"** when either team had played fewer than five league matches, so
+  the estimates still lean heavily on league averages
+* **"No model"** when Goal Model 1.0 had no probabilities (for example a European
+  competition, or no league prior)
+
+Mid-season it was blank for every fixture, leaving empty space on the right.
+
+The column is gone from all three markets. The same flags now appear inside the
+**Est. goals** cell when they apply. Phone cards already showed them, and the model
+logic behind them is unchanged. The remaining columns fill the table width.
+
+Screenshot: `screenshots/table_without_data_column.png`.

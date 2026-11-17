@@ -402,7 +402,8 @@ def test_columns_alignment_and_names():
     assert cols["p_home"]["align"] == "right" and cols["home"]["align"] == "left"
     assert "xG" not in json.dumps(columns_for("1X2"))
     goals = [c["label"] for c in columns_for("OU25")]
-    assert goals[4:] == ["Est. goals", "Over 2.5", "Under 2.5", "Odds Over · Under", "Data"]
+    assert goals[4:] == ["Est. goals", "Over 2.5", "Under 2.5", "Odds Over · Under"]
+    assert all(c["label"] != "Data" for m in ("1X2", "BTTS", "OU25") for c in columns_for(m))
     assert [c["label"] for c in columns_for("BTTS")][5:7] == ["Yes", "No"]
     assert "never a model input" in cols["odds"]["title"]
 
@@ -718,6 +719,12 @@ def test_compact_limited_marker_in_table(data):
     cells = _find(p[0], lambda c: "pill" in str(getattr(c, "className", "")))
     assert cells and all(_text(c) in ("Early season", "No model") for c in cells)
     assert all("fewer than five" in c.title for c in cells if _text(c) == "Early season")
+    # the flag sits in the Est. goals cell (column 5); there is no separate Data column
+    for row in p[0].children[1].children:
+        assert len(row.children) == len(columns_for("1X2"))
+        flagged = _find(row, lambda c: "pill" in str(getattr(c, "className", "")))
+        if flagged:
+            assert flagged[0] in _find(row.children[4], lambda c: True)
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not available")

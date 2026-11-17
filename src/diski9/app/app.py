@@ -128,7 +128,6 @@ def columns_for(market: str) -> list[dict]:
             "sort": None,
             "title": "Consensus bookmaker odds (reference only; never a model input)",
         },
-        {"id": "limited", "label": "Data", "align": "left", "sort": None},
     ]
     return cols
 
@@ -843,17 +842,20 @@ def results_table(
                     [" ", pill("stale", "warn subtle")] if row["odds_status"] == "stale" else []
                 )
                 cls += f" odds-{row['odds_status']}"
-            elif cid == "limited":
+            elif cid == "estimated_goals":
+                # Data-quality flags (formerly a separate, usually empty "Data" column)
                 if not row["available"]:
                     value = html.Span(
                         "No model", className="pill subtle", title=row["unavailable_reason"]
                     )
                 elif row["limited"]:
-                    value = html.Span(
-                        "Early season", className="pill warn subtle", title=EARLY_TITLE
-                    )
+                    value = [
+                        html.Span("Early season", className="pill warn subtle", title=EARLY_TITLE),
+                        " ",
+                        row[cid],
+                    ]
                 else:
-                    value = ""
+                    value = row[cid]
             elif cid.startswith("p_"):
                 value = row[cid]
                 cls += " strong"
