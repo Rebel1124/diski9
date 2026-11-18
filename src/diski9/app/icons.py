@@ -23,6 +23,9 @@ ICONS: dict[str, str] = {
     "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
     "minus": '<path d="M5 12h14"/>',
     "plus": '<path d="M5 12h14"/><path d="M12 5v14"/>',
+    "arrow-up": '<path d="m5 12 7-7 7 7"/><path d="M12 19V5"/>',
+    "arrow-down": '<path d="M12 5v14"/><path d="m19 12-7 7-7-7"/>',
+    "equal": '<line x1="5" x2="19" y1="9" y2="9"/><line x1="5" x2="19" y1="15" y2="15"/>',
     "arrow-right": '<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>',
     "swap": '<path d="M8 3 4 7l4 4"/><path d="M4 7h16"/><path d="m16 21 4-4-4-4"/>'
     '<path d="M20 17H4"/>',

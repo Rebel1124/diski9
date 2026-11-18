@@ -538,7 +538,7 @@ def tracker(
                         className="ch-pick-text",
                     ),
                     html.Button(
-                        "✕",
+                        icon("x"),
                         id={"t": "remove", "k": key_str(o.key)},
                         n_clicks=0,
                         className="ch-x",
@@ -838,15 +838,13 @@ def weekly_table(score, round_result) -> html.Div:
     ranked = [s for s in score.scores if s.rank is not None]
     others = [s for s in score.scores if s.rank is None]
     rows = []
-    prev = None
     for s in ranked:
         shared = sum(1 for x in ranked if x.rank == s.rank) > 1
-        label = ("=" if shared else "") + str(s.rank)
         status = "Recovered" if s.recovered else "Not recovered"
         rows.append(
             html.Tr(
                 [
-                    html.Td(label if s.rank != prev or not shared else label, className="num"),
+                    html.Td(rank_cell(s.rank, shared), className="num rank"),
                     html.Td(s.participant_id),
                     html.Td(credits(s.gross), className="num"),
                     html.Td(f"{s.net:+,.2f}", className="num"),
@@ -856,7 +854,6 @@ def weekly_table(score, round_result) -> html.Div:
                 className="me" if s.participant_id.startswith("You") else "",
             )
         )
-        prev = s.rank
     for s in others:
         label = "Void — Refunded" if s.refunded else "—"
         rows.append(
@@ -900,7 +897,7 @@ def championship_table(table) -> html.Div:
         rows.append(
             html.Tr(
                 [
-                    html.Td(("=" if shared else "") + str(s.rank), className="num"),
+                    html.Td(rank_cell(s.rank, shared), className="num rank"),
                     html.Td(s.participant_id),
                     html.Td(str(s.points), className="num strong"),
                     html.Td(str(s.rounds_entered), className="num"),
@@ -963,6 +960,25 @@ def you_summary(rank: str, main: str, sub: str) -> html.Div:
 
 
 MEDAL = {1: ("gold", "1st"), 2: ("silver", "2nd"), 3: ("bronze", "3rd")}
+RANK_ICON = {1: "trophy", 2: "medal", 3: "medal"}  # gold trophy, silver and bronze medals
+
+
+def rank_icon(rank: int | None, extra: str = "") -> html.Span | None:
+    """The top-three icon for a competition rank (shared ranks get the same icon; no
+    position is manufactured, e.g. ranks 1, 1, 3 show two trophies and a bronze)."""
+    if rank not in RANK_ICON:
+        return None
+    return icon(RANK_ICON[rank], f"rank-ic {MEDAL[rank][0]} {extra}".strip())
+
+
+def rank_cell(rank: int, shared: bool):
+    """Leaderboard rank: the numeric label (kept for clarity) with a top-three icon."""
+    label = ("=" if shared else "") + str(rank)
+    ic = rank_icon(rank)
+    if ic is None:
+        return label
+    title = f"{MEDAL[rank][1]} place" + (" (shared)" if shared else "")
+    return html.Span([ic, html.Span(label)], className="rank-wrap", title=title)
 
 
 def podium(rows) -> html.Div | None:
@@ -982,7 +998,10 @@ def podium(rows) -> html.Div | None:
             html.Div(
                 [
                     html.Div(
-                        label + (" (shared)" if len(places[rank]) > 1 else ""),
+                        [
+                            rank_icon(rank, "ic-lg"),
+                            label + (" (shared)" if len(places[rank]) > 1 else ""),
+                        ],
                         className="ch-pod-rank",
                     ),
                     *[

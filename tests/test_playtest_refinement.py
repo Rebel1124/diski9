@@ -240,3 +240,40 @@ def test_how_to_play_has_build_steps_and_two_objectives():
               "Understand your portfolio risk", "Review and submit before the deadline"):  # fmt: skip
         assert t in text
     assert text.count('"ch-goal"') == 2  # no extra competitive objectives
+
+
+EMOJI = re.compile("[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f000-\U0001f2ff⭐⭕✅❌]")
+
+
+def test_no_emojis_in_application_source():
+    hits = []
+    for path in list(APP.rglob("*.py")) + list(APP.rglob("*.css")) + list(APP.rglob("*.js")):
+        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if EMOJI.search(line):
+                hits.append(f"{path.relative_to(ROOT)}:{n}: {line.strip()[:80]}")
+    assert hits == []
+
+
+# ------------------------------------------------------------- rank icons
+def test_shared_ranks_get_identical_icons_and_no_manufactured_place():
+    rows = [(1, "Ann", "150"), (1, "Bob", "150"), (3, "Cat", "125"), (4, "Dee", "120")]
+    text = jtext(comp.podium(rows))
+    assert text.count("ic-trophy") == 1 and "1st (shared)" in text  # one shared 1st place
+    assert "rank-ic bronze" in text and "silver" not in text and "2nd" not in text
+    assert jtext(comp.rank_cell(1, True)).count("ic-trophy") == 1
+    assert "=1" in jtext(comp.rank_cell(1, True)) and "gold" in jtext(comp.rank_cell(1, False))
+    assert "ic-medal" in jtext(comp.rank_cell(2, False)) and "silver" in jtext(
+        comp.rank_cell(2, False)
+    )
+    assert comp.rank_cell(4, False) == "4" and comp.rank_cell(11, True) == "=11"
+
+
+def test_leaderboards_use_rank_icons_for_top_three_only():
+    from diski9.app.challenge import pages
+    from diski9.challenge import demo
+
+    weekly = jtext(pages.leaderboard_body("weekly", demo.LATEST_ROUND))
+    champ = jtext(pages.leaderboard_body("championship", None))
+    for text in (weekly, champ):
+        assert "rank-ic" in text and "ic-trophy" in text
+        assert re.search(r"\d cr\b", text) is None

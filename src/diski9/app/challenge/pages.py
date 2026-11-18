@@ -1429,7 +1429,7 @@ def confirmed_predictions(sub) -> html.Details:
 
 
 def timeline(items) -> html.Div:
-    icons = {"recovered": "✓", "lost": "✗", "missed": "–", "remaining": ""}
+    icons = {"recovered": "check", "lost": "x", "missed": "minus", "remaining": None}
     titles = {
         "recovered": "Recovered",
         "lost": "Not recovered",
@@ -1444,7 +1444,10 @@ def timeline(items) -> html.Div:
         dots.append(
             html.Div(
                 [
-                    html.Span(icons[it["state"]], className="dot"),
+                    html.Span(
+                        c.icon(icons[it["state"]], "ic-sm") if icons[it["state"]] else None,
+                        className="dot",
+                    ),
                     html.Span(str(i + 1), className="lbl"),
                 ],
                 className=f"ch-tl-item {it['state']}",
@@ -1453,9 +1456,13 @@ def timeline(items) -> html.Div:
         )
     legend = html.Div(
         [
-            html.Span([html.Span("✓", className="dot k recovered"), "recovered"]),
-            html.Span([html.Span("✗", className="dot k lost"), "not recovered"]),
-            html.Span([html.Span("–", className="dot k missed"), "not entered"]),
+            html.Span(
+                [html.Span(c.icon("check", "ic-sm"), className="dot k recovered"), "recovered"]
+            ),
+            html.Span([html.Span(c.icon("x", "ic-sm"), className="dot k lost"), "not recovered"]),
+            html.Span(
+                [html.Span(c.icon("minus", "ic-sm"), className="dot k missed"), "not entered"]
+            ),
             html.Span([html.Span("", className="dot k remaining"), "to play"]),
         ],
         className="ch-tl-legend small muted",

@@ -1122,3 +1122,11 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-conf-nine { margin: 10px 0 0; }
 @media (max-width: 900px) { .ch-conf-grid { grid-template-columns: minmax(0, 1fr); } }
 .ch-modal-title.plain { color: var(--text); }
+
+/* ===================== Phase 6B.2: rank icons ===================== */
+.rank-ic.gold { color: #e3b341; } .rank-ic.silver { color: #b8c2cc; } .rank-ic.bronze { color: #c98a55; }
+.rank-wrap { display: inline-flex; align-items: center; gap: 5px; justify-content: flex-end; }
+.ch-pod-rank { display: flex; align-items: center; gap: 6px; }
+.ch-tl-item .dot .ic, .ch-tl-legend .dot .ic { width: .8em; height: .8em; vertical-align: -0.05em; }
+.ch-x .ic { width: .95em; height: .95em; }
+.league-cmp .cmp-icon { width: .95em; height: .95em; }
