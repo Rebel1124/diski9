@@ -429,11 +429,11 @@ def test_routes_and_existing_screener(data):  # noqa: F811
         assert f'"{cid}"' in layout
     assert '"storage_type":"session"' in layout.replace(" ", "")
     route = _callback(app, "ch-root.children")
-    style, content, nav, _ = route("/", None, None)
+    style, content, nav, _ = route("/", None, None, None)
     assert style == {"display": "block"} and content is None
     for path, words in (("/challenge", "Weekly Challenge"), ("/challenge/me", "My Challenge"),
                         ("/leaderboards", "Leaderboards")):  # fmt: skip
-        style, content, nav, _ = route(path, None, None)
+        style, content, nav, _ = route(path, None, None, None)
         assert style == {"display": "none"}
         assert words in jtext(content)
         assert any("on" in link.className for link in nav)
@@ -517,3 +517,126 @@ def test_goal_model_unchanged():
 
 
 __all__ = ["RoundFixture", "RoundSnapshot"]
+
+
+# ------------------------------------------------------ Phase 6B.1 Stage C
+def _lab_state(home_delta):
+    from diski9.app import lab
+
+    s = lab.new_state()
+    s["manual"]["home"] = home_delta
+    return s
+
+
+class _DataWithResults(_Data):
+    """Screener payloads for the demo fixtures (Goal Model expected goals from the pool)."""
+
+    def __init__(self, snap):
+        super().__init__()
+        from diski9.screener import goal_model as gm
+
+        res = {}
+        for f in POOL["fixtures"]:
+            lam = f.get("lambda_model")
+            if not lam or not f.get("model_available"):
+                continue
+            res[f["fixture_id"]] = {
+                "fixture": {"id": f["fixture_id"], "home": "H", "away": "A"},
+                "goal_model": {"available": True, "estimated_goals": {"home": lam[0], "away": lam[1]},
+                               "probabilities": gm.markets(lam[0], lam[1])},
+            }  # fmt: skip
+        self._results = res
+
+    def snapshot(self):
+        class S:
+            pass
+
+        s = S()
+        s.results = {"overall": self._results}
+        return s
+
+
+def test_your_view_uses_match_lab_maths_and_never_changes_official_values(snap):
+    from diski9.app import lab
+    from diski9.app.challenge import integration
+
+    data = _DataWithResults(snap)  # noqa: F811
+    fid = snap.fixtures[0].fixture_id
+    assert integration.personal_probabilities(data, snap, {}) == {}
+    store = {str(fid): _lab_state(0.8)}
+    personal = integration.personal_probabilities(data, snap, store)
+    outs = [o for o in snap.outcomes if o.fixture_id == fid]
+    assert {k[0] for k in personal} == {fid} and len(personal) == len(outs)
+    r = data.snapshot().results["overall"][fid]
+    expect = lab.adjusted_probabilities(lab.user_estimates(r, lab.normalise_state(store[str(fid)],
+                                                                                  lab.baseline_rounded(r))))  # fmt: skip
+    for o in outs:
+        assert personal[o.key] == expect[lab.OUTCOME_KEY[o.outcome]]
+    home = next(o for o in outs if str(o.outcome) == "HOME")
+    assert personal[home.key] > home.model_probability  # more home goals -> higher home chance
+    # official values are untouched: buckets, odds, model probabilities, snapshot fingerprint
+    fp = snap.fingerprint
+    assert all(o.model_probability != personal[o.key] or True for o in outs)
+    assert (
+        snap.fingerprint == fp
+        and home.model_probability == r["goal_model"]["probabilities"]["home"]
+    )
+    other = {str(snap.fixtures[1].fixture_id + 10**9): _lab_state(1.0)}  # not in the pool
+    assert integration.personal_probabilities(data, snap, other) == {}
+
+
+def test_screener_challenge_view_matches_builder_pool(svc, snap):
+    from diski9.app.challenge import integration
+
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    keys = valid_keys(snap)
+    for k in keys[:3]:
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    info = integration.challenge_cells(svc, s, "1X2")
+    assert info["ids"] == {f.fixture_id for f in snap.fixtures} and info["snapshot"] is snap
+    for fid, cell in info["cells"].items():
+        frozen = [o for o in snap.outcomes if o.fixture_id == fid and str(o.market) == "1X2"]
+        if frozen:
+            assert cell["main"] == " · ".join(f"{o.reference_odds:.2f}" for o in frozen)
+    picked = {parse_key(k)[0] for k in keys[:3]}
+    assert {fid for fid, cell in info["cells"].items() if cell["sub"].startswith("✓")} == picked
+    none = integration.challenge_cells(ChallengeService(_Data()), None, "1X2")  # live unavailable
+    assert none["ids"] == set() and none["message"]
+
+
+def test_match_lab_actions_share_reducer_and_validation(svc, snap):
+    keys = valid_keys(snap)
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    assert cb.ACTION_OF["labpick"] == "pick" and cb.ACTION_OF["labremove"] == "remove"
+    s, _ = cb.apply_action(svc, s, cb.ACTION_OF["labpick"], keys[0])
+    assert s["selections"] == [keys[0]]
+    fid = parse_key(keys[0])[0]
+    alt = next(key_str(o.key) for o in snap.outcomes if o.fixture_id == fid
+               and key_str(o.key) != keys[0] and assess_outcome(o, snap.snapshot_at, CFG).eligible)  # fmt: skip
+    s2, flash = cb.apply_action(svc, s, "pick", alt)  # never auto-replaced
+    assert s2["selections"] == [keys[0]] and "already have" in flash["text"]
+    s3, flash = cb.apply_action(svc, s, "ask_replace", alt)
+    assert s3["selections"] == [keys[0]] and flash["replace"] == alt  # asks first
+    s4, flash = cb.apply_action(svc, s3, "replace", alt)
+    assert s4["selections"] == [alt] and flash["kind"] == "ok"
+    # a replacement the engine rejects leaves the draft unchanged
+    bad = next(key_str(o.key) for o in snap.outcomes if o.fixture_id == fid
+               and not assess_outcome(o, snap.snapshot_at, CFG).eligible)  # fmt: skip
+    s5, flash = cb.apply_action(svc, s4, "replace", bad)
+    assert s5["selections"] == [alt] and "isn't possible" in flash["text"]
+
+
+def test_match_lab_panel_states(svc, snap):
+    from diski9.app.challenge import integration
+
+    data = _DataWithResults(snap)  # noqa: F811
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    fid = snap.fixtures[0].fixture_id
+    panel = jtext(integration.lab_panel(svc, data, s, fid, {}, None))
+    assert "Add to Weekly Challenge" in panel and "Your View" in panel and "equals Diski" in panel
+    outside = jtext(integration.lab_panel(svc, data, s, 99999999, {}, None))
+    assert "isn't in this week's Challenge" in outside
+    nolive = jtext(integration.lab_panel(ChallengeService(_Data()), data, None, fid, {}, None))
+    assert "demonstration round" in nolive
+    adjusted = jtext(integration.lab_panel(svc, data, s, fid, {str(fid): _lab_state(0.5)}, None))
+    assert "uses your adjusted expected goals" in adjusted

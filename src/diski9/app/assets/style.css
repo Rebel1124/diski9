@@ -974,3 +974,16 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-table th.num, .ch-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ch-empty-analysis { min-height: 120px; }
 @media (max-width: 700px) { .ch-recovery { grid-template-columns: minmax(0, 1fr); } }
+
+/* ===================== Phase 6B.1: Screener integration ===================== */
+.ch-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 10px 2px 0; padding: 8px 12px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.ch-strip .ch-lab-link { margin-left: auto; }
+.mini-found { color: var(--b-found); } .mini-bal { color: var(--b-bal); } .mini-chal { color: var(--b-chal); }
+.universe label { margin-right: 12px !important; }
+.ch-labpanel { margin-top: 18px; background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius); padding: 12px 14px; }
+.ch-labpanel.muted { border-left-color: var(--border); }
+.ch-table.lab td, .ch-table.lab th { padding: 6px 8px; }
+.ch-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.ch-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ch-confirm span { flex: 1 1 200px; }

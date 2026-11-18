@@ -602,7 +602,7 @@ def _mini_adjust(
                         inputMode="decimal",
                         value=text,
                         debounce=0.4,
-                        pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
+                        pattern=r"[+\-]?[0-9]*([.,][0-9]{0,2})?",
                         className="adj-input cat-input goal-input step-005 allow-negative",
                         placeholder="0.00",
                     ),

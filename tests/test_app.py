@@ -285,7 +285,7 @@ def test_page_and_selection_transitions(data):
     )
     orig, appmod.results_payload = appmod.results_payload, fake
     try:
-        args = ("1X2", [39], None, None, "kickoff_earliest", 0, [], 1, 1, [], [])
+        args = ("1X2", [39], None, None, "kickoff_earliest", 0, [], 1, 1, [], [], "all")
         for prop, page, expected_page in (
             ("next.n_clicks", 1, 2),
             ("prev.n_clicks", 2, 1),

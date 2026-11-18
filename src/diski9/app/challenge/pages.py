@@ -58,7 +58,7 @@ def locked(avail) -> bool:
 
 
 # ------------------------------------------------------------------ shell
-def challenge_shell(service, state, explore, local) -> html.Div:
+def challenge_shell(service, state, explore, local, personal=None) -> html.Div:
     state = normal_state(state)
     return html.Div(
         [
@@ -71,7 +71,9 @@ def challenge_shell(service, state, explore, local) -> html.Div:
             ),
             html.Div(id=c.T("stepper"), children=stepper(service, state)),
             html.Div(id=c.T("flash")),
-            html.Div(id=c.T("stage"), children=stage_body(service, state, explore, local)),
+            html.Div(
+                id=c.T("stage"), children=stage_body(service, state, explore, local, personal)
+            ),
         ],
         className="ch-page",
     )
@@ -109,13 +111,13 @@ def stage_signature(service, state) -> list:
     return [state["stage"], mode, snap.fingerprint if snap else None, sub]
 
 
-def stage_body(service, state, explore, local):
+def stage_body(service, state, explore, local, personal=None):
     state = normal_state(state)
     mode, snap, avail, sels = current(service, state)
     stage = state["stage"]
     complete = snap is not None and service.evaluate(snap, sels) is not None
     if stage == "build" and snap is not None and avail.playable:
-        return builder(service, snap, sels, avail, explore, local)
+        return builder(service, snap, sels, avail, explore, local, personal)
     if stage == "review" and complete:
         return review(service, snap, sels, avail, state, local)
     return overview(service, state, mode, snap, avail, local)

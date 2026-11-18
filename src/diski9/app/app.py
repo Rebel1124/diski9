@@ -26,6 +26,7 @@ from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DI
 
 from .challenge.callbacks import nav_links
 from .challenge.callbacks import register as register_challenge
+from .challenge.integration import challenge_cells
 from .challenge.service import ChallengeService
 from .data import (
     DIRECTIONS,
@@ -212,19 +213,20 @@ def create_app(data: ScreenerData) -> Dash:
     app.server.config["DISKI9_DATA"] = data
     service = ChallengeService(data)
     app.server.config["DISKI9_CHALLENGE"] = service
-    app.layout = lambda: build_shell(data)
-    register_callbacks(app, data)
+    app.layout = lambda: build_shell(data, service)
+    register_callbacks(app, data, service)
     register_challenge(app, data, service)
     return app
 
 
-def build_shell(data: ScreenerData) -> html.Div:
+def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> html.Div:
     """Site shell: navigation, the Screener page (unchanged, shown at ``/``) and the
     Weekly Challenge pages (``/challenge``, ``/challenge/me``, ``/leaderboards``).
 
     The Screener stays mounted and is only hidden on other routes, so its filters,
     selection and Match Lab state survive navigation. Weekly Challenge state lives
     in the browser-session store ``ch-session`` (this tab only, kept on refresh)."""
+    service = service or ChallengeService(data)
     return html.Div(
         [
             dcc.Location(id="url", refresh=False),
@@ -239,7 +241,10 @@ def build_shell(data: ScreenerData) -> html.Div:
                 className="site-nav",
                 **{"aria-label": "Main"},
             ),
-            html.Div(build_layout(data), id="screener-root"),
+            html.Div(
+                build_layout(data, "challenge" if service.availability("live").playable else "all"),
+                id="screener-root",
+            ),
             html.Div(id="ch-root"),
             dcc.Store(id="ch-session", storage_type="session"),
             dcc.Store(id="ch-prefs", storage_type="session", data={"source": "market"}),
@@ -250,7 +255,7 @@ def build_shell(data: ScreenerData) -> html.Div:
     )
 
 
-def build_layout(data: ScreenerData) -> html.Div:
+def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
     snap = data.snapshot()
     leagues = data.available_leagues()
     today = data.clock().astimezone(data.tz).date()
@@ -305,6 +310,21 @@ def build_layout(data: ScreenerData) -> html.Div:
             methodology_section(),
             html.Div(
                 [
+                    html.Div(
+                        [
+                            html.Label("Matches"),
+                            dcc.RadioItems(
+                                id="universe",
+                                options=[
+                                    {"label": "Weekly Challenge", "value": "challenge"},
+                                    {"label": "All upcoming matches", "value": "all"},
+                                ],
+                                value=universe,
+                                className="segmented universe",
+                            ),
+                        ],
+                        className="filter",
+                    ),
                     html.Div(
                         [
                             html.Label("Market", htmlFor="market"),
@@ -397,6 +417,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                 ],
                 className="filters",
             ),
+            html.Div(id="ch-strip"),
             html.Div(id="legend", className="legend"),
             html.Div(
                 [
@@ -423,6 +444,7 @@ def build_layout(data: ScreenerData) -> html.Div:
             # The user's estimated-goal adjustments, keyed by fixture id. Memory only:
             # lives in this browser tab, never sent to storage, never shared.
             dcc.Store(id="lab-store", storage_type="memory", data={}),
+            html.Div(id="lab-challenge"),
             html.Div(id="detail", className="detail-holder"),
             html.Footer(
                 "Diski 9 is an educational football analytics tool. Probabilities are "
@@ -547,7 +569,9 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
     return state, messages
 
 
-def register_callbacks(app: Dash, data: ScreenerData) -> None:
+def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
+    service = service or ChallengeService(data)
+
     @app.callback(
         Output("direction", "options"),
         Output("direction", "value"),
@@ -642,8 +666,10 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Input("next", "n_clicks"),
         Input({"type": "row", "index": ALL}, "n_clicks"),
         Input({"type": "fx", "index": ALL}, "n_clicks"),
+        Input("universe", "value"),
         State("page", "data"),
         State("selected", "data"),
+        State("ch-session", "data"),
     )
     def update_results(
         market,
@@ -657,8 +683,10 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         _n,
         _rows,
         _cards,
+        universe,
         page,
         selected,
+        ch_state=None,
     ):
         """Single source of truth for the list, the page and the selected fixture id.
 
@@ -690,6 +718,9 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             page,
             selected,
             odds_only=ODDS_ONLY in (odds_only or []),
+            challenge=challenge_cells(service, ch_state, market)
+            if universe == "challenge"
+            else None,
         )
 
     @app.callback(
@@ -838,9 +869,13 @@ def results_payload(
     page,
     selected=None,
     odds_only=False,
+    challenge: dict | None = None,
 ):
     """Pure function behind the results callback (also used by tests). All filters,
-    including "only matches with odds", apply before ranking and pagination."""
+    including "only matches with odds", apply before ranking and pagination.
+
+    ``challenge`` (the Weekly Challenge view) restricts the list to the frozen
+    Challenge pool and shows its frozen reference odds and portfolio markers."""
     direction = valid_direction(market, direction)
     thr = _threshold_value(market, direction, threshold)
     results = (
@@ -857,6 +892,8 @@ def results_payload(
         if leagues
         else []
     )
+    if challenge is not None:
+        results = [r for r in results if r["fixture"]["id"] in challenge["ids"]]
     # selection is the fixture id; cleared when filters remove it from the list
     if selected is not None and selected not in {r["fixture"]["id"] for r in results}:
         selected = None
@@ -865,8 +902,20 @@ def results_payload(
         data.row(market, r) | {"value": data.value_cell(market, r, direction, thr)}
         for r in pg.results
     ]
+    if challenge is not None:
+        for row in rows:
+            cell = challenge["cells"].get(row["id"])
+            if cell:
+                row.update(value=cell, odds=cell["odds_text"], odds_status="fresh")
     if not leagues:
         empty = html.Div("Select at least one league to see fixtures.", className="empty")
+    elif challenge is not None and not results:
+        empty = html.Div(
+            challenge.get("message")
+            or "No Weekly Challenge matches fit these filters. Switch to All upcoming matches "
+            "to analyse every fixture.",
+            className="empty",
+        )
     elif not results:
         empty = html.Div(
             NO_ODDS_MESSAGE

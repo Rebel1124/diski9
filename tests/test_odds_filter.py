@@ -132,6 +132,7 @@ def test_checkbox_in_layout_and_callback_and_kept_across_markets(data):
             1,
             [],
             [],
+            "all",
             1,
             None,
         )
