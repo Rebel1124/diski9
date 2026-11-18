@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 from dash import dcc, html
 
 from diski9.challenge import analysis as pa
@@ -19,15 +17,14 @@ from diski9.challenge.structured import (
     selection_blocks,
 )
 
+from . import charts
 from . import components as c
-from .charts import at_least_figure, focus_range
 from .service import ChallengeService, key_str
 
 CFG = DEFAULT_CONFIG
 STAGES = (
     ("overview", "Overview"),
     ("build", "Build"),
-    ("analyse", "Analyse"),
     ("review", "Review"),
 )
 DEFAULT_STATE = {"mode": None, "fp": None, "selections": [], "stage": "overview", "submitted": None}
@@ -87,7 +84,6 @@ def stepper(service, state) -> html.Nav:
     reach = {
         "overview": True,
         "build": avail.playable and snap is not None,
-        "analyse": complete,
         "review": complete,
     }
     return html.Nav(
@@ -120,10 +116,8 @@ def stage_body(service, state, explore, local):
     complete = snap is not None and service.evaluate(snap, sels) is not None
     if stage == "build" and snap is not None and avail.playable:
         return builder(service, snap, sels, avail, explore, local)
-    if stage in ("analyse", "review") and complete:
-        if stage == "review":
-            return review(service, snap, sels, avail, state, local)
-        return analysis(service, snap, sels, explore, local)
+    if stage == "review" and complete:
+        return review(service, snap, sels, avail, state, local)
     return overview(service, state, mode, snap, avail, local)
 
 
@@ -317,12 +311,32 @@ def builder(service, snap, sels, avail, prefs, local, personal=None) -> html.Div
         else None
     )
     cards, count = fixture_list(service, snap, sels, {}, local, locked(avail), 1, personal)
+    view = (prefs or {}).get("view", "matches")
+    toggle = dcc.RadioItems(
+        id=c.T("view"),
+        value=view,
+        inline=True,
+        className="segmented ch-view",
+        options=[
+            {"label": "Choose matches", "value": "matches"},
+            {"label": "Portfolio analysis", "value": "analysis"},
+        ],
+    )
     return html.Div(
         [
             c.demo_ribbon(snap),
             lock_note,
+            toggle,
             html.Div(
                 [
+                    html.Div(
+                        analysis_panel(service, snap, sels, prefs, personal)
+                        if view == "analysis"
+                        else None,
+                        id=c.T("analysis-view"),
+                        className="ch-main",
+                        style={} if view == "analysis" else {"display": "none"},
+                    ),
                     html.Div(
                         [
                             html.Div(
@@ -342,6 +356,7 @@ def builder(service, snap, sels, avail, prefs, local, personal=None) -> html.Div
                         ],
                         id=c.T("matches-view"),
                         className="ch-main",
+                        style={"display": "none"} if view == "analysis" else {},
                     ),
                     html.Aside(
                         [
@@ -471,163 +486,314 @@ def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None
 
 
 # --------------------------------------------------------------- analysis
-def analysis(service, snap, sels, explore, local, source: str = "market") -> html.Div:
-    mk, md = service.evaluate(snap, sels)
-    ev = mk if source == "market" else md
-    focus = focus_range(mk)
-    full = float(mk.max_gross) * 1.05
+def analysis_panel(service, snap, sels, prefs, personal=None) -> html.Div:
+    """Portfolio analysis inside the builder: recovery, possible payouts and the number
+    of correct predictions, all for the selected probability source."""
+    port = service.portfolio(snap, sels)
+    if port is None:
+        n = len(sels)
+        return html.Div(
+            [
+                html.H2("Portfolio analysis", className="ch-h2"),
+                html.P(
+                    f"Pick all nine predictions to see your portfolio's chances ({n}/9 so far). "
+                    "The tracker already shows each bucket's chance and payout so far.",
+                    className="muted",
+                ),
+            ],
+            className="ch-card ch-empty-analysis",
+        )
+    source = (prefs or {}).get("source", "market")
+    prob = pa.probability_for(source, personal)
+    ev = pa.evaluate_with(port, prob)
+    cc = pa.correct_count_analysis(port, prob)
+    label = pa.SOURCE_LABEL[source]
     return html.Div(
         [
-            c.demo_ribbon(snap),
             html.Div(
                 [
-                    html.H2("Your portfolio's chances", className="ch-h2"),
-                    dcc.RadioItems(
-                        id=c.T("source"),
-                        value=source,
-                        className="segmented",
-                        options=[
-                            {"label": "Market estimate", "value": "market"},
-                            {"label": "Diski 9 model", "value": "model"},
-                        ],
-                        inline=True,
-                    ),
+                    html.H2("Portfolio analysis", className="ch-h2"),
+                    html.Span(f"{label} estimate", className="ch-pill demo"),
                 ],
                 className="ch-row-between",
             ),
-            html.Div(id=c.T("analysis"), children=analysis_body(ev, snap)),
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            html.H2("Your Payout Probability", className="ch-h2"),
-                            html.Div(
-                                [
-                                    dcc.RadioItems(
-                                        id=c.T("chart-mode"),
-                                        value="at_least",
-                                        inline=True,
-                                        className="segmented",
-                                        options=[
-                                            {"label": "At least this payout", "value": "at_least"},
-                                            {"label": "Exactly this payout", "value": "exact"},
-                                        ],
-                                    ),
-                                    dcc.RadioItems(
-                                        id=c.T("chart-range"),
-                                        value="focus",
-                                        inline=True,
-                                        className="segmented",
-                                        options=[
-                                            {"label": "Focus on buckets", "value": "focus"},
-                                            {"label": "Full range", "value": "full"},
-                                        ],
-                                    ),
-                                ],
-                                className="ch-chart-controls",
-                            ),
-                        ],
-                        className="ch-row-between",
-                    ),
-                    dcc.Graph(
-                        id=c.T("chart"),
-                        figure=at_least_figure(ev, focus),
-                        config={"displayModeBar": False, "responsive": True},
-                        className="ch-graph",
-                    ),
-                    html.Div(
-                        [
-                            html.Label("Explore a payout", className="small muted"),
-                            dcc.Slider(
-                                id=c.T("thr"),
-                                min=0,
-                                max=math.ceil(focus),
-                                step=1,
-                                value=100,
-                                marks={0: "0", 100: "100", math.ceil(focus): f"{math.ceil(focus)}"},
-                                tooltip={"placement": "top"},
-                                className="slider",
-                            ),
-                            html.Div(
-                                id=c.T("thr-out"),
-                                className="small",
-                                children=threshold_text(ev, 100),
-                            ),
-                        ],
-                        className="ch-thr",
-                    ),
-                    html.P(
-                        f"The maximum, {c.credits(mk.max_gross)} credits, needs all nine "
-                        "predictions to succeed. The focus view hides only that far-right "
-                        f"point; switch to the full range (to {full:,.0f}) to see it.",
-                        className="muted small",
-                    ),
-                ],
-                className="ch-card",
-            ),
-            about_numbers(),
-            html.Div(
-                [
-                    html.Button(
-                        "← Back to builder",
-                        id={"t": "nav", "to": "build", "i": "an"},
-                        n_clicks=0,
-                        className="ch-btn ghost",
-                    ),
-                    html.Button(
-                        "Review and confirm →",
-                        id={"t": "nav", "to": "review", "i": "an"},
-                        n_clicks=0,
-                        className="ch-btn primary",
-                    ),
-                ],
-                className="ch-actions end",
-            ),
+            recovery_section(ev),
+            payouts_section(ev),
+            correct_section(cc),
         ]
     )
 
 
-def analysis_body(ev, snap) -> html.Div:
-    return html.Div([c.metrics_row(ev), c.accumulator_table(ev, snap), c.states_table(ev)])
-
-
-def threshold_text(ev, x: float) -> list:
-    from decimal import Decimal
-
-    p = ev.at_least(Decimal(str(round(x, 2))))
-    return [
-        f"Chance of at least {x:,.0f} credits: ",
-        html.Strong(c.pct(p, 2)),
-        f" ({'market' if ev.source.value == 'market' else 'Diski 9 model'} estimate)",
+def recovery_section(ev) -> html.Div:
+    rows = [
+        ("100+ back", ev.p_recover, "teal"),
+        ("Something, under 100", ev.p_partial, "amber"),
+        ("Nothing back", ev.p_zero, "grey"),
     ]
-
-
-def about_numbers() -> html.Details:
-    return html.Details(
+    return html.Div(
         [
-            html.Summary("About these numbers"),
-            html.Ul(
+            html.H3("Will you get your 100 credits back?", className="ch-h3"),
+            html.Div(
                 [
-                    html.Li(
-                        "Two estimates: the market's chances (bookmaker margin removed) and Diski "
-                        "9's model. Neither is the true chance; they can disagree."
+                    dcc.Graph(
+                        figure=charts.recovery_donut(ev),
+                        config={"displayModeBar": False},
+                        className="ch-donut",
                     ),
-                    html.Li(
-                        "Matches are treated as independent. Related results (for example a goal "
-                        "fest across one league) would make real outcomes more clustered."
+                    html.Div(
+                        [
+                            *(
+                                html.Div(
+                                    [
+                                        html.Span(className=f"sw {cls}"),
+                                        html.Span(name),
+                                        html.Strong(c.pct(p, 1)),
+                                    ],
+                                    className="ch-legend-row",
+                                )
+                                for name, p, cls in rows
+                            ),
+                            html.Div(
+                                [
+                                    html.Div(
+                                        [
+                                            html.Span("Expected gross", className="muted small"),
+                                            html.Strong(f"{ev.expected_gross:,.2f} cr"),
+                                        ]
+                                    ),
+                                    html.Div(
+                                        [
+                                            html.Span("Expected net", className="muted small"),
+                                            html.Strong(f"{ev.expected_net:+,.2f} cr"),
+                                        ]
+                                    ),
+                                ],
+                                className="ch-expect",
+                            ),
+                            html.P(
+                                "Expected payout is the average over very many imaginary repeats "
+                                "of this week, not a promise and not the most likely result: most "
+                                "weeks pay less, a few pay much more.",
+                                className="muted small",
+                            ),
+                        ],
+                        className="ch-recovery-legend",
                     ),
-                    html.Li(
-                        "Expected return is the average payout over very many imaginary repeats "
-                        "of this week. Most weeks pay less than it; a few pay much more."
-                    ),
-                    html.Li(
-                        "Payouts come from the frozen reference odds, so they are the same under "
-                        "both estimates; only the chances change."
-                    ),
-                ]
+                ],
+                className="ch-recovery",
             ),
         ],
-        className="ch-details",
+        className="ch-card",
+    )
+
+
+def payouts_section(ev) -> html.Div:
+    rows = charts.state_rows(ev)
+    by_gross: dict = {}
+    for s in rows:
+        by_gross.setdefault(s.gross, []).append(s)
+    same = [v for v in by_gross.values() if len(v) > 1]
+    accs = html.Div(
+        [
+            html.Span(
+                [
+                    c.chip(a.code),
+                    f" pays {c.credits(a.payout)} if all "
+                    f"{len(a.legs) if a.code != 'NINE' else 9} correct",
+                ],
+                className="ch-acc-pay",
+            )
+            for a in (*ev.buckets, ev.nine_fold)
+        ],
+        className="ch-acc-pays small",
+    )
+    head = html.Tr(
+        [
+            html.Th("Outcome"),
+            html.Th("Foundation", className="c"),
+            html.Th("Balanced", className="c"),
+            html.Th("Challenger", className="c"),
+            html.Th("Diski 9", className="c"),
+            html.Th("Total payout", className="num"),
+            html.Th("Chance", className="num"),
+        ]
+    )
+    body = [
+        html.Tr(
+            [
+                html.Td(pa.state_label(s.wins)),
+                *[html.Td("✓" if w else "—", className="c") for w in s.wins],
+                html.Td("✓" if all(s.wins) else "—", className="c"),
+                html.Td(c.credits(s.gross), className="num"),
+                html.Td(c.pct(s.probability, 2), className="num"),
+            ]
+        )
+        for s in rows
+    ]
+    return html.Div(
+        [
+            html.H3("Possible payouts", className="ch-h3"),
+            html.P(
+                "Each row is one combination of completed buckets, with your total payout "
+                "for the week. A bucket pays only when all of its predictions are correct.",
+                className="muted small",
+            ),
+            accs,
+            dcc.Graph(
+                figure=charts.states_figure(ev),
+                config={"displayModeBar": False},
+                className="ch-states-graph",
+            ),
+            html.P(
+                "Same total payout: "
+                + "; ".join(
+                    " and ".join(pa.state_label(s.wins) for s in v)
+                    + f" ({c.credits(v[0].gross)} cr)"
+                    for v in same
+                ),
+                className="muted small",
+            )
+            if same
+            else None,
+            html.Details(
+                [
+                    html.Summary("All eight combinations in a table"),
+                    html.Div(
+                        html.Table(
+                            [html.Thead(head), html.Tbody(body)], className="ch-table states"
+                        ),
+                        className="ch-table-wrap",
+                    ),
+                ],
+                className="ch-details",
+            ),
+        ],
+        className="ch-card",
+    )
+
+
+def correct_section(cc) -> html.Div:
+    k0 = cc.most_likely
+    head = html.Tr(
+        [
+            html.Th("Correct", className="num"),
+            html.Th("Combinations", className="num"),
+            html.Th("Chance", className="num"),
+            html.Th("Average payout", className="num"),
+            html.Th("Range", className="num"),
+            html.Th("Get 100+ back", className="num"),
+            html.Th("Share of expected", className="num"),
+        ]
+    )
+    body = [
+        html.Tr(
+            [
+                html.Td(str(r.k), className="num"),
+                html.Td(str(r.combinations), className="num"),
+                html.Td(c.pct(r.probability, 2), className="num"),
+                html.Td(
+                    f"{r.expected_gross:,.2f}" if r.expected_gross is not None else "—",
+                    className="num",
+                ),
+                html.Td(f"{r.min_gross:,.0f}–{r.max_gross:,.0f}", className="num"),
+                html.Td(c.pct(r.p_recover, 1) if r.p_recover is not None else "—", className="num"),
+                html.Td(f"{r.contribution:,.2f}", className="num"),
+            ]
+        )
+        for r in cc.rows
+    ]
+    return html.Div(
+        [
+            html.H3("How many predictions might you get right?", className="ch-h3"),
+            html.Div(
+                [
+                    html.Span(["Expected: ", html.Strong(f"{cc.expected_correct:.1f} of 9")]),
+                    html.Span(["Most likely: ", html.Strong(f"{cc.most_likely} correct")]),
+                ],
+                className="ch-kpis small",
+            ),
+            dcc.Graph(
+                id=c.T("k-hist"),
+                figure=charts.correct_histogram(cc, k0),
+                config={"displayModeBar": False},
+                className="ch-hist",
+            ),
+            html.Div(
+                [
+                    html.Span("Look at:", className="muted small"),
+                    dcc.RadioItems(
+                        id=c.T("k-select"),
+                        value=k0,
+                        inline=True,
+                        className="ch-k",
+                        options=[{"label": str(k), "value": k} for k in range(10)],
+                    ),
+                ],
+                className="ch-k-row",
+            ),
+            html.Div(id=c.T("k-detail"), children=k_detail(cc, k0)),
+            html.P(
+                "More correct predictions don't always mean a bigger payout: a bucket pays only "
+                "when every one of its predictions is right. Two correct Challenger picks can get "
+                "your 100 back, while six correct picks spread across unfinished buckets can pay "
+                "nothing.",
+                className="muted small",
+            ),
+            html.Details(
+                [
+                    html.Summary("Average payout by number correct"),
+                    dcc.Graph(
+                        figure=charts.conditional_payout_figure(cc, k0),
+                        config={"displayModeBar": False},
+                    ),
+                ],
+                className="ch-details",
+            ),
+            html.Details(
+                [
+                    html.Summary("Full table (all 512 combinations, grouped)"),
+                    html.Div(
+                        html.Table([html.Thead(head), html.Tbody(body)], className="ch-table"),
+                        className="ch-table-wrap",
+                    ),
+                    html.P(
+                        "Average payout and 'Get 100+ back' are conditional: they assume "
+                        "exactly that many predictions are correct. 'Share of expected' is "
+                        "that count's contribution to your overall expected payout.",
+                        className="muted small",
+                    ),
+                ],
+                className="ch-details",
+            ),
+        ],
+        className="ch-card",
+    )
+
+
+def k_detail(cc, k: int) -> html.Div:
+    r = cc.rows[int(k)]
+    if r.probability == 0:
+        return html.Div(
+            f"Exactly {r.k} correct can't happen with these estimates.",
+            className="ch-kdetail muted small",
+        )
+    return html.Div(
+        [
+            html.Strong(f"If exactly {r.k} of 9 are correct"),
+            html.Span(
+                f"chance {c.pct(r.probability, 1)} · {r.combinations} combinations",
+                className="muted small",
+            ),
+            html.Div(
+                [
+                    html.Span(["Average payout ", html.Strong(f"{r.expected_gross:,.2f} cr")]),
+                    html.Span(["Range ", html.Strong(f"{r.min_gross:,.2f}–{r.max_gross:,.2f}")]),
+                    html.Span(["Get 100+ back ", html.Strong(c.pct(r.p_recover, 1))]),
+                ],
+                className="ch-kstats small",
+            ),
+        ],
+        className="ch-kdetail",
     )
 
 
@@ -727,12 +893,6 @@ def review(service, snap, sels, avail, state, local) -> html.Div:
                     html.Button(
                         "← Back to builder",
                         id={"t": "nav", "to": "build", "i": "rv"},
-                        n_clicks=0,
-                        className="ch-btn ghost",
-                    ),
-                    html.Button(
-                        "← Analysis",
-                        id={"t": "nav", "to": "analyse", "i": "rv"},
                         n_clicks=0,
                         className="ch-btn ghost",
                     ),

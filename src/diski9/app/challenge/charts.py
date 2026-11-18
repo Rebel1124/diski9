@@ -1,161 +1,155 @@
-"""Plotly figures for "Your Payout Probability" (Phase 6B).
+"""Plotly figures for the portfolio analysis (Phase 6B.1).
 
-Every number comes from the production engine (``PortfolioEvaluation.distribution``
-and ``at_least``); this module only turns those exact values into drawing
-coordinates. No probabilities are interpolated or smoothed.
-
-**"At least" view (survival function).** For distinct attainable payouts
-v0 = 0 < v1 < ... < vn with S(v) = P(gross >= v):
-
-* the curve is 1.0 at 0 credits (S(v0) = 1, a closed dot);
-* for a threshold t in (v(i-1), v(i)] the value is S(v(i)) - the payout v(i) is
-  attainable, so a threshold *equal* to it still counts it (closed dot at the
-  right end of each level);
-* just above v(i) the curve drops to S(v(i+1)); above the maximum it is 0.
-
-Vertices: (0, 1) -> (0, S(v1)) -> (v1, S(v1)) -> (v1, S(v2)) -> ... -> (vn, S(vn))
--> (vn, 0) -> (x_end, 0): vertical drops sit at the attainable payouts, horizontal
-levels between them.
+Every number comes from the engines (``GroupEvaluation`` and
+``CorrectCountAnalysis``); this module only draws them. The Phase 6B survival and
+exact-payout charts were removed from the participant interface; the underlying
+engine calculations (``payout_distribution``, ``probability_at_least``) remain.
 """
 
 from __future__ import annotations
 
-from decimal import Decimal
-
 import plotly.graph_objects as go
 
-from diski9.challenge.structured import PortfolioEvaluation
+from diski9.challenge.analysis import CorrectCountAnalysis, state_label
+from diski9.challenge.structured import GroupEvaluation
 
-TARGET = Decimal("100.00")
 BG = "#151b23"
 GRID = "#2a3441"
 TEXT = "#e6edf3"
 MUTED = "#8b98a5"
-LINE = "#2dd4bf"
-MARK = "#f2b84b"
+TEAL = "#2dd4bf"
+AMBER = "#f2b84b"
+GREY = "#3a4656"
+BUCKET = {"A": "#34d399", "B": "#60a5fa", "C": "#f2b84b", "NINE": "#b392f0"}
 
 
-def survival_vertices(points, x_end: float) -> tuple[list[float], list[float]]:
-    """Step-function vertices for the "at least" curve (see module docstring)."""
-    xs, ys = [0.0], [1.0]
-    for p in points[1:]:
-        x = float(p.gross)
-        xs += [xs[-1], x]
-        ys += [p.at_least, p.at_least]
-    last = xs[-1]
-    xs += [last, max(x_end, last)]
-    ys += [0.0, 0.0]
-    return xs, ys
-
-
-def focus_range(ev: PortfolioEvaluation) -> float:
-    """Upper x limit that shows every payout except the all-win state (the primary
-    bucket payouts), with headroom, and never hides the 100-credit marker."""
-    non_all = [float(s.gross) for s in ev.states if not all(s.wins)]
-    return max(max(non_all, default=0.0), float(TARGET)) * 1.12
-
-
-def _layout(fig: go.Figure, title: str, x_max: float, y_title: str) -> go.Figure:
+def _base(fig: go.Figure, height: int) -> go.Figure:
     fig.update_layout(
-        title={"text": title, "font": {"size": 14, "color": TEXT}, "x": 0, "xanchor": "left"},
         paper_bgcolor=BG,
         plot_bgcolor=BG,
         font={"color": TEXT, "size": 12},
-        margin={"l": 52, "r": 16, "t": 40, "b": 46},
-        height=320,
+        height=height,
+        margin={"l": 8, "r": 8, "t": 8, "b": 8},
         showlegend=False,
         hoverlabel={"bgcolor": "#1b232d", "bordercolor": GRID, "font": {"color": TEXT}},
-    )
-    fig.update_xaxes(
-        title="Gross payout (virtual credits)",
-        range=[0, x_max],
-        gridcolor=GRID,
-        zeroline=False,
-        color=MUTED,
-    )
-    fig.update_yaxes(
-        title=y_title,
-        tickformat=".0%",
-        gridcolor=GRID,
-        zeroline=False,
-        color=MUTED,
-        rangemode="tozero",
     )
     return fig
 
 
-def at_least_figure(ev: PortfolioEvaluation, x_max: float, threshold: float | None = None):
-    points = ev.distribution()
-    xs, ys = survival_vertices(points, x_max * 1.05)
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=xs,
-            y=ys,
-            mode="lines",
-            line={"color": LINE, "width": 2.5, "shape": "linear"},
-            hoverinfo="skip",
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=[float(p.gross) for p in points],
-            y=[p.at_least for p in points],
-            mode="markers",
-            marker={"color": LINE, "size": 8, "line": {"color": BG, "width": 1}},
-            customdata=[[f"{p.gross:,.2f}", f"{p.at_least:.2%}"] for p in points],
-            hovertemplate="At least %{customdata[0]} credits: %{customdata[1]}<extra></extra>",
-        )
-    )
-    rec = ev.at_least(TARGET)
-    fig.add_vline(x=100, line={"color": MARK, "width": 1.5, "dash": "dash"})
-    fig.add_trace(
-        go.Scatter(
-            x=[100],
-            y=[rec],
-            mode="markers",
-            marker={"color": MARK, "size": 10, "symbol": "diamond"},
-            hovertemplate=f"Recover 100 credits: {rec:.2%}<extra></extra>",
+def recovery_donut(ev: GroupEvaluation) -> go.Figure:
+    """Recover 100+ / something but under 100 / nothing (they sum to 100%)."""
+    labels = ["100+ back", "Under 100 back", "Nothing back"]
+    values = [ev.p_recover, ev.p_partial, ev.p_zero]
+    fig = go.Figure(
+        go.Pie(
+            labels=labels,
+            values=values,
+            hole=0.68,
+            sort=False,
+            direction="clockwise",
+            marker={"colors": [TEAL, AMBER, GREY], "line": {"color": BG, "width": 2}},
+            textinfo="none",
+            hovertemplate="%{label}: %{percent:.1%}<extra></extra>",
         )
     )
     fig.add_annotation(
-        x=100,
-        y=rec,
-        text=f"Recover 100: {rec:.1%}",
+        text=f"<b>{ev.p_recover:.1%}</b><br><span style='font-size:11px'>get 100+ back</span>",
         showarrow=False,
-        xanchor="left",
-        yanchor="bottom",
-        xshift=8,
-        font={"color": MARK},
+        font={"size": 20, "color": TEAL},
     )
-    if threshold is not None and threshold > 0:
-        p = ev.at_least(Decimal(str(round(threshold, 2))))
-        fig.add_vline(x=threshold, line={"color": MUTED, "width": 1, "dash": "dot"})
-        fig.add_trace(
-            go.Scatter(
-                x=[threshold],
-                y=[p],
-                mode="markers",
-                marker={"color": TEXT, "size": 8},
-                hovertemplate=f"At least {threshold:,.0f} credits: {p:.2%}<extra></extra>",
-            )
-        )
-    return _layout(fig, "Chance of getting at least this payout", x_max, "Probability")
+    return _base(fig, 210)
 
 
-def exact_figure(ev: PortfolioEvaluation, x_max: float):
-    points = ev.distribution()
-    width = max(x_max / 90, 1.0)
+def state_rows(ev: GroupEvaluation) -> list:
+    """The eight bucket-success states sorted by gross payout (stable on state order)."""
+    return sorted(ev.states, key=lambda s: s.gross)
+
+
+def states_figure(ev: GroupEvaluation) -> go.Figure:
+    rows = state_rows(ev)
+    labels = [f"{state_label(s.wins)}  ·  {s.gross:,.2f} cr" for s in rows]
+    colours = [TEAL if s.gross >= ev.target else (AMBER if s.gross > 0 else GREY) for s in rows]
     fig = go.Figure(
         go.Bar(
-            x=[float(p.gross) for p in points],
-            y=[p.probability for p in points],
-            width=width,
-            marker={"color": [MARK if p.gross >= TARGET else LINE for p in points]},
-            customdata=[[f"{p.gross:,.2f}", f"{p.probability:.2%}", len(p.states)] for p in points],
-            hovertemplate="Exactly %{customdata[0]} credits: %{customdata[1]}"
-            "<br>Outcome combinations: %{customdata[2]}<extra></extra>",
+            y=list(range(len(rows))),
+            x=[s.probability for s in rows],
+            orientation="h",
+            marker={"color": colours},
+            text=[f"{s.probability:.1%}" for s in rows],
+            textposition="outside",
+            cliponaxis=False,
+            customdata=[
+                [state_label(s.wins), f"{s.gross:,.2f}", f"{s.probability:.2%}"] for s in rows
+            ],
+            hovertemplate="%{customdata[0]}: total %{customdata[1]} credits, chance "
+            "%{customdata[2]}<extra></extra>",
         )
     )
-    fig.add_vline(x=100, line={"color": MARK, "width": 1.5, "dash": "dash"})
-    return _layout(fig, "Chance of each exact payout", x_max, "Probability")
+    fig.update_yaxes(
+        tickvals=list(range(len(rows))),
+        ticktext=labels,
+        color=TEXT,
+        automargin=True,
+        showgrid=False,
+        autorange="reversed",
+    )
+    fig.update_xaxes(
+        tickformat=".0%",
+        gridcolor=GRID,
+        color=MUTED,
+        zeroline=False,
+        range=[0, max(s.probability for s in rows) * 1.25],
+    )
+    return _base(fig, 300)
+
+
+def correct_histogram(cc: CorrectCountAnalysis, selected: int | None = None) -> go.Figure:
+    ks = [r.k for r in cc.rows]
+    colours = [TEAL if k == selected else "#2a6f66" for k in ks]
+    fig = go.Figure(
+        go.Bar(
+            x=ks,
+            y=[r.probability for r in cc.rows],
+            marker={"color": colours},
+            text=[f"{r.probability:.0%}" if r.probability >= 0.005 else "" for r in cc.rows],
+            textposition="outside",
+            cliponaxis=False,
+            customdata=[[r.combinations, f"{r.probability:.2%}"] for r in cc.rows],
+            hovertemplate="%{x} correct: %{customdata[1]} (%{customdata[0]} combinations)"
+            "<extra></extra>",
+        )
+    )
+    fig.update_xaxes(tickvals=ks, title="Correct predictions", color=MUTED, showgrid=False)
+    fig.update_yaxes(
+        tickformat=".0%",
+        gridcolor=GRID,
+        color=MUTED,
+        zeroline=False,
+        range=[0, max(r.probability for r in cc.rows) * 1.2],
+    )
+    fig.update_layout(margin={"l": 8, "r": 8, "t": 8, "b": 40})
+    return _base(fig, 230)
+
+
+def conditional_payout_figure(cc: CorrectCountAnalysis, selected: int | None = None) -> go.Figure:
+    """Average gross payout if exactly k predictions are correct (a separate chart, not a
+    second axis)."""
+    ks = [r.k for r in cc.rows]
+    vals = [r.expected_gross or 0.0 for r in cc.rows]
+    fig = go.Figure(
+        go.Bar(
+            x=ks,
+            y=vals,
+            marker={"color": [AMBER if k == selected else "#7a6233" for k in ks]},
+            customdata=[
+                [f"{v:,.2f}" if r.expected_gross is not None else "impossible"]
+                for v, r in zip(vals, cc.rows, strict=True)
+            ],
+            hovertemplate="%{x} correct: average %{customdata[0]} credits<extra></extra>",
+        )
+    )
+    fig.add_hline(y=100, line={"color": TEAL, "width": 1, "dash": "dash"})
+    fig.update_xaxes(tickvals=ks, title="Correct predictions", color=MUTED, showgrid=False)
+    fig.update_yaxes(title="Average payout (cr)", gridcolor=GRID, color=MUTED, zeroline=False)
+    fig.update_layout(margin={"l": 8, "r": 8, "t": 8, "b": 40})
+    return _base(fig, 200)

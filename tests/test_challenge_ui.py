@@ -18,6 +18,7 @@ import pytest
 from diski9.app.challenge import callbacks as cb
 from diski9.app.challenge import charts, pages
 from diski9.app.challenge.service import ChallengeService, key_str, parse_key
+from diski9.challenge import analysis as pa
 from diski9.challenge import demo, education
 from diski9.challenge.config import DEFAULT_CONFIG as CFG
 from diski9.challenge.roundsheet import (
@@ -44,6 +45,12 @@ ROOT = Path(__file__).parents[1]
 POOL = json.loads((ROOT / "docs/research/weekly_challenge_risk/pool_weekend.json").read_text())
 NOW = datetime(2026, 11, 18, 9, 0, tzinfo=UTC)  # after the demo snapshot, before kickoffs
 D = Decimal
+
+
+def jtext(component) -> str:
+    from plotly.utils import PlotlyJSONEncoder
+
+    return json.dumps(component, cls=PlotlyJSONEncoder)
 
 
 class _Data:
@@ -217,8 +224,10 @@ def test_pick_remove_and_guards(svc, snap):
     keys = valid_keys(snap)
     s, _ = cb.apply_action(svc, None, "mode", "demo")
     assert s["mode"] == "demo" and s["fp"] == snap.fingerprint and s["selections"] == []
-    s, flash = cb.apply_action(svc, s, "nav", "analyse")
+    s, flash = cb.apply_action(svc, s, "nav", "review")
     assert s["stage"] == "overview" and "Complete" in flash["text"]
+    s2, flash = cb.apply_action(svc, s, "nav", "no-such-step")
+    assert s2["stage"] == "overview" and flash is None
     for k in keys[:4]:
         s, flash = cb.apply_action(svc, s, "pick", k)
         assert flash is None
@@ -255,8 +264,8 @@ def test_complete_portfolio_navigation_and_submission(svc, snap):
     s, _ = cb.apply_action(svc, None, "mode", "demo")
     for k in keys:
         s, _ = cb.apply_action(svc, s, "pick", k)
-    s, flash = cb.apply_action(svc, s, "nav", "analyse")
-    assert s["stage"] == "analyse" and flash is None
+    s, flash = cb.apply_action(svc, s, "nav", "review")
+    assert s["stage"] == "review" and flash is None
     s, flash = cb.apply_action(svc, s, "submit")
     sub = s["submitted"]
     assert flash["kind"] == "ok" and "not a competition entry" in flash["text"]
@@ -317,43 +326,47 @@ def test_filters_never_drop_selections(svc, snap):
                                      False)  # fmt: skip
     assert "0 of 60" in text
     trk = pages.tracker_view(svc, snap, keys, False)
-    assert "9/9" in json.dumps(trk.to_plotly_json(), default=str)
+    assert "9/9" in jtext(trk)
     _, text = pages.fixture_list(svc, snap, keys, {"market": "BTTS", "bucket": "B"},
                                  _Data().local, False)  # fmt: skip
     assert "filtered from 60" in text
 
 
 # ------------------------------------------------------------------- charts
-def test_survival_curve_steps_and_threshold_semantics(svc, snap):
-    mk, md = svc.evaluate(snap, valid_keys(snap))
-    pts = mk.distribution()
-    xs, ys = charts.survival_vertices(pts, 600)
-    assert (xs[0], ys[0]) == (0.0, 1.0)  # starts at 100% at zero credits
-    assert xs[1] == 0.0 and ys[1] == pts[1].at_least  # drops just after 0
-    for i in range(1, len(xs) - 1):  # only vertical or horizontal segments, never sloped
-        assert xs[i] == xs[i + 1] or ys[i] == ys[i + 1]
-        assert ys[i + 1] <= ys[i]  # never increases
-    for p in pts[1:]:  # each attainable payout is the closed right end of its level
-        i = xs.index(float(p.gross))
-        assert ys[i] == p.at_least
-        assert mk.at_least(p.gross) == p.at_least  # threshold equal to a payout includes it
-    assert ys[-1] == 0.0 and xs[-2] == float(pts[-1].gross)
-    fig = charts.at_least_figure(mk, charts.focus_range(mk), 100)
-    marker = [t for t in fig.data if t.x and list(t.x) == [100]][0]
-    assert marker.y[0] == mk.p_recover  # matches the summary
-    assert all(t.line.shape in (None, "linear") for t in fig.data if t.mode == "lines")
+def test_recovery_donut_reconciles_to_one(svc, snap):
+    """Phase 6B.1 replaced the survival/exact charts in the UI with these three views."""
+    port = svc.portfolio(snap, valid_keys(snap))
+    ev = pa.evaluate_with(port, pa.market_probability)
+    fig = charts.recovery_donut(ev)
+    vals = list(fig.data[0].values)
+    assert vals == [ev.p_recover, ev.p_partial, ev.p_zero]
+    assert math.isclose(sum(vals), 1.0, abs_tol=1e-12)
 
 
-def test_exact_chart_and_focus_do_not_change_probabilities(svc, snap):
-    mk, _ = svc.evaluate(snap, valid_keys(snap))
-    full = charts.exact_figure(mk, float(mk.max_gross) * 1.05)
-    focus = charts.exact_figure(mk, charts.focus_range(mk))
-    assert list(full.data[0].y) == list(focus.data[0].y)
-    assert math.isclose(sum(full.data[0].y), 1.0, abs_tol=1e-12)
-    assert len(full.data[0].x) == len(mk.distribution()) <= 8
-    assert (
-        charts.focus_range(mk) >= 100 and full.layout.xaxis.range[1] > focus.layout.xaxis.range[1]
-    )
+def test_states_chart_lists_eight_states_by_payout(svc, snap):
+    port = svc.portfolio(snap, valid_keys(snap))
+    ev = pa.evaluate_with(port, pa.market_probability)
+    rows = charts.state_rows(ev)
+    assert len(rows) == 8 and [s.gross for s in rows] == sorted(s.gross for s in ev.states)
+    fig = charts.states_figure(ev)
+    assert list(fig.data[0].x) == [s.probability for s in rows]
+    assert "All nine correct" in fig.layout.yaxis.ticktext[-1]
+    assert fig.layout.yaxis.autorange == "reversed"  # smallest payout at the top
+
+
+def test_correct_histogram_and_conditional_chart(svc, snap):
+    port = svc.portfolio(snap, valid_keys(snap))
+    cc = pa.correct_count_analysis(port)
+    h = charts.correct_histogram(cc, 5)
+    assert list(h.data[0].x) == list(range(10))
+    assert math.isclose(sum(h.data[0].y), 1.0, abs_tol=1e-12)
+    cond = charts.conditional_payout_figure(cc, 5)
+    assert list(cond.data[0].y) == [r.expected_gross or 0.0 for r in cc.rows]
+    panel = jtext(pages.analysis_panel(svc, snap, valid_keys(snap), {"source": "model"})
+                       )  # fmt: skip
+    assert "Diski 9 estimate" in panel and "Most likely" in panel
+    empty = jtext(pages.analysis_panel(svc, snap, valid_keys(snap)[:5], {}))
+    assert "5/9 so far" in empty
 
 
 def test_market_model_switch_keeps_payouts(svc, snap):
@@ -361,8 +374,9 @@ def test_market_model_switch_keeps_payouts(svc, snap):
     assert [s.gross for s in mk.states] == [s.gross for s in md.states]
     assert [a.payout for a in mk.buckets] == [a.payout for a in md.buckets]
     assert mk.p_recover != md.p_recover
-    body_m = json.dumps(pages.analysis_body(mk, snap).to_plotly_json(), default=str)
-    body_d = json.dumps(pages.analysis_body(md, snap).to_plotly_json(), default=str)
+    keys = valid_keys(snap)
+    body_m = jtext(pages.analysis_panel(svc, snap, keys, {"source": "market"}))  # fmt: skip
+    body_d = jtext(pages.analysis_panel(svc, snap, keys, {"source": "model"}))  # fmt: skip
     for a in mk.buckets:
         assert f"{a.payout:,.2f}" in body_m and f"{a.payout:,.2f}" in body_d
 
@@ -389,11 +403,11 @@ def test_demo_leaderboards_use_the_scoring_engine():
 
 
 def test_leaderboard_rendering_shows_ties_and_round_types():
-    text = json.dumps(pages.leaderboard_body("weekly", demo.LATEST_ROUND), default=str)
+    text = jtext(pages.leaderboard_body("weekly", demo.LATEST_ROUND))
     assert "=1" in text and "=10" in text and "Void \\u2014 Refunded" in text
-    assert "Practice round" in json.dumps(pages.leaderboard_body("weekly", "DEMO-P1"), default=str)
-    assert "Void round" in json.dumps(pages.leaderboard_body("weekly", "DEMO-V1"), default=str)
-    champ = json.dumps(pages.leaderboard_body("championship", None), default=str)
+    assert "Practice round" in jtext(pages.leaderboard_body("weekly", "DEMO-P1"))
+    assert "Void round" in jtext(pages.leaderboard_body("weekly", "DEMO-V1"))
+    champ = jtext(pages.leaderboard_body("championship", None))
     assert "Round 7 of 10 completed" in champ and "=6" in champ
 
 
@@ -421,7 +435,7 @@ def test_routes_and_existing_screener(data):  # noqa: F811
                         ("/leaderboards", "Leaderboards")):  # fmt: skip
         style, content, nav, _ = route(path, None, None)
         assert style == {"display": "none"}
-        assert words in json.dumps(content.to_plotly_json(), default=str)
+        assert words in jtext(content)
         assert any("on" in link.className for link in nav)
 
 

@@ -947,3 +947,30 @@ table.results td.value-cell { white-space: nowrap; }
   .ch-outs.n3, .ch-outs.n2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ch-fx-head { grid-template-areas: "meta link" "teams teams"; }
 }
+
+/* ===================== Phase 6B.1: analysis ===================== */
+.ch-view { margin: 2px 0 10px; }
+.ch-view label { background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 6px 14px; margin-right: 6px !important; }
+.ch-h3 { display: block; margin: 0 0 8px; }
+.ch-recovery { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 16px; align-items: center; }
+.ch-recovery-legend { display: grid; gap: 6px; }
+.ch-legend-row { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 14px; }
+.ch-legend-row strong { font-variant-numeric: tabular-nums; font-size: 16px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; }
+.sw.teal { background: #2dd4bf; } .sw.amber { background: #f2b84b; } .sw.grey { background: #3a4656; }
+.ch-expect { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px; padding-top: 8px; border-top: 1px solid var(--border); }
+.ch-expect > div { display: flex; flex-direction: column; }
+.ch-expect strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+.ch-acc-pays { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 6px; }
+.ch-kpis { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 4px; }
+.ch-k-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 4px 0 8px; }
+.ch-k label { display: inline-flex !important; align-items: center; justify-content: center; min-width: 30px; padding: 3px 0; margin: 0 4px 4px 0 !important;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); font-variant-numeric: tabular-nums; }
+.ch-k input { position: absolute; opacity: 0; pointer-events: none; }
+.ch-k label:has(input:checked) { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.ch-kdetail { display: grid; gap: 2px; background: var(--surface-2); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.ch-kstats { display: flex; gap: 6px 18px; flex-wrap: wrap; margin-top: 4px; }
+.ch-table th.c, .ch-table td.c { text-align: center; }
+.ch-table th.num, .ch-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ch-empty-analysis { min-height: 120px; }
+@media (max-width: 700px) { .ch-recovery { grid-template-columns: minmax(0, 1fr); } }

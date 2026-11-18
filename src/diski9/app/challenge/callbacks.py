@@ -13,12 +13,12 @@ from decimal import Decimal
 
 from dash import ALL, Input, Output, State, ctx, dcc, html, no_update
 
+from diski9.challenge import analysis as pa
 from diski9.challenge.config import DEFAULT_CONFIG
 from diski9.challenge.structured import SelectionBlock, selection_blocks, validate_portfolio
 
+from . import charts, pages
 from . import components as c
-from . import pages
-from .charts import at_least_figure, exact_figure, focus_range
 from .service import ChallengeService, key_str, parse_key
 
 NAV = (
@@ -67,7 +67,9 @@ def apply_action(service: ChallengeService, state: dict | None, action: str, arg
         )
         return s, None
     if action == "nav":
-        if arg in ("analyse", "review") and service.evaluate(snap, s["selections"]) is None:
+        if arg not in {key for key, _ in pages.STAGES}:
+            return s, None
+        if arg == "review" and service.evaluate(snap, s["selections"]) is None:
             return s, _flash("Complete all nine predictions first.", "warn")
         if arg == "build" and not avail.playable:
             return s, _flash(avail.message, "warn")
@@ -302,54 +304,71 @@ def register(app, data, service: ChallengeService) -> None:
         return 1  # a filter changed: back to the first page
 
     @app.callback(
-        Output({"t": "analysis", "i": ALL}, "children"),
-        Output({"t": "chart", "i": ALL}, "figure"),
-        Output({"t": "thr-out", "i": ALL}, "children"),
-        Input(c.T("source", ALL), "value"),
-        Input(c.T("chart-mode", ALL), "value"),
-        Input(c.T("chart-range", ALL), "value"),
-        Input(c.T("thr", ALL), "value"),
-        State("ch-session", "data"),
-        prevent_initial_call=True,
-    )
-    def refresh_analysis(source, mode_, rng, thr, state):
-        if not source:
-            return [], [], []
-        state = pages.normal_state(state)
-        _, snap, _, sels = pages.current(service, state)
-        evs = service.evaluate(snap, sels) if snap is not None else None
-        if evs is None:
-            return [no_update], [no_update], [no_update]
-        ev = evs[0] if source[0] == "market" else evs[1]
-        x_max = (
-            focus_range(evs[0])
-            if (rng or ["focus"])[0] == "focus"
-            else float(evs[0].max_gross) * 1.05
-        )
-        t = float(thr[0]) if thr and thr[0] is not None else None
-        fig = (
-            exact_figure(ev, x_max)
-            if (mode_ or ["at_least"])[0] == "exact"
-            else at_least_figure(ev, x_max, t)
-        )
-        return (
-            [pages.analysis_body(ev, snap)],
-            [fig],
-            [pages.threshold_text(ev, t if t is not None else 100)],
-        )
-
-    @app.callback(
         Output("ch-prefs", "data"),
         Input(c.T("source", ALL), "value"),
+        Input(c.T("view", ALL), "value"),
         State("ch-prefs", "data"),
         prevent_initial_call=True,
     )
-    def set_source(values, prefs):
+    def set_prefs(source, view, prefs):
         prefs = dict(prefs or {})
-        if not values or values[0] is None or prefs.get("source") == values[0]:
-            return no_update
-        prefs["source"] = values[0]
-        return prefs
+        new = dict(prefs)
+        if source and source[0] is not None:
+            new["source"] = source[0]
+        if view and view[0] is not None:
+            new["view"] = view[0]
+        return no_update if new == prefs else new
+
+    @app.callback(
+        Output({"t": "analysis-view", "i": ALL}, "children"),
+        Output({"t": "analysis-view", "i": ALL}, "style"),
+        Output({"t": "matches-view", "i": ALL}, "style"),
+        Input("ch-session", "data"),
+        Input("ch-prefs", "data"),
+        State({"t": "analysis-view", "i": ALL}, "id"),
+    )
+    def refresh_analysis(state, prefs, ids):
+        if not ids:
+            return [], [], []
+        n = len(ids)
+        if (prefs or {}).get("view", "matches") != "analysis":
+            return [None] * n, [{"display": "none"}] * n, [{}] * n
+        state = pages.normal_state(state)
+        _, snap, _, sels = pages.current(service, state)
+        if snap is None:
+            return [no_update] * n, [{}] * n, [{"display": "none"}] * n
+        body = pages.analysis_panel(service, snap, sels, prefs)
+        return [body] * n, [{}] * n, [{"display": "none"}] * n
+
+    @app.callback(
+        Output({"t": "k-detail", "i": ALL}, "children"),
+        Output({"t": "k-hist", "i": ALL}, "figure"),
+        Input(c.T("k-select", ALL), "value"),
+        State("ch-session", "data"),
+        State("ch-prefs", "data"),
+        prevent_initial_call=True,
+    )
+    def show_k(k, state, prefs):
+        if not k or k[0] is None:
+            return [], []
+        state = pages.normal_state(state)
+        _, snap, _, sels = pages.current(service, state)
+        port = service.portfolio(snap, sels) if snap is not None else None
+        if port is None:
+            return [no_update], [no_update]
+        prob = pa.probability_for((prefs or {}).get("source", "market"))
+        cc = pa.correct_count_analysis(port, prob)
+        return [pages.k_detail(cc, int(k[0]))], [charts.correct_histogram(cc, int(k[0]))]
+
+    @app.callback(
+        Output(c.T("k-select", ALL), "value"),
+        Input(c.T("k-hist", ALL), "clickData"),
+        prevent_initial_call=True,
+    )
+    def click_k(clicks):
+        if not clicks or not clicks[0]:
+            return [no_update] * len(clicks)
+        return [int(clicks[0]["points"][0]["x"])]
 
     @app.callback(
         Output({"t": "lb-body", "i": ALL}, "children"),
