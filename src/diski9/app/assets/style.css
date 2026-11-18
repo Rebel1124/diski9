@@ -1104,3 +1104,21 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-filters .ch-input { width: 100%; min-width: 0; box-sizing: border-box; }
 .ch-calc-legs li { display: grid; gap: 0; margin: 0; }
 .ch-kview label { font-size: 13px; }
+
+/* ===================== Phase 6B.2: withdrawal and My Challenge ===================== */
+.ch-btn.danger { color: #f87171; border-color: rgba(248, 113, 113, .55); }
+.ch-btn.danger:not(.ghost) { background: rgba(248, 113, 113, .12); }
+.ch-btn.danger:hover:not(:disabled) { border-color: #f87171; }
+.ch-modal-icon { color: var(--accent); font-size: 30px; line-height: 1; }
+.ch-modal-icon.warn { color: #f2b84b; }
+.ch-grid-me { align-items: start; }
+.ch-conf-foot { margin-top: 8px; align-items: center; }
+.ch-proto-note { margin: 6px 0 0; }
+.ch-conf-card { margin-top: 14px; }
+.ch-conf-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+.ch-conf-list li { padding: 4px 0; border-top: 1px solid var(--border); }
+.ch-conf-list li:first-child { border-top: 0; }
+.ch-pick-sub { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ch-conf-nine { margin: 10px 0 0; }
+@media (max-width: 900px) { .ch-conf-grid { grid-template-columns: minmax(0, 1fr); } }
+.ch-modal-title.plain { color: var(--text); }

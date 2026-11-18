@@ -124,6 +124,8 @@ def stage_signature(service, state) -> list:
         sub,
         state.get("modal"),
         len(state.get("notes") or []),
+        state.get("confirm"),
+        (state.get("withdrawn") or {}).get("at"),
     ]
 
 
@@ -1123,7 +1125,7 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
     other = bool(sub) and not same
     can_submit = avail.playable and not locked(avail)
     label = (
-        "Confirmed ✓"
+        "Confirmed"
         if same
         else "Replace my confirmed portfolio"
         if other
@@ -1191,8 +1193,9 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
                         n_clicks=0,
                         className="ch-btn ghost",
                     ),
+                    withdraw_button("rv") if sub and can_submit else None,
                     html.Button(
-                        label,
+                        [c.icon("circle-check" if same else "send", "ic-sm"), " ", label],
                         id=c.T("submit"),
                         n_clicks=0,
                         disabled=same or not can_submit,
@@ -1207,7 +1210,61 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
                 className="muted small",
             ),
             confirmation_modal(state, local) if state.get("modal") and sub else None,
+            withdraw_modal(sub, local) if state.get("confirm") == "withdraw" and sub else None,
         ]
+    )
+
+
+def withdraw_button(where: str) -> html.Button:
+    """Secondary, restrained destructive action (never the primary button)."""
+    return html.Button(
+        [c.icon("undo", "ic-sm"), " Withdraw submission"],
+        id={"t": "askwithdraw", "i": where},
+        n_clicks=0,
+        className="ch-btn ghost danger",
+        title="Remove your confirmed entry for this round (you'll be asked to confirm)",
+    )
+
+
+def withdraw_modal(sub, local) -> html.Div:
+    """Explicit confirmation before a confirmed submission is withdrawn."""
+    return html.Div(
+        html.Div(
+            [
+                html.Div(c.icon("alert", "ic-lg"), className="ch-modal-icon warn"),
+                html.H2("Withdraw your submission?", className="ch-modal-title plain"),
+                html.P(
+                    f"This removes your confirmed entry for round {sub['round_id']} "
+                    f"(confirmed {local(sub['at'])} SAST) and clears your working portfolio."
+                ),
+                html.P(
+                    "You can build and submit a new portfolio before the deadline. Your old "
+                    "selections are not resubmitted automatically.",
+                    className="muted small",
+                ),
+                html.Div(
+                    [
+                        html.Button(
+                            "Keep my submission",
+                            id={"t": "cancelwithdraw", "i": 0},
+                            n_clicks=0,
+                            className="ch-btn ghost",
+                        ),
+                        html.Button(
+                            [c.icon("undo", "ic-sm"), " Withdraw submission"],
+                            id={"t": "confirmwithdraw", "i": 0},
+                            n_clicks=0,
+                            className="ch-btn danger",
+                        ),
+                    ],
+                    className="ch-actions",
+                ),
+            ],
+            className="ch-modal",
+            role="alertdialog",
+            **{"aria-modal": "true", "aria-label": "Withdraw submission"},
+        ),
+        className="ch-modal-backdrop",
     )
 
 
@@ -1217,7 +1274,7 @@ def confirmation_modal(state, local) -> html.Div:
     return html.Div(
         html.Div(
             [
-                html.Div("🎉", className="ch-modal-icon", **{"aria-hidden": "true"}),
+                html.Div(c.icon("circle-check", "ic-lg"), className="ch-modal-icon"),
                 html.H2("You're in!", className="ch-modal-title"),
                 html.P(f"Your {demo_word}portfolio has been confirmed."),
                 html.P(html.Strong("9 predictions. 100 virtual credits.")),
@@ -1266,12 +1323,55 @@ def round_state(state, snap, avail, sels) -> tuple[str, str, str]:
             "ok",
             "Your portfolio is confirmed. Your working draft differs and has not been submitted.",
         )
+    wd = state.get("withdrawn") or {}
+    if wd.get("round_id") == snap.round_id and wd.get("mode") == st.mode_key(snap):
+        return (
+            "Withdrawn",
+            "warn",
+            "You withdrew your submission. "
+            + (f"{len(sels)} of 9 predictions in a new draft." if sels else "")
+            + " You can submit a new portfolio before the deadline.",
+        )
     if sels:
         return "Draft in progress", "demo", f"{len(sels)} of 9 predictions chosen."
     return "Not started", "off", "Build a portfolio of nine predictions."
 
 
-def confirmed_portfolio(sub, local) -> html.Div:
+def confirmed_summary(sub, local, can_withdraw: bool) -> html.Div:
+    """Compact card: the frozen submission's Market / Diski 9 / Your View estimates."""
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.H2("Confirmed portfolio", className="ch-h2"),
+                    html.Span(
+                        ("Demonstration · " if sub.get("mode") == "demo" else "")
+                        + f"round {sub['round_id']} · {local(sub['at'])} SAST",
+                        className="muted small",
+                    ),
+                ],
+                className="ch-row-between",
+            ),
+            estimate_cards(sub.get("estimates") or {}),
+            html.Div(
+                [
+                    html.Span(
+                        "Values frozen when you confirmed. Maximum payout "
+                        f"{c.credits(sub.get('max_gross', '0'))}.",
+                        className="muted small",
+                    ),
+                    withdraw_button("me") if can_withdraw else None,
+                ],
+                className="ch-row-between ch-conf-foot",
+            ),
+        ],
+        className="ch-card ch-compact",
+    )
+
+
+def confirmed_predictions(sub) -> html.Details:
+    """Full-width expandable card: the nine frozen predictions in three bucket
+    columns (stacked on narrow screens) and a one-line Diski 9 summary."""
     groups = []
     for b in CFG.buckets:
         picks = [p for p in sub.get("picks", []) if p["bucket"] == b.code]
@@ -1291,9 +1391,14 @@ def confirmed_portfolio(sub, local) -> html.Div:
                                 [
                                     html.Span(p["match"], className="ch-pick-fx"),
                                     html.Span(
-                                        f"{p['outcome']} · Mkt {c.pct(p['market'], 1)} · "
-                                        f"{p['odds']}",
-                                        className="muted small",
+                                        [
+                                            html.Span(p["outcome"]),
+                                            html.Span(
+                                                f"Mkt {c.pct(p['market'], 1)} · {p['odds']}",
+                                                className="muted",
+                                            ),
+                                        ],
+                                        className="ch-pick-sub small",
                                     ),
                                 ],
                                 className="ch-pick-text",
@@ -1306,29 +1411,20 @@ def confirmed_portfolio(sub, local) -> html.Div:
                 className=f"ch-conf-bucket b-{c.BUCKET_CLASS[b.code]}",
             )
         )
-    return html.Div(
+    return html.Details(
         [
-            html.Div(
+            html.Summary("Show my nine predictions"),
+            html.Div(groups, className="ch-conf-grid"),
+            html.P(
                 [
-                    html.H2("Confirmed portfolio", className="ch-h2"),
-                    html.Span(
-                        ("Demonstration · " if sub.get("mode") == "demo" else "")
-                        + f"round {sub['round_id']} · {local(sub['at'])} SAST",
-                        className="muted small",
-                    ),
+                    c.chip("NINE"),
+                    f" {CFG.nine_fold_credits} credits on all nine predictions together "
+                    "(pays only if every prediction is correct).",
                 ],
-                className="ch-row-between",
-            ),
-            estimate_cards(sub.get("estimates") or {}),
-            html.Details(
-                [
-                    html.Summary("Show my nine predictions"),
-                    html.Div(groups, className="ch-conf-grid"),
-                ],
-                className="ch-details",
+                className="small ch-conf-nine",
             ),
         ],
-        className="ch-card",
+        className="ch-details ch-card ch-conf-card",
     )
 
 
@@ -1368,9 +1464,23 @@ def timeline(items) -> html.Div:
 
 
 def my_challenge(service, state, local) -> html.Div:
+    return html.Div(
+        [
+            html.H1("My Challenge", className="ch-h1"),
+            html.Div(id=c.T("me"), children=my_challenge_body(service, state, local)),
+        ],
+        className="ch-page",
+    )
+
+
+def my_challenge_body(service, state, local) -> list:
+    """Re-rendered whenever the participant state changes (withdrawal, a new
+    submission, a restored session), so the page never shows a stale state."""
     state = sync(service, state)
     mode, snap, avail, sels = current(service, state)
     label, cls, line = round_state(state, snap, avail, sels)
+    sub = st.submission_for(state, snap)
+    can_withdraw = bool(sub) and avail.playable and not locked(avail)
     status = html.Div(
         [
             html.Div(
@@ -1396,25 +1506,38 @@ def my_challenge(service, state, local) -> html.Div:
                 className="ch-total-bar",
                 children=html.Div(className="fill", style={"width": f"{len(sels) / 9:.0%}"}),
             ),
-            dcc.Link("Open the Weekly Challenge →", href="/challenge", className="ch-lab-link"),
+            dcc.Link(
+                [
+                    "Build a new portfolio "
+                    if label == "Withdrawn"
+                    else "Open the Weekly Challenge ",
+                    c.icon("arrow-right", "ic-sm"),
+                ],
+                href="/challenge",
+                className="ch-lab-link",
+            ),  # fmt: skip
+            html.P(
+                "Prototype: this entry is kept only in this browser tab. It is not an "
+                "official competition entry.",
+                className="muted small ch-proto-note",
+            ),
         ],
         className="ch-card ch-compact",
     )
-    sub = state.get("submitted")
-    confirmed = (
-        confirmed_portfolio(sub, local)
-        if sub
-        else html.Div(
+    if sub:
+        confirmed = confirmed_summary(sub, local, can_withdraw)
+    else:
+        confirmed = html.Div(
             [
                 html.H2("Confirmed portfolio", className="ch-h2"),
                 html.P(
-                    "Nothing confirmed yet. Confirm a portfolio on the Review & Submit step.",
+                    "Nothing confirmed for this round. Confirm a portfolio on the Review & "
+                    "Submit step.",
                     className="muted small",
                 ),
             ],
             className="ch-card ch-compact",
         )
-    )
     m = demo.demo_summary()
     rate = c.pct(m["recovery_rate"], 0) if m["recovery_rate"] is not None else "—"
     perf = html.Div(
@@ -1506,15 +1629,13 @@ def my_challenge(service, state, local) -> html.Div:
         ],
         className="ch-details ch-card",
     )
-    return html.Div(
-        [
-            html.H1("My Challenge", className="ch-h1"),
-            html.Div([status, confirmed], className="ch-grid-me"),
-            perf,
-            hist,
-        ],
-        className="ch-page",
-    )
+    return [
+        html.Div([status, confirmed], className="ch-grid-me"),
+        confirmed_predictions(sub) if sub else None,
+        perf,
+        hist,
+        withdraw_modal(sub, local) if state.get("confirm") == "withdraw" and sub else None,
+    ]
 
 
 # -------------------------------------------------------------- leaderboards

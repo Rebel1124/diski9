@@ -16,6 +16,7 @@ Shape (``DEFAULT_STATE``):
 * ``parked`` - the draft and submission of the other mode (demo vs live), so the
   two are isolated and switching mode never mixes or drops either.
 * ``withdrawn`` - a note of the last withdrawal (round and time), for display.
+* ``confirm`` - a pending confirmation dialog (``"withdraw"``), UI only.
 
 Every read and every write goes through :func:`reconcile`, which brings a stored
 state up to date with the current round snapshot **eagerly and identically** on
@@ -45,6 +46,7 @@ DEFAULT_STATE = {
     "modal": None,
     "parked": {},
     "withdrawn": None,
+    "confirm": None,
 }
 
 

@@ -150,6 +150,72 @@ def test_invalid_replacement_keeps_the_confirmed_portfolio(svc):
     assert "not valid" in flash["text"] and s3["submitted"] == s["submitted"]
 
 
+# ------------------------------------------------------------------- withdrawal
+def test_withdrawal_needs_confirmation_and_cancel_changes_nothing(svc):
+    s, keys = submitted_live(svc)
+    asked, flash = cb.apply_action(svc, s, "ask_withdraw")
+    assert asked["confirm"] == "withdraw" and asked["submitted"] == s["submitted"]
+    assert flash is None
+    kept, _ = cb.apply_action(svc, asked, "cancel_withdraw")
+    assert kept["confirm"] is None and kept["submitted"] == s["submitted"]
+    assert kept["selections"] == keys
+
+
+def test_withdrawal_clears_entry_and_draft_and_never_resurrects(svc):
+    s, keys = submitted_live(svc)
+    s, _ = cb.apply_action(svc, s, "ask_withdraw")
+    s, flash = cb.apply_action(svc, s, "withdraw")
+    assert flash["kind"] == "ok" and "withdrawn" in flash["text"]
+    assert s["submitted"] is None and s["selections"] == [] and s["stage"] == "build"
+    assert s["withdrawn"]["round_id"] == "2026-W47"
+    LiveService.generation = 3  # a later restart / snapshot rebuild
+    r = st.reconcile(svc, s)
+    assert r["submitted"] is None and r["selections"] == []
+    s2, _ = cb.apply_action(svc, s, "pick", keys[0])  # starting fresh
+    assert s2["selections"] == [keys[0]] and s2["submitted"] is None
+    label, _, _ = pages.round_state(s2, svc.live(), svc.availability("live"), s2["selections"])
+    assert label == "Withdrawn"
+    for k in keys[1:]:
+        s2, _ = cb.apply_action(svc, s2, "pick", k)
+    s3, _ = cb.apply_action(svc, s2, "submit")
+    assert s3["submitted"] is not None and s3["withdrawn"] is None
+
+
+def test_withdrawal_is_refused_after_the_deadline(svc):
+    from diski9.challenge.roundsheet import assess_round
+
+    s, _ = submitted_live(svc)
+
+    class Locked(LiveService):
+        def availability(self, mode):
+            return assess_round(self.live(), self.live().deadline + timedelta(minutes=1))
+
+    locked = Locked()
+    s2, flash = cb.apply_action(locked, s, "ask_withdraw")
+    assert "deadline has passed" in flash["text"] and s2["submitted"] == s["submitted"]
+    s3, flash = cb.apply_action(locked, dict(s, confirm="withdraw"), "withdraw")
+    assert s3["submitted"] == s["submitted"] and "no longer be withdrawn" in flash["text"]
+
+
+def test_clear_draft_and_replace_never_touch_or_remove_the_submission(svc):
+    s, keys = submitted_live(svc)
+    cleared, _ = cb.apply_action(svc, s, "clear")
+    assert cleared["selections"] == [] and cleared["submitted"] == s["submitted"]
+    s_no, flash = cb.apply_action(svc, {"mode": None}, "ask_withdraw")
+    assert "no confirmed submission" in flash["text"]
+
+
+def test_withdraw_controls_on_review_and_my_challenge(svc):
+    s, _ = submitted_live(svc)
+    me = jtext(pages.my_challenge(svc, s, _Data().local))
+    assert '"t": "askwithdraw"' in me and "Show my nine predictions" in me
+    assert "browser tab" in me  # prototype, non-authoritative
+    asked, _ = cb.apply_action(svc, s, "ask_withdraw")
+    me = jtext(pages.my_challenge(svc, asked, _Data().local))
+    assert "Withdraw your submission?" in me and '"t": "confirmwithdraw"' in me
+    assert '"t": "cancelwithdraw"' in me
+
+
 # ------------------------------------------------------------------- browser
 SERVER_RESTART_SCRIPT = """
 const { chromium } = require('playwright');
@@ -165,6 +231,7 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
   // server A: build and confirm a live portfolio
   await p.goto(A + '/challenge'); await p.waitForSelector(sel({ k: KEYS[0], t: 'pick' }));
   for (const k of KEYS) { await p.locator(sel({ k, t: 'pick' })).click(); await idle(); }
+  await p.waitForFunction(() => (document.querySelector('.ch-total') || {}).innerText === '9/9');
   await p.locator(sel({ i: 'tracker', t: 'nav', to: 'review' })).click(); await idle();
   await p.locator(sel({ i: 0, t: 'submit' })).click(); await p.waitForSelector('.ch-modal');
   await p.locator(sel({ i: 0, t: 'modalclose' })).click(); await idle();
@@ -190,6 +257,19 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
   out.afterReload = await txt('.ch-total');
   await p.goto(B + '/challenge/me'); await p.waitForSelector('.ch-pill'); await idle();
   out.meAfter = await txt('.ch-pill');
+  // withdrawal: cancel leaves everything; confirm removes the entry for good
+  await p.locator(sel({ i: 'me', t: 'askwithdraw' })).click(); await p.waitForSelector('.ch-modal'); await idle();
+  await p.locator(sel({ i: 0, t: 'cancelwithdraw' })).click(); await idle();
+  out.afterCancel = await txt('.ch-pill');
+  await p.locator(sel({ i: 'me', t: 'askwithdraw' })).click(); await p.waitForSelector('.ch-modal'); await idle();
+  await p.locator(sel({ i: 0, t: 'confirmwithdraw' })).click(); await idle();
+  out.afterWithdraw = await txt('.ch-pill');
+  await p.reload(); await p.waitForSelector('.ch-pill'); await idle();
+  out.withdrawnAfterReload = await txt('.ch-pill');
+  out.noSubmission = !(await p.locator('#ch-root').innerText()).includes('Show my nine predictions');
+  await p.goto(B + '/challenge'); await p.waitForSelector(sel({ k: KEYS[3], t: 'pick' })); await idle();
+  await p.locator(sel({ k: KEYS[3], t: 'pick' })).click(); await idle();
+  out.freshDraft = await txt('.ch-total');
   console.log(JSON.stringify(out)); await b.close();
 })().catch(e => { console.error(e); process.exit(1); });
 """
@@ -238,6 +318,9 @@ def test_browser_server_restart_restores_and_never_resurrects(data, monkeypatch)
         )
         assert out["afterClick"] == "8/9" and out["afterReload"] == "8/9"
         assert out["meAfter"] == "CONFIRMED"  # the submission is untouched by a draft edit
+        assert out["afterCancel"] == "CONFIRMED"
+        assert out["afterWithdraw"] == "WITHDRAWN" and out["withdrawnAfterReload"] == "WITHDRAWN"
+        assert out["noSubmission"] and out["freshDraft"] == "1/9"  # nothing resurrected
     finally:
         sa.shutdown()
         sb.shutdown()

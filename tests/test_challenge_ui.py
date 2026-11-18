@@ -752,7 +752,7 @@ def test_demo_summary_excludes_practice_and_void():
 def test_my_challenge_states(svc, snap):
     keys = valid_keys(snap)
     empty = jtext(pages.my_challenge(svc, None, _Data().local))
-    assert "Unavailable" in empty and "Nothing confirmed yet" in empty
+    assert "Unavailable" in empty and "Nothing confirmed for this round" in empty
     s, _ = cb.apply_action(svc, None, "mode", "demo")
     s, _ = cb.apply_action(svc, s, "pick", keys[0])
     assert "Draft in progress" in jtext(pages.my_challenge(svc, s, _Data().local))

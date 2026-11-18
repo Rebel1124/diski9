@@ -39,6 +39,9 @@ ACTION_OF = {
     "cancelflash": "cancel",
     "modalclose": "close_modal",
     "dismissnotes": "dismiss_notes",
+    "askwithdraw": "ask_withdraw",
+    "confirmwithdraw": "withdraw",
+    "cancelwithdraw": "cancel_withdraw",
 }
 
 
@@ -92,6 +95,8 @@ def _apply(service, state, action, arg, personal):
     if action == "close_modal":
         s["modal"] = None
         return s, None
+    if action in ("ask_withdraw", "withdraw", "cancel_withdraw"):
+        return withdraw(service, s, snap, avail, action)
     if action == "dismiss_notes":
         s["notes"] = []
         return s, None
@@ -184,6 +189,48 @@ def replace_selection(service, s, snap, arg, confirm: bool):
     return s, _flash(f"Replaced {c.outcome_text(old_o)} with {c.outcome_text(new)}.", "ok")
 
 
+def withdraw(service, s, snap, avail, action):
+    """Withdraw the confirmed submission for the current round (asked, then
+    confirmed). On success the confirmed entry and the working draft are cleared so
+    the participant starts fresh; old selections are never resubmitted. Cancelling
+    changes nothing. Not possible once the round has locked."""
+    if action == "cancel_withdraw":
+        s["confirm"] = None
+        return s, None
+    if pages.locked(avail):  # checked first: a locked round may not be "playable"
+        s["confirm"] = None
+        return s, _flash(
+            "The deadline has passed: a confirmed submission can no longer be withdrawn.", "warn"
+        )
+    sub = st.submission_for(s, snap)
+    if sub is None or not avail.playable:
+        s["confirm"] = None
+        return s, _flash("There is no confirmed submission to withdraw for this round.", "warn")
+    if action == "ask_withdraw":
+        s["confirm"] = "withdraw"
+        return s, None
+    s.update(
+        submitted=None,
+        selections=[],
+        meta={},
+        notes=[],
+        stage="build",
+        modal=None,
+        confirm=None,
+        withdrawn={
+            "round_id": sub["round_id"],
+            "mode": sub.get("mode"),
+            "at": service.now().astimezone(UTC).isoformat(),
+            "confirmed_at": sub.get("at"),
+        },
+    )
+    return s, _flash(
+        "Your submission was withdrawn. You can build and submit a new portfolio before the "
+        "deadline.",
+        "ok",
+    )
+
+
 def _label(snap, o) -> str:
     fx = snap.fixture(o.fixture_id)
     return f"{fx.home} v {fx.away}: {c.outcome_text(o)}"
@@ -241,6 +288,7 @@ def submit(service, s, snap, avail, personal=None):
         "expected_market": evs["market"].expected_gross,
     }
     s["modal"] = s["submitted"]["at"]
+    s["withdrawn"] = None  # a new confirmation supersedes an earlier withdrawal note
     return s, _flash(
         (
             "Your confirmed demonstration portfolio was replaced."
@@ -334,6 +382,9 @@ def register(app, data, service: ChallengeService) -> None:
         Input({"t": "cancelflash", "i": ALL}, "n_clicks"),
         Input({"t": "modalclose", "i": ALL}, "n_clicks"),
         Input({"t": "dismissnotes", "i": ALL}, "n_clicks"),
+        Input({"t": "askwithdraw", "i": ALL}, "n_clicks"),
+        Input({"t": "confirmwithdraw", "i": ALL}, "n_clicks"),
+        Input({"t": "cancelwithdraw", "i": ALL}, "n_clicks"),
         Input({"t": "nav", "to": ALL, "i": ALL}, "n_clicks"),
         Input({"t": "mode", "m": ALL}, "n_clicks"),
         Input(c.T("clear", ALL), "n_clicks"),
@@ -571,6 +622,18 @@ def register(app, data, service: ChallengeService) -> None:
         if not clicks or not clicks[0]:
             return [no_update] * len(clicks)
         return [int(clicks[0]["points"][0]["x"])]
+
+    @app.callback(
+        Output({"t": "me", "i": ALL}, "children"),
+        Input("ch-session", "data"),
+        State({"t": "me", "i": ALL}, "id"),
+        prevent_initial_call=True,
+    )
+    def refresh_me(state, ids):
+        """My Challenge follows the store (withdrawal, confirmation, restored state)."""
+        if not ids:
+            return []
+        return [pages.my_challenge_body(service, state, local)] * len(ids)
 
     @app.callback(
         Output("ch-strip", "children"),
