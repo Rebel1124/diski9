@@ -1,0 +1,10072 @@
+{
+ "config": "Broad-60 \u00b7 4/3/2 \u00b7 40/30/20/10",
+ "seed": 62102,
+ "truth": "market",
+ "scenarios": {
+  "A": {
+   "top10": [
+    150,
+    135,
+    120,
+    110,
+    100,
+    95,
+    90,
+    85,
+    80,
+    75
+   ],
+   "floor": 50,
+   "ties": "average"
+  },
+  "B": {
+   "top10": [
+    150,
+    135,
+    120,
+    110,
+    100,
+    95,
+    90,
+    85,
+    80,
+    75
+   ],
+   "floor": 75,
+   "ties": "average"
+  },
+  "C": {
+   "top10": [
+    150,
+    135,
+    125,
+    120,
+    115,
+    110,
+    105,
+    100,
+    95,
+    90
+   ],
+   "floor": 75,
+   "ties": "average"
+  },
+  "D": {
+   "top10": [
+    150,
+    135,
+    125,
+    120,
+    115,
+    110,
+    105,
+    100,
+    95,
+    90
+   ],
+   "floor": 75,
+   "ties": "competition"
+  },
+  "E": {
+   "top10": [
+    150,
+    135,
+    120,
+    110,
+    100,
+    95,
+    90,
+    85,
+    80,
+    75
+   ],
+   "floor": 50,
+   "ties": "competition"
+  }
+ },
+ "win_credit": "joint champions receive 1/k each; credits per championship sum to 1",
+ "intervals": "mean and 95% half-width (1.96 x SD / sqrt(championships))",
+ "quick": true,
+ "main": [
+  {
+   "participants": 5,
+   "championships": 400,
+   "roster": {
+    "random": 1,
+    "higher_in_band": 1,
+    "lower_in_band": 1,
+    "recovery_focused": 1,
+    "disagreement": 1
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     0.001,
+     0.001
+    ],
+    "first_place_tie": [
+     0.0003,
+     0.0005
+    ],
+    "boundary_tie": [
+     0.0,
+     0.0
+    ],
+    "tie_groups": [
+     0.001,
+     0.001
+    ],
+    "recoverers": [
+     1.674,
+     0.0323
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.255,
+      0.0422
+     ],
+     "higher_in_band": [
+      0.17,
+      0.0364
+     ],
+     "lower_in_band": [
+      0.06,
+      0.0228
+     ],
+     "recovery_focused": [
+      0.3438,
+      0.0462
+     ],
+     "disagreement": [
+      0.1713,
+      0.0369
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.275,
+      0.211
+     ],
+     "higher_in_band": [
+      0.85,
+      0.182
+     ],
+     "lower_in_band": [
+      0.3,
+      0.114
+     ],
+     "recovery_focused": [
+      1.719,
+      0.231
+     ],
+     "disagreement": [
+      0.857,
+      0.184
+     ]
+    },
+    "joint": [
+     0.0325,
+     0.0174
+    ],
+    "top_two_level": [
+     0.0325,
+     0.0174
+    ],
+    "best_round_share": [
+     0.2118,
+     0.0045
+    ],
+    "rho_recoveries": [
+     0.9551,
+     0.0045
+    ],
+    "rho_sd": [
+     -0.1904,
+     0.0462
+    ],
+    "rho_expected": [
+     -0.0749,
+     0.0487
+    ],
+    "zero_share": [
+     0.0195,
+     0.006
+    ],
+    "gini": [
+     0.2216,
+     0.0079
+    ],
+    "top10_recipients": [
+     1.674,
+     0.0323
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.0325,
+     0.0174
+    ],
+    "points_quantiles_median": {
+     "p10": 255.0,
+     "p50": 435.0,
+     "p90": 720.0,
+     "max": 720.0
+    },
+    "points_per_round": {
+     "random": [
+      50.79,
+      2.1201
+     ],
+     "higher_in_band": [
+      45.9738,
+      1.9349
+     ],
+     "lower_in_band": [
+      36.2212,
+      1.7706
+     ],
+     "recovery_focused": [
+      57.4175,
+      2.123
+     ],
+     "disagreement": [
+      44.0237,
+      2.1365
+     ]
+    },
+    "late_switch": {
+     "cases": 749,
+     "stay_win": [
+      0.0107,
+      0.0071
+     ],
+     "switch_win": [
+      0.0102,
+      0.007
+     ],
+     "win_gain": [
+      -0.0004,
+      0.0079
+     ],
+     "stay_top3": [
+      0.231,
+      0.0302
+     ],
+     "switch_top3": [
+      0.1936,
+      0.0283
+     ],
+     "pos_change": [
+      0.0235,
+      0.0155
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.255,
+      0.0422
+     ],
+     "higher_in_band": [
+      0.17,
+      0.0364
+     ],
+     "lower_in_band": [
+      0.06,
+      0.0228
+     ],
+     "recovery_focused": [
+      0.3438,
+      0.0462
+     ],
+     "disagreement": [
+      0.1713,
+      0.0369
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.275,
+      0.211
+     ],
+     "higher_in_band": [
+      0.85,
+      0.182
+     ],
+     "lower_in_band": [
+      0.3,
+      0.114
+     ],
+     "recovery_focused": [
+      1.719,
+      0.231
+     ],
+     "disagreement": [
+      0.857,
+      0.184
+     ]
+    },
+    "joint": [
+     0.0325,
+     0.0174
+    ],
+    "top_two_level": [
+     0.0325,
+     0.0174
+    ],
+    "best_round_share": [
+     0.2118,
+     0.0045
+    ],
+    "rho_recoveries": [
+     0.9551,
+     0.0045
+    ],
+    "rho_sd": [
+     -0.1904,
+     0.0462
+    ],
+    "rho_expected": [
+     -0.0749,
+     0.0487
+    ],
+    "zero_share": [
+     0.0195,
+     0.006
+    ],
+    "gini": [
+     0.2216,
+     0.0079
+    ],
+    "top10_recipients": [
+     1.674,
+     0.0323
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.0325,
+     0.0174
+    ],
+    "points_quantiles_median": {
+     "p10": 255.0,
+     "p50": 435.0,
+     "p90": 720.0,
+     "max": 720.0
+    },
+    "points_per_round": {
+     "random": [
+      50.79,
+      2.1201
+     ],
+     "higher_in_band": [
+      45.9738,
+      1.9349
+     ],
+     "lower_in_band": [
+      36.2212,
+      1.7706
+     ],
+     "recovery_focused": [
+      57.4175,
+      2.123
+     ],
+     "disagreement": [
+      44.0237,
+      2.1365
+     ]
+    },
+    "late_switch": {
+     "cases": 749,
+     "stay_win": [
+      0.0107,
+      0.0071
+     ],
+     "switch_win": [
+      0.0102,
+      0.007
+     ],
+     "win_gain": [
+      -0.0004,
+      0.0079
+     ],
+     "stay_top3": [
+      0.231,
+      0.0302
+     ],
+     "switch_top3": [
+      0.1936,
+      0.0283
+     ],
+     "pos_change": [
+      0.0235,
+      0.0155
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.2512,
+      0.0421
+     ],
+     "higher_in_band": [
+      0.1688,
+      0.0362
+     ],
+     "lower_in_band": [
+      0.06,
+      0.0228
+     ],
+     "recovery_focused": [
+      0.3488,
+      0.0463
+     ],
+     "disagreement": [
+      0.1713,
+      0.0369
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.256,
+      0.21
+     ],
+     "higher_in_band": [
+      0.844,
+      0.181
+     ],
+     "lower_in_band": [
+      0.3,
+      0.114
+     ],
+     "recovery_focused": [
+      1.744,
+      0.232
+     ],
+     "disagreement": [
+      0.857,
+      0.184
+     ]
+    },
+    "joint": [
+     0.0325,
+     0.0174
+    ],
+    "top_two_level": [
+     0.0325,
+     0.0174
+    ],
+    "best_round_share": [
+     0.2107,
+     0.0045
+    ],
+    "rho_recoveries": [
+     0.9543,
+     0.0046
+    ],
+    "rho_sd": [
+     -0.1915,
+     0.0461
+    ],
+    "rho_expected": [
+     -0.0711,
+     0.0488
+    ],
+    "zero_share": [
+     0.0195,
+     0.006
+    ],
+    "gini": [
+     0.2211,
+     0.0079
+    ],
+    "top10_recipients": [
+     1.674,
+     0.0323
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.0325,
+     0.0174
+    ],
+    "points_quantiles_median": {
+     "p10": 260.0,
+     "p50": 435.0,
+     "p90": 720.0,
+     "max": 720.0
+    },
+    "points_per_round": {
+     "random": [
+      51.1325,
+      2.132
+     ],
+     "higher_in_band": [
+      46.4744,
+      1.9527
+     ],
+     "lower_in_band": [
+      36.2625,
+      1.7711
+     ],
+     "recovery_focused": [
+      58.0181,
+      2.1375
+     ],
+     "disagreement": [
+      44.15,
+      2.1402
+     ]
+    },
+    "late_switch": {
+     "cases": 753,
+     "stay_win": [
+      0.012,
+      0.0073
+     ],
+     "switch_win": [
+      0.0097,
+      0.0069
+     ],
+     "win_gain": [
+      -0.0022,
+      0.008
+     ],
+     "stay_top3": [
+      0.2311,
+      0.0301
+     ],
+     "switch_top3": [
+      0.1965,
+      0.0284
+     ],
+     "pos_change": [
+      0.0228,
+      0.0155
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.2512,
+      0.0421
+     ],
+     "higher_in_band": [
+      0.1688,
+      0.0362
+     ],
+     "lower_in_band": [
+      0.06,
+      0.0228
+     ],
+     "recovery_focused": [
+      0.3488,
+      0.0463
+     ],
+     "disagreement": [
+      0.1713,
+      0.0369
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.256,
+      0.21
+     ],
+     "higher_in_band": [
+      0.844,
+      0.181
+     ],
+     "lower_in_band": [
+      0.3,
+      0.114
+     ],
+     "recovery_focused": [
+      1.744,
+      0.232
+     ],
+     "disagreement": [
+      0.857,
+      0.184
+     ]
+    },
+    "joint": [
+     0.0325,
+     0.0174
+    ],
+    "top_two_level": [
+     0.0325,
+     0.0174
+    ],
+    "best_round_share": [
+     0.2107,
+     0.0045
+    ],
+    "rho_recoveries": [
+     0.9543,
+     0.0046
+    ],
+    "rho_sd": [
+     -0.1915,
+     0.0461
+    ],
+    "rho_expected": [
+     -0.0711,
+     0.0488
+    ],
+    "zero_share": [
+     0.0195,
+     0.006
+    ],
+    "gini": [
+     0.2211,
+     0.0079
+    ],
+    "top10_recipients": [
+     1.674,
+     0.0323
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.0325,
+     0.0174
+    ],
+    "points_quantiles_median": {
+     "p10": 260.0,
+     "p50": 435.0,
+     "p90": 720.0,
+     "max": 720.0
+    },
+    "points_per_round": {
+     "random": [
+      51.1325,
+      2.132
+     ],
+     "higher_in_band": [
+      46.48,
+      1.9526
+     ],
+     "lower_in_band": [
+      36.2625,
+      1.7711
+     ],
+     "recovery_focused": [
+      58.0237,
+      2.1377
+     ],
+     "disagreement": [
+      44.15,
+      2.1402
+     ]
+    },
+    "late_switch": {
+     "cases": 753,
+     "stay_win": [
+      0.012,
+      0.0073
+     ],
+     "switch_win": [
+      0.0097,
+      0.0069
+     ],
+     "win_gain": [
+      -0.0022,
+      0.008
+     ],
+     "stay_top3": [
+      0.2311,
+      0.0301
+     ],
+     "switch_top3": [
+      0.1965,
+      0.0284
+     ],
+     "pos_change": [
+      0.0228,
+      0.0155
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.255,
+      0.0422
+     ],
+     "higher_in_band": [
+      0.17,
+      0.0364
+     ],
+     "lower_in_band": [
+      0.06,
+      0.0228
+     ],
+     "recovery_focused": [
+      0.3438,
+      0.0462
+     ],
+     "disagreement": [
+      0.1713,
+      0.0369
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.275,
+      0.211
+     ],
+     "higher_in_band": [
+      0.85,
+      0.182
+     ],
+     "lower_in_band": [
+      0.3,
+      0.114
+     ],
+     "recovery_focused": [
+      1.719,
+      0.231
+     ],
+     "disagreement": [
+      0.857,
+      0.184
+     ]
+    },
+    "joint": [
+     0.0325,
+     0.0174
+    ],
+    "top_two_level": [
+     0.0325,
+     0.0174
+    ],
+    "best_round_share": [
+     0.2118,
+     0.0045
+    ],
+    "rho_recoveries": [
+     0.9551,
+     0.0045
+    ],
+    "rho_sd": [
+     -0.1904,
+     0.0462
+    ],
+    "rho_expected": [
+     -0.0749,
+     0.0487
+    ],
+    "zero_share": [
+     0.0195,
+     0.006
+    ],
+    "gini": [
+     0.2216,
+     0.0079
+    ],
+    "top10_recipients": [
+     1.674,
+     0.0323
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.0325,
+     0.0174
+    ],
+    "points_quantiles_median": {
+     "p10": 255.0,
+     "p50": 435.0,
+     "p90": 720.0,
+     "max": 720.0
+    },
+    "points_per_round": {
+     "random": [
+      50.79,
+      2.1201
+     ],
+     "higher_in_band": [
+      45.9813,
+      1.9346
+     ],
+     "lower_in_band": [
+      36.2212,
+      1.7706
+     ],
+     "recovery_focused": [
+      57.425,
+      2.1233
+     ],
+     "disagreement": [
+      44.0237,
+      2.1365
+     ]
+    },
+    "late_switch": {
+     "cases": 749,
+     "stay_win": [
+      0.0107,
+      0.0071
+     ],
+     "switch_win": [
+      0.0102,
+      0.007
+     ],
+     "win_gain": [
+      -0.0004,
+      0.0079
+     ],
+     "stay_top3": [
+      0.231,
+      0.0302
+     ],
+     "switch_top3": [
+      0.1936,
+      0.0283
+     ],
+     "pos_change": [
+      0.0235,
+      0.0155
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      0.0,
+      0.0
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      0.0,
+      0.0
+     ]
+    },
+    "C": {
+     "random": [
+      -0.019,
+      0.027
+     ],
+     "higher_in_band": [
+      -0.006,
+      0.012
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.025,
+      0.03
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      -0.0011,
+      0.0022
+     ]
+    },
+    "D": {
+     "random": [
+      -0.019,
+      0.027
+     ],
+     "higher_in_band": [
+      -0.006,
+      0.012
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.025,
+      0.03
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      -0.0011,
+      0.0022
+     ]
+    },
+    "E": {
+     "random": [
+      0.0,
+      0.0
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      0.0,
+      0.0
+     ]
+    }
+   },
+   "runtime_seconds": 3.0
+  },
+  {
+   "participants": 10,
+   "championships": 300,
+   "roster": {
+    "random": 2,
+    "higher_in_band": 2,
+    "lower_in_band": 2,
+    "recovery_focused": 2,
+    "disagreement": 2
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     0.0297,
+     0.006
+    ],
+    "first_place_tie": [
+     0.0073,
+     0.0034
+    ],
+    "boundary_tie": [
+     0.0,
+     0.0
+    ],
+    "tie_groups": [
+     0.0297,
+     0.006
+    ],
+    "recoverers": [
+     3.2847,
+     0.0545
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.2033,
+      0.0456
+     ],
+     "higher_in_band": [
+      0.1583,
+      0.041
+     ],
+     "lower_in_band": [
+      0.1,
+      0.034
+     ],
+     "recovery_focused": [
+      0.35,
+      0.0539
+     ],
+     "disagreement": [
+      0.1883,
+      0.0442
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.016,
+      0.228
+     ],
+     "higher_in_band": [
+      0.791,
+      0.205
+     ],
+     "lower_in_band": [
+      0.5,
+      0.17
+     ],
+     "recovery_focused": [
+      1.75,
+      0.27
+     ],
+     "disagreement": [
+      0.942,
+      0.221
+     ]
+    },
+    "joint": [
+     0.0167,
+     0.0145
+    ],
+    "top_two_level": [
+     0.02,
+     0.0159
+    ],
+    "best_round_share": [
+     0.2024,
+     0.0037
+    ],
+    "rho_recoveries": [
+     0.9603,
+     0.0032
+    ],
+    "rho_sd": [
+     -0.1285,
+     0.038
+    ],
+    "rho_expected": [
+     -0.0457,
+     0.0382
+    ],
+    "zero_share": [
+     0.024,
+     0.0053
+    ],
+    "gini": [
+     0.2462,
+     0.0073
+    ],
+    "top10_recipients": [
+     3.2847,
+     0.0545
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.0167,
+     0.0145
+    ],
+    "points_quantiles_median": {
+     "p10": 245.0,
+     "p50": 435.0,
+     "p90": 635.0,
+     "max": 745.0
+    },
+    "points_per_round": {
+     "random": [
+      45.6633,
+      1.618
+     ],
+     "higher_in_band": [
+      40.6444,
+      1.4982
+     ],
+     "lower_in_band": [
+      34.9708,
+      1.5312
+     ],
+     "recovery_focused": [
+      50.3972,
+      1.49
+     ],
+     "disagreement": [
+      40.7917,
+      1.7474
+     ]
+    },
+    "late_switch": {
+     "cases": 900,
+     "stay_win": [
+      0.0156,
+      0.0081
+     ],
+     "switch_win": [
+      0.0156,
+      0.0079
+     ],
+     "win_gain": [
+      0.0,
+      0.0101
+     ],
+     "stay_top3": [
+      0.12,
+      0.0212
+     ],
+     "switch_top3": [
+      0.1056,
+      0.0201
+     ],
+     "pos_change": [
+      0.0238,
+      0.0161
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.2033,
+      0.0456
+     ],
+     "higher_in_band": [
+      0.1583,
+      0.041
+     ],
+     "lower_in_band": [
+      0.1,
+      0.034
+     ],
+     "recovery_focused": [
+      0.35,
+      0.0539
+     ],
+     "disagreement": [
+      0.1883,
+      0.0442
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.016,
+      0.228
+     ],
+     "higher_in_band": [
+      0.791,
+      0.205
+     ],
+     "lower_in_band": [
+      0.5,
+      0.17
+     ],
+     "recovery_focused": [
+      1.75,
+      0.27
+     ],
+     "disagreement": [
+      0.942,
+      0.221
+     ]
+    },
+    "joint": [
+     0.0167,
+     0.0145
+    ],
+    "top_two_level": [
+     0.02,
+     0.0159
+    ],
+    "best_round_share": [
+     0.2024,
+     0.0037
+    ],
+    "rho_recoveries": [
+     0.9603,
+     0.0032
+    ],
+    "rho_sd": [
+     -0.1285,
+     0.038
+    ],
+    "rho_expected": [
+     -0.0457,
+     0.0382
+    ],
+    "zero_share": [
+     0.024,
+     0.0053
+    ],
+    "gini": [
+     0.2462,
+     0.0073
+    ],
+    "top10_recipients": [
+     3.2847,
+     0.0545
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.0167,
+     0.0145
+    ],
+    "points_quantiles_median": {
+     "p10": 245.0,
+     "p50": 435.0,
+     "p90": 635.0,
+     "max": 745.0
+    },
+    "points_per_round": {
+     "random": [
+      45.6633,
+      1.618
+     ],
+     "higher_in_band": [
+      40.6444,
+      1.4982
+     ],
+     "lower_in_band": [
+      34.9708,
+      1.5312
+     ],
+     "recovery_focused": [
+      50.3972,
+      1.49
+     ],
+     "disagreement": [
+      40.7917,
+      1.7474
+     ]
+    },
+    "late_switch": {
+     "cases": 900,
+     "stay_win": [
+      0.0156,
+      0.0081
+     ],
+     "switch_win": [
+      0.0144,
+      0.0076
+     ],
+     "win_gain": [
+      -0.0011,
+      0.0099
+     ],
+     "stay_top3": [
+      0.11,
+      0.0205
+     ],
+     "switch_top3": [
+      0.0933,
+      0.019
+     ],
+     "pos_change": [
+      0.0248,
+      0.016
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.2033,
+      0.0454
+     ],
+     "higher_in_band": [
+      0.16,
+      0.0416
+     ],
+     "lower_in_band": [
+      0.09,
+      0.0324
+     ],
+     "recovery_focused": [
+      0.36,
+      0.0542
+     ],
+     "disagreement": [
+      0.1867,
+      0.0442
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.016,
+      0.227
+     ],
+     "higher_in_band": [
+      0.8,
+      0.208
+     ],
+     "lower_in_band": [
+      0.45,
+      0.162
+     ],
+     "recovery_focused": [
+      1.8,
+      0.271
+     ],
+     "disagreement": [
+      0.933,
+      0.221
+     ]
+    },
+    "joint": [
+     0.0067,
+     0.0092
+    ],
+    "top_two_level": [
+     0.0067,
+     0.0092
+    ],
+    "best_round_share": [
+     0.1972,
+     0.0036
+    ],
+    "rho_recoveries": [
+     0.9641,
+     0.0027
+    ],
+    "rho_sd": [
+     -0.1406,
+     0.0375
+    ],
+    "rho_expected": [
+     -0.0425,
+     0.0383
+    ],
+    "zero_share": [
+     0.024,
+     0.0053
+    ],
+    "gini": [
+     0.2451,
+     0.0073
+    ],
+    "top10_recipients": [
+     3.2847,
+     0.0545
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.0067,
+     0.0092
+    ],
+    "points_quantiles_median": {
+     "p10": 255.0,
+     "p50": 435.0,
+     "p90": 660.0,
+     "max": 775.0
+    },
+    "points_per_round": {
+     "random": [
+      47.0858,
+      1.6614
+     ],
+     "higher_in_band": [
+      42.434,
+      1.5622
+     ],
+     "lower_in_band": [
+      35.1967,
+      1.542
+     ],
+     "recovery_focused": [
+      52.5097,
+      1.5505
+     ],
+     "disagreement": [
+      41.5513,
+      1.7852
+     ]
+    },
+    "late_switch": {
+     "cases": 900,
+     "stay_win": [
+      0.0133,
+      0.0075
+     ],
+     "switch_win": [
+      0.0117,
+      0.0069
+     ],
+     "win_gain": [
+      -0.0017,
+      0.0093
+     ],
+     "stay_top3": [
+      0.1011,
+      0.0197
+     ],
+     "switch_top3": [
+      0.0878,
+      0.0185
+     ],
+     "pos_change": [
+      0.0209,
+      0.016
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.2017,
+      0.0451
+     ],
+     "higher_in_band": [
+      0.16,
+      0.0416
+     ],
+     "lower_in_band": [
+      0.09,
+      0.0324
+     ],
+     "recovery_focused": [
+      0.36,
+      0.0542
+     ],
+     "disagreement": [
+      0.1883,
+      0.0442
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.008,
+      0.226
+     ],
+     "higher_in_band": [
+      0.8,
+      0.208
+     ],
+     "lower_in_band": [
+      0.45,
+      0.162
+     ],
+     "recovery_focused": [
+      1.8,
+      0.271
+     ],
+     "disagreement": [
+      0.942,
+      0.221
+     ]
+    },
+    "joint": [
+     0.01,
+     0.0113
+    ],
+    "top_two_level": [
+     0.01,
+     0.0113
+    ],
+    "best_round_share": [
+     0.1971,
+     0.0036
+    ],
+    "rho_recoveries": [
+     0.9642,
+     0.0027
+    ],
+    "rho_sd": [
+     -0.1401,
+     0.0375
+    ],
+    "rho_expected": [
+     -0.0433,
+     0.0382
+    ],
+    "zero_share": [
+     0.024,
+     0.0053
+    ],
+    "gini": [
+     0.245,
+     0.0073
+    ],
+    "top10_recipients": [
+     3.2847,
+     0.0545
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.01,
+     0.0113
+    ],
+    "points_quantiles_median": {
+     "p10": 255.0,
+     "p50": 435.0,
+     "p90": 660.0,
+     "max": 775.0
+    },
+    "points_per_round": {
+     "random": [
+      47.0867,
+      1.6616
+     ],
+     "higher_in_band": [
+      42.4458,
+      1.5628
+     ],
+     "lower_in_band": [
+      35.2067,
+      1.5422
+     ],
+     "recovery_focused": [
+      52.5183,
+      1.5501
+     ],
+     "disagreement": [
+      41.6633,
+      1.7941
+     ]
+    },
+    "late_switch": {
+     "cases": 900,
+     "stay_win": [
+      0.0194,
+      0.009
+     ],
+     "switch_win": [
+      0.0111,
+      0.0069
+     ],
+     "win_gain": [
+      -0.0083,
+      0.009
+     ],
+     "stay_top3": [
+      0.1211,
+      0.0213
+     ],
+     "switch_top3": [
+      0.1044,
+      0.02
+     ],
+     "pos_change": [
+      0.0251,
+      0.0159
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.2017,
+      0.0454
+     ],
+     "higher_in_band": [
+      0.1583,
+      0.041
+     ],
+     "lower_in_band": [
+      0.1,
+      0.034
+     ],
+     "recovery_focused": [
+      0.3467,
+      0.0537
+     ],
+     "disagreement": [
+      0.1933,
+      0.0445
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.008,
+      0.227
+     ],
+     "higher_in_band": [
+      0.791,
+      0.205
+     ],
+     "lower_in_band": [
+      0.5,
+      0.17
+     ],
+     "recovery_focused": [
+      1.734,
+      0.268
+     ],
+     "disagreement": [
+      0.967,
+      0.222
+     ]
+    },
+    "joint": [
+     0.02,
+     0.0159
+    ],
+    "top_two_level": [
+     0.0267,
+     0.0183
+    ],
+    "best_round_share": [
+     0.2022,
+     0.0037
+    ],
+    "rho_recoveries": [
+     0.9604,
+     0.0032
+    ],
+    "rho_sd": [
+     -0.1279,
+     0.0381
+    ],
+    "rho_expected": [
+     -0.0461,
+     0.0381
+    ],
+    "zero_share": [
+     0.024,
+     0.0053
+    ],
+    "gini": [
+     0.2461,
+     0.0073
+    ],
+    "top10_recipients": [
+     3.2847,
+     0.0545
+    ],
+    "over10_recipients": [
+     0.0,
+     0.0
+    ],
+    "n_champions_mean": [
+     1.02,
+     0.0159
+    ],
+    "points_quantiles_median": {
+     "p10": 245.0,
+     "p50": 435.0,
+     "p90": 635.0,
+     "max": 745.0
+    },
+    "points_per_round": {
+     "random": [
+      45.665,
+      1.6183
+     ],
+     "higher_in_band": [
+      40.6617,
+      1.499
+     ],
+     "lower_in_band": [
+      34.9833,
+      1.5314
+     ],
+     "recovery_focused": [
+      50.4117,
+      1.4894
+     ],
+     "disagreement": [
+      40.9408,
+      1.7593
+     ]
+    },
+    "late_switch": {
+     "cases": 900,
+     "stay_win": [
+      0.0156,
+      0.0081
+     ],
+     "switch_win": [
+      0.0139,
+      0.0076
+     ],
+     "win_gain": [
+      -0.0017,
+      0.0107
+     ],
+     "stay_top3": [
+      0.1122,
+      0.0206
+     ],
+     "switch_top3": [
+      0.0933,
+      0.019
+     ],
+     "pos_change": [
+      0.0257,
+      0.0156
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      0.0,
+      0.0
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      0.0,
+      0.0
+     ]
+    },
+    "C": {
+     "random": [
+      0.0,
+      0.052
+     ],
+     "higher_in_band": [
+      0.008,
+      0.029
+     ],
+     "lower_in_band": [
+      -0.05,
+      0.056
+     ],
+     "recovery_focused": [
+      0.05,
+      0.065
+     ],
+     "disagreement": [
+      -0.008,
+      0.049
+     ],
+     "rho_sd": [
+      -0.0121,
+      0.004
+     ]
+    },
+    "D": {
+     "random": [
+      -0.008,
+      0.054
+     ],
+     "higher_in_band": [
+      0.008,
+      0.029
+     ],
+     "lower_in_band": [
+      -0.05,
+      0.056
+     ],
+     "recovery_focused": [
+      0.05,
+      0.065
+     ],
+     "disagreement": [
+      0.0,
+      0.052
+     ],
+     "rho_sd": [
+      -0.0116,
+      0.004
+     ]
+    },
+    "E": {
+     "random": [
+      -0.008,
+      0.017
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      -0.017,
+      0.033
+     ],
+     "disagreement": [
+      0.025,
+      0.036
+     ],
+     "rho_sd": [
+      0.0006,
+      0.0007
+     ]
+    }
+   },
+   "runtime_seconds": 3.9
+  },
+  {
+   "participants": 25,
+   "championships": 150,
+   "roster": {
+    "random": 7,
+    "higher_in_band": 5,
+    "lower_in_band": 5,
+    "recovery_focused": 4,
+    "disagreement": 4
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     0.1367,
+     0.0172
+    ],
+    "first_place_tie": [
+     0.01,
+     0.0048
+    ],
+    "boundary_tie": [
+     0.0073,
+     0.0042
+    ],
+    "tie_groups": [
+     0.1447,
+     0.0182
+    ],
+    "recoverers": [
+     8.3033,
+     0.1393
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.36,
+      0.0771
+     ],
+     "higher_in_band": [
+      0.0667,
+      0.0401
+     ],
+     "lower_in_band": [
+      0.1467,
+      0.0568
+     ],
+     "recovery_focused": [
+      0.2733,
+      0.0716
+     ],
+     "disagreement": [
+      0.1533,
+      0.0579
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.286,
+      0.275
+     ],
+     "higher_in_band": [
+      0.334,
+      0.2
+     ],
+     "lower_in_band": [
+      0.734,
+      0.284
+     ],
+     "recovery_focused": [
+      1.708,
+      0.448
+     ],
+     "disagreement": [
+      0.958,
+      0.362
+     ]
+    },
+    "joint": [
+     0.0133,
+     0.0184
+    ],
+    "top_two_level": [
+     0.02,
+     0.0225
+    ],
+    "best_round_share": [
+     0.2041,
+     0.0042
+    ],
+    "rho_recoveries": [
+     0.9337,
+     0.0056
+    ],
+    "rho_sd": [
+     -0.069,
+     0.0347
+    ],
+    "rho_expected": [
+     -0.0846,
+     0.0322
+    ],
+    "zero_share": [
+     0.0261,
+     0.0051
+    ],
+    "gini": [
+     0.2685,
+     0.0066
+    ],
+    "top10_recipients": [
+     7.8233,
+     0.1021
+    ],
+    "over10_recipients": [
+     0.0073,
+     0.0042
+    ],
+    "n_champions_mean": [
+     1.0133,
+     0.0184
+    ],
+    "points_quantiles_median": {
+     "p10": 135.0,
+     "p50": 350.0,
+     "p90": 575.0,
+     "max": 715.0
+    },
+    "points_per_round": {
+     "random": [
+      38.1724,
+      0.9967
+     ],
+     "higher_in_band": [
+      31.6402,
+      1.1026
+     ],
+     "lower_in_band": [
+      29.9253,
+      1.2524
+     ],
+     "recovery_focused": [
+      41.6839,
+      1.2279
+     ],
+     "disagreement": [
+      35.3333,
+      1.8326
+     ]
+    },
+    "late_switch": {
+     "cases": 450,
+     "stay_win": [
+      0.0089,
+      0.0087
+     ],
+     "switch_win": [
+      0.0044,
+      0.0062
+     ],
+     "win_gain": [
+      -0.0044,
+      0.0107
+     ],
+     "stay_top3": [
+      0.0489,
+      0.0199
+     ],
+     "switch_top3": [
+      0.0356,
+      0.0171
+     ],
+     "pos_change": [
+      0.0594,
+      0.022
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.3733,
+      0.0777
+     ],
+     "higher_in_band": [
+      0.0667,
+      0.0401
+     ],
+     "lower_in_band": [
+      0.1333,
+      0.0546
+     ],
+     "recovery_focused": [
+      0.2867,
+      0.0726
+     ],
+     "disagreement": [
+      0.14,
+      0.0557
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.333,
+      0.278
+     ],
+     "higher_in_band": [
+      0.334,
+      0.2
+     ],
+     "lower_in_band": [
+      0.666,
+      0.273
+     ],
+     "recovery_focused": [
+      1.792,
+      0.454
+     ],
+     "disagreement": [
+      0.875,
+      0.348
+     ]
+    },
+    "joint": [
+     0.0133,
+     0.0184
+    ],
+    "top_two_level": [
+     0.0333,
+     0.0288
+    ],
+    "best_round_share": [
+     0.2018,
+     0.0041
+    ],
+    "rho_recoveries": [
+     0.9455,
+     0.0044
+    ],
+    "rho_sd": [
+     -0.0897,
+     0.0343
+    ],
+    "rho_expected": [
+     -0.0802,
+     0.0319
+    ],
+    "zero_share": [
+     0.0261,
+     0.0051
+    ],
+    "gini": [
+     0.2661,
+     0.0067
+    ],
+    "top10_recipients": [
+     7.8233,
+     0.1021
+    ],
+    "over10_recipients": [
+     0.0073,
+     0.0042
+    ],
+    "n_champions_mean": [
+     1.0133,
+     0.0184
+    ],
+    "points_quantiles_median": {
+     "p10": 135.0,
+     "p50": 355.0,
+     "p90": 585.0,
+     "max": 717.5
+    },
+    "points_per_round": {
+     "random": [
+      38.5962,
+      1.0077
+     ],
+     "higher_in_band": [
+      32.5124,
+      1.1346
+     ],
+     "lower_in_band": [
+      29.942,
+      1.2516
+     ],
+     "recovery_focused": [
+      42.8061,
+      1.2468
+     ],
+     "disagreement": [
+      35.4042,
+      1.8362
+     ]
+    },
+    "late_switch": {
+     "cases": 450,
+     "stay_win": [
+      0.0111,
+      0.0097
+     ],
+     "switch_win": [
+      0.0044,
+      0.0062
+     ],
+     "win_gain": [
+      -0.0067,
+      0.0115
+     ],
+     "stay_top3": [
+      0.0578,
+      0.0216
+     ],
+     "switch_top3": [
+      0.0333,
+      0.0166
+     ],
+     "pos_change": [
+      0.0508,
+      0.0232
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.33,
+      0.0752
+     ],
+     "higher_in_band": [
+      0.0867,
+      0.0452
+     ],
+     "lower_in_band": [
+      0.0867,
+      0.0452
+     ],
+     "recovery_focused": [
+      0.3567,
+      0.0766
+     ],
+     "disagreement": [
+      0.14,
+      0.0557
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.179,
+      0.269
+     ],
+     "higher_in_band": [
+      0.433,
+      0.226
+     ],
+     "lower_in_band": [
+      0.433,
+      0.226
+     ],
+     "recovery_focused": [
+      2.229,
+      0.479
+     ],
+     "disagreement": [
+      0.875,
+      0.348
+     ]
+    },
+    "joint": [
+     0.0067,
+     0.0131
+    ],
+    "top_two_level": [
+     0.0333,
+     0.0288
+    ],
+    "best_round_share": [
+     0.1873,
+     0.0038
+    ],
+    "rho_recoveries": [
+     0.9638,
+     0.0028
+    ],
+    "rho_sd": [
+     -0.1215,
+     0.0348
+    ],
+    "rho_expected": [
+     -0.0731,
+     0.0319
+    ],
+    "zero_share": [
+     0.0261,
+     0.0051
+    ],
+    "gini": [
+     0.2636,
+     0.0066
+    ],
+    "top10_recipients": [
+     7.8233,
+     0.1021
+    ],
+    "over10_recipients": [
+     0.0073,
+     0.0042
+    ],
+    "n_champions_mean": [
+     1.0067,
+     0.0131
+    ],
+    "points_quantiles_median": {
+     "p10": 135.0,
+     "p50": 380.0,
+     "p90": 635.0,
+     "max": 775.0
+    },
+    "points_per_round": {
+     "random": [
+      41.9438,
+      1.0753
+     ],
+     "higher_in_band": [
+      35.8554,
+      1.2369
+     ],
+     "lower_in_band": [
+      31.0127,
+      1.2928
+     ],
+     "recovery_focused": [
+      46.9553,
+      1.3587
+     ],
+     "disagreement": [
+      37.9971,
+      1.9874
+     ]
+    },
+    "late_switch": {
+     "cases": 450,
+     "stay_win": [
+      0.0067,
+      0.0075
+     ],
+     "switch_win": [
+      0.0089,
+      0.0087
+     ],
+     "win_gain": [
+      0.0022,
+      0.0115
+     ],
+     "stay_top3": [
+      0.0511,
+      0.0204
+     ],
+     "switch_top3": [
+      0.04,
+      0.0181
+     ],
+     "pos_change": [
+      0.0202,
+      0.0213
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.33,
+      0.0752
+     ],
+     "higher_in_band": [
+      0.0867,
+      0.0452
+     ],
+     "lower_in_band": [
+      0.0867,
+      0.0452
+     ],
+     "recovery_focused": [
+      0.3567,
+      0.0766
+     ],
+     "disagreement": [
+      0.14,
+      0.0557
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.179,
+      0.269
+     ],
+     "higher_in_band": [
+      0.433,
+      0.226
+     ],
+     "lower_in_band": [
+      0.433,
+      0.226
+     ],
+     "recovery_focused": [
+      2.229,
+      0.479
+     ],
+     "disagreement": [
+      0.875,
+      0.348
+     ]
+    },
+    "joint": [
+     0.0133,
+     0.0184
+    ],
+    "top_two_level": [
+     0.0467,
+     0.0339
+    ],
+    "best_round_share": [
+     0.1871,
+     0.0038
+    ],
+    "rho_recoveries": [
+     0.9636,
+     0.0029
+    ],
+    "rho_sd": [
+     -0.1199,
+     0.035
+    ],
+    "rho_expected": [
+     -0.0731,
+     0.0319
+    ],
+    "zero_share": [
+     0.0261,
+     0.0051
+    ],
+    "gini": [
+     0.2636,
+     0.0066
+    ],
+    "top10_recipients": [
+     7.8233,
+     0.1021
+    ],
+    "over10_recipients": [
+     0.0073,
+     0.0042
+    ],
+    "n_champions_mean": [
+     1.0133,
+     0.0184
+    ],
+    "points_quantiles_median": {
+     "p10": 135.0,
+     "p50": 380.0,
+     "p90": 635.0,
+     "max": 775.0
+    },
+    "points_per_round": {
+     "random": [
+      41.9471,
+      1.0756
+     ],
+     "higher_in_band": [
+      35.8833,
+      1.2382
+     ],
+     "lower_in_band": [
+      31.0273,
+      1.2953
+     ],
+     "recovery_focused": [
+      46.975,
+      1.359
+     ],
+     "disagreement": [
+      38.2658,
+      2.0137
+     ]
+    },
+    "late_switch": {
+     "cases": 450,
+     "stay_win": [
+      0.0156,
+      0.0114
+     ],
+     "switch_win": [
+      0.0089,
+      0.0087
+     ],
+     "win_gain": [
+      -0.0067,
+      0.0131
+     ],
+     "stay_top3": [
+      0.0489,
+      0.0199
+     ],
+     "switch_top3": [
+      0.0356,
+      0.0171
+     ],
+     "pos_change": [
+      0.0302,
+      0.0223
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.36,
+      0.0771
+     ],
+     "higher_in_band": [
+      0.0667,
+      0.0401
+     ],
+     "lower_in_band": [
+      0.1333,
+      0.0546
+     ],
+     "recovery_focused": [
+      0.2733,
+      0.0716
+     ],
+     "disagreement": [
+      0.1667,
+      0.0598
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.286,
+      0.275
+     ],
+     "higher_in_band": [
+      0.334,
+      0.2
+     ],
+     "lower_in_band": [
+      0.666,
+      0.273
+     ],
+     "recovery_focused": [
+      1.708,
+      0.448
+     ],
+     "disagreement": [
+      1.042,
+      0.374
+     ]
+    },
+    "joint": [
+     0.0067,
+     0.0131
+    ],
+    "top_two_level": [
+     0.0133,
+     0.0184
+    ],
+    "best_round_share": [
+     0.2034,
+     0.0042
+    ],
+    "rho_recoveries": [
+     0.9338,
+     0.0056
+    ],
+    "rho_sd": [
+     -0.0674,
+     0.0348
+    ],
+    "rho_expected": [
+     -0.0843,
+     0.0322
+    ],
+    "zero_share": [
+     0.0261,
+     0.0051
+    ],
+    "gini": [
+     0.2685,
+     0.0066
+    ],
+    "top10_recipients": [
+     7.8233,
+     0.1021
+    ],
+    "over10_recipients": [
+     0.0073,
+     0.0042
+    ],
+    "n_champions_mean": [
+     1.0067,
+     0.0131
+    ],
+    "points_quantiles_median": {
+     "p10": 135.0,
+     "p50": 350.0,
+     "p90": 580.0,
+     "max": 715.0
+    },
+    "points_per_round": {
+     "random": [
+      38.1767,
+      0.997
+     ],
+     "higher_in_band": [
+      31.676,
+      1.1035
+     ],
+     "lower_in_band": [
+      29.944,
+      1.2555
+     ],
+     "recovery_focused": [
+      41.7092,
+      1.2287
+     ],
+     "disagreement": [
+      35.71,
+      1.8689
+     ]
+    },
+    "late_switch": {
+     "cases": 450,
+     "stay_win": [
+      0.0044,
+      0.0062
+     ],
+     "switch_win": [
+      0.0111,
+      0.0097
+     ],
+     "win_gain": [
+      0.0067,
+      0.0115
+     ],
+     "stay_top3": [
+      0.0489,
+      0.0199
+     ],
+     "switch_top3": [
+      0.0556,
+      0.0212
+     ],
+     "pos_change": [
+      0.0244,
+      0.0214
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      0.047,
+      0.066
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      -0.066,
+      0.092
+     ],
+     "recovery_focused": [
+      0.083,
+      0.163
+     ],
+     "disagreement": [
+      -0.083,
+      0.115
+     ],
+     "rho_sd": [
+      -0.0207,
+      0.0035
+     ]
+    },
+    "C": {
+     "random": [
+      -0.107,
+      0.176
+     ],
+     "higher_in_band": [
+      0.1,
+      0.113
+     ],
+     "lower_in_band": [
+      -0.3,
+      0.191
+     ],
+     "recovery_focused": [
+      0.521,
+      0.274
+     ],
+     "disagreement": [
+      -0.083,
+      0.163
+     ],
+     "rho_sd": [
+      -0.0524,
+      0.0057
+     ]
+    },
+    "D": {
+     "random": [
+      -0.107,
+      0.176
+     ],
+     "higher_in_band": [
+      0.1,
+      0.113
+     ],
+     "lower_in_band": [
+      -0.3,
+      0.191
+     ],
+     "recovery_focused": [
+      0.521,
+      0.274
+     ],
+     "disagreement": [
+      -0.083,
+      0.163
+     ],
+     "rho_sd": [
+      -0.0508,
+      0.0057
+     ]
+    },
+    "E": {
+     "random": [
+      0.0,
+      0.0
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      -0.066,
+      0.092
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.083,
+      0.115
+     ],
+     "rho_sd": [
+      0.0016,
+      0.0011
+     ]
+    }
+   },
+   "runtime_seconds": 4.0
+  },
+  {
+   "participants": 50,
+   "championships": 100,
+   "roster": {
+    "random": 14,
+    "higher_in_band": 10,
+    "lower_in_band": 10,
+    "recovery_focused": 8,
+    "disagreement": 8
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     0.327,
+     0.0313
+    ],
+    "first_place_tie": [
+     0.013,
+     0.0072
+    ],
+    "boundary_tie": [
+     0.034,
+     0.0128
+    ],
+    "tie_groups": [
+     0.415,
+     0.0465
+    ],
+    "recoverers": [
+     16.707,
+     0.2501
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.36,
+      0.0946
+     ],
+     "higher_in_band": [
+      0.04,
+      0.0386
+     ],
+     "lower_in_band": [
+      0.29,
+      0.0894
+     ],
+     "recovery_focused": [
+      0.16,
+      0.0722
+     ],
+     "disagreement": [
+      0.15,
+      0.0703
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.286,
+      0.338
+     ],
+     "higher_in_band": [
+      0.2,
+      0.193
+     ],
+     "lower_in_band": [
+      1.45,
+      0.447
+     ],
+     "recovery_focused": [
+      1.0,
+      0.451
+     ],
+     "disagreement": [
+      0.938,
+      0.439
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.01,
+     0.0196
+    ],
+    "best_round_share": [
+     0.229,
+     0.0061
+    ],
+    "rho_recoveries": [
+     0.8551,
+     0.0074
+    ],
+    "rho_sd": [
+     0.0359,
+     0.0361
+    ],
+    "rho_expected": [
+     -0.0657,
+     0.0254
+    ],
+    "zero_share": [
+     0.0228,
+     0.004
+    ],
+    "gini": [
+     0.2762,
+     0.0055
+    ],
+    "top10_recipients": [
+     9.985,
+     0.0352
+    ],
+    "over10_recipients": [
+     0.034,
+     0.0128
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 110.0,
+     "p50": 270.0,
+     "p90": 450.0,
+     "max": 621.25
+    },
+    "points_per_round": {
+     "random": [
+      29.0346,
+      0.6862
+     ],
+     "higher_in_band": [
+      23.7385,
+      0.8557
+     ],
+     "lower_in_band": [
+      27.4847,
+      1.0943
+     ],
+     "recovery_focused": [
+      30.4441,
+      0.8403
+     ],
+     "disagreement": [
+      26.3981,
+      1.549
+     ]
+    },
+    "late_switch": {
+     "cases": 300,
+     "stay_win": [
+      0.0067,
+      0.0092
+     ],
+     "switch_win": [
+      0.0067,
+      0.0092
+     ],
+     "win_gain": [
+      0.0,
+      0.0131
+     ],
+     "stay_top3": [
+      0.02,
+      0.0159
+     ],
+     "switch_top3": [
+      0.0333,
+      0.0203
+     ],
+     "pos_change": [
+      0.0321,
+      0.0299
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.35,
+      0.094
+     ],
+     "higher_in_band": [
+      0.09,
+      0.0564
+     ],
+     "lower_in_band": [
+      0.2,
+      0.0788
+     ],
+     "recovery_focused": [
+      0.26,
+      0.0864
+     ],
+     "disagreement": [
+      0.1,
+      0.0591
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.25,
+      0.336
+     ],
+     "higher_in_band": [
+      0.45,
+      0.282
+     ],
+     "lower_in_band": [
+      1.0,
+      0.394
+     ],
+     "recovery_focused": [
+      1.625,
+      0.54
+     ],
+     "disagreement": [
+      0.625,
+      0.369
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.02,
+     0.0276
+    ],
+    "best_round_share": [
+     0.2106,
+     0.006
+    ],
+    "rho_recoveries": [
+     0.9371,
+     0.0036
+    ],
+    "rho_sd": [
+     -0.0864,
+     0.0358
+    ],
+    "rho_expected": [
+     -0.0517,
+     0.0259
+    ],
+    "zero_share": [
+     0.0228,
+     0.004
+    ],
+    "gini": [
+     0.2634,
+     0.0059
+    ],
+    "top10_recipients": [
+     9.985,
+     0.0352
+    ],
+    "over10_recipients": [
+     0.034,
+     0.0128
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 138.75,
+     "p50": 310.0,
+     "p90": 497.5,
+     "max": 655.0
+    },
+    "points_per_round": {
+     "random": [
+      32.7695,
+      0.7708
+     ],
+     "higher_in_band": [
+      28.6672,
+      1.0271
+     ],
+     "lower_in_band": [
+      27.8035,
+      1.1289
+     ],
+     "recovery_focused": [
+      36.755,
+      0.9398
+     ],
+     "disagreement": [
+      28.1513,
+      1.6591
+     ]
+    },
+    "late_switch": {
+     "cases": 300,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0033,
+      0.0065
+     ],
+     "win_gain": [
+      0.0033,
+      0.0065
+     ],
+     "stay_top3": [
+      0.0133,
+      0.013
+     ],
+     "switch_top3": [
+      0.0233,
+      0.0171
+     ],
+     "pos_change": [
+      0.0268,
+      0.0258
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.345,
+      0.0931
+     ],
+     "higher_in_band": [
+      0.08,
+      0.0534
+     ],
+     "lower_in_band": [
+      0.18,
+      0.0757
+     ],
+     "recovery_focused": [
+      0.255,
+      0.0853
+     ],
+     "disagreement": [
+      0.14,
+      0.0684
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.232,
+      0.333
+     ],
+     "higher_in_band": [
+      0.4,
+      0.267
+     ],
+     "lower_in_band": [
+      0.9,
+      0.379
+     ],
+     "recovery_focused": [
+      1.594,
+      0.533
+     ],
+     "disagreement": [
+      0.875,
+      0.427
+     ]
+    },
+    "joint": [
+     0.01,
+     0.0196
+    ],
+    "top_two_level": [
+     0.05,
+     0.0429
+    ],
+    "best_round_share": [
+     0.1993,
+     0.0052
+    ],
+    "rho_recoveries": [
+     0.9365,
+     0.0037
+    ],
+    "rho_sd": [
+     -0.0747,
+     0.0359
+    ],
+    "rho_expected": [
+     -0.0556,
+     0.0258
+    ],
+    "zero_share": [
+     0.0228,
+     0.004
+    ],
+    "gini": [
+     0.2621,
+     0.0057
+    ],
+    "top10_recipients": [
+     9.985,
+     0.0352
+    ],
+    "over10_recipients": [
+     0.034,
+     0.0128
+    ],
+    "n_champions_mean": [
+     1.01,
+     0.0196
+    ],
+    "points_quantiles_median": {
+     "p10": 138.75,
+     "p50": 330.0,
+     "p90": 525.0,
+     "max": 701.25
+    },
+    "points_per_round": {
+     "random": [
+      35.0345,
+      0.807
+     ],
+     "higher_in_band": [
+      30.4405,
+      1.0631
+     ],
+     "lower_in_band": [
+      29.6753,
+      1.2095
+     ],
+     "recovery_focused": [
+      38.7128,
+      0.9721
+     ],
+     "disagreement": [
+      30.6784,
+      1.7874
+     ]
+    },
+    "late_switch": {
+     "cases": 300,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0033,
+      0.0065
+     ],
+     "win_gain": [
+      0.0033,
+      0.0065
+     ],
+     "stay_top3": [
+      0.02,
+      0.0159
+     ],
+     "switch_top3": [
+      0.0467,
+      0.0239
+     ],
+     "pos_change": [
+      0.0313,
+      0.027
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.345,
+      0.0931
+     ],
+     "higher_in_band": [
+      0.08,
+      0.0534
+     ],
+     "lower_in_band": [
+      0.18,
+      0.0757
+     ],
+     "recovery_focused": [
+      0.255,
+      0.0853
+     ],
+     "disagreement": [
+      0.14,
+      0.0684
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.232,
+      0.333
+     ],
+     "higher_in_band": [
+      0.4,
+      0.267
+     ],
+     "lower_in_band": [
+      0.9,
+      0.379
+     ],
+     "recovery_focused": [
+      1.594,
+      0.533
+     ],
+     "disagreement": [
+      0.875,
+      0.427
+     ]
+    },
+    "joint": [
+     0.01,
+     0.0196
+    ],
+    "top_two_level": [
+     0.06,
+     0.0468
+    ],
+    "best_round_share": [
+     0.199,
+     0.0052
+    ],
+    "rho_recoveries": [
+     0.936,
+     0.0037
+    ],
+    "rho_sd": [
+     -0.0718,
+     0.0359
+    ],
+    "rho_expected": [
+     -0.0567,
+     0.0258
+    ],
+    "zero_share": [
+     0.0228,
+     0.004
+    ],
+    "gini": [
+     0.2621,
+     0.0057
+    ],
+    "top10_recipients": [
+     9.985,
+     0.0352
+    ],
+    "over10_recipients": [
+     0.034,
+     0.0128
+    ],
+    "n_champions_mean": [
+     1.01,
+     0.0196
+    ],
+    "points_quantiles_median": {
+     "p10": 142.5,
+     "p50": 330.0,
+     "p90": 525.0,
+     "max": 705.0
+    },
+    "points_per_round": {
+     "random": [
+      35.0382,
+      0.8068
+     ],
+     "higher_in_band": [
+      30.4515,
+      1.063
+     ],
+     "lower_in_band": [
+      29.6985,
+      1.2098
+     ],
+     "recovery_focused": [
+      38.7181,
+      0.9722
+     ],
+     "disagreement": [
+      31.0369,
+      1.8389
+     ]
+    },
+    "late_switch": {
+     "cases": 300,
+     "stay_win": [
+      0.0033,
+      0.0065
+     ],
+     "switch_win": [
+      0.01,
+      0.0113
+     ],
+     "win_gain": [
+      0.0067,
+      0.0131
+     ],
+     "stay_top3": [
+      0.03,
+      0.0193
+     ],
+     "switch_top3": [
+      0.04,
+      0.0222
+     ],
+     "pos_change": [
+      0.053,
+      0.0248
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.36,
+      0.0946
+     ],
+     "higher_in_band": [
+      0.04,
+      0.0386
+     ],
+     "lower_in_band": [
+      0.29,
+      0.0894
+     ],
+     "recovery_focused": [
+      0.16,
+      0.0722
+     ],
+     "disagreement": [
+      0.15,
+      0.0703
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.286,
+      0.338
+     ],
+     "higher_in_band": [
+      0.2,
+      0.193
+     ],
+     "lower_in_band": [
+      1.45,
+      0.447
+     ],
+     "recovery_focused": [
+      1.0,
+      0.451
+     ],
+     "disagreement": [
+      0.938,
+      0.439
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.01,
+     0.0196
+    ],
+    "best_round_share": [
+     0.2283,
+     0.0061
+    ],
+    "rho_recoveries": [
+     0.854,
+     0.0074
+    ],
+    "rho_sd": [
+     0.04,
+     0.0362
+    ],
+    "rho_expected": [
+     -0.0674,
+     0.0255
+    ],
+    "zero_share": [
+     0.0228,
+     0.004
+    ],
+    "gini": [
+     0.2762,
+     0.0055
+    ],
+    "top10_recipients": [
+     9.985,
+     0.0352
+    ],
+    "over10_recipients": [
+     0.034,
+     0.0128
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 110.0,
+     "p50": 270.0,
+     "p90": 450.0,
+     "max": 622.5
+    },
+    "points_per_round": {
+     "random": [
+      29.04,
+      0.6859
+     ],
+     "higher_in_band": [
+      23.754,
+      0.8556
+     ],
+     "lower_in_band": [
+      27.515,
+      1.0955
+     ],
+     "recovery_focused": [
+      30.4513,
+      0.8404
+     ],
+     "disagreement": [
+      26.8775,
+      1.6152
+     ]
+    },
+    "late_switch": {
+     "cases": 300,
+     "stay_win": [
+      0.0033,
+      0.0065
+     ],
+     "switch_win": [
+      0.0033,
+      0.0065
+     ],
+     "win_gain": [
+      0.0,
+      0.0093
+     ],
+     "stay_top3": [
+      0.0133,
+      0.013
+     ],
+     "switch_top3": [
+      0.02,
+      0.0159
+     ],
+     "pos_change": [
+      0.0003,
+      0.028
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      -0.036,
+      0.211
+     ],
+     "higher_in_band": [
+      0.25,
+      0.214
+     ],
+     "lower_in_band": [
+      -0.45,
+      0.282
+     ],
+     "recovery_focused": [
+      0.625,
+      0.369
+     ],
+     "disagreement": [
+      -0.312,
+      0.32
+     ],
+     "rho_sd": [
+      -0.1223,
+      0.0067
+     ]
+    },
+    "C": {
+     "random": [
+      -0.054,
+      0.236
+     ],
+     "higher_in_band": [
+      0.2,
+      0.193
+     ],
+     "lower_in_band": [
+      -0.55,
+      0.308
+     ],
+     "recovery_focused": [
+      0.594,
+      0.356
+     ],
+     "disagreement": [
+      -0.062,
+      0.275
+     ],
+     "rho_sd": [
+      -0.1106,
+      0.0057
+     ]
+    },
+    "D": {
+     "random": [
+      -0.054,
+      0.236
+     ],
+     "higher_in_band": [
+      0.2,
+      0.193
+     ],
+     "lower_in_band": [
+      -0.55,
+      0.308
+     ],
+     "recovery_focused": [
+      0.594,
+      0.356
+     ],
+     "disagreement": [
+      -0.062,
+      0.275
+     ],
+     "rho_sd": [
+      -0.1077,
+      0.0057
+     ]
+    },
+    "E": {
+     "random": [
+      0.0,
+      0.0
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      0.0041,
+      0.0011
+     ]
+    }
+   },
+   "runtime_seconds": 5.1
+  },
+  {
+   "participants": 100,
+   "championships": 60,
+   "roster": {
+    "random": 30,
+    "higher_in_band": 20,
+    "lower_in_band": 20,
+    "recovery_focused": 15,
+    "disagreement": 15
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     0.6683,
+     0.0334
+    ],
+    "first_place_tie": [
+     0.0167,
+     0.0095
+    ],
+    "boundary_tie": [
+     0.0683,
+     0.0189
+    ],
+    "tie_groups": [
+     1.3017,
+     0.1012
+    ],
+    "recoverers": [
+     33.4533,
+     0.4506
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.35,
+      0.1217
+     ],
+     "higher_in_band": [
+      0.0667,
+      0.0637
+     ],
+     "lower_in_band": [
+      0.3667,
+      0.123
+     ],
+     "recovery_focused": [
+      0.1,
+      0.0766
+     ],
+     "disagreement": [
+      0.1167,
+      0.0819
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.167,
+      0.406
+     ],
+     "higher_in_band": [
+      0.334,
+      0.319
+     ],
+     "lower_in_band": [
+      1.834,
+      0.615
+     ],
+     "recovery_focused": [
+      0.667,
+      0.511
+     ],
+     "disagreement": [
+      0.778,
+      0.546
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.0,
+     0.0
+    ],
+    "best_round_share": [
+     0.2578,
+     0.0089
+    ],
+    "rho_recoveries": [
+     0.8542,
+     0.007
+    ],
+    "rho_sd": [
+     -0.0078,
+     0.0425
+    ],
+    "rho_expected": [
+     -0.0203,
+     0.0294
+    ],
+    "zero_share": [
+     0.0223,
+     0.0038
+    ],
+    "gini": [
+     0.2781,
+     0.0053
+    ],
+    "top10_recipients": [
+     10.1567,
+     0.0666
+    ],
+    "over10_recipients": [
+     0.0683,
+     0.0189
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 100.0,
+     "p50": 202.08333333333331,
+     "p90": 360.0,
+     "max": 525.0
+    },
+    "points_per_round": {
+     "random": [
+      22.5512,
+      0.5709
+     ],
+     "higher_in_band": [
+      20.239,
+      0.7924
+     ],
+     "lower_in_band": [
+      21.8277,
+      0.8928
+     ],
+     "recovery_focused": [
+      25.0033,
+      0.9199
+     ],
+     "disagreement": [
+      21.3164,
+      1.1302
+     ]
+    },
+    "late_switch": {
+     "cases": 180,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0222,
+      0.0216
+     ],
+     "win_gain": [
+      0.0222,
+      0.0216
+     ],
+     "stay_top3": [
+      0.0056,
+      0.0109
+     ],
+     "switch_top3": [
+      0.0389,
+      0.0283
+     ],
+     "pos_change": [
+      -0.0157,
+      0.0337
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.4083,
+      0.1243
+     ],
+     "higher_in_band": [
+      0.125,
+      0.0828
+     ],
+     "lower_in_band": [
+      0.1333,
+      0.0867
+     ],
+     "recovery_focused": [
+      0.2833,
+      0.115
+     ],
+     "disagreement": [
+      0.05,
+      0.0556
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.361,
+      0.414
+     ],
+     "higher_in_band": [
+      0.625,
+      0.414
+     ],
+     "lower_in_band": [
+      0.666,
+      0.433
+     ],
+     "recovery_focused": [
+      1.889,
+      0.767
+     ],
+     "disagreement": [
+      0.333,
+      0.371
+     ]
+    },
+    "joint": [
+     0.0167,
+     0.0327
+    ],
+    "top_two_level": [
+     0.05,
+     0.0556
+    ],
+    "best_round_share": [
+     0.2036,
+     0.0095
+    ],
+    "rho_recoveries": [
+     0.9528,
+     0.003
+    ],
+    "rho_sd": [
+     -0.1394,
+     0.0427
+    ],
+    "rho_expected": [
+     -0.0099,
+     0.0308
+    ],
+    "zero_share": [
+     0.0223,
+     0.0038
+    ],
+    "gini": [
+     0.2609,
+     0.0054
+    ],
+    "top10_recipients": [
+     10.1567,
+     0.0666
+    ],
+    "over10_recipients": [
+     0.0683,
+     0.0189
+    ],
+    "n_champions_mean": [
+     1.0167,
+     0.0327
+    ],
+    "points_quantiles_median": {
+     "p10": 120.0,
+     "p50": 290.0,
+     "p90": 450.0,
+     "max": 627.5
+    },
+    "points_per_round": {
+     "random": [
+      29.111,
+      0.6795
+     ],
+     "higher_in_band": [
+      27.639,
+      1.0363
+     ],
+     "lower_in_band": [
+      23.7447,
+      0.9526
+     ],
+     "recovery_focused": [
+      33.4144,
+      1.1538
+     ],
+     "disagreement": [
+      26.4521,
+      1.4376
+     ]
+    },
+    "late_switch": {
+     "cases": 180,
+     "stay_win": [
+      0.0056,
+      0.0109
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0056,
+      0.0109
+     ],
+     "stay_top3": [
+      0.0167,
+      0.0188
+     ],
+     "switch_top3": [
+      0.0167,
+      0.0188
+     ],
+     "pos_change": [
+      0.0194,
+      0.0333
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.3833,
+      0.1241
+     ],
+     "higher_in_band": [
+      0.1,
+      0.0766
+     ],
+     "lower_in_band": [
+      0.15,
+      0.0911
+     ],
+     "recovery_focused": [
+      0.3,
+      0.1169
+     ],
+     "disagreement": [
+      0.0667,
+      0.0637
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.278,
+      0.414
+     ],
+     "higher_in_band": [
+      0.5,
+      0.383
+     ],
+     "lower_in_band": [
+      0.75,
+      0.455
+     ],
+     "recovery_focused": [
+      2.0,
+      0.779
+     ],
+     "disagreement": [
+      0.445,
+      0.425
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.0333,
+     0.0458
+    ],
+    "best_round_share": [
+     0.2002,
+     0.0071
+    ],
+    "rho_recoveries": [
+     0.9446,
+     0.0033
+    ],
+    "rho_sd": [
+     -0.1168,
+     0.0428
+    ],
+    "rho_expected": [
+     -0.013,
+     0.0308
+    ],
+    "zero_share": [
+     0.0223,
+     0.0038
+    ],
+    "gini": [
+     0.2618,
+     0.0052
+    ],
+    "top10_recipients": [
+     10.1567,
+     0.0666
+    ],
+    "over10_recipients": [
+     0.0683,
+     0.0189
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 125.0,
+     "p50": 300.0,
+     "p90": 465.0,
+     "max": 645.0
+    },
+    "points_per_round": {
+     "random": [
+      30.1029,
+      0.7092
+     ],
+     "higher_in_band": [
+      28.2373,
+      1.0629
+     ],
+     "lower_in_band": [
+      25.2441,
+      1.0203
+     ],
+     "recovery_focused": [
+      34.3564,
+      1.1987
+     ],
+     "disagreement": [
+      27.7293,
+      1.4855
+     ]
+    },
+    "late_switch": {
+     "cases": 180,
+     "stay_win": [
+      0.0056,
+      0.0109
+     ],
+     "switch_win": [
+      0.0056,
+      0.0109
+     ],
+     "win_gain": [
+      0.0,
+      0.0154
+     ],
+     "stay_top3": [
+      0.0056,
+      0.0109
+     ],
+     "switch_top3": [
+      0.0111,
+      0.0154
+     ],
+     "pos_change": [
+      0.0199,
+      0.0336
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.3833,
+      0.1241
+     ],
+     "higher_in_band": [
+      0.1,
+      0.0766
+     ],
+     "lower_in_band": [
+      0.15,
+      0.0911
+     ],
+     "recovery_focused": [
+      0.3,
+      0.1169
+     ],
+     "disagreement": [
+      0.0667,
+      0.0637
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.278,
+      0.414
+     ],
+     "higher_in_band": [
+      0.5,
+      0.383
+     ],
+     "lower_in_band": [
+      0.75,
+      0.455
+     ],
+     "recovery_focused": [
+      2.0,
+      0.779
+     ],
+     "disagreement": [
+      0.445,
+      0.425
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.0333,
+     0.0458
+    ],
+    "best_round_share": [
+     0.2,
+     0.0071
+    ],
+    "rho_recoveries": [
+     0.9439,
+     0.0035
+    ],
+    "rho_sd": [
+     -0.1126,
+     0.0427
+    ],
+    "rho_expected": [
+     -0.0129,
+     0.0306
+    ],
+    "zero_share": [
+     0.0223,
+     0.0038
+    ],
+    "gini": [
+     0.2616,
+     0.0052
+    ],
+    "top10_recipients": [
+     10.1567,
+     0.0666
+    ],
+    "over10_recipients": [
+     0.0683,
+     0.0189
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 130.0,
+     "p50": 300.0,
+     "p90": 465.0,
+     "max": 645.0
+    },
+    "points_per_round": {
+     "random": [
+      30.1053,
+      0.7095
+     ],
+     "higher_in_band": [
+      28.2379,
+      1.063
+     ],
+     "lower_in_band": [
+      25.2933,
+      1.0238
+     ],
+     "recovery_focused": [
+      34.3572,
+      1.1989
+     ],
+     "disagreement": [
+      28.1356,
+      1.5509
+     ]
+    },
+    "late_switch": {
+     "cases": 180,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0056,
+      0.0109
+     ],
+     "switch_top3": [
+      0.0111,
+      0.0154
+     ],
+     "pos_change": [
+      0.0278,
+      0.034
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.3333,
+      0.1203
+     ],
+     "higher_in_band": [
+      0.0667,
+      0.0637
+     ],
+     "lower_in_band": [
+      0.3667,
+      0.123
+     ],
+     "recovery_focused": [
+      0.1,
+      0.0766
+     ],
+     "disagreement": [
+      0.1333,
+      0.0867
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.111,
+      0.401
+     ],
+     "higher_in_band": [
+      0.334,
+      0.319
+     ],
+     "lower_in_band": [
+      1.834,
+      0.615
+     ],
+     "recovery_focused": [
+      0.667,
+      0.511
+     ],
+     "disagreement": [
+      0.889,
+      0.578
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.0333,
+     0.0458
+    ],
+    "best_round_share": [
+     0.2578,
+     0.0088
+    ],
+    "rho_recoveries": [
+     0.8523,
+     0.0074
+    ],
+    "rho_sd": [
+     -0.001,
+     0.0422
+    ],
+    "rho_expected": [
+     -0.0198,
+     0.029
+    ],
+    "zero_share": [
+     0.0223,
+     0.0038
+    ],
+    "gini": [
+     0.278,
+     0.0053
+    ],
+    "top10_recipients": [
+     10.1567,
+     0.0666
+    ],
+    "over10_recipients": [
+     0.0683,
+     0.0189
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 100.0,
+     "p50": 210.0,
+     "p90": 360.0,
+     "max": 527.5
+    },
+    "points_per_round": {
+     "random": [
+      22.5544,
+      0.5714
+     ],
+     "higher_in_band": [
+      20.2396,
+      0.7925
+     ],
+     "lower_in_band": [
+      21.8996,
+      0.8984
+     ],
+     "recovery_focused": [
+      25.0044,
+      0.9202
+     ],
+     "disagreement": [
+      21.8611,
+      1.2238
+     ]
+    },
+    "late_switch": {
+     "cases": 180,
+     "stay_win": [
+      0.0056,
+      0.0109
+     ],
+     "switch_win": [
+      0.0111,
+      0.0154
+     ],
+     "win_gain": [
+      0.0056,
+      0.0189
+     ],
+     "stay_top3": [
+      0.0222,
+      0.0216
+     ],
+     "switch_top3": [
+      0.0167,
+      0.0188
+     ],
+     "pos_change": [
+      0.0194,
+      0.0338
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      0.194,
+      0.365
+     ],
+     "higher_in_band": [
+      0.291,
+      0.287
+     ],
+     "lower_in_band": [
+      -1.167,
+      0.539
+     ],
+     "recovery_focused": [
+      1.222,
+      0.658
+     ],
+     "disagreement": [
+      -0.445,
+      0.425
+     ],
+     "rho_sd": [
+      -0.1315,
+      0.0083
+     ]
+    },
+    "C": {
+     "random": [
+      0.111,
+      0.379
+     ],
+     "higher_in_band": [
+      0.167,
+      0.326
+     ],
+     "lower_in_band": [
+      -1.084,
+      0.525
+     ],
+     "recovery_focused": [
+      1.333,
+      0.681
+     ],
+     "disagreement": [
+      -0.333,
+      0.371
+     ],
+     "rho_sd": [
+      -0.109,
+      0.007
+     ]
+    },
+    "D": {
+     "random": [
+      0.111,
+      0.379
+     ],
+     "higher_in_band": [
+      0.167,
+      0.326
+     ],
+     "lower_in_band": [
+      -1.084,
+      0.525
+     ],
+     "recovery_focused": [
+      1.333,
+      0.681
+     ],
+     "disagreement": [
+      -0.333,
+      0.371
+     ],
+     "rho_sd": [
+      -0.1047,
+      0.0072
+     ]
+    },
+    "E": {
+     "random": [
+      -0.056,
+      0.109
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.111,
+      0.218
+     ],
+     "rho_sd": [
+      0.0068,
+      0.0026
+     ]
+    }
+   },
+   "runtime_seconds": 5.9
+  },
+  {
+   "participants": 250,
+   "championships": 40,
+   "roster": {
+    "random": 74,
+    "higher_in_band": 50,
+    "lower_in_band": 50,
+    "recovery_focused": 38,
+    "disagreement": 38
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     0.96,
+     0.0183
+    ],
+    "first_place_tie": [
+     0.0125,
+     0.0104
+    ],
+    "boundary_tie": [
+     0.0475,
+     0.0186
+    ],
+    "tie_groups": [
+     4.8975,
+     0.2944
+    ],
+    "recoverers": [
+     84.1625,
+     1.8323
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.4,
+      0.1538
+     ],
+     "higher_in_band": [
+      0.0625,
+      0.0718
+     ],
+     "lower_in_band": [
+      0.275,
+      0.1401
+     ],
+     "recovery_focused": [
+      0.0875,
+      0.0851
+     ],
+     "disagreement": [
+      0.175,
+      0.1193
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.351,
+      0.52
+     ],
+     "higher_in_band": [
+      0.312,
+      0.359
+     ],
+     "lower_in_band": [
+      1.375,
+      0.701
+     ],
+     "recovery_focused": [
+      0.576,
+      0.56
+     ],
+     "disagreement": [
+      1.151,
+      0.785
+     ]
+    },
+    "joint": [
+     0.025,
+     0.049
+    ],
+    "top_two_level": [
+     0.05,
+     0.0684
+    ],
+    "best_round_share": [
+     0.2678,
+     0.0154
+    ],
+    "rho_recoveries": [
+     0.9232,
+     0.0034
+    ],
+    "rho_sd": [
+     -0.1499,
+     0.0443
+    ],
+    "rho_expected": [
+     -0.0173,
+     0.0344
+    ],
+    "zero_share": [
+     0.0199,
+     0.0038
+    ],
+    "gini": [
+     0.2716,
+     0.0062
+    ],
+    "top10_recipients": [
+     10.1275,
+     0.0975
+    ],
+    "over10_recipients": [
+     0.0475,
+     0.0186
+    ],
+    "n_champions_mean": [
+     1.025,
+     0.049
+    ],
+    "points_quantiles_median": {
+     "p10": 85.0,
+     "p50": 192.5,
+     "p90": 300.0,
+     "max": 486.25
+    },
+    "points_per_round": {
+     "random": [
+      19.7496,
+      0.4622
+     ],
+     "higher_in_band": [
+      18.582,
+      0.7459
+     ],
+     "lower_in_band": [
+      16.1227,
+      0.6159
+     ],
+     "recovery_focused": [
+      22.3868,
+      0.5319
+     ],
+     "disagreement": [
+      18.44,
+      1.7083
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0083,
+      0.0163
+     ],
+     "pos_change": [
+      0.0371,
+      0.0395
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.325,
+      0.147
+     ],
+     "higher_in_band": [
+      0.05,
+      0.0684
+     ],
+     "lower_in_band": [
+      0.1,
+      0.0942
+     ],
+     "recovery_focused": [
+      0.4,
+      0.1538
+     ],
+     "disagreement": [
+      0.125,
+      0.1038
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.098,
+      0.497
+     ],
+     "higher_in_band": [
+      0.25,
+      0.342
+     ],
+     "lower_in_band": [
+      0.5,
+      0.471
+     ],
+     "recovery_focused": [
+      2.632,
+      1.012
+     ],
+     "disagreement": [
+      0.822,
+      0.683
+     ]
+    },
+    "joint": [
+     0.075,
+     0.0827
+    ],
+    "top_two_level": [
+     0.125,
+     0.1038
+    ],
+    "best_round_share": [
+     0.1757,
+     0.0139
+    ],
+    "rho_recoveries": [
+     0.9782,
+     0.0011
+    ],
+    "rho_sd": [
+     -0.218,
+     0.0459
+    ],
+    "rho_expected": [
+     -0.016,
+     0.0371
+    ],
+    "zero_share": [
+     0.0199,
+     0.0038
+    ],
+    "gini": [
+     0.2609,
+     0.0063
+    ],
+    "top10_recipients": [
+     10.1275,
+     0.0975
+    ],
+    "over10_recipients": [
+     0.0475,
+     0.0186
+    ],
+    "n_champions_mean": [
+     1.15,
+     0.1796
+    ],
+    "points_quantiles_median": {
+     "p10": 85.0,
+     "p50": 237.5,
+     "p90": 427.5,
+     "max": 610.0
+    },
+    "points_per_round": {
+     "random": [
+      27.7838,
+      0.6501
+     ],
+     "higher_in_band": [
+      26.9483,
+      1.0543
+     ],
+     "lower_in_band": [
+      20.0233,
+      0.8102
+     ],
+     "recovery_focused": [
+      32.0941,
+      0.7716
+     ],
+     "disagreement": [
+      25.7377,
+      2.3462
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0083,
+      0.0163
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0314,
+      0.0409
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.275,
+      0.1401
+     ],
+     "higher_in_band": [
+      0.05,
+      0.0684
+     ],
+     "lower_in_band": [
+      0.2,
+      0.1255
+     ],
+     "recovery_focused": [
+      0.325,
+      0.147
+     ],
+     "disagreement": [
+      0.15,
+      0.1121
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      0.929,
+      0.473
+     ],
+     "higher_in_band": [
+      0.25,
+      0.342
+     ],
+     "lower_in_band": [
+      1.0,
+      0.627
+     ],
+     "recovery_focused": [
+      2.138,
+      0.967
+     ],
+     "disagreement": [
+      0.987,
+      0.738
+     ]
+    },
+    "joint": [
+     0.05,
+     0.0684
+    ],
+    "top_two_level": [
+     0.1,
+     0.0942
+    ],
+    "best_round_share": [
+     0.1866,
+     0.0118
+    ],
+    "rho_recoveries": [
+     0.9739,
+     0.0013
+    ],
+    "rho_sd": [
+     -0.2067,
+     0.0456
+    ],
+    "rho_expected": [
+     -0.0157,
+     0.0366
+    ],
+    "zero_share": [
+     0.0199,
+     0.0038
+    ],
+    "gini": [
+     0.2613,
+     0.0062
+    ],
+    "top10_recipients": [
+     10.1275,
+     0.0975
+    ],
+    "over10_recipients": [
+     0.0475,
+     0.0186
+    ],
+    "n_champions_mean": [
+     1.125,
+     0.1746
+    ],
+    "points_quantiles_median": {
+     "p10": 100.0,
+     "p50": 257.5,
+     "p90": 442.5,
+     "max": 630.0
+    },
+    "points_per_round": {
+     "random": [
+      28.1842,
+      0.6548
+     ],
+     "higher_in_band": [
+      27.0295,
+      1.0598
+     ],
+     "lower_in_band": [
+      20.8753,
+      0.8233
+     ],
+     "recovery_focused": [
+      32.4444,
+      0.7706
+     ],
+     "disagreement": [
+      26.1429,
+      2.3929
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0083,
+      0.0163
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0083,
+      0.0163
+     ],
+     "stay_top3": [
+      0.0083,
+      0.0163
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0523,
+      0.0406
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.275,
+      0.1401
+     ],
+     "higher_in_band": [
+      0.05,
+      0.0684
+     ],
+     "lower_in_band": [
+      0.2,
+      0.1255
+     ],
+     "recovery_focused": [
+      0.325,
+      0.147
+     ],
+     "disagreement": [
+      0.15,
+      0.1121
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      0.929,
+      0.473
+     ],
+     "higher_in_band": [
+      0.25,
+      0.342
+     ],
+     "lower_in_band": [
+      1.0,
+      0.627
+     ],
+     "recovery_focused": [
+      2.138,
+      0.967
+     ],
+     "disagreement": [
+      0.987,
+      0.738
+     ]
+    },
+    "joint": [
+     0.05,
+     0.0684
+    ],
+    "top_two_level": [
+     0.1,
+     0.0942
+    ],
+    "best_round_share": [
+     0.1874,
+     0.0115
+    ],
+    "rho_recoveries": [
+     0.9735,
+     0.0014
+    ],
+    "rho_sd": [
+     -0.2053,
+     0.0456
+    ],
+    "rho_expected": [
+     -0.0155,
+     0.0366
+    ],
+    "zero_share": [
+     0.0199,
+     0.0038
+    ],
+    "gini": [
+     0.2613,
+     0.0062
+    ],
+    "top10_recipients": [
+     10.1275,
+     0.0975
+    ],
+    "over10_recipients": [
+     0.0475,
+     0.0186
+    ],
+    "n_champions_mean": [
+     1.125,
+     0.1746
+    ],
+    "points_quantiles_median": {
+     "p10": 102.5,
+     "p50": 257.5,
+     "p90": 442.5,
+     "max": 630.0
+    },
+    "points_per_round": {
+     "random": [
+      28.1851,
+      0.6548
+     ],
+     "higher_in_band": [
+      27.0295,
+      1.0598
+     ],
+     "lower_in_band": [
+      20.932,
+      0.8267
+     ],
+     "recovery_focused": [
+      32.4444,
+      0.7706
+     ],
+     "disagreement": [
+      26.2188,
+      2.41
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0083,
+      0.0163
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0083,
+      0.0163
+     ],
+     "stay_top3": [
+      0.0083,
+      0.0163
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0378,
+      0.0401
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.375,
+      0.1519
+     ],
+     "higher_in_band": [
+      0.0625,
+      0.0718
+     ],
+     "lower_in_band": [
+      0.3,
+      0.1438
+     ],
+     "recovery_focused": [
+      0.0875,
+      0.0851
+     ],
+     "disagreement": [
+      0.175,
+      0.1193
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.267,
+      0.513
+     ],
+     "higher_in_band": [
+      0.312,
+      0.359
+     ],
+     "lower_in_band": [
+      1.5,
+      0.719
+     ],
+     "recovery_focused": [
+      0.576,
+      0.56
+     ],
+     "disagreement": [
+      1.151,
+      0.785
+     ]
+    },
+    "joint": [
+     0.025,
+     0.049
+    ],
+    "top_two_level": [
+     0.075,
+     0.0827
+    ],
+    "best_round_share": [
+     0.2662,
+     0.0147
+    ],
+    "rho_recoveries": [
+     0.922,
+     0.0035
+    ],
+    "rho_sd": [
+     -0.1472,
+     0.0443
+    ],
+    "rho_expected": [
+     -0.0171,
+     0.0344
+    ],
+    "zero_share": [
+     0.0199,
+     0.0038
+    ],
+    "gini": [
+     0.2718,
+     0.0062
+    ],
+    "top10_recipients": [
+     10.1275,
+     0.0975
+    ],
+    "over10_recipients": [
+     0.0475,
+     0.0186
+    ],
+    "n_champions_mean": [
+     1.025,
+     0.049
+    ],
+    "points_quantiles_median": {
+     "p10": 87.5,
+     "p50": 192.5,
+     "p90": 300.0,
+     "max": 490.0
+    },
+    "points_per_round": {
+     "random": [
+      19.751,
+      0.4622
+     ],
+     "higher_in_band": [
+      18.582,
+      0.7459
+     ],
+     "lower_in_band": [
+      16.1988,
+      0.6228
+     ],
+     "recovery_focused": [
+      22.3868,
+      0.5319
+     ],
+     "disagreement": [
+      18.5457,
+      1.7339
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0083,
+      0.0163
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0083,
+      0.0163
+     ],
+     "stay_top3": [
+      0.0167,
+      0.023
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.045,
+      0.043
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      -0.253,
+      0.55
+     ],
+     "higher_in_band": [
+      -0.062,
+      0.122
+     ],
+     "lower_in_band": [
+      -0.875,
+      0.597
+     ],
+     "recovery_focused": [
+      2.056,
+      0.943
+     ],
+     "disagreement": [
+      -0.329,
+      0.645
+     ],
+     "rho_sd": [
+      -0.0681,
+      0.0046
+     ]
+    },
+    "C": {
+     "random": [
+      -0.422,
+      0.485
+     ],
+     "higher_in_band": [
+      -0.062,
+      0.122
+     ],
+     "lower_in_band": [
+      -0.375,
+      0.413
+     ],
+     "recovery_focused": [
+      1.562,
+      0.863
+     ],
+     "disagreement": [
+      -0.164,
+      0.322
+     ],
+     "rho_sd": [
+      -0.0568,
+      0.0041
+     ]
+    },
+    "D": {
+     "random": [
+      -0.422,
+      0.485
+     ],
+     "higher_in_band": [
+      -0.062,
+      0.122
+     ],
+     "lower_in_band": [
+      -0.375,
+      0.413
+     ],
+     "recovery_focused": [
+      1.562,
+      0.863
+     ],
+     "disagreement": [
+      -0.164,
+      0.322
+     ],
+     "rho_sd": [
+      -0.0554,
+      0.004
+     ]
+    },
+    "E": {
+     "random": [
+      -0.084,
+      0.166
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.125,
+      0.245
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      0.0027,
+      0.0009
+     ]
+    }
+   },
+   "runtime_seconds": 9.9
+  },
+  {
+   "participants": 500,
+   "championships": 25,
+   "roster": {
+    "random": 150,
+    "higher_in_band": 100,
+    "lower_in_band": 100,
+    "recovery_focused": 75,
+    "disagreement": 75
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     1.0,
+     0.0
+    ],
+    "first_place_tie": [
+     0.0,
+     0.0
+    ],
+    "boundary_tie": [
+     0.124,
+     0.0363
+    ],
+    "tie_groups": [
+     12.228,
+     0.865
+    ],
+    "recoverers": [
+     165.784,
+     5.0585
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.32,
+      0.1866
+     ],
+     "higher_in_band": [
+      0.16,
+      0.1467
+     ],
+     "lower_in_band": [
+      0.12,
+      0.13
+     ],
+     "recovery_focused": [
+      0.32,
+      0.1866
+     ],
+     "disagreement": [
+      0.08,
+      0.1085
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.067,
+      0.622
+     ],
+     "higher_in_band": [
+      0.8,
+      0.733
+     ],
+     "lower_in_band": [
+      0.6,
+      0.65
+     ],
+     "recovery_focused": [
+      2.133,
+      1.244
+     ],
+     "disagreement": [
+      0.533,
+      0.723
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.08,
+     0.1085
+    ],
+    "best_round_share": [
+     0.2428,
+     0.0275
+    ],
+    "rho_recoveries": [
+     0.9593,
+     0.0025
+    ],
+    "rho_sd": [
+     -0.2449,
+     0.0696
+    ],
+    "rho_expected": [
+     -0.03,
+     0.0406
+    ],
+    "zero_share": [
+     0.0274,
+     0.0072
+    ],
+    "gini": [
+     0.2758,
+     0.0106
+    ],
+    "top10_recipients": [
+     10.156,
+     0.0555
+    ],
+    "over10_recipients": [
+     0.124,
+     0.0363
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 50.0,
+     "p50": 150.0,
+     "p90": 300.0,
+     "max": 470.0
+    },
+    "points_per_round": {
+     "random": [
+      18.9815,
+      0.453
+     ],
+     "higher_in_band": [
+      18.1426,
+      0.9882
+     ],
+     "lower_in_band": [
+      13.4038,
+      0.8702
+     ],
+     "recovery_focused": [
+      21.9325,
+      0.7999
+     ],
+     "disagreement": [
+      15.7653,
+      2.169
+     ]
+    },
+    "late_switch": {
+     "cases": 75,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0133,
+      0.0261
+     ],
+     "win_gain": [
+      0.0133,
+      0.0261
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0133,
+      0.0261
+     ],
+     "pos_change": [
+      0.0638,
+      0.0476
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.2733,
+      0.1696
+     ],
+     "higher_in_band": [
+      0.0933,
+      0.1101
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.6333,
+      0.1848
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      0.911,
+      0.565
+     ],
+     "higher_in_band": [
+      0.466,
+      0.55
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      4.222,
+      1.232
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ]
+    },
+    "joint": [
+     0.24,
+     0.1709
+    ],
+    "top_two_level": [
+     0.28,
+     0.1796
+    ],
+    "best_round_share": [
+     0.1332,
+     0.0131
+    ],
+    "rho_recoveries": [
+     0.9894,
+     0.0007
+    ],
+    "rho_sd": [
+     -0.2755,
+     0.0696
+    ],
+    "rho_expected": [
+     -0.0342,
+     0.041
+    ],
+    "zero_share": [
+     0.0274,
+     0.0072
+    ],
+    "gini": [
+     0.2714,
+     0.011
+    ],
+    "top10_recipients": [
+     10.156,
+     0.0555
+    ],
+    "over10_recipients": [
+     0.124,
+     0.0363
+    ],
+    "n_champions_mean": [
+     1.28,
+     0.2123
+    ],
+    "points_quantiles_median": {
+     "p10": 75.0,
+     "p50": 225.0,
+     "p90": 420.0,
+     "max": 675.0
+    },
+    "points_per_round": {
+     "random": [
+      27.481,
+      0.6792
+     ],
+     "higher_in_band": [
+      26.4946,
+      1.4025
+     ],
+     "lower_in_band": [
+      18.1224,
+      1.2277
+     ],
+     "recovery_focused": [
+      32.3192,
+      1.1695
+     ],
+     "disagreement": [
+      22.88,
+      3.0902
+     ]
+    },
+    "late_switch": {
+     "cases": 75,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.087,
+      0.0371
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.34,
+      0.1853
+     ],
+     "higher_in_band": [
+      0.04,
+      0.0784
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.62,
+      0.19
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.133,
+      0.618
+     ],
+     "higher_in_band": [
+      0.2,
+      0.392
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      4.133,
+      1.267
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ]
+    },
+    "joint": [
+     0.16,
+     0.1467
+    ],
+    "top_two_level": [
+     0.24,
+     0.1709
+    ],
+    "best_round_share": [
+     0.1409,
+     0.0148
+    ],
+    "rho_recoveries": [
+     0.9877,
+     0.0009
+    ],
+    "rho_sd": [
+     -0.269,
+     0.07
+    ],
+    "rho_expected": [
+     -0.0346,
+     0.0408
+    ],
+    "zero_share": [
+     0.0274,
+     0.0072
+    ],
+    "gini": [
+     0.2714,
+     0.0109
+    ],
+    "top10_recipients": [
+     10.156,
+     0.0555
+    ],
+    "over10_recipients": [
+     0.124,
+     0.0363
+    ],
+    "n_champions_mean": [
+     1.16,
+     0.1467
+    ],
+    "points_quantiles_median": {
+     "p10": 75.0,
+     "p50": 225.0,
+     "p90": 432.5,
+     "max": 675.0
+    },
+    "points_per_round": {
+     "random": [
+      27.6948,
+      0.6799
+     ],
+     "higher_in_band": [
+      26.5652,
+      1.411
+     ],
+     "lower_in_band": [
+      18.5638,
+      1.2406
+     ],
+     "recovery_focused": [
+      32.4176,
+      1.169
+     ],
+     "disagreement": [
+      23.0715,
+      3.1332
+     ]
+    },
+    "late_switch": {
+     "cases": 75,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0267,
+      0.0367
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0452,
+      0.0476
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.34,
+      0.1853
+     ],
+     "higher_in_band": [
+      0.04,
+      0.0784
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.62,
+      0.19
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.133,
+      0.618
+     ],
+     "higher_in_band": [
+      0.2,
+      0.392
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      4.133,
+      1.267
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ]
+    },
+    "joint": [
+     0.16,
+     0.1467
+    ],
+    "top_two_level": [
+     0.24,
+     0.1709
+    ],
+    "best_round_share": [
+     0.1409,
+     0.0148
+    ],
+    "rho_recoveries": [
+     0.9876,
+     0.0009
+    ],
+    "rho_sd": [
+     -0.2686,
+     0.0699
+    ],
+    "rho_expected": [
+     -0.0346,
+     0.0408
+    ],
+    "zero_share": [
+     0.0274,
+     0.0072
+    ],
+    "gini": [
+     0.2713,
+     0.0109
+    ],
+    "top10_recipients": [
+     10.156,
+     0.0555
+    ],
+    "over10_recipients": [
+     0.124,
+     0.0363
+    ],
+    "n_champions_mean": [
+     1.16,
+     0.1467
+    ],
+    "points_quantiles_median": {
+     "p10": 75.0,
+     "p50": 225.0,
+     "p90": 435.0,
+     "max": 675.0
+    },
+    "points_per_round": {
+     "random": [
+      27.6955,
+      0.6798
+     ],
+     "higher_in_band": [
+      26.5654,
+      1.4109
+     ],
+     "lower_in_band": [
+      18.6172,
+      1.2433
+     ],
+     "recovery_focused": [
+      32.4179,
+      1.169
+     ],
+     "disagreement": [
+      23.0843,
+      3.1387
+     ]
+    },
+    "late_switch": {
+     "cases": 75,
+     "stay_win": [
+      0.0267,
+      0.0367
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0267,
+      0.0367
+     ],
+     "stay_top3": [
+      0.04,
+      0.0446
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0707,
+      0.0483
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.32,
+      0.1866
+     ],
+     "higher_in_band": [
+      0.12,
+      0.13
+     ],
+     "lower_in_band": [
+      0.2,
+      0.16
+     ],
+     "recovery_focused": [
+      0.28,
+      0.1796
+     ],
+     "disagreement": [
+      0.08,
+      0.1085
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.067,
+      0.622
+     ],
+     "higher_in_band": [
+      0.6,
+      0.65
+     ],
+     "lower_in_band": [
+      1.0,
+      0.8
+     ],
+     "recovery_focused": [
+      1.867,
+      1.197
+     ],
+     "disagreement": [
+      0.533,
+      0.723
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.08,
+     0.1085
+    ],
+    "best_round_share": [
+     0.2387,
+     0.0263
+    ],
+    "rho_recoveries": [
+     0.9584,
+     0.0026
+    ],
+    "rho_sd": [
+     -0.2428,
+     0.0696
+    ],
+    "rho_expected": [
+     -0.0301,
+     0.0404
+    ],
+    "zero_share": [
+     0.0274,
+     0.0072
+    ],
+    "gini": [
+     0.2757,
+     0.0107
+    ],
+    "top10_recipients": [
+     10.156,
+     0.0555
+    ],
+    "over10_recipients": [
+     0.124,
+     0.0363
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 50.0,
+     "p50": 150.0,
+     "p90": 300.0,
+     "max": 470.0
+    },
+    "points_per_round": {
+     "random": [
+      18.9824,
+      0.453
+     ],
+     "higher_in_band": [
+      18.1428,
+      0.988
+     ],
+     "lower_in_band": [
+      13.4774,
+      0.8752
+     ],
+     "recovery_focused": [
+      21.9328,
+      0.7999
+     ],
+     "disagreement": [
+      15.7819,
+      2.1755
+     ]
+    },
+    "late_switch": {
+     "cases": 75,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0267,
+      0.0367
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.015,
+      0.0447
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      -0.156,
+      0.737
+     ],
+     "higher_in_band": [
+      -0.333,
+      0.566
+     ],
+     "lower_in_band": [
+      -0.6,
+      0.65
+     ],
+     "recovery_focused": [
+      2.089,
+      1.181
+     ],
+     "disagreement": [
+      -0.533,
+      0.723
+     ],
+     "rho_sd": [
+      -0.0306,
+      0.0046
+     ]
+    },
+    "C": {
+     "random": [
+      0.067,
+      0.666
+     ],
+     "higher_in_band": [
+      -0.6,
+      0.65
+     ],
+     "lower_in_band": [
+      -0.6,
+      0.65
+     ],
+     "recovery_focused": [
+      2.0,
+      1.193
+     ],
+     "disagreement": [
+      -0.533,
+      0.723
+     ],
+     "rho_sd": [
+      -0.0241,
+      0.0041
+     ]
+    },
+    "D": {
+     "random": [
+      0.067,
+      0.666
+     ],
+     "higher_in_band": [
+      -0.6,
+      0.65
+     ],
+     "lower_in_band": [
+      -0.6,
+      0.65
+     ],
+     "recovery_focused": [
+      2.0,
+      1.193
+     ],
+     "disagreement": [
+      -0.533,
+      0.723
+     ],
+     "rho_sd": [
+      -0.0237,
+      0.0041
+     ]
+    },
+    "E": {
+     "random": [
+      0.0,
+      0.0
+     ],
+     "higher_in_band": [
+      -0.2,
+      0.392
+     ],
+     "lower_in_band": [
+      0.4,
+      0.542
+     ],
+     "recovery_focused": [
+      -0.267,
+      0.523
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      0.0021,
+      0.0007
+     ]
+    }
+   },
+   "runtime_seconds": 13.2
+  },
+  {
+   "participants": 1000,
+   "championships": 20,
+   "roster": {
+    "random": 300,
+    "higher_in_band": 200,
+    "lower_in_band": 200,
+    "recovery_focused": 150,
+    "disagreement": 150
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     1.0,
+     0.0
+    ],
+    "first_place_tie": [
+     0.0,
+     0.0
+    ],
+    "boundary_tie": [
+     0.13,
+     0.0452
+    ],
+    "tie_groups": [
+     29.645,
+     1.4987
+    ],
+    "recoverers": [
+     335.365,
+     10.1992
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.25,
+      0.1947
+     ],
+     "higher_in_band": [
+      0.1,
+      0.1349
+     ],
+     "lower_in_band": [
+      0.15,
+      0.1606
+     ],
+     "recovery_focused": [
+      0.45,
+      0.2237
+     ],
+     "disagreement": [
+      0.05,
+      0.098
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      0.833,
+      0.649
+     ],
+     "higher_in_band": [
+      0.5,
+      0.674
+     ],
+     "lower_in_band": [
+      0.75,
+      0.803
+     ],
+     "recovery_focused": [
+      3.0,
+      1.491
+     ],
+     "disagreement": [
+      0.333,
+      0.653
+     ]
+    },
+    "joint": [
+     0.05,
+     0.098
+    ],
+    "top_two_level": [
+     0.05,
+     0.098
+    ],
+    "best_round_share": [
+     0.25,
+     0.032
+    ],
+    "rho_recoveries": [
+     0.9785,
+     0.0011
+    ],
+    "rho_sd": [
+     -0.2211,
+     0.0632
+    ],
+    "rho_expected": [
+     -0.0337,
+     0.0371
+    ],
+    "zero_share": [
+     0.0219,
+     0.0039
+    ],
+    "gini": [
+     0.2648,
+     0.0083
+    ],
+    "top10_recipients": [
+     10.295,
+     0.1252
+    ],
+    "over10_recipients": [
+     0.13,
+     0.0452
+    ],
+    "n_champions_mean": [
+     1.05,
+     0.098
+    ],
+    "points_quantiles_median": {
+     "p10": 50.0,
+     "p50": 150.0,
+     "p90": 300.0,
+     "max": 487.5
+    },
+    "points_per_round": {
+     "random": [
+      18.4285,
+      0.4785
+     ],
+     "higher_in_band": [
+      17.2825,
+      0.8038
+     ],
+     "lower_in_band": [
+      13.2748,
+      0.8916
+     ],
+     "recovery_focused": [
+      21.6838,
+      0.7351
+     ],
+     "disagreement": [
+      16.1045,
+      1.8454
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0789,
+      0.0472
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.2782,
+      0.1912
+     ],
+     "higher_in_band": [
+      0.0859,
+      0.106
+     ],
+     "lower_in_band": [
+      0.1,
+      0.1349
+     ],
+     "recovery_focused": [
+      0.4821,
+      0.2094
+     ],
+     "disagreement": [
+      0.0538,
+      0.0979
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      0.927,
+      0.637
+     ],
+     "higher_in_band": [
+      0.43,
+      0.53
+     ],
+     "lower_in_band": [
+      0.5,
+      0.674
+     ],
+     "recovery_focused": [
+      3.214,
+      1.396
+     ],
+     "disagreement": [
+      0.359,
+      0.653
+     ]
+    },
+    "joint": [
+     0.2,
+     0.1799
+    ],
+    "top_two_level": [
+     0.3,
+     0.2061
+    ],
+    "best_round_share": [
+     0.1538,
+     0.0195
+    ],
+    "rho_recoveries": [
+     0.9939,
+     0.0003
+    ],
+    "rho_sd": [
+     -0.2308,
+     0.0636
+    ],
+    "rho_expected": [
+     -0.0388,
+     0.0379
+    ],
+    "zero_share": [
+     0.0219,
+     0.0039
+    ],
+    "gini": [
+     0.2613,
+     0.0083
+    ],
+    "top10_recipients": [
+     10.295,
+     0.1252
+    ],
+    "over10_recipients": [
+     0.13,
+     0.0452
+    ],
+    "n_champions_mean": [
+     2.0,
+     1.2477
+    ],
+    "points_quantiles_median": {
+     "p10": 75.0,
+     "p50": 225.0,
+     "p90": 387.5,
+     "max": 667.5
+    },
+    "points_per_round": {
+     "random": [
+      27.231,
+      0.7146
+     ],
+     "higher_in_band": [
+      25.3881,
+      1.1701
+     ],
+     "lower_in_band": [
+      18.9447,
+      1.2828
+     ],
+     "recovery_focused": [
+      32.2255,
+      1.0983
+     ],
+     "disagreement": [
+      23.8178,
+      2.7423
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0522,
+      0.055
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.2782,
+      0.1912
+     ],
+     "higher_in_band": [
+      0.0859,
+      0.106
+     ],
+     "lower_in_band": [
+      0.1,
+      0.1349
+     ],
+     "recovery_focused": [
+      0.4821,
+      0.2094
+     ],
+     "disagreement": [
+      0.0538,
+      0.0979
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      0.927,
+      0.637
+     ],
+     "higher_in_band": [
+      0.43,
+      0.53
+     ],
+     "lower_in_band": [
+      0.5,
+      0.674
+     ],
+     "recovery_focused": [
+      3.214,
+      1.396
+     ],
+     "disagreement": [
+      0.359,
+      0.653
+     ]
+    },
+    "joint": [
+     0.2,
+     0.1799
+    ],
+    "top_two_level": [
+     0.25,
+     0.1947
+    ],
+    "best_round_share": [
+     0.1581,
+     0.0188
+    ],
+    "rho_recoveries": [
+     0.9933,
+     0.0003
+    ],
+    "rho_sd": [
+     -0.229,
+     0.0635
+    ],
+    "rho_expected": [
+     -0.0385,
+     0.038
+    ],
+    "zero_share": [
+     0.0219,
+     0.0039
+    ],
+    "gini": [
+     0.2615,
+     0.0083
+    ],
+    "top10_recipients": [
+     10.295,
+     0.1252
+    ],
+    "over10_recipients": [
+     0.13,
+     0.0452
+    ],
+    "n_champions_mean": [
+     2.0,
+     1.2477
+    ],
+    "points_quantiles_median": {
+     "p10": 75.0,
+     "p50": 225.0,
+     "p90": 402.5,
+     "max": 672.5
+    },
+    "points_per_round": {
+     "random": [
+      27.3137,
+      0.7156
+     ],
+     "higher_in_band": [
+      25.4708,
+      1.175
+     ],
+     "lower_in_band": [
+      19.1768,
+      1.2971
+     ],
+     "recovery_focused": [
+      32.2582,
+      1.0974
+     ],
+     "disagreement": [
+      23.9002,
+      2.7467
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0186,
+      0.0516
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.2667,
+      0.1931
+     ],
+     "higher_in_band": [
+      0.0667,
+      0.1017
+     ],
+     "lower_in_band": [
+      0.2,
+      0.1799
+     ],
+     "recovery_focused": [
+      0.4667,
+      0.2141
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      0.889,
+      0.644
+     ],
+     "higher_in_band": [
+      0.333,
+      0.509
+     ],
+     "lower_in_band": [
+      1.0,
+      0.9
+     ],
+     "recovery_focused": [
+      3.111,
+      1.427
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ]
+    },
+    "joint": [
+     0.15,
+     0.1606
+    ],
+    "top_two_level": [
+     0.2,
+     0.1799
+    ],
+    "best_round_share": [
+     0.1679,
+     0.0208
+    ],
+    "rho_recoveries": [
+     0.9932,
+     0.0002
+    ],
+    "rho_sd": [
+     -0.2287,
+     0.0636
+    ],
+    "rho_expected": [
+     -0.0384,
+     0.0379
+    ],
+    "zero_share": [
+     0.0219,
+     0.0039
+    ],
+    "gini": [
+     0.2614,
+     0.0083
+    ],
+    "top10_recipients": [
+     10.295,
+     0.1252
+    ],
+    "over10_recipients": [
+     0.13,
+     0.0452
+    ],
+    "n_champions_mean": [
+     1.4,
+     0.5205
+    ],
+    "points_quantiles_median": {
+     "p10": 75.0,
+     "p50": 225.0,
+     "p90": 402.5,
+     "max": 672.5
+    },
+    "points_per_round": {
+     "random": [
+      27.3139,
+      0.7157
+     ],
+     "higher_in_band": [
+      25.4708,
+      1.175
+     ],
+     "lower_in_band": [
+      19.2244,
+      1.2918
+     ],
+     "recovery_focused": [
+      32.2582,
+      1.0974
+     ],
+     "disagreement": [
+      23.9057,
+      2.7464
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0267,
+      0.056
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.25,
+      0.1947
+     ],
+     "higher_in_band": [
+      0.1,
+      0.1349
+     ],
+     "lower_in_band": [
+      0.15,
+      0.1606
+     ],
+     "recovery_focused": [
+      0.45,
+      0.2237
+     ],
+     "disagreement": [
+      0.05,
+      0.098
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      0.833,
+      0.649
+     ],
+     "higher_in_band": [
+      0.5,
+      0.674
+     ],
+     "lower_in_band": [
+      0.75,
+      0.803
+     ],
+     "recovery_focused": [
+      3.0,
+      1.491
+     ],
+     "disagreement": [
+      0.333,
+      0.653
+     ]
+    },
+    "joint": [
+     0.05,
+     0.098
+    ],
+    "top_two_level": [
+     0.05,
+     0.098
+    ],
+    "best_round_share": [
+     0.2493,
+     0.0318
+    ],
+    "rho_recoveries": [
+     0.9781,
+     0.001
+    ],
+    "rho_sd": [
+     -0.2202,
+     0.0631
+    ],
+    "rho_expected": [
+     -0.0337,
+     0.037
+    ],
+    "zero_share": [
+     0.0219,
+     0.0039
+    ],
+    "gini": [
+     0.2647,
+     0.0083
+    ],
+    "top10_recipients": [
+     10.295,
+     0.1252
+    ],
+    "over10_recipients": [
+     0.13,
+     0.0452
+    ],
+    "n_champions_mean": [
+     1.05,
+     0.098
+    ],
+    "points_quantiles_median": {
+     "p10": 50.0,
+     "p50": 150.0,
+     "p90": 300.0,
+     "max": 487.5
+    },
+    "points_per_round": {
+     "random": [
+      18.4287,
+      0.4786
+     ],
+     "higher_in_band": [
+      17.2825,
+      0.8038
+     ],
+     "lower_in_band": [
+      13.3364,
+      0.8862
+     ],
+     "recovery_focused": [
+      21.6838,
+      0.7351
+     ],
+     "disagreement": [
+      16.112,
+      1.8451
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.054,
+      0.0482
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      0.094,
+      0.129
+     ],
+     "higher_in_band": [
+      -0.07,
+      0.563
+     ],
+     "lower_in_band": [
+      -0.25,
+      0.863
+     ],
+     "recovery_focused": [
+      0.214,
+      0.532
+     ],
+     "disagreement": [
+      0.025,
+      0.949
+     ],
+     "rho_sd": [
+      -0.0097,
+      0.002
+     ]
+    },
+    "C": {
+     "random": [
+      0.094,
+      0.129
+     ],
+     "higher_in_band": [
+      -0.07,
+      0.563
+     ],
+     "lower_in_band": [
+      -0.25,
+      0.863
+     ],
+     "recovery_focused": [
+      0.214,
+      0.532
+     ],
+     "disagreement": [
+      0.025,
+      0.949
+     ],
+     "rho_sd": [
+      -0.0079,
+      0.0021
+     ]
+    },
+    "D": {
+     "random": [
+      0.056,
+      0.109
+     ],
+     "higher_in_band": [
+      -0.167,
+      0.524
+     ],
+     "lower_in_band": [
+      0.25,
+      0.49
+     ],
+     "recovery_focused": [
+      0.111,
+      0.497
+     ],
+     "disagreement": [
+      -0.333,
+      0.653
+     ],
+     "rho_sd": [
+      -0.0076,
+      0.002
+     ]
+    },
+    "E": {
+     "random": [
+      0.0,
+      0.0
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      0.0009,
+      0.0007
+     ]
+    }
+   },
+   "runtime_seconds": 25.5
+  }
+ ],
+ "herd": [
+  {
+   "participants": 25,
+   "championships": 120,
+   "roster": {
+    "random": 4,
+    "higher_in_band": 4,
+    "lower_in_band": 4,
+    "recovery_focused": 3,
+    "disagreement": 3,
+    "herd": 5,
+    "correlated": 2
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     0.3975,
+     0.0275
+    ],
+    "first_place_tie": [
+     0.02,
+     0.0079
+    ],
+    "boundary_tie": [
+     0.1667,
+     0.0193
+    ],
+    "tie_groups": [
+     0.4617,
+     0.0356
+    ],
+    "recoverers": [
+     8.3775,
+     0.2065
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.2625,
+      0.0786
+     ],
+     "higher_in_band": [
+      0.125,
+      0.0594
+     ],
+     "lower_in_band": [
+      0.1583,
+      0.0656
+     ],
+     "recovery_focused": [
+      0.2792,
+      0.0802
+     ],
+     "disagreement": [
+      0.15,
+      0.0642
+     ],
+     "herd": [
+      0.0083,
+      0.0163
+     ],
+     "correlated": [
+      0.0167,
+      0.023
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.641,
+      0.491
+     ],
+     "higher_in_band": [
+      0.781,
+      0.371
+     ],
+     "lower_in_band": [
+      0.989,
+      0.41
+     ],
+     "recovery_focused": [
+      2.327,
+      0.668
+     ],
+     "disagreement": [
+      1.25,
+      0.535
+     ],
+     "herd": [
+      0.041,
+      0.081
+     ],
+     "correlated": [
+      0.209,
+      0.287
+     ]
+    },
+    "joint": [
+     0.025,
+     0.0281
+    ],
+    "top_two_level": [
+     0.025,
+     0.0281
+    ],
+    "best_round_share": [
+     0.2044,
+     0.0047
+    ],
+    "rho_recoveries": [
+     0.8853,
+     0.0114
+    ],
+    "rho_sd": [
+     0.137,
+     0.059
+    ],
+    "rho_expected": [
+     -0.063,
+     0.0439
+    ],
+    "zero_share": [
+     0.0177,
+     0.0048
+    ],
+    "gini": [
+     0.262,
+     0.0087
+    ],
+    "top10_recipients": [
+     7.8192,
+     0.1711
+    ],
+    "over10_recipients": [
+     0.1667,
+     0.0193
+    ],
+    "n_champions_mean": [
+     1.05,
+     0.069
+    ],
+    "points_quantiles_median": {
+     "p10": 150.0,
+     "p50": 320.0,
+     "p90": 570.0,
+     "max": 707.5
+    },
+    "points_per_round": {
+     "random": [
+      39.5875,
+      1.6053
+     ],
+     "higher_in_band": [
+      35.423,
+      1.5486
+     ],
+     "lower_in_band": [
+      32.5208,
+      1.5347
+     ],
+     "recovery_focused": [
+      43.0567,
+      1.824
+     ],
+     "disagreement": [
+      36.4472,
+      2.1886
+     ],
+     "herd": [
+      27.5513,
+      2.1402
+     ],
+     "correlated": [
+      30.8385,
+      1.8742
+     ]
+    },
+    "late_switch": {
+     "cases": 360,
+     "stay_win": [
+      0.0139,
+      0.0121
+     ],
+     "switch_win": [
+      0.0111,
+      0.0108
+     ],
+     "win_gain": [
+      -0.0028,
+      0.0144
+     ],
+     "stay_top3": [
+      0.0444,
+      0.0213
+     ],
+     "switch_top3": [
+      0.0611,
+      0.0248
+     ],
+     "pos_change": [
+      0.0069,
+      0.0265
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.2417,
+      0.076
+     ],
+     "higher_in_band": [
+      0.125,
+      0.0594
+     ],
+     "lower_in_band": [
+      0.1583,
+      0.0656
+     ],
+     "recovery_focused": [
+      0.2958,
+      0.0816
+     ],
+     "disagreement": [
+      0.1458,
+      0.0629
+     ],
+     "herd": [
+      0.0083,
+      0.0163
+     ],
+     "correlated": [
+      0.025,
+      0.0281
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.511,
+      0.475
+     ],
+     "higher_in_band": [
+      0.781,
+      0.371
+     ],
+     "lower_in_band": [
+      0.989,
+      0.41
+     ],
+     "recovery_focused": [
+      2.465,
+      0.68
+     ],
+     "disagreement": [
+      1.215,
+      0.524
+     ],
+     "herd": [
+      0.041,
+      0.081
+     ],
+     "correlated": [
+      0.312,
+      0.351
+     ]
+    },
+    "joint": [
+     0.0333,
+     0.0323
+    ],
+    "top_two_level": [
+     0.0333,
+     0.0323
+    ],
+    "best_round_share": [
+     0.202,
+     0.0046
+    ],
+    "rho_recoveries": [
+     0.9142,
+     0.0076
+    ],
+    "rho_sd": [
+     0.0959,
+     0.0605
+    ],
+    "rho_expected": [
+     -0.0559,
+     0.0448
+    ],
+    "zero_share": [
+     0.0177,
+     0.0048
+    ],
+    "gini": [
+     0.2548,
+     0.0085
+    ],
+    "top10_recipients": [
+     7.8192,
+     0.1711
+    ],
+    "over10_recipients": [
+     0.1667,
+     0.0193
+    ],
+    "n_champions_mean": [
+     1.0583,
+     0.0707
+    ],
+    "points_quantiles_median": {
+     "p10": 161.25,
+     "p50": 330.0,
+     "p90": 572.5,
+     "max": 717.5
+    },
+    "points_per_round": {
+     "random": [
+      40.1917,
+      1.6191
+     ],
+     "higher_in_band": [
+      36.2358,
+      1.5601
+     ],
+     "lower_in_band": [
+      32.5365,
+      1.5346
+     ],
+     "recovery_focused": [
+      44.352,
+      1.8377
+     ],
+     "disagreement": [
+      36.6069,
+      2.1894
+     ],
+     "herd": [
+      29.8664,
+      2.2427
+     ],
+     "correlated": [
+      32.149,
+      1.9299
+     ]
+    },
+    "late_switch": {
+     "cases": 360,
+     "stay_win": [
+      0.0069,
+      0.0081
+     ],
+     "switch_win": [
+      0.0167,
+      0.0132
+     ],
+     "win_gain": [
+      0.0097,
+      0.0125
+     ],
+     "stay_top3": [
+      0.0528,
+      0.0231
+     ],
+     "switch_top3": [
+      0.0472,
+      0.0219
+     ],
+     "pos_change": [
+      0.0314,
+      0.0248
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.275,
+      0.0802
+     ],
+     "higher_in_band": [
+      0.1333,
+      0.0611
+     ],
+     "lower_in_band": [
+      0.1,
+      0.0539
+     ],
+     "recovery_focused": [
+      0.3,
+      0.0823
+     ],
+     "disagreement": [
+      0.15,
+      0.0642
+     ],
+     "herd": [
+      0.0083,
+      0.0163
+     ],
+     "correlated": [
+      0.0333,
+      0.0323
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.719,
+      0.501
+     ],
+     "higher_in_band": [
+      0.833,
+      0.382
+     ],
+     "lower_in_band": [
+      0.625,
+      0.337
+     ],
+     "recovery_focused": [
+      2.5,
+      0.686
+     ],
+     "disagreement": [
+      1.25,
+      0.535
+     ],
+     "herd": [
+      0.041,
+      0.081
+     ],
+     "correlated": [
+      0.416,
+      0.404
+     ]
+    },
+    "joint": [
+     0.0083,
+     0.0163
+    ],
+    "top_two_level": [
+     0.0083,
+     0.0163
+    ],
+    "best_round_share": [
+     0.1893,
+     0.0043
+    ],
+    "rho_recoveries": [
+     0.9368,
+     0.0065
+    ],
+    "rho_sd": [
+     0.0494,
+     0.062
+    ],
+    "rho_expected": [
+     -0.0534,
+     0.0451
+    ],
+    "zero_share": [
+     0.0177,
+     0.0048
+    ],
+    "gini": [
+     0.2515,
+     0.0083
+    ],
+    "top10_recipients": [
+     7.8192,
+     0.1711
+    ],
+    "over10_recipients": [
+     0.1667,
+     0.0193
+    ],
+    "n_champions_mean": [
+     1.0333,
+     0.0653
+    ],
+    "points_quantiles_median": {
+     "p10": 181.25,
+     "p50": 360.0,
+     "p90": 614.6428571428571,
+     "max": 761.25
+    },
+    "points_per_round": {
+     "random": [
+      42.9568,
+      1.7472
+     ],
+     "higher_in_band": [
+      39.3991,
+      1.6695
+     ],
+     "lower_in_band": [
+      33.2203,
+      1.5765
+     ],
+     "recovery_focused": [
+      47.8787,
+      1.976
+     ],
+     "disagreement": [
+      38.5056,
+      2.3256
+     ],
+     "herd": [
+      33.3349,
+      2.5221
+     ],
+     "correlated": [
+      35.486,
+      2.1176
+     ]
+    },
+    "late_switch": {
+     "cases": 360,
+     "stay_win": [
+      0.0139,
+      0.0121
+     ],
+     "switch_win": [
+      0.0111,
+      0.0108
+     ],
+     "win_gain": [
+      -0.0028,
+      0.0164
+     ],
+     "stay_top3": [
+      0.0694,
+      0.0263
+     ],
+     "switch_top3": [
+      0.0556,
+      0.0237
+     ],
+     "pos_change": [
+      0.031,
+      0.0257
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.275,
+      0.0802
+     ],
+     "higher_in_band": [
+      0.1417,
+      0.0627
+     ],
+     "lower_in_band": [
+      0.1,
+      0.0539
+     ],
+     "recovery_focused": [
+      0.275,
+      0.0802
+     ],
+     "disagreement": [
+      0.1333,
+      0.0611
+     ],
+     "herd": [
+      0.0417,
+      0.0359
+     ],
+     "correlated": [
+      0.0333,
+      0.0323
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.719,
+      0.501
+     ],
+     "higher_in_band": [
+      0.886,
+      0.392
+     ],
+     "lower_in_band": [
+      0.625,
+      0.337
+     ],
+     "recovery_focused": [
+      2.292,
+      0.668
+     ],
+     "disagreement": [
+      1.111,
+      0.509
+     ],
+     "herd": [
+      0.208,
+      0.18
+     ],
+     "correlated": [
+      0.416,
+      0.404
+     ]
+    },
+    "joint": [
+     0.0417,
+     0.0359
+    ],
+    "top_two_level": [
+     0.0417,
+     0.0359
+    ],
+    "best_round_share": [
+     0.188,
+     0.0043
+    ],
+    "rho_recoveries": [
+     0.9557,
+     0.004
+    ],
+    "rho_sd": [
+     -0.0128,
+     0.0648
+    ],
+    "rho_expected": [
+     -0.0451,
+     0.0464
+    ],
+    "zero_share": [
+     0.0177,
+     0.0048
+    ],
+    "gini": [
+     0.2458,
+     0.0081
+    ],
+    "top10_recipients": [
+     7.8192,
+     0.1711
+    ],
+    "over10_recipients": [
+     0.1667,
+     0.0193
+    ],
+    "n_champions_mean": [
+     1.1667,
+     0.1436
+    ],
+    "points_quantiles_median": {
+     "p10": 182.5,
+     "p50": 367.5,
+     "p90": 620.0,
+     "max": 765.0
+    },
+    "points_per_round": {
+     "random": [
+      42.9604,
+      1.7467
+     ],
+     "higher_in_band": [
+      39.5063,
+      1.6671
+     ],
+     "lower_in_band": [
+      33.2385,
+      1.5779
+     ],
+     "recovery_focused": [
+      47.9042,
+      1.9785
+     ],
+     "disagreement": [
+      38.6806,
+      2.3467
+     ],
+     "herd": [
+      37.5417,
+      2.844
+     ],
+     "correlated": [
+      36.8625,
+      2.2017
+     ]
+    },
+    "late_switch": {
+     "cases": 360,
+     "stay_win": [
+      0.0083,
+      0.0094
+     ],
+     "switch_win": [
+      0.0167,
+      0.0132
+     ],
+     "win_gain": [
+      0.0083,
+      0.0163
+     ],
+     "stay_top3": [
+      0.0556,
+      0.0237
+     ],
+     "switch_top3": [
+      0.0528,
+      0.0231
+     ],
+     "pos_change": [
+      0.0254,
+      0.027
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.2542,
+      0.0778
+     ],
+     "higher_in_band": [
+      0.125,
+      0.0594
+     ],
+     "lower_in_band": [
+      0.1417,
+      0.0627
+     ],
+     "recovery_focused": [
+      0.2542,
+      0.0778
+     ],
+     "disagreement": [
+      0.1583,
+      0.0656
+     ],
+     "herd": [
+      0.0333,
+      0.0323
+     ],
+     "correlated": [
+      0.0333,
+      0.0323
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.589,
+      0.486
+     ],
+     "higher_in_band": [
+      0.781,
+      0.371
+     ],
+     "lower_in_band": [
+      0.886,
+      0.392
+     ],
+     "recovery_focused": [
+      2.118,
+      0.648
+     ],
+     "disagreement": [
+      1.319,
+      0.547
+     ],
+     "herd": [
+      0.167,
+      0.162
+     ],
+     "correlated": [
+      0.416,
+      0.404
+     ]
+    },
+    "joint": [
+     0.05,
+     0.0392
+    ],
+    "top_two_level": [
+     0.0583,
+     0.0421
+    ],
+    "best_round_share": [
+     0.2023,
+     0.0045
+    ],
+    "rho_recoveries": [
+     0.919,
+     0.0079
+    ],
+    "rho_sd": [
+     0.0482,
+     0.0643
+    ],
+    "rho_expected": [
+     -0.0541,
+     0.0458
+    ],
+    "zero_share": [
+     0.0177,
+     0.0048
+    ],
+    "gini": [
+     0.2516,
+     0.0083
+    ],
+    "top10_recipients": [
+     7.8192,
+     0.1711
+    ],
+    "over10_recipients": [
+     0.1667,
+     0.0193
+    ],
+    "n_champions_mean": [
+     1.15,
+     0.1305
+    ],
+    "points_quantiles_median": {
+     "p10": 150.0,
+     "p50": 332.5,
+     "p90": 570.0,
+     "max": 710.0
+    },
+    "points_per_round": {
+     "random": [
+      39.5927,
+      1.605
+     ],
+     "higher_in_band": [
+      35.5583,
+      1.544
+     ],
+     "lower_in_band": [
+      32.5448,
+      1.5363
+     ],
+     "recovery_focused": [
+      43.0931,
+      1.8267
+     ],
+     "disagreement": [
+      36.6889,
+      2.2194
+     ],
+     "herd": [
+      33.0833,
+      2.5756
+     ],
+     "correlated": [
+      32.6542,
+      1.988
+     ]
+    },
+    "late_switch": {
+     "cases": 360,
+     "stay_win": [
+      0.0139,
+      0.0121
+     ],
+     "switch_win": [
+      0.0028,
+      0.0054
+     ],
+     "win_gain": [
+      -0.0111,
+      0.0133
+     ],
+     "stay_top3": [
+      0.075,
+      0.0272
+     ],
+     "switch_top3": [
+      0.0472,
+      0.0219
+     ],
+     "pos_change": [
+      0.035,
+      0.0267
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      -0.13,
+      0.21
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.139,
+      0.334
+     ],
+     "disagreement": [
+      -0.035,
+      0.152
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.104,
+      0.204
+     ],
+     "rho_sd": [
+      -0.0411,
+      0.0105
+     ]
+    },
+    "C": {
+     "random": [
+      0.078,
+      0.256
+     ],
+     "higher_in_band": [
+      0.052,
+      0.102
+     ],
+     "lower_in_band": [
+      -0.364,
+      0.263
+     ],
+     "recovery_focused": [
+      0.173,
+      0.392
+     ],
+     "disagreement": [
+      0.0,
+      0.193
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.209,
+      0.287
+     ],
+     "rho_sd": [
+      -0.0876,
+      0.0123
+     ]
+    },
+    "D": {
+     "random": [
+      0.078,
+      0.256
+     ],
+     "higher_in_band": [
+      0.104,
+      0.144
+     ],
+     "lower_in_band": [
+      -0.364,
+      0.263
+     ],
+     "recovery_focused": [
+      -0.035,
+      0.458
+     ],
+     "disagreement": [
+      -0.139,
+      0.273
+     ],
+     "herd": [
+      0.167,
+      0.162
+     ],
+     "correlated": [
+      0.209,
+      0.409
+     ],
+     "rho_sd": [
+      -0.1498,
+      0.0181
+     ]
+    },
+    "E": {
+     "random": [
+      -0.052,
+      0.102
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      -0.104,
+      0.144
+     ],
+     "recovery_focused": [
+      -0.208,
+      0.234
+     ],
+     "disagreement": [
+      0.069,
+      0.136
+     ],
+     "herd": [
+      0.125,
+      0.141
+     ],
+     "correlated": [
+      0.209,
+      0.409
+     ],
+     "rho_sd": [
+      -0.0888,
+      0.0145
+     ]
+    }
+   },
+   "runtime_seconds": 2.8
+  },
+  {
+   "participants": 100,
+   "championships": 40,
+   "roster": {
+    "random": 22,
+    "higher_in_band": 14,
+    "lower_in_band": 14,
+    "recovery_focused": 10,
+    "disagreement": 10,
+    "herd": 20,
+    "correlated": 10
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     0.765,
+     0.0441
+    ],
+    "first_place_tie": [
+     0.0125,
+     0.0104
+    ],
+    "boundary_tie": [
+     0.095,
+     0.0306
+    ],
+    "tie_groups": [
+     1.5375,
+     0.1559
+    ],
+    "recoverers": [
+     33.15,
+     1.1982
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.3,
+      0.1438
+     ],
+     "higher_in_band": [
+      0.075,
+      0.0827
+     ],
+     "lower_in_band": [
+      0.2,
+      0.1255
+     ],
+     "recovery_focused": [
+      0.15,
+      0.1121
+     ],
+     "disagreement": [
+      0.25,
+      0.1359
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.025,
+      0.049
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.364,
+      0.654
+     ],
+     "higher_in_band": [
+      0.536,
+      0.591
+     ],
+     "lower_in_band": [
+      1.429,
+      0.896
+     ],
+     "recovery_focused": [
+      1.5,
+      1.121
+     ],
+     "disagreement": [
+      2.5,
+      1.359
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.25,
+      0.49
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.05,
+     0.0684
+    ],
+    "best_round_share": [
+     0.2436,
+     0.0106
+    ],
+    "rho_recoveries": [
+     0.8309,
+     0.0201
+    ],
+    "rho_sd": [
+     0.2266,
+     0.0799
+    ],
+    "rho_expected": [
+     -0.0346,
+     0.0497
+    ],
+    "zero_share": [
+     0.0222,
+     0.005
+    ],
+    "gini": [
+     0.2835,
+     0.0146
+    ],
+    "top10_recipients": [
+     10.7675,
+     0.3599
+    ],
+    "over10_recipients": [
+     0.095,
+     0.0306
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 100.0,
+     "p50": 200.0,
+     "p90": 370.0,
+     "max": 583.75
+    },
+    "points_per_round": {
+     "random": [
+      24.7693,
+      0.7559
+     ],
+     "higher_in_band": [
+      21.1792,
+      1.2083
+     ],
+     "lower_in_band": [
+      22.2545,
+      1.4015
+     ],
+     "recovery_focused": [
+      26.6925,
+      1.3372
+     ],
+     "disagreement": [
+      26.3152,
+      2.3455
+     ],
+     "herd": [
+      16.0884,
+      1.999
+     ],
+     "correlated": [
+      19.2658,
+      1.5797
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0083,
+      0.0163
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0083,
+      0.0163
+     ],
+     "stay_top3": [
+      0.0333,
+      0.0323
+     ],
+     "switch_top3": [
+      0.0083,
+      0.0163
+     ],
+     "pos_change": [
+      0.0539,
+      0.0507
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.3,
+      0.1438
+     ],
+     "higher_in_band": [
+      0.075,
+      0.0827
+     ],
+     "lower_in_band": [
+      0.1,
+      0.0942
+     ],
+     "recovery_focused": [
+      0.2,
+      0.1255
+     ],
+     "disagreement": [
+      0.275,
+      0.1401
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.05,
+      0.0684
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.364,
+      0.654
+     ],
+     "higher_in_band": [
+      0.536,
+      0.591
+     ],
+     "lower_in_band": [
+      0.714,
+      0.673
+     ],
+     "recovery_focused": [
+      2.0,
+      1.255
+     ],
+     "disagreement": [
+      2.75,
+      1.401
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.5,
+      0.684
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.025,
+     0.049
+    ],
+    "best_round_share": [
+     0.2091,
+     0.0105
+    ],
+    "rho_recoveries": [
+     0.9405,
+     0.0072
+    ],
+    "rho_sd": [
+     0.072,
+     0.0932
+    ],
+    "rho_expected": [
+     -0.0273,
+     0.0461
+    ],
+    "zero_share": [
+     0.0222,
+     0.005
+    ],
+    "gini": [
+     0.256,
+     0.0131
+    ],
+    "top10_recipients": [
+     10.7675,
+     0.3599
+    ],
+    "over10_recipients": [
+     0.095,
+     0.0306
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 150.0,
+     "p50": 242.5,
+     "p90": 450.0,
+     "max": 645.0
+    },
+    "points_per_round": {
+     "random": [
+      30.3858,
+      0.8854
+     ],
+     "higher_in_band": [
+      27.604,
+      1.5582
+     ],
+     "lower_in_band": [
+      23.356,
+      1.5213
+     ],
+     "recovery_focused": [
+      34.6112,
+      1.5638
+     ],
+     "disagreement": [
+      30.1939,
+      2.7955
+     ],
+     "herd": [
+      23.8697,
+      2.9779
+     ],
+     "correlated": [
+      26.8877,
+      2.0658
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0083,
+      0.0163
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0083,
+      0.0163
+     ],
+     "stay_top3": [
+      0.0167,
+      0.023
+     ],
+     "switch_top3": [
+      0.025,
+      0.0281
+     ],
+     "pos_change": [
+      0.0364,
+      0.0491
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.3,
+      0.1438
+     ],
+     "higher_in_band": [
+      0.075,
+      0.0827
+     ],
+     "lower_in_band": [
+      0.1,
+      0.0942
+     ],
+     "recovery_focused": [
+      0.2,
+      0.1255
+     ],
+     "disagreement": [
+      0.3,
+      0.1438
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.025,
+      0.049
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.364,
+      0.654
+     ],
+     "higher_in_band": [
+      0.536,
+      0.591
+     ],
+     "lower_in_band": [
+      0.714,
+      0.673
+     ],
+     "recovery_focused": [
+      2.0,
+      1.255
+     ],
+     "disagreement": [
+      3.0,
+      1.438
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.25,
+      0.49
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.05,
+     0.0684
+    ],
+    "best_round_share": [
+     0.2036,
+     0.0094
+    ],
+    "rho_recoveries": [
+     0.9271,
+     0.0088
+    ],
+    "rho_sd": [
+     0.1036,
+     0.0907
+    ],
+    "rho_expected": [
+     -0.0295,
+     0.046
+    ],
+    "zero_share": [
+     0.0222,
+     0.005
+    ],
+    "gini": [
+     0.2587,
+     0.0135
+    ],
+    "top10_recipients": [
+     10.7675,
+     0.3599
+    ],
+    "over10_recipients": [
+     0.095,
+     0.0306
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 150.0,
+     "p50": 260.0,
+     "p90": 465.0,
+     "max": 674.0
+    },
+    "points_per_round": {
+     "random": [
+      31.7188,
+      0.9085
+     ],
+     "higher_in_band": [
+      28.5938,
+      1.5903
+     ],
+     "lower_in_band": [
+      25.0214,
+      1.6275
+     ],
+     "recovery_focused": [
+      35.7144,
+      1.6275
+     ],
+     "disagreement": [
+      32.2929,
+      2.9112
+     ],
+     "herd": [
+      23.9628,
+      2.9835
+     ],
+     "correlated": [
+      27.3496,
+      2.1308
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0083,
+      0.0163
+     ],
+     "win_gain": [
+      0.0083,
+      0.0163
+     ],
+     "stay_top3": [
+      0.0083,
+      0.0163
+     ],
+     "switch_top3": [
+      0.0167,
+      0.023
+     ],
+     "pos_change": [
+      0.0341,
+      0.0486
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.275,
+      0.1401
+     ],
+     "higher_in_band": [
+      0.075,
+      0.0827
+     ],
+     "lower_in_band": [
+      0.1,
+      0.0942
+     ],
+     "recovery_focused": [
+      0.2,
+      0.1255
+     ],
+     "disagreement": [
+      0.325,
+      0.147
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.025,
+      0.049
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.25,
+      0.637
+     ],
+     "higher_in_band": [
+      0.536,
+      0.591
+     ],
+     "lower_in_band": [
+      0.714,
+      0.673
+     ],
+     "recovery_focused": [
+      2.0,
+      1.255
+     ],
+     "disagreement": [
+      3.25,
+      1.47
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.25,
+      0.49
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.05,
+     0.0684
+    ],
+    "best_round_share": [
+     0.202,
+     0.0098
+    ],
+    "rho_recoveries": [
+     0.9293,
+     0.0087
+    ],
+    "rho_sd": [
+     0.0905,
+     0.093
+    ],
+    "rho_expected": [
+     -0.0305,
+     0.0462
+    ],
+    "zero_share": [
+     0.0222,
+     0.005
+    ],
+    "gini": [
+     0.2567,
+     0.0133
+    ],
+    "top10_recipients": [
+     10.7675,
+     0.3599
+    ],
+    "over10_recipients": [
+     0.095,
+     0.0306
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 150.0,
+     "p50": 265.0,
+     "p90": 465.0,
+     "max": 675.0
+    },
+    "points_per_round": {
+     "random": [
+      31.7193,
+      0.9082
+     ],
+     "higher_in_band": [
+      28.6018,
+      1.5905
+     ],
+     "lower_in_band": [
+      25.0661,
+      1.6332
+     ],
+     "recovery_focused": [
+      35.715,
+      1.6276
+     ],
+     "disagreement": [
+      32.7188,
+      2.9538
+     ],
+     "herd": [
+      24.8375,
+      3.0561
+     ],
+     "correlated": [
+      27.4875,
+      2.1435
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0083,
+      0.0163
+     ],
+     "switch_top3": [
+      0.0083,
+      0.0163
+     ],
+     "pos_change": [
+      0.0805,
+      0.0477
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.275,
+      0.1401
+     ],
+     "higher_in_band": [
+      0.075,
+      0.0827
+     ],
+     "lower_in_band": [
+      0.2,
+      0.1255
+     ],
+     "recovery_focused": [
+      0.15,
+      0.1121
+     ],
+     "disagreement": [
+      0.275,
+      0.1401
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.025,
+      0.049
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.25,
+      0.637
+     ],
+     "higher_in_band": [
+      0.536,
+      0.591
+     ],
+     "lower_in_band": [
+      1.429,
+      0.896
+     ],
+     "recovery_focused": [
+      1.5,
+      1.121
+     ],
+     "disagreement": [
+      2.75,
+      1.401
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.25,
+      0.49
+     ]
+    },
+    "joint": [
+     0.0,
+     0.0
+    ],
+    "top_two_level": [
+     0.075,
+     0.0827
+    ],
+    "best_round_share": [
+     0.2442,
+     0.0106
+    ],
+    "rho_recoveries": [
+     0.834,
+     0.0192
+    ],
+    "rho_sd": [
+     0.2071,
+     0.0842
+    ],
+    "rho_expected": [
+     -0.0384,
+     0.0502
+    ],
+    "zero_share": [
+     0.0222,
+     0.005
+    ],
+    "gini": [
+     0.279,
+     0.0143
+    ],
+    "top10_recipients": [
+     10.7675,
+     0.3599
+    ],
+    "over10_recipients": [
+     0.095,
+     0.0306
+    ],
+    "n_champions_mean": [
+     1.0,
+     0.0
+    ],
+    "points_quantiles_median": {
+     "p10": 100.0,
+     "p50": 200.0,
+     "p90": 370.0,
+     "max": 585.0
+    },
+    "points_per_round": {
+     "random": [
+      24.7699,
+      0.7557
+     ],
+     "higher_in_band": [
+      21.192,
+      1.2085
+     ],
+     "lower_in_band": [
+      22.3196,
+      1.4101
+     ],
+     "recovery_focused": [
+      26.6938,
+      1.3373
+     ],
+     "disagreement": [
+      26.8938,
+      2.4104
+     ],
+     "herd": [
+      17.2875,
+      2.159
+     ],
+     "correlated": [
+      19.46,
+      1.6048
+     ]
+    },
+    "late_switch": {
+     "cases": 120,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0167,
+      0.023
+     ],
+     "win_gain": [
+      0.0167,
+      0.023
+     ],
+     "stay_top3": [
+      0.025,
+      0.0281
+     ],
+     "switch_top3": [
+      0.025,
+      0.0281
+     ],
+     "pos_change": [
+      0.0254,
+      0.0482
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      0.0,
+      0.638
+     ],
+     "higher_in_band": [
+      0.0,
+      0.501
+     ],
+     "lower_in_band": [
+      -0.714,
+      0.673
+     ],
+     "recovery_focused": [
+      0.5,
+      0.98
+     ],
+     "disagreement": [
+      0.25,
+      1.107
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.25,
+      0.49
+     ],
+     "rho_sd": [
+      -0.1546,
+      0.0206
+     ]
+    },
+    "C": {
+     "random": [
+      0.0,
+      0.451
+     ],
+     "higher_in_band": [
+      0.0,
+      0.501
+     ],
+     "lower_in_band": [
+      -0.714,
+      0.673
+     ],
+     "recovery_focused": [
+      0.5,
+      0.684
+     ],
+     "disagreement": [
+      0.5,
+      0.684
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      -0.1231,
+      0.0166
+     ]
+    },
+    "D": {
+     "random": [
+      -0.114,
+      0.503
+     ],
+     "higher_in_band": [
+      0.0,
+      0.501
+     ],
+     "lower_in_band": [
+      -0.714,
+      0.673
+     ],
+     "recovery_focused": [
+      0.5,
+      0.684
+     ],
+     "disagreement": [
+      0.75,
+      0.827
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      -0.1362,
+      0.0191
+     ]
+    },
+    "E": {
+     "random": [
+      -0.114,
+      0.223
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.25,
+      0.49
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      -0.0196,
+      0.0153
+     ]
+    }
+   },
+   "runtime_seconds": 3.6
+  },
+  {
+   "participants": 500,
+   "championships": 20,
+   "roster": {
+    "random": 106,
+    "higher_in_band": 70,
+    "lower_in_band": 70,
+    "recovery_focused": 52,
+    "disagreement": 52,
+    "herd": 100,
+    "correlated": 50
+   },
+   "weekly": {
+    "rounds_with_tie": [
+     1.0,
+     0.0
+    ],
+    "first_place_tie": [
+     0.03,
+     0.0206
+    ],
+    "boundary_tie": [
+     0.085,
+     0.0433
+    ],
+    "tie_groups": [
+     10.61,
+     0.5821
+    ],
+    "recoverers": [
+     176.55,
+     10.6996
+    ]
+   },
+   "A": {
+    "win_share": {
+     "random": [
+      0.275,
+      0.1944
+     ],
+     "higher_in_band": [
+      0.2,
+      0.1799
+     ],
+     "lower_in_band": [
+      0.2,
+      0.1799
+     ],
+     "recovery_focused": [
+      0.175,
+      0.1633
+     ],
+     "disagreement": [
+      0.05,
+      0.098
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.1,
+      0.1349
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.297,
+      0.917
+     ],
+     "higher_in_band": [
+      1.429,
+      1.285
+     ],
+     "lower_in_band": [
+      1.429,
+      1.285
+     ],
+     "recovery_focused": [
+      1.683,
+      1.57
+     ],
+     "disagreement": [
+      0.481,
+      0.942
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      1.0,
+      1.349
+     ]
+    },
+    "joint": [
+     0.05,
+     0.098
+    ],
+    "top_two_level": [
+     0.1,
+     0.1349
+    ],
+    "best_round_share": [
+     0.2799,
+     0.0174
+    ],
+    "rho_recoveries": [
+     0.9489,
+     0.0062
+    ],
+    "rho_sd": [
+     -0.1541,
+     0.1449
+    ],
+    "rho_expected": [
+     -0.0066,
+     0.0596
+    ],
+    "zero_share": [
+     0.0179,
+     0.0034
+    ],
+    "gini": [
+     0.244,
+     0.0131
+    ],
+    "top10_recipients": [
+     10.145,
+     0.0938
+    ],
+    "over10_recipients": [
+     0.085,
+     0.0433
+    ],
+    "n_champions_mean": [
+     1.05,
+     0.098
+    ],
+    "points_quantiles_median": {
+     "p10": 100.0,
+     "p50": 175.0,
+     "p90": 291.25,
+     "max": 467.5
+    },
+    "points_per_round": {
+     "random": [
+      19.0644,
+      0.5424
+     ],
+     "higher_in_band": [
+      18.478,
+      1.0523
+     ],
+     "lower_in_band": [
+      14.9527,
+      0.9174
+     ],
+     "recovery_focused": [
+      21.9094,
+      0.6254
+     ],
+     "disagreement": [
+      17.0904,
+      1.751
+     ],
+     "herd": [
+      20.0,
+      3.7621
+     ],
+     "correlated": [
+      19.5707,
+      2.0301
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0167,
+      0.0327
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0167,
+      0.0327
+     ],
+     "stay_top3": [
+      0.0333,
+      0.0458
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0923,
+      0.0578
+     ]
+    }
+   },
+   "B": {
+    "win_share": {
+     "random": [
+      0.25,
+      0.1813
+     ],
+     "higher_in_band": [
+      0.2,
+      0.1799
+     ],
+     "lower_in_band": [
+      0.1,
+      0.1349
+     ],
+     "recovery_focused": [
+      0.35,
+      0.2023
+     ],
+     "disagreement": [
+      0.05,
+      0.098
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.05,
+      0.098
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.179,
+      0.855
+     ],
+     "higher_in_band": [
+      1.429,
+      1.285
+     ],
+     "lower_in_band": [
+      0.714,
+      0.964
+     ],
+     "recovery_focused": [
+      3.365,
+      1.945
+     ],
+     "disagreement": [
+      0.481,
+      0.942
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.5,
+      0.98
+     ]
+    },
+    "joint": [
+     0.15,
+     0.1606
+    ],
+    "top_two_level": [
+     0.2,
+     0.1799
+    ],
+    "best_round_share": [
+     0.1716,
+     0.0194
+    ],
+    "rho_recoveries": [
+     0.9864,
+     0.002
+    ],
+    "rho_sd": [
+     -0.2055,
+     0.1486
+    ],
+    "rho_expected": [
+     -0.0045,
+     0.065
+    ],
+    "zero_share": [
+     0.0179,
+     0.0034
+    ],
+    "gini": [
+     0.238,
+     0.0126
+    ],
+    "top10_recipients": [
+     10.145,
+     0.0938
+    ],
+    "over10_recipients": [
+     0.085,
+     0.0433
+    ],
+    "n_champions_mean": [
+     1.15,
+     0.1606
+    ],
+    "points_quantiles_median": {
+     "p10": 150.0,
+     "p50": 262.5,
+     "p90": 380.0,
+     "max": 635.0
+    },
+    "points_per_round": {
+     "random": [
+      27.3238,
+      0.7388
+     ],
+     "higher_in_band": [
+      27.0012,
+      1.5393
+     ],
+     "lower_in_band": [
+      19.5429,
+      1.2809
+     ],
+     "recovery_focused": [
+      31.9755,
+      0.8959
+     ],
+     "disagreement": [
+      24.4125,
+      2.4864
+     ],
+     "herd": [
+      30.0,
+      5.6431
+     ],
+     "correlated": [
+      28.8933,
+      3.0336
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.1017,
+      0.0515
+     ]
+    }
+   },
+   "C": {
+    "win_share": {
+     "random": [
+      0.25,
+      0.1813
+     ],
+     "higher_in_band": [
+      0.2,
+      0.1799
+     ],
+     "lower_in_band": [
+      0.1,
+      0.1349
+     ],
+     "recovery_focused": [
+      0.35,
+      0.2023
+     ],
+     "disagreement": [
+      0.05,
+      0.098
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.05,
+      0.098
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.179,
+      0.855
+     ],
+     "higher_in_band": [
+      1.429,
+      1.285
+     ],
+     "lower_in_band": [
+      0.714,
+      0.964
+     ],
+     "recovery_focused": [
+      3.365,
+      1.945
+     ],
+     "disagreement": [
+      0.481,
+      0.942
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.5,
+      0.98
+     ]
+    },
+    "joint": [
+     0.15,
+     0.1606
+    ],
+    "top_two_level": [
+     0.2,
+     0.1799
+    ],
+    "best_round_share": [
+     0.1774,
+     0.0188
+    ],
+    "rho_recoveries": [
+     0.9836,
+     0.0022
+    ],
+    "rho_sd": [
+     -0.197,
+     0.1484
+    ],
+    "rho_expected": [
+     -0.0054,
+     0.0646
+    ],
+    "zero_share": [
+     0.0179,
+     0.0034
+    ],
+    "gini": [
+     0.2382,
+     0.0126
+    ],
+    "top10_recipients": [
+     10.145,
+     0.0938
+    ],
+    "over10_recipients": [
+     0.085,
+     0.0433
+    ],
+    "n_champions_mean": [
+     1.15,
+     0.1606
+    ],
+    "points_quantiles_median": {
+     "p10": 150.0,
+     "p50": 262.5,
+     "p90": 395.0,
+     "max": 645.0
+    },
+    "points_per_round": {
+     "random": [
+      27.6059,
+      0.7521
+     ],
+     "higher_in_band": [
+      27.0459,
+      1.5358
+     ],
+     "lower_in_band": [
+      20.1702,
+      1.2896
+     ],
+     "recovery_focused": [
+      32.1541,
+      0.8996
+     ],
+     "disagreement": [
+      24.688,
+      2.5161
+     ],
+     "herd": [
+      30.0,
+      5.6431
+     ],
+     "correlated": [
+      28.9823,
+      3.0324
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0,
+      0.0
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      0.0,
+      0.0
+     ],
+     "stay_top3": [
+      0.0,
+      0.0
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0632,
+      0.0591
+     ]
+    }
+   },
+   "D": {
+    "win_share": {
+     "random": [
+      0.25,
+      0.1813
+     ],
+     "higher_in_band": [
+      0.2,
+      0.1799
+     ],
+     "lower_in_band": [
+      0.1,
+      0.1349
+     ],
+     "recovery_focused": [
+      0.35,
+      0.2023
+     ],
+     "disagreement": [
+      0.05,
+      0.098
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.05,
+      0.098
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.179,
+      0.855
+     ],
+     "higher_in_band": [
+      1.429,
+      1.285
+     ],
+     "lower_in_band": [
+      0.714,
+      0.964
+     ],
+     "recovery_focused": [
+      3.365,
+      1.945
+     ],
+     "disagreement": [
+      0.481,
+      0.942
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.5,
+      0.98
+     ]
+    },
+    "joint": [
+     0.15,
+     0.1606
+    ],
+    "top_two_level": [
+     0.2,
+     0.1799
+    ],
+    "best_round_share": [
+     0.1774,
+     0.0188
+    ],
+    "rho_recoveries": [
+     0.9831,
+     0.0023
+    ],
+    "rho_sd": [
+     -0.1963,
+     0.1482
+    ],
+    "rho_expected": [
+     -0.0053,
+     0.0644
+    ],
+    "zero_share": [
+     0.0179,
+     0.0034
+    ],
+    "gini": [
+     0.2382,
+     0.0126
+    ],
+    "top10_recipients": [
+     10.145,
+     0.0938
+    ],
+    "over10_recipients": [
+     0.085,
+     0.0433
+    ],
+    "n_champions_mean": [
+     1.15,
+     0.1606
+    ],
+    "points_quantiles_median": {
+     "p10": 150.0,
+     "p50": 262.5,
+     "p90": 395.0,
+     "max": 645.0
+    },
+    "points_per_round": {
+     "random": [
+      27.6066,
+      0.7519
+     ],
+     "higher_in_band": [
+      27.0461,
+      1.5358
+     ],
+     "lower_in_band": [
+      20.2254,
+      1.2939
+     ],
+     "recovery_focused": [
+      32.1548,
+      0.9001
+     ],
+     "disagreement": [
+      24.7067,
+      2.5134
+     ],
+     "herd": [
+      30.0,
+      5.6431
+     ],
+     "correlated": [
+      29.007,
+      3.0289
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0167,
+      0.0327
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0167,
+      0.0327
+     ],
+     "stay_top3": [
+      0.0167,
+      0.0327
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0575,
+      0.0564
+     ]
+    }
+   },
+   "E": {
+    "win_share": {
+     "random": [
+      0.275,
+      0.1944
+     ],
+     "higher_in_band": [
+      0.2,
+      0.1799
+     ],
+     "lower_in_band": [
+      0.2,
+      0.1799
+     ],
+     "recovery_focused": [
+      0.175,
+      0.1633
+     ],
+     "disagreement": [
+      0.05,
+      0.098
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.1,
+      0.1349
+     ]
+    },
+    "win_ratio": {
+     "random": [
+      1.297,
+      0.917
+     ],
+     "higher_in_band": [
+      1.429,
+      1.285
+     ],
+     "lower_in_band": [
+      1.429,
+      1.285
+     ],
+     "recovery_focused": [
+      1.683,
+      1.57
+     ],
+     "disagreement": [
+      0.481,
+      0.942
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      1.0,
+      1.349
+     ]
+    },
+    "joint": [
+     0.05,
+     0.098
+    ],
+    "top_two_level": [
+     0.1,
+     0.1349
+    ],
+    "best_round_share": [
+     0.279,
+     0.0174
+    ],
+    "rho_recoveries": [
+     0.9476,
+     0.0065
+    ],
+    "rho_sd": [
+     -0.1527,
+     0.1445
+    ],
+    "rho_expected": [
+     -0.0066,
+     0.0593
+    ],
+    "zero_share": [
+     0.0179,
+     0.0034
+    ],
+    "gini": [
+     0.2441,
+     0.0131
+    ],
+    "top10_recipients": [
+     10.145,
+     0.0938
+    ],
+    "over10_recipients": [
+     0.085,
+     0.0433
+    ],
+    "n_champions_mean": [
+     1.05,
+     0.098
+    ],
+    "points_quantiles_median": {
+     "p10": 100.0,
+     "p50": 175.0,
+     "p90": 292.5,
+     "max": 467.5
+    },
+    "points_per_round": {
+     "random": [
+      19.0651,
+      0.5422
+     ],
+     "higher_in_band": [
+      18.4782,
+      1.0523
+     ],
+     "lower_in_band": [
+      15.0289,
+      0.9251
+     ],
+     "recovery_focused": [
+      21.9106,
+      0.6262
+     ],
+     "disagreement": [
+      17.1183,
+      1.7457
+     ],
+     "herd": [
+      20.0,
+      3.7621
+     ],
+     "correlated": [
+      19.6035,
+      2.027
+     ]
+    },
+    "late_switch": {
+     "cases": 60,
+     "stay_win": [
+      0.0167,
+      0.0327
+     ],
+     "switch_win": [
+      0.0,
+      0.0
+     ],
+     "win_gain": [
+      -0.0167,
+      0.0327
+     ],
+     "stay_top3": [
+      0.0167,
+      0.0327
+     ],
+     "switch_top3": [
+      0.0,
+      0.0
+     ],
+     "pos_change": [
+      0.0816,
+      0.0486
+     ]
+    }
+   },
+   "paired_vs_A": {
+    "B": {
+     "random": [
+      -0.118,
+      0.528
+     ],
+     "higher_in_band": [
+      0.0,
+      1.016
+     ],
+     "lower_in_band": [
+      -0.714,
+      1.4
+     ],
+     "recovery_focused": [
+      1.683,
+      1.57
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      -0.5,
+      0.98
+     ],
+     "rho_sd": [
+      -0.0514,
+      0.0087
+     ]
+    },
+    "C": {
+     "random": [
+      -0.118,
+      0.528
+     ],
+     "higher_in_band": [
+      0.0,
+      1.016
+     ],
+     "lower_in_band": [
+      -0.714,
+      1.4
+     ],
+     "recovery_focused": [
+      1.683,
+      1.57
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      -0.5,
+      0.98
+     ],
+     "rho_sd": [
+      -0.0429,
+      0.0079
+     ]
+    },
+    "D": {
+     "random": [
+      -0.118,
+      0.528
+     ],
+     "higher_in_band": [
+      0.0,
+      1.016
+     ],
+     "lower_in_band": [
+      -0.714,
+      1.4
+     ],
+     "recovery_focused": [
+      1.683,
+      1.57
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      -0.5,
+      0.98
+     ],
+     "rho_sd": [
+      -0.0422,
+      0.0076
+     ]
+    },
+    "E": {
+     "random": [
+      0.0,
+      0.0
+     ],
+     "higher_in_band": [
+      0.0,
+      0.0
+     ],
+     "lower_in_band": [
+      0.0,
+      0.0
+     ],
+     "recovery_focused": [
+      0.0,
+      0.0
+     ],
+     "disagreement": [
+      0.0,
+      0.0
+     ],
+     "herd": [
+      0.0,
+      0.0
+     ],
+     "correlated": [
+      0.0,
+      0.0
+     ],
+     "rho_sd": [
+      0.0013,
+      0.0009
+     ]
+    }
+   },
+   "runtime_seconds": 10.8
+  }
+ ],
+ "runtime_seconds": 87.8
+}

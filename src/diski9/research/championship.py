@@ -1,4 +1,9 @@
-"""Research only (Phase 6A.2): Weekly Challenge championship scoring and round feasibility.
+"""Research only (Phase 6A.2 / 6A.2.1): Weekly Challenge championship scoring and round feasibility.
+
+Phase 6A.2.1 adds the revised candidate schedule (150/135/125/120/115/110/105/100/95/90,
+75 for other recoveries), standard competition ranking for ties (full points, no
+averaging), a generic ``position_points`` used to compare scoring scenarios, and a
+``ChampionshipSeries`` model of practice rounds, void rounds and the ten-round cycle.
 
 * Four weekly scoring systems for comparison:
   * ``cumulative_net``: the earlier baseline; net credits summed.
@@ -22,7 +27,7 @@ selection behaviours exist only to diagnose competition incentives.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from fractions import Fraction
 
@@ -30,6 +35,10 @@ TARGET = Decimal("100.00")
 PROPOSED_TOP10 = (150, 135, 120, 110, 100, 95, 90, 85, 80, 75)
 RECOVERY_FLOOR = 50
 F1_TOP10 = (25, 18, 15, 12, 10, 8, 6, 4, 2, 1)
+REVISED_TOP10 = (150, 135, 125, 120, 115, 110, 105, 100, 95, 90)
+REVISED_FLOOR = 75
+MIN_ENTRANTS = 5
+CHAMPIONSHIP_ROUNDS = 10
 
 
 # ------------------------------------------------------------- weekly scoring
@@ -97,33 +106,69 @@ def net_points(gross: Sequence[Decimal]) -> list[Fraction]:
     return [Fraction(g - TARGET) for g in gross]
 
 
+def competition_ranks(gross: Sequence[Decimal]) -> list[int]:
+    """Standard competition ranking: 1 + the number of entrants with strictly greater gross."""
+    ranks = [0] * len(gross)
+    pos = 1
+    for g in _tie_groups(gross):
+        for i in g:
+            ranks[i] = pos
+        pos += len(g)
+    return ranks
+
+
+def position_points(gross: Sequence[Decimal], top10: Sequence[int] = REVISED_TOP10,
+                    floor: int = REVISED_FLOOR, ties: str = "competition") -> list:  # fmt: skip
+    """Recovery-gated position points under either tie rule.
+
+    * ``ties="competition"`` (approved D-26 revision): tied entrants share the rank
+      ``1 + #strictly greater`` and each receives that rank's full points; later
+      ranks are skipped. More than ten entrants can receive top-ten points.
+      Returns ``int`` points.
+    * ``ties="average"`` (superseded Phase 6A.2 proposal): the mean of the occupied
+      positions' values, as exact ``Fraction`` values.
+
+    Gross below 100.00 always scores 0."""
+    if ties == "average":
+        return proposed_points(gross, floor=floor, top10=top10)
+    if ties != "competition":
+        raise ValueError(ties)
+    return [
+        (top10[r - 1] if r <= len(top10) else floor) if g >= TARGET else 0
+        for g, r in zip(gross, competition_ranks(gross), strict=True)
+    ]
+
+
+def final_points(gross: Sequence[Decimal]) -> list[int]:
+    """The preferred Phase 6A.2.1 configuration (scenario D)."""
+    return position_points(gross, REVISED_TOP10, REVISED_FLOOR, "competition")
+
+
 SYSTEMS = {
     "cumulative_net": net_points,
     "f1": f1_points,
     "percentile": percentile_points,
     "proposed": proposed_points,
+    "final": final_points,
 }
 
 
 # ------------------------------------------------------- championship table
 @dataclass
 class Record:
-    points: Fraction = Fraction(0)
+    points: int | Fraction = 0
     entered: int = 0
     recoveries: int = 0
     qualifying_top10: int = 0
-    best_round: Fraction = Fraction(0)
+    best_round: int | Fraction = 0
 
 
-def add_round(table: dict, entrants: Sequence, gross: Sequence[Decimal], system: str) -> None:
-    """Add one completed round to a championship table (non-entrants score 0)."""
-    pts = SYSTEMS[system](gross)
-    pos = 1
-    positions = {}
-    for g in _tie_groups(gross):
-        for i in g:
-            positions[i] = pos  # tied players share the best occupied position
-        pos += len(g)
+def add_round(table: dict, entrants: Sequence, gross: Sequence[Decimal], system) -> None:
+    """Add one completed round to a championship table (non-entrants score 0).
+
+    ``system`` is a name in ``SYSTEMS`` or a callable ``gross -> points``."""
+    pts = (SYSTEMS[system] if isinstance(system, str) else system)(gross)
+    positions = competition_ranks(gross)  # tied players share the best occupied position
     for i, who in enumerate(entrants):
         r = table.setdefault(who, Record())
         r.points += pts[i]
@@ -145,6 +190,67 @@ def standings(table: dict) -> list[tuple[int, object, Record]]:
             pos = k + 1
         out.append((pos, w, table[w]))
     return out
+
+
+# ------------------------------------------------------- championship series
+@dataclass
+class Championship:
+    number: int
+    rounds: list = field(default_factory=list)
+    table: dict = field(default_factory=dict)
+    status: str = "active"  # active | complete
+    champions: tuple = ()
+
+
+class ChampionshipSeries:
+    """Ten-round championships with practice and void rounds (D-28, D-30).
+
+    * ``valid entries`` are distinct participants with a complete, valid final
+      submission at the deadline; repeated submissions by one participant count
+      once (the last one listed is the final submission).
+    * Fewer than ``min_entrants`` valid entries: a **practice** round. It settles,
+      it is kept in ``practice_rounds``, but it awards no points, does not touch
+      tie-breakers and does not advance the counter.
+    * A round cancelled or invalidated as a whole after the deadline: a **void**
+      round, recorded in ``void_rounds`` only.
+    * After ``length`` championship rounds the championship is finalised (the
+      champions are everyone ranked 1 after the D-27 hierarchy) and archived, and a
+      new one starts from zero. There is no time limit: a championship pauses
+      across breaks and resumes with the next eligible round."""
+
+    def __init__(self, points=final_points, min_entrants=MIN_ENTRANTS,
+                 length=CHAMPIONSHIP_ROUNDS):  # fmt: skip
+        self.points, self.min_entrants, self.length = points, min_entrants, length
+        self.archive: list[Championship] = []
+        self.current = Championship(1)
+        self.practice_rounds: list = []
+        self.void_rounds: list = []
+
+    @staticmethod
+    def valid_entries(submissions) -> dict:
+        entries: dict = {}
+        for who, gross in submissions:  # later submissions replace earlier ones
+            entries.pop(who, None)
+            entries[who] = Decimal(gross)
+        return entries
+
+    def record_round(self, round_id, submissions, cancelled: bool = False) -> str:
+        if cancelled:
+            self.void_rounds.append(round_id)
+            return "void"
+        entries = self.valid_entries(submissions)
+        if len(entries) < self.min_entrants:
+            self.practice_rounds.append((round_id, entries))
+            return "practice"
+        c = self.current
+        add_round(c.table, list(entries), list(entries.values()), self.points)
+        c.rounds.append(round_id)
+        if len(c.rounds) == self.length:
+            c.status = "complete"
+            c.champions = tuple(w for pos, w, _ in standings(c.table) if pos == 1)
+            self.archive.append(c)
+            self.current = Championship(c.number + 1)
+        return "championship"
 
 
 # ------------------------------------------------------- round feasibility

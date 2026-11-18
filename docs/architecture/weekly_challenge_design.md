@@ -297,21 +297,25 @@ challenge_entry_settlements         -- insert-only history; latest per entry is 
 
 challenge_round_scores              -- insert-only history; latest per (round, entry) is current
   id PK, run_id, round_id, entry_id, user_id,
-  gross NUMERIC(14,2), position INTEGER,     -- best occupied position of the tie group
+  gross NUMERIC(14,2), rank INTEGER,         -- standard competition rank (1 + #strictly greater)
   tie_size INTEGER,
-  points_num INTEGER, points_den INTEGER,    -- exact fraction (e.g. 255/4)
+  points INTEGER NOT NULL,                   -- whole points (D-26: full points for ties)
   recovered BOOLEAN, qualifying_top10 BOOLEAN,
-  scoring_version TEXT                       -- "points-150-50-v1"
+  scoring_version TEXT                       -- "points-150-75-v2"
 
 challenge_championships
   id PK, number INTEGER UNIQUE, scoring_version TEXT,
   started_round_id, completed_round_count INTEGER (0..10),
   status ('active'|'complete'), completed_at
+  champions_json TEXT                        -- champion(s) at finalisation
+
+challenge_rounds.designation TEXT            -- 'championship' | 'practice' | 'void' | 'postponed'
+challenge_rounds.valid_entries INTEGER       -- distinct participants locked at the deadline
 ```
 
 **Championship standings are not stored as authoritative rows.** They are a pure
 aggregation over the current `challenge_round_scores` of the championship's ten
-rounds (sum of fractions; recoveries; qualifying top-ten finishes), so a
+rounds (sum of points; recoveries; qualifying top-ten finishes), so a
 corrected round re-scores automatically. A frozen snapshot is written when the
 championship completes, for display and audit only.
 
@@ -324,8 +328,8 @@ championship completes, for display and audit only.
 * `challenge_submission_selections`: UNIQUE(submission_id, fixture_id), plus an
   application rule of exactly 4/3/2 rows by bucket, validated in the service
   transaction; each row's bucket must equal the offer's `bucket`.
-* `challenge_round_scores`: `points_den > 0`; fractions stored reduced; points are
-  never floats.
+* `challenge_round_scores`: rows exist only for championship-designated rounds;
+  `points` ∈ {0, 75, 90, 95, 100, 105, 110, 115, 120, 125, 135, 150}.
 * Offers and selections reference `(round_id, fixture_id, market, outcome)`, and
   the service checks `eligible = TRUE`.
 * Round-sheet tables are insert-only once the round is published.
@@ -427,8 +431,8 @@ A portfolio exists iff all nine slots are matched. Augmenting paths on ≤ 9 slo
 tests: `diski9.research.championship.strict_portfolio_exists`, cross-checked
 against an exact count (`risk_structure.count_portfolios`).
 
-Thresholds 15 and 3 are **proposed operational values** (decision register
-T-03), not empirically tuned; checks 1–2 protect variety, check 3 protects
+Thresholds 15 and 3 are **approved operational values** (D-28), not empirically
+tuned; checks 1–2 protect variety, check 3 protects
 completeness. The builder also warns live when the remaining unused fixtures can
 no longer fill an incomplete bucket (same matching, restricted to unused
 fixtures).
@@ -630,49 +634,51 @@ are historical and are never recomputed.
 
 ## 12. Weekly points and championships
 
-Rules version `points-150-50-v1` (approved by the owner in Phase 6A.2; tie rules
-proposed, D-26/D-27).
+Rules version `points-150-75-v2` (Phase 6A.2.1; the schedule is the preferred
+final candidate awaiting approval, D-31; tie, threshold and continuation rules
+approved, D-26 to D-28 and D-30). Supersedes `points-150-50-v1`.
 
 ### 12.1 Weekly points
 
-* Positions by gross among all entrants of the round.
-* Gross ≥ 100.00 (inclusive, exact decimal): position 1–10 earns
-  150/135/120/110/100/95/90/85/80/75; position 11+ earns 50.
-* Gross < 100.00: 0, whatever the position. Non-entrants: 0.
-* Every recovering entrant ranks above every non-recovering one, so a tie group
-  is either wholly recovering or wholly not.
-* **Ties (proposed D-26):** a tie group occupying positions p..q shares the mean
-  of those positions' values, where positions beyond 10 are valued at 50. Example:
-  four players tied for 9th–12th get (80 + 75 + 50 + 50) / 4 = 63.75 each. Stored
-  as an exact fraction (`points_num/points_den`); displayed to 2 decimals.
-* `qualifying_top10` is true when the entrant recovered and the group's best
-  occupied position is ≤ 10.
+* Rank = 1 + the number of entrants with a strictly greater settled gross
+  (exact `Decimal` comparison at 0.01): **standard competition ranking**.
+* Gross ≥ 100.00 (inclusive): rank 1–10 earns 150/135/125/120/115/110/105/100/95/90;
+  rank 11+ earns 75. Gross < 100.00: 0. Non-entrants: 0.
+* **Ties (approved D-26):** every tied entrant gets the full points of the shared
+  rank; later ranks are skipped. More than ten entrants can receive top-ten
+  points. Points are integers; no fractions are stored.
+* `qualifying_top10` = recovered and rank ≤ 10 in a championship-designated
+  round.
 
-### 12.2 Championships
+### 12.2 Round designation and championships
 
-* A championship is exactly **10 completed rounds**. A postponed (infeasible) or
-  cancelled round does not count and does not advance the counter.
-* The next championship starts with the next completed round; nothing carries
-  forward.
-* Anyone may join at any time; every round counts; missed rounds score 0.
-* **Standings (proposed D-27):** total points (exact fractions) → total
-  recoveries → total qualifying top-ten finishes → joint position.
-* Display: rank, name, rounds entered, recoveries, points (2 decimals).
+* At the deadline, `valid_entries` = the number of distinct participants with a
+  locked, complete, valid final submission (resubmissions count once).
+* Designation:
+  * opening checks failed → `postponed` (never opened);
+  * `valid_entries` < 5 → `practice`: settles, weekly table, **no**
+    `challenge_round_scores` rows, counter unchanged;
+  * whole round cancelled or invalidated after the deadline → `void`: stakes
+    returned, no scores, counter unchanged;
+  * otherwise → `championship`: scored, counter + 1.
+* A championship is exactly **10 championship-designated rounds**; there is no
+  time limit, so it pauses across breaks (D-30). On the tenth round it is
+  finalised, champions recorded, archived, and the next starts from zero.
+* **Standings (approved D-27):** total points → recoveries → qualifying top-ten
+  finishes → joint position (standard competition ranking).
 
 ### 12.3 Re-scoring on corrections
 
-* A settlement correction (new `challenge_entry_settlements` row) triggers
-  re-scoring of **the whole round** (positions depend on everyone), inserting new
+* A settlement correction re-scores **the whole round**, inserting new
   `challenge_round_scores` rows only where values changed.
-* Championship standings are recomputed by aggregation, so no cascade logic is
-  needed. After a championship is frozen, a correction needs the audited
-  `--reopen` path, which re-freezes the snapshot.
-* Rounding: none. Fractions are exact; ordering compares fractions.
+* Championship standings are an aggregation, so no cascade logic is needed.
+  After a championship is frozen, a correction needs the audited `--reopen` path,
+  which re-freezes the snapshot.
+* A correction can never change a round's designation, which is fixed at the
+  deadline; only an operator void (audited) can.
 
-### 12.4 Minimum participants
+### 12.4 Reference implementation
 
-* Proposed (T-04): a round still **settles** with any number of entrants, but it
-  counts toward a championship only with **at least 5 entrants**. Below that the
-  weekly table is shown as "practice round" and the round is not counted, so a
-  championship is not decided by a two-player week. See the research report §6
-  for the evidence and alternatives.
+`diski9.research.championship`: `competition_ranks`, `final_points`,
+`position_points`, `standings`, `ChampionshipSeries` (practice and void rounds,
+the ten-round cycle). Tests: `tests/test_championship_refinement.py`.

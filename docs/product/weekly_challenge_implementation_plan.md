@@ -122,22 +122,24 @@ decisions T-01 and T-02.
 
 ## Phase 6G — Weekly points and championships
 
-* `challenge_round_scores` (exact fractions) and `challenge_championships`
-  (design §12).
-* Scoring `points-150-50-v1`:
-  * 150/135/120/110/100/95/90/85/80/75, else 50;
-  * recovery-gated;
-  * average-points ties (D-26).
+* `challenge_round_scores` (integer points), `challenge_championships`, and the
+  round `designation` / `valid_entries` columns (design §12).
+* Scoring `points-150-75-v2` (after D-31 approval):
+  * 150/135/125/120/115/110/105/100/95/90 for ranks 1–10, else 75;
+  * recovery-gated (gross ≥ 100.00);
+  * standard competition ranking with full points for ties (D-26).
 * Standings: points → recoveries → qualifying top-ten finishes → joint (D-27).
-* Exactly 10 completed rounds; postponed rounds don't count; reset; nothing
-  carries forward.
-* The minimum-entrants rule for counting a round (T-04).
-* Re-scoring the whole round on any settlement correction. Championship standings
+* Designation at the deadline: championship (≥ 5 valid entries), practice, void,
+  postponed (D-28). Exactly 10 championship rounds; pause across breaks; reset;
+  nothing carries forward (D-30).
+* Re-score the whole round on any settlement correction. Championship standings
   are an aggregation, with a frozen snapshot at completion.
-* **Tests:** port `tests/test_championship_scoring.py`, plus:
-  * re-scoring after a corrected score changes positions;
-  * a postponed round doesn't advance the counter;
-  * the 11th completed round starts championship 2;
+* **Tests:** port `tests/test_championship_scoring.py` (feasibility) and
+  `tests/test_championship_refinement.py` (points, ties, series), plus:
+  * re-scoring after a corrected score changes ranks;
+  * practice, void and postponed rounds don't advance the counter;
+  * resubmissions count once toward the 5-entry minimum;
+  * the 11th championship round starts championship 2;
   * the frozen snapshot equals the aggregation.
 
 ## Phase 6H — End-to-end and release preparation
@@ -158,7 +160,7 @@ decisions T-01 and T-02.
 | Tracker, incomplete-portfolio handling, Explore Your Bucket Risk isolation | 6D |
 | Immutable sheet and submissions; deadline; duplicates | 6C, 6E |
 | Settlement and voids with unequal stakes | 6F |
-| Weekly points, ties, championship standings, re-scoring | 6G |
+| Weekly points, competition-ranked ties, designation, championship standings, re-scoring | 6G |
 | Screener / Match Lab regression, Goal Model unchanged | every phase |
 
 ## Indicative sequencing
@@ -170,6 +172,7 @@ decisions T-01 and T-02.
 5. Then 6G.
 6. Last, 6H.
 
-**Empirical follow-up before championships launch:** re-run the Phase 6A.2
-simulation on 6–8 captured real round pools (the odds trial is producing them),
-to confirm the provisional findings (decision register, P-items).
+**Empirical follow-up before the first official championship (D-29):** re-run
+the Phase 6A.2 and 6A.2.1 simulations on 6–8 captured real weekly pools with
+settled outcomes (the odds trial is producing them). This runs in parallel with
+6B–6D; it does not block the engine or the Dash prototype.

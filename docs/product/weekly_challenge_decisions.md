@@ -1,7 +1,8 @@
-# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6A.2)
+# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6A.2.1)
 
-This register supersedes the Phase 5C register (`2e079ba`). Phase 5C IDs are
-kept, so history can be traced. Superseded items are listed at the end.
+This register supersedes the Phase 5C register (`2e079ba`) and the Phase 6A.2
+version (`6d5b47f`). IDs are kept, so history can be traced. Superseded items are
+listed at the end.
 
 **Legend:**
 * **Approved:** decided by the owner.
@@ -31,6 +32,11 @@ kept, so history can be traced. Superseded items are listed at the end.
 | C-18 | No championship or season explorer |
 | C-19 | **Championships:** exactly 10 completed rounds, then reset; join any time; every round counts; nothing carries forward |
 | C-20 | **Weekly points:** top ten 150/135/120/110/100/95/90/85/80/75 *if gross ≥ 100*; outside the top ten with gross ≥ 100: 50; gross < 100 or no entry: 0. "No recovery, no championship points." |
+| C-21 | **Weekly ranking** by realised net (equivalently settled gross); **championship ranking** by cumulative championship points |
+| D-26 | **Weekly ties (approved Phase 6A.2.1): standard competition ranking.** Rank = 1 + the number of entrants with a strictly greater settled gross (exact, 0.01). Tied entrants share the rank and **each receives that rank's full points**; later ranks are skipped (350, 350, 290 → 1, 1, 3 → 150, 150, 125). More than ten entrants may receive top-ten points. No averaging; no timestamp, ID or other tie-breaks. Tied entrants below 100.00 get 0. Points are whole numbers |
+| D-27 | **Championship ties (approved):** total points → successful recoveries → qualifying top-ten finishes (rank ≤ 10, gross ≥ 100.00, championship-eligible round) → joint position under standard competition ranking (joint champions allowed). Cumulative gross or net credits are never a tie-break |
+| D-28 | **Operational thresholds (approved):** a round opens only with ≥ 15 eligible fixtures, ≥ 3 eligible leagues and an exact strict 4/3/2 feasibility check (existing freshness and ≥ 3 bookmaker-group rules unchanged). A round counts toward the championship only with **≥ 5 valid entries** (distinct participants with a locked, complete, valid final submission at the deadline; resubmissions count once). Otherwise it is a **practice round**: it settles, shows results and a weekly table, awards no points, doesn't affect tie-breakers and doesn't advance the counter. Practice results are kept separately |
+| D-30 | **Championship continuation (approved):** a championship is always ten completed championship-eligible rounds, independent of league seasons and calendar quarters. Breaks, end of season or unavailable pools **pause** it with points preserved; it is never shortened and no champion is crowned early. After ten rounds: finalise, archive, record the champion(s), reset. Join any time; all ten rounds count; history and lifetime statistics kept |
 | D-15 | Settlement precision: each accumulator rounded half-up to 0.01; state gross = sum; recovery = gross ≥ 100.00 (approved in Phase 6A) |
 
 ## Provisional (empirical) — synthetic evidence, to confirm on real pools
@@ -52,13 +58,11 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 
 | ID | Proposal | Rationale |
 |---|---|---|
-| D-26 | **Weekly ties:** identical gross shares the *average* of the points for the positions occupied, with positions beyond 10 valued at 50; exact fractions stored, shown to 2 decimals. Example: four players tied 9th–12th get (80 + 75 + 50 + 50) / 4 = 63.75 each | No hidden tie-breakers. The total awarded is unchanged by ties. Never below the 50 floor for a recoverer |
-| D-27 | **Championship standings:** total points → total recoveries → qualifying top-ten finishes → joint position (no further tie-break) | Rewards consistency first, which is the product goal; transparent; deterministic |
 | T-01 | Generalised engine `ChallengeConfig` (bands, sizes, stakes, classification source); the 6A 3/3/3 config kept as a legacy regression vector | Reuses tested 6A code; one source of truth |
 | T-02 | Bucket derived server-side from the stored full-precision `market_prob`; the client never sends a bucket | Integrity; no boundary disputes from display rounding |
-| T-03 | **Opening checks:** at least 15 eligible fixtures, at least 3 leagues, and an exact max-flow strict 4/3/2 check. Failing rounds are postponed and don't count | Variety plus guaranteed completeness; per-bucket outcome counts alone are insufficient (proved by a test) |
-| T-04 | **Minimum participants:** a round counts toward a championship only with **at least 5 entrants**; smaller rounds still settle and show a weekly table as a "practice round" | Joint champions are most frequent in the smallest fields (3.8% at 5 entrants); fewer than 5 was not simulated (research §6) |
-| T-05 | Points stored as exact fractions (`points_num`/`points_den`); championship standings computed by aggregation, plus a frozen snapshot at completion | Corrections re-score automatically; no floating-point ties |
+| T-05 | Points stored as integers; championship standings computed by aggregation, plus a frozen snapshot at completion (replaces the fraction storage needed only by the superseded average-points rule) | Corrections re-score automatically |
+| T-07 | Round **designation** fixed at the deadline: `championship` / `practice` / `postponed` / `void`. Only an audited operator action can void a round afterwards | Designation must not depend on match results |
+| T-08 | **Void round:** a round cancelled or invalidated as a whole after the deadline returns every stake and does not count (no points, counter unchanged). Partial voids settle normally under `settle/v1` | Prevents an all-void round handing every entrant 100.00, a recovery and a shared first place (150 points each) |
 | T-06 | Any settlement correction re-scores the whole round; after a championship is frozen, only the audited `--reopen` path | Positions depend on all entrants |
 | R-01 | Common deadline: earliest eligible kickoff minus 15 minutes | Unchanged from 5C |
 | R-02 | Round sheet frozen at publish | Unchanged |
@@ -84,10 +88,9 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | D-08 | Settlement and void rules `settle/v1` | Accept as specified | Phase 6F |
 | D-11 | Round calendar | Weekend window; publish Thursday 06:00 UTC; postpone when the opening checks fail | Phase 6C |
 | D-12 | PSL coverage (no qualifying odds) | Accept for the MVP and state it in the UI | Phase 6C |
-| D-28 | Confirm D-26, D-27, T-03 and T-04 (tie rules, opening thresholds, minimum entrants) | Accept as proposed | Phase 6G |
-| D-29 | Real-pool confirmation: re-run the 6A.2 simulation on 6–8 captured weekend pools before the first championship | Yes; the odds trial supplies the pools | Championship launch |
+| D-29 | **Empirical validation (outstanding):** collect 6–8 complete real weekly pools with settled outcomes and re-run the 6A.2 / 6A.2.1 simulations before the first official championship. Runs in parallel; does not delay the engine or the Dash prototype | Yes; the odds trial supplies the pools | First official championship |
+| D-32 | **Mass voids short of cancellation:** should a round where most fixtures are void at settlement (for example more than half) be reclassified as void? Today only an operator cancellation voids a round (T-08) | Keep operator-only for the MVP; review after real data | Phase 6F |
 | D-31 | **Large-field safeguard.** The 50 floor rewards high-variance play once fields reach roughly 50–100 entrants (P-04) | Keep 50 for launch (small fields are expected). Revisit if a round exceeds about 50 entrants: raise the floor to 75 (simulated), or define "top ten" as a share of entrants (not simulated) | Before fields exceed ~50 |
-| D-30 | Copy for a championship cut short (for example, end of the football season with fewer than 10 completed rounds) | Carry the open championship over the break, because "exactly 10 completed rounds" is approved | Phase 6G |
 
 ## Superseded Phase 5C items
 

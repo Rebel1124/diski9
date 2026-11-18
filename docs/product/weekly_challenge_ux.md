@@ -176,23 +176,37 @@ Illustrative numbers.
 | Pos | Name | Gross returned | Net | Points |
 |---|---|---:|---:|---:|
 | 1 | Thandi | 412.80 cr | +312.80 | 150 |
-| =2 | Sipho / Lee | 231.00 cr | +131.00 | 127.50 each |
+| =2 | Sipho | 231.00 cr | +131.00 | 135 |
+| =2 | Lee | 231.00 cr | +131.00 | 135 |
+| 4 | Ana | 190.40 cr | +90.40 | 120 |
 | … | | | | |
-| 23 | Ana | 88.20 cr | −11.80 | 0 (not recovered) |
+| 14 | Nomsa | 100.00 cr | 0.00 | 75 (recovered) |
+| 23 | Ben | 88.20 cr | −11.80 | 0 (not recovered) |
 
 * Gross and net are labelled with units.
-* The points column explains a 0 when a participant didn't recover.
-* Ties show "=" with the shared points.
+* The points column explains a 0 when a participant didn't recover, and labels
+  "recovered" for the 75-point award.
+* Ties show "=" and each tied participant gets that position's full points; the
+  next position is skipped (=2, =2, 4).
+* A practice round shows the banner "Practice round: fewer than 5 entries, so no
+  championship points this week" and has no points column.
 
 **Championship (10 rounds):**
 
-| Rank | Name | Rounds entered | Recoveries | Points |
-|---|---|---:|---:|---:|
-| 1 | Lee | 7 | 5 | 612.50 |
+| Rank | Name | Rounds entered | Recoveries | Top-ten finishes | Points |
+|---|---|---:|---:|---:|---:|
+| 1 | Lee | 7 | 5 | 3 | 690 |
+| =2 | Sipho | 7 | 5 | 2 | 615 |
+| =2 | Ana | 6 | 5 | 2 | 615 |
 
 * A header line reads: "Championship 3 · round 7 of 10 · No recovery, no points".
-* The tie rules are printed under the table.
-* Fractional points show to 2 decimals.
+  While paused: "Championship 3 is paused after round 7 — it resumes when the
+  next full round opens".
+* The tie rules are printed under the table: points, then recoveries, then
+  top-ten finishes; still level = joint.
+* Points are whole numbers.
+* The points schedule is shown in an expander: 150 / 135 / 125 / 120 / 115 / 110 /
+  105 / 100 / 95 / 90 for ranks 1–10, 75 for any other recovery, 0 otherwise.
 * There is **no** interactive championship or season explorer.
 
 ## 7. Terminology and copy
@@ -214,7 +228,9 @@ can't lose.
 
 | State | Message |
 |---|---|
-| Round postponed (opening checks failed) | "This week's round is postponed: not enough eligible fixtures to build a full portfolio. The championship continues with the next completed round." |
+| Round postponed (opening checks failed) | "This week's round is postponed: not enough eligible fixtures to build a full portfolio. The championship is paused and continues with the next full round." |
+| Practice round (fewer than 5 valid entries at the deadline) | "Practice round: fewer than 5 entries this week. Your result counts for your history, but no championship points are awarded." |
+| Void round (cancelled after the deadline) | "This round was cancelled after the deadline. Your 100 credits are returned and the championship is unaffected." |
 | Bucket full | "Foundation is full (4/4). Remove a Foundation pick to add this." |
 | Not enough fixtures left for a bucket (after other picks) | "Only 1 Challenger outcome left on unused fixtures — swap a pick to free a fixture." |
 | Incomplete portfolio | "Complete all three buckets to see your portfolio's chances." |

@@ -189,11 +189,19 @@ No single estimate combines both sources.
 
 ### 5.7 Championships (replaces season scoring; supersedes D-09)
 
-* FR-C1. A championship consists of **exactly ten completed rounds**, independent
-  of league calendars. Cancelled or postponed weeks don't count.
-* FR-C2. After the tenth completed round:
+Phase 6A.2.1 revision: the points schedule, the weekly tie rule and the
+operational rules below supersede the Phase 6A.2 text.
+
+* FR-C1. A championship consists of **exactly ten completed championship-eligible
+  rounds**, independent of league seasons and calendar quarters (D-30).
+  * Postponed weeks (opening checks failed), practice rounds and void rounds do
+    not count and do not advance the counter.
+  * When a season ends, an international break occurs or no suitable pool exists,
+    the championship **pauses**: points are preserved and it resumes with the next
+    eligible round. It is never shortened, and no champion is crowned early.
+* FR-C2. After the tenth eligible round:
   * standings are finalised;
-  * the winner, or joint winners, are recorded;
+  * the champion, or joint champions, are recorded;
   * the championship is archived;
   * the next championship starts with points reset to 0.
   * History and lifetime statistics are kept.
@@ -202,33 +210,55 @@ No single estimate combines both sources.
   * all ten rounds count (no best-X);
   * non-entry scores 0;
   * nothing carries forward between championships.
-* FR-C4. **Points** (approved schedule; **no recovery, no championship points**):
+* FR-C4. **Points** (preferred final candidate `points-150-75-v2`; validated in
+  Phase 6A.2.1, awaiting final approval, D-31). **No recovery, no championship
+  points.**
 
-| Weekly position (gross ≥ 100.00) | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11+ |
+| Weekly rank (gross ≥ 100.00) | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11+ |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Points | 150 | 135 | 120 | 110 | 100 | 95 | 90 | 85 | 80 | 75 | 50 |
+| Points | 150 | 135 | 125 | 120 | 115 | 110 | 105 | 100 | 95 | 90 | 75 |
 
-  * Gross < 100.00 scores **0** in any position, as does not entering.
-  * Points are non-additive.
-  * Maximum: 150 per round, 1,500 per championship.
-  * Because every participant who recovers ranks above every one who doesn't, top-ten points never go
-    to a participant who failed to recover.
-* FR-C5. **Championship table:** ranking, display name, rounds entered, successful
-  recoveries, total points.
-* FR-C6. **Proposed tie rules** (pending approval, D-26 and D-27; see the research):
-  * **Weekly:** tied participants with the same gross share the **average** of the
-    position points they jointly occupy. A position beyond tenth is worth 50.
-    Points are kept as exact fractions and shown to 2 decimals. There are no
-    timestamp or ID tie-breaks.
-  * **Championship:** total points, then successful recoveries, then qualifying
-    top-ten finishes. Participants still equal are **joint** (joint winners
-    allowed). Cumulative credits are never a tie-break.
-* FR-C7. **Proposed minimum participants** (T-04, pending D-28): a round counts
-  toward a championship only with at least 5 entrants. Smaller rounds settle and
-  show a weekly table, labelled "practice round".
-* FR-C8. **Known large-field effect** (P-04, D-31): with about 50 or more entrants,
-  the 50-point floor favours high-variance play. Revisit before fields reach that
-  size.
+  * Gross < 100.00 scores **0** at any rank, as does not entering. Exactly 100.00
+    qualifies.
+  * Points are non-additive: first place earns 150 in total, not 150 + 75.
+  * A recovery (75) is worth half the maximum weekly award (150).
+  * Maximum: 150 per round, 1,500 per championship. Points are always whole
+    numbers.
+  * Every participant who recovers ranks above every one who doesn't, so top-ten
+    points never go to a participant who failed to recover.
+* FR-C5. **Championship table:** rank, display name, rounds entered, successful
+  recoveries, qualifying top-ten finishes, total points.
+* FR-C6. **Tie rules (approved, D-26 and D-27):**
+  * **Weekly: standard competition ranking.** Rank = 1 + the number of entrants
+    with a strictly greater settled gross (compared exactly at 0.01 credit). Tied
+    entrants share the rank and **each receives that rank's full points**; the
+    following ranks are skipped. Example: 350, 350, 290 → ranks 1, 1, 3 → 150,
+    150, 125. Ties can give more than ten entrants top-ten points (for example
+    three tied at rank 10 all get 90, and the next entrant is rank 13 with 75).
+    No averaging; no timestamp, ID or other tie-breaks. Tied entrants below 100.00
+    get 0.
+  * **Championship:** total points → successful recoveries → qualifying top-ten
+    finishes (weekly rank ≤ 10 *and* gross ≥ 100.00 in a championship-eligible
+    round) → still equal: joint position, with standard competition ranking
+    (joint champions allowed). Cumulative gross or net credits are never a
+    tie-break.
+* FR-C7. **Championship participation (approved, D-28):**
+  * A round counts toward the championship only with **at least 5 valid
+    entries**.
+  * A valid entry is a distinct participant with a complete, valid final
+    submission locked at the deadline. Resubmissions by the same participant count
+    once (the final version).
+  * The designation is fixed at the deadline: with fewer than 5 valid entries the
+    round becomes a **practice round**. It settles normally and shows personal
+    results and a weekly table, but awards no championship points, doesn't affect
+    tie-breakers and doesn't advance the counter. Practice results are kept
+    separately for history.
+  * A round cancelled or invalidated as a whole after the deadline is a **void
+    round**: stakes are returned, nothing counts, and the counter doesn't advance
+    (see the research report for edge cases).
+* FR-C8. **Opening checks (approved, D-28):** at least 15 eligible fixtures, at
+  least 3 eligible leagues, and an exact check that a strict 4/3/2 portfolio on
+  nine distinct fixtures exists (FR-R).
 
 ### 5.8 Communication
 
@@ -243,7 +273,7 @@ No single estimate combines both sources.
 ## 6. Non-functional requirements
 
 * **Exact and deterministic:** exact `Decimal` odds and payouts, D-15 rounding,
-  exact fractional points, deterministic ranking and ties.
+  whole-number points, deterministic standard competition ranking.
 * **Immutable:** round sheets, submissions, settlements and scoring history are
   insert-only. Configuration versions are never edited.
 * **Auditable:** settlement corrections re-score the affected round and its
@@ -296,10 +326,11 @@ No single estimate combines both sources.
    The exact-payout probabilities sum to 100%. The maximum includes The Diski 9.
 5. Weekly points and championship standings match the worked examples (§5.7 and
    the research tests), including ties across tenth place, nobody or everybody
-   recovering, and single-participant rounds.
-6. A championship finalises after exactly ten completed rounds, archives, and
-   resets points.
-7. Rounds that fail the opening checks are postponed, not counted.
+   recovering, and duplicate submissions counting once.
+6. A championship finalises after exactly ten championship-eligible rounds,
+   archives, and resets points; it pauses across breaks.
+7. Rounds that fail the opening checks are postponed; rounds with fewer than 5
+   valid entries are practice rounds; neither counts.
 8. Existing Diski 9 functionality and Goal Model 1.0 are unchanged.
 
 ## 9. Evidence status
