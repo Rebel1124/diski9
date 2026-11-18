@@ -1,0 +1,1050 @@
+{
+ "config": "Broad-60 \u00b7 4/3/2 \u00b7 40/30/20/10",
+ "classification": "p_market",
+ "seed": 62002,
+ "feasibility": {
+  "10": {
+   "portfolio_exists": 0.965,
+   "opens": 0.0
+  },
+  "15": {
+   "portfolio_exists": 0.9975,
+   "opens": 0.9975
+  },
+  "20": {
+   "portfolio_exists": 1.0,
+   "opens": 1.0
+  },
+  "30": {
+   "portfolio_exists": 1.0,
+   "opens": 1.0
+  },
+  "real_weekend_pool": {
+   "eligible_fixtures": 60,
+   "eligible_leagues": 6,
+   "portfolio_exists": true,
+   "opens": true
+  }
+ },
+ "behaviour_profile": {
+  "random": {
+   "p_recover": 0.3587,
+   "expected": 79.6058,
+   "sd": 188.0303,
+   "p_zero": 0.6404,
+   "max": 3693.1972,
+   "p_recover_model": 0.3145
+  },
+  "higher_in_band": {
+   "p_recover": 0.3379,
+   "expected": 80.0872,
+   "sd": 109.0983,
+   "p_zero": 0.4152,
+   "max": 853.564,
+   "p_recover_model": 0.3169
+  },
+  "lower_in_band": {
+   "p_recover": 0.2418,
+   "expected": 79.665,
+   "sd": 318.7027,
+   "p_zero": 0.7582,
+   "max": 13285.0705,
+   "p_recover_model": 0.2286
+  },
+  "recovery_focused": {
+   "p_recover": 0.4157,
+   "expected": 79.6272,
+   "sd": 157.5882,
+   "p_zero": 0.5843,
+   "max": 2306.1851,
+   "p_recover_model": 0.3578
+  },
+  "disagreement": {
+   "p_recover": 0.3069,
+   "expected": 79.708,
+   "sd": 219.4592,
+   "p_zero": 0.6931,
+   "max": 5383.6195,
+   "p_recover_model": 0.4751
+  }
+ },
+ "experiments": [
+  {
+   "participants": 5,
+   "truth": "market",
+   "championships": 2000,
+   "participation": "full",
+   "weekly_qualifying_tie_groups_per_round": 0.001,
+   "cumulative_net": {
+    "champion_behaviour_share": {
+     "random": 0.174,
+     "higher_in_band": 0.196,
+     "lower_in_band": 0.227,
+     "recovery_focused": 0.186,
+     "disagreement": 0.217
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.0,
+    "champion_best_round_share_median": 1.144,
+    "rho_recoveries_points": 0.702,
+    "rho_expected_points": 0.012,
+    "rho_sd_points": -0.043,
+    "zero_points_share": 0.0,
+    "gini": null,
+    "recovery_beats_lower_rate": 0.522,
+    "points_per_round_by_behaviour": {
+     "random": -23.05,
+     "higher_in_band": -19.868,
+     "lower_in_band": -16.912,
+     "recovery_focused": -19.83,
+     "disagreement": -12.998
+    }
+   },
+   "f1": {
+    "champion_behaviour_share": {
+     "random": 0.165,
+     "higher_in_band": 0.308,
+     "lower_in_band": 0.143,
+     "recovery_focused": 0.198,
+     "disagreement": 0.186
+    },
+    "joint_champions_rate": 0.003,
+    "tiebreak_needed_rate": 0.008,
+    "champion_best_round_share_median": 0.139,
+    "rho_recoveries_points": 0.727,
+    "rho_expected_points": 0.058,
+    "rho_sd_points": -0.203,
+    "zero_points_share": 0.0,
+    "gini": 0.048,
+    "recovery_beats_lower_rate": 0.605,
+    "points_per_round_by_behaviour": {
+     "random": 15.863,
+     "higher_in_band": 16.623,
+     "lower_in_band": 15.513,
+     "recovery_focused": 16.085,
+     "disagreement": 15.916
+    }
+   },
+   "percentile": {
+    "champion_behaviour_share": {
+     "random": 0.157,
+     "higher_in_band": 0.379,
+     "lower_in_band": 0.106,
+     "recovery_focused": 0.211,
+     "disagreement": 0.147
+    },
+    "joint_champions_rate": 0.016,
+    "tiebreak_needed_rate": 0.056,
+    "champion_best_round_share_median": 0.16,
+    "rho_recoveries_points": 0.776,
+    "rho_expected_points": 0.102,
+    "rho_sd_points": -0.319,
+    "zero_points_share": 0.0,
+    "gini": 0.101,
+    "recovery_beats_lower_rate": 0.665,
+    "points_per_round_by_behaviour": {
+     "random": 49.121,
+     "higher_in_band": 56.009,
+     "lower_in_band": 45.082,
+     "recovery_focused": 51.218,
+     "disagreement": 48.57
+    }
+   },
+   "proposed": {
+    "champion_behaviour_share": {
+     "random": 0.226,
+     "higher_in_band": 0.167,
+     "lower_in_band": 0.09,
+     "recovery_focused": 0.347,
+     "disagreement": 0.171
+    },
+    "joint_champions_rate": 0.038,
+    "tiebreak_needed_rate": 0.038,
+    "champion_best_round_share_median": 0.208,
+    "rho_recoveries_points": 0.954,
+    "rho_expected_points": -0.073,
+    "rho_sd_points": -0.166,
+    "zero_points_share": 0.024,
+    "gini": 0.224,
+    "recovery_beats_lower_rate": 0.747,
+    "points_per_round_by_behaviour": {
+     "random": 49.913,
+     "higher_in_band": 45.903,
+     "lower_in_band": 36.094,
+     "recovery_focused": 57.692,
+     "disagreement": 45.447
+    }
+   },
+   "floor_sensitivity": {
+    "25": {
+     "champion_behaviour_share": {
+      "random": 0.226,
+      "higher_in_band": 0.167,
+      "lower_in_band": 0.09,
+      "recovery_focused": 0.347,
+      "disagreement": 0.171
+     },
+     "rho_recoveries_points": 0.954
+    },
+    "50": {
+     "champion_behaviour_share": {
+      "random": 0.226,
+      "higher_in_band": 0.167,
+      "lower_in_band": 0.09,
+      "recovery_focused": 0.347,
+      "disagreement": 0.171
+     },
+     "rho_recoveries_points": 0.954
+    },
+    "75": {
+     "champion_behaviour_share": {
+      "random": 0.226,
+      "higher_in_band": 0.167,
+      "lower_in_band": 0.09,
+      "recovery_focused": 0.347,
+      "disagreement": 0.171
+     },
+     "rho_recoveries_points": 0.954
+    }
+   }
+  },
+  {
+   "participants": 10,
+   "truth": "market",
+   "championships": 2000,
+   "participation": "full",
+   "weekly_qualifying_tie_groups_per_round": 0.0324,
+   "cumulative_net": {
+    "champion_behaviour_share": {
+     "random": 0.18,
+     "higher_in_band": 0.199,
+     "lower_in_band": 0.26,
+     "recovery_focused": 0.18,
+     "disagreement": 0.181
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.0,
+    "champion_best_round_share_median": 1.039,
+    "rho_recoveries_points": 0.745,
+    "rho_expected_points": 0.04,
+    "rho_sd_points": -0.061,
+    "zero_points_share": 0.0,
+    "gini": null,
+    "recovery_beats_lower_rate": 0.456,
+    "points_per_round_by_behaviour": {
+     "random": -19.998,
+     "higher_in_band": -18.378,
+     "lower_in_band": -17.328,
+     "recovery_focused": -19.658,
+     "disagreement": -18.625
+    }
+   },
+   "f1": {
+    "champion_behaviour_share": {
+     "random": 0.181,
+     "higher_in_band": 0.263,
+     "lower_in_band": 0.184,
+     "recovery_focused": 0.203,
+     "disagreement": 0.169
+    },
+    "joint_champions_rate": 0.001,
+    "tiebreak_needed_rate": 0.001,
+    "champion_best_round_share_median": 0.183,
+    "rho_recoveries_points": 0.783,
+    "rho_expected_points": 0.092,
+    "rho_sd_points": -0.201,
+    "zero_points_share": 0.0,
+    "gini": 0.112,
+    "recovery_beats_lower_rate": 0.561,
+    "points_per_round_by_behaviour": {
+     "random": 9.997,
+     "higher_in_band": 10.947,
+     "lower_in_band": 9.515,
+     "recovery_focused": 10.2,
+     "disagreement": 9.842
+    }
+   },
+   "percentile": {
+    "champion_behaviour_share": {
+     "random": 0.171,
+     "higher_in_band": 0.393,
+     "lower_in_band": 0.1,
+     "recovery_focused": 0.207,
+     "disagreement": 0.129
+    },
+    "joint_champions_rate": 0.01,
+    "tiebreak_needed_rate": 0.043,
+    "champion_best_round_share_median": 0.153,
+    "rho_recoveries_points": 0.828,
+    "rho_expected_points": 0.132,
+    "rho_sd_points": -0.338,
+    "zero_points_share": 0.0,
+    "gini": 0.098,
+    "recovery_beats_lower_rate": 0.68,
+    "points_per_round_by_behaviour": {
+     "random": 49.407,
+     "higher_in_band": 55.811,
+     "lower_in_band": 45.5,
+     "recovery_focused": 51.034,
+     "disagreement": 48.248
+    }
+   },
+   "proposed": {
+    "champion_behaviour_share": {
+     "random": 0.239,
+     "higher_in_band": 0.172,
+     "lower_in_band": 0.082,
+     "recovery_focused": 0.363,
+     "disagreement": 0.144
+    },
+    "joint_champions_rate": 0.015,
+    "tiebreak_needed_rate": 0.018,
+    "champion_best_round_share_median": 0.196,
+    "rho_recoveries_points": 0.96,
+    "rho_expected_points": -0.034,
+    "rho_sd_points": -0.174,
+    "zero_points_share": 0.024,
+    "gini": 0.245,
+    "recovery_beats_lower_rate": 0.773,
+    "points_per_round_by_behaviour": {
+     "random": 46.002,
+     "higher_in_band": 42.495,
+     "lower_in_band": 34.388,
+     "recovery_focused": 52.119,
+     "disagreement": 41.263
+    }
+   },
+   "floor_sensitivity": {
+    "25": {
+     "champion_behaviour_share": {
+      "random": 0.239,
+      "higher_in_band": 0.172,
+      "lower_in_band": 0.083,
+      "recovery_focused": 0.362,
+      "disagreement": 0.144
+     },
+     "rho_recoveries_points": 0.96
+    },
+    "50": {
+     "champion_behaviour_share": {
+      "random": 0.239,
+      "higher_in_band": 0.172,
+      "lower_in_band": 0.083,
+      "recovery_focused": 0.362,
+      "disagreement": 0.144
+     },
+     "rho_recoveries_points": 0.96
+    },
+    "75": {
+     "champion_behaviour_share": {
+      "random": 0.239,
+      "higher_in_band": 0.172,
+      "lower_in_band": 0.083,
+      "recovery_focused": 0.362,
+      "disagreement": 0.144
+     },
+     "rho_recoveries_points": 0.96
+    }
+   }
+  },
+  {
+   "participants": 25,
+   "truth": "market",
+   "championships": 1000,
+   "participation": "full",
+   "weekly_qualifying_tie_groups_per_round": 0.1386,
+   "cumulative_net": {
+    "champion_behaviour_share": {
+     "random": 0.282,
+     "higher_in_band": 0.177,
+     "lower_in_band": 0.248,
+     "recovery_focused": 0.164,
+     "disagreement": 0.129
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.0,
+    "champion_best_round_share_median": 0.958,
+    "rho_recoveries_points": 0.783,
+    "rho_expected_points": 0.042,
+    "rho_sd_points": -0.057,
+    "zero_points_share": 0.0,
+    "gini": null,
+    "recovery_beats_lower_rate": 0.389,
+    "points_per_round_by_behaviour": {
+     "random": -20.051,
+     "higher_in_band": -18.666,
+     "lower_in_band": -18.221,
+     "recovery_focused": -20.541,
+     "disagreement": -18.355
+    }
+   },
+   "f1": {
+    "champion_behaviour_share": {
+     "random": 0.275,
+     "higher_in_band": 0.078,
+     "lower_in_band": 0.358,
+     "recovery_focused": 0.111,
+     "disagreement": 0.178
+    },
+    "joint_champions_rate": 0.001,
+    "tiebreak_needed_rate": 0.004,
+    "champion_best_round_share_median": 0.272,
+    "rho_recoveries_points": 0.685,
+    "rho_expected_points": -0.025,
+    "rho_sd_points": 0.114,
+    "zero_points_share": 0.0,
+    "gini": 0.289,
+    "recovery_beats_lower_rate": 0.286,
+    "points_per_round_by_behaviour": {
+     "random": 4.074,
+     "higher_in_band": 3.621,
+     "lower_in_band": 4.372,
+     "recovery_focused": 3.861,
+     "disagreement": 4.269
+    }
+   },
+   "percentile": {
+    "champion_behaviour_share": {
+     "random": 0.251,
+     "higher_in_band": 0.372,
+     "lower_in_band": 0.073,
+     "recovery_focused": 0.175,
+     "disagreement": 0.129
+    },
+    "joint_champions_rate": 0.006,
+    "tiebreak_needed_rate": 0.019,
+    "champion_best_round_share_median": 0.144,
+    "rho_recoveries_points": 0.866,
+    "rho_expected_points": 0.13,
+    "rho_sd_points": -0.335,
+    "zero_points_share": 0.0,
+    "gini": 0.097,
+    "recovery_beats_lower_rate": 0.658,
+    "points_per_round_by_behaviour": {
+     "random": 49.464,
+     "higher_in_band": 55.48,
+     "lower_in_band": 45.708,
+     "recovery_focused": 50.858,
+     "disagreement": 48.595
+    }
+   },
+   "proposed": {
+    "champion_behaviour_share": {
+     "random": 0.349,
+     "higher_in_band": 0.117,
+     "lower_in_band": 0.131,
+     "recovery_focused": 0.253,
+     "disagreement": 0.149
+    },
+    "joint_champions_rate": 0.007,
+    "tiebreak_needed_rate": 0.026,
+    "champion_best_round_share_median": 0.203,
+    "rho_recoveries_points": 0.931,
+    "rho_expected_points": -0.048,
+    "rho_sd_points": -0.076,
+    "zero_points_share": 0.022,
+    "gini": 0.262,
+    "recovery_beats_lower_rate": 0.635,
+    "points_per_round_by_behaviour": {
+     "random": 37.689,
+     "higher_in_band": 33.124,
+     "lower_in_band": 30.88,
+     "recovery_focused": 40.744,
+     "disagreement": 35.338
+    }
+   },
+   "floor_sensitivity": {
+    "25": {
+     "champion_behaviour_share": {
+      "random": 0.36,
+      "higher_in_band": 0.108,
+      "lower_in_band": 0.145,
+      "recovery_focused": 0.234,
+      "disagreement": 0.152
+     },
+     "rho_recoveries_points": 0.914
+    },
+    "50": {
+     "champion_behaviour_share": {
+      "random": 0.351,
+      "higher_in_band": 0.115,
+      "lower_in_band": 0.135,
+      "recovery_focused": 0.251,
+      "disagreement": 0.149
+     },
+     "rho_recoveries_points": 0.931
+    },
+    "75": {
+     "champion_behaviour_share": {
+      "random": 0.346,
+      "higher_in_band": 0.121,
+      "lower_in_band": 0.124,
+      "recovery_focused": 0.263,
+      "disagreement": 0.146
+     },
+     "rho_recoveries_points": 0.943
+    }
+   }
+  },
+  {
+   "participants": 100,
+   "truth": "market",
+   "championships": 300,
+   "participation": "full",
+   "weekly_qualifying_tie_groups_per_round": 1.1803,
+   "cumulative_net": {
+    "champion_behaviour_share": {
+     "random": 0.413,
+     "higher_in_band": 0.1,
+     "lower_in_band": 0.177,
+     "recovery_focused": 0.167,
+     "disagreement": 0.143
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.0,
+    "champion_best_round_share_median": 1.025,
+    "rho_recoveries_points": 0.797,
+    "rho_expected_points": 0.033,
+    "rho_sd_points": -0.064,
+    "zero_points_share": 0.0,
+    "gini": null,
+    "recovery_beats_lower_rate": 0.44,
+    "points_per_round_by_behaviour": {
+     "random": -20.442,
+     "higher_in_band": -18.588,
+     "lower_in_band": -19.919,
+     "recovery_focused": -21.65,
+     "disagreement": -19.415
+    }
+   },
+   "f1": {
+    "champion_behaviour_share": {
+     "random": 0.143,
+     "higher_in_band": 0.023,
+     "lower_in_band": 0.737,
+     "recovery_focused": 0.023,
+     "disagreement": 0.073
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.023,
+    "champion_best_round_share_median": 0.403,
+    "rho_recoveries_points": 0.256,
+    "rho_expected_points": -0.078,
+    "rho_sd_points": 0.337,
+    "zero_points_share": 0.37,
+    "gini": 0.636,
+    "recovery_beats_lower_rate": 0.063,
+    "points_per_round_by_behaviour": {
+     "random": 0.962,
+     "higher_in_band": 0.479,
+     "lower_in_band": 1.866,
+     "recovery_focused": 0.754,
+     "disagreement": 0.928
+    }
+   },
+   "percentile": {
+    "champion_behaviour_share": {
+     "random": 0.333,
+     "higher_in_band": 0.317,
+     "lower_in_band": 0.11,
+     "recovery_focused": 0.127,
+     "disagreement": 0.113
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.003,
+    "champion_best_round_share_median": 0.136,
+    "rho_recoveries_points": 0.88,
+    "rho_expected_points": 0.131,
+    "rho_sd_points": -0.341,
+    "zero_points_share": 0.0,
+    "gini": 0.096,
+    "recovery_beats_lower_rate": 0.633,
+    "points_per_round_by_behaviour": {
+     "random": 49.618,
+     "higher_in_band": 55.287,
+     "lower_in_band": 45.742,
+     "recovery_focused": 50.797,
+     "disagreement": 48.595
+    }
+   },
+   "proposed": {
+    "champion_behaviour_share": {
+     "random": 0.313,
+     "higher_in_band": 0.033,
+     "lower_in_band": 0.387,
+     "recovery_focused": 0.153,
+     "disagreement": 0.113
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.03,
+    "champion_best_round_share_median": 0.252,
+    "rho_recoveries_points": 0.861,
+    "rho_expected_points": -0.054,
+    "rho_sd_points": -0.012,
+    "zero_points_share": 0.024,
+    "gini": 0.283,
+    "recovery_beats_lower_rate": 0.37,
+    "points_per_round_by_behaviour": {
+     "random": 23.142,
+     "higher_in_band": 19.75,
+     "lower_in_band": 21.562,
+     "recovery_focused": 25.01,
+     "disagreement": 20.897
+    }
+   },
+   "floor_sensitivity": {
+    "25": {
+     "champion_behaviour_share": {
+      "random": 0.202,
+      "higher_in_band": 0.013,
+      "lower_in_band": 0.607,
+      "recovery_focused": 0.075,
+      "disagreement": 0.103
+     },
+     "rho_recoveries_points": 0.64
+    },
+    "50": {
+     "champion_behaviour_share": {
+      "random": 0.31,
+      "higher_in_band": 0.033,
+      "lower_in_band": 0.388,
+      "recovery_focused": 0.153,
+      "disagreement": 0.115
+     },
+     "rho_recoveries_points": 0.861
+    },
+    "75": {
+     "champion_behaviour_share": {
+      "random": 0.365,
+      "higher_in_band": 0.11,
+      "lower_in_band": 0.167,
+      "recovery_focused": 0.285,
+      "disagreement": 0.073
+     },
+     "rho_recoveries_points": 0.956
+    }
+   }
+  },
+  {
+   "participants": 25,
+   "truth": "model",
+   "championships": 500,
+   "participation": "full",
+   "weekly_qualifying_tie_groups_per_round": 0.2116,
+   "cumulative_net": {
+    "champion_behaviour_share": {
+     "random": 0.136,
+     "higher_in_band": 0.042,
+     "lower_in_band": 0.156,
+     "recovery_focused": 0.062,
+     "disagreement": 0.604
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.0,
+    "champion_best_round_share_median": 0.856,
+    "rho_recoveries_points": 0.803,
+    "rho_expected_points": 0.342,
+    "rho_sd_points": 0.34,
+    "zero_points_share": 0.0,
+    "gini": null,
+    "recovery_beats_lower_rate": 0.288,
+    "points_per_round_by_behaviour": {
+     "random": -28.904,
+     "higher_in_band": -37.362,
+     "lower_in_band": -18.927,
+     "recovery_focused": -33.908,
+     "disagreement": 59.125
+    }
+   },
+   "f1": {
+    "champion_behaviour_share": {
+     "random": 0.098,
+     "higher_in_band": 0.018,
+     "lower_in_band": 0.19,
+     "recovery_focused": 0.034,
+     "disagreement": 0.66
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.002,
+    "champion_best_round_share_median": 0.246,
+    "rho_recoveries_points": 0.722,
+    "rho_expected_points": 0.41,
+    "rho_sd_points": 0.415,
+    "zero_points_share": 0.0,
+    "gini": 0.327,
+    "recovery_beats_lower_rate": 0.234,
+    "points_per_round_by_behaviour": {
+     "random": 3.65,
+     "higher_in_band": 2.846,
+     "lower_in_band": 4.143,
+     "recovery_focused": 3.253,
+     "disagreement": 6.874
+    }
+   },
+   "percentile": {
+    "champion_behaviour_share": {
+     "random": 0.125,
+     "higher_in_band": 0.105,
+     "lower_in_band": 0.059,
+     "recovery_focused": 0.055,
+     "disagreement": 0.657
+    },
+    "joint_champions_rate": 0.012,
+    "tiebreak_needed_rate": 0.022,
+    "champion_best_round_share_median": 0.142,
+    "rho_recoveries_points": 0.921,
+    "rho_expected_points": 0.132,
+    "rho_sd_points": 0.121,
+    "zero_points_share": 0.0,
+    "gini": 0.099,
+    "recovery_beats_lower_rate": 0.536,
+    "points_per_round_by_behaviour": {
+     "random": 48.091,
+     "higher_in_band": 50.746,
+     "lower_in_band": 45.596,
+     "recovery_focused": 48.403,
+     "disagreement": 59.51
+    }
+   },
+   "proposed": {
+    "champion_behaviour_share": {
+     "random": 0.138,
+     "higher_in_band": 0.044,
+     "lower_in_band": 0.086,
+     "recovery_focused": 0.079,
+     "disagreement": 0.653
+    },
+    "joint_champions_rate": 0.01,
+    "tiebreak_needed_rate": 0.018,
+    "champion_best_round_share_median": 0.193,
+    "rho_recoveries_points": 0.935,
+    "rho_expected_points": 0.259,
+    "rho_sd_points": 0.251,
+    "zero_points_share": 0.027,
+    "gini": 0.287,
+    "recovery_beats_lower_rate": 0.514,
+    "points_per_round_by_behaviour": {
+     "random": 33.227,
+     "higher_in_band": 29.678,
+     "lower_in_band": 28.747,
+     "recovery_focused": 34.085,
+     "disagreement": 55.483
+    }
+   },
+   "floor_sensitivity": {
+    "25": {
+     "champion_behaviour_share": {
+      "random": 0.143,
+      "higher_in_band": 0.035,
+      "lower_in_band": 0.089,
+      "recovery_focused": 0.075,
+      "disagreement": 0.658
+     },
+     "rho_recoveries_points": 0.92
+    },
+    "50": {
+     "champion_behaviour_share": {
+      "random": 0.138,
+      "higher_in_band": 0.041,
+      "lower_in_band": 0.088,
+      "recovery_focused": 0.079,
+      "disagreement": 0.654
+     },
+     "rho_recoveries_points": 0.935
+    },
+    "75": {
+     "champion_behaviour_share": {
+      "random": 0.141,
+      "higher_in_band": 0.041,
+      "lower_in_band": 0.085,
+      "recovery_focused": 0.084,
+      "disagreement": 0.649
+     },
+     "rho_recoveries_points": 0.945
+    }
+   }
+  },
+  {
+   "participants": 10,
+   "truth": "model",
+   "championships": 1000,
+   "participation": "full",
+   "weekly_qualifying_tie_groups_per_round": 0.0538,
+   "cumulative_net": {
+    "champion_behaviour_share": {
+     "random": 0.081,
+     "higher_in_band": 0.045,
+     "lower_in_band": 0.137,
+     "recovery_focused": 0.067,
+     "disagreement": 0.67
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.0,
+    "champion_best_round_share_median": 0.784,
+    "rho_recoveries_points": 0.775,
+    "rho_expected_points": 0.4,
+    "rho_sd_points": 0.396,
+    "zero_points_share": 0.0,
+    "gini": null,
+    "recovery_beats_lower_rate": 0.388,
+    "points_per_round_by_behaviour": {
+     "random": -31.278,
+     "higher_in_band": -37.782,
+     "lower_in_band": -22.866,
+     "recovery_focused": -33.154,
+     "disagreement": 56.587
+    }
+   },
+   "f1": {
+    "champion_behaviour_share": {
+     "random": 0.083,
+     "higher_in_band": 0.06,
+     "lower_in_band": 0.098,
+     "recovery_focused": 0.072,
+     "disagreement": 0.687
+    },
+    "joint_champions_rate": 0.002,
+    "tiebreak_needed_rate": 0.002,
+    "champion_best_round_share_median": 0.176,
+    "rho_recoveries_points": 0.839,
+    "rho_expected_points": 0.287,
+    "rho_sd_points": 0.28,
+    "zero_points_share": 0.0,
+    "gini": 0.122,
+    "recovery_beats_lower_rate": 0.514,
+    "points_per_round_by_behaviour": {
+     "random": 9.46,
+     "higher_in_band": 9.723,
+     "lower_in_band": 9.254,
+     "recovery_focused": 9.505,
+     "disagreement": 12.558
+    }
+   },
+   "percentile": {
+    "champion_behaviour_share": {
+     "random": 0.079,
+     "higher_in_band": 0.111,
+     "lower_in_band": 0.054,
+     "recovery_focused": 0.088,
+     "disagreement": 0.668
+    },
+    "joint_champions_rate": 0.02,
+    "tiebreak_needed_rate": 0.044,
+    "champion_best_round_share_median": 0.15,
+    "rho_recoveries_points": 0.897,
+    "rho_expected_points": 0.2,
+    "rho_sd_points": 0.187,
+    "zero_points_share": 0.0,
+    "gini": 0.103,
+    "recovery_beats_lower_rate": 0.608,
+    "points_per_round_by_behaviour": {
+     "random": 47.273,
+     "higher_in_band": 50.192,
+     "lower_in_band": 44.709,
+     "recovery_focused": 48.151,
+     "disagreement": 59.676
+    }
+   },
+   "proposed": {
+    "champion_behaviour_share": {
+     "random": 0.101,
+     "higher_in_band": 0.082,
+     "lower_in_band": 0.043,
+     "recovery_focused": 0.141,
+     "disagreement": 0.633
+    },
+    "joint_champions_rate": 0.013,
+    "tiebreak_needed_rate": 0.017,
+    "champion_best_round_share_median": 0.185,
+    "rho_recoveries_points": 0.964,
+    "rho_expected_points": 0.243,
+    "rho_sd_points": 0.229,
+    "zero_points_share": 0.026,
+    "gini": 0.266,
+    "recovery_beats_lower_rate": 0.702,
+    "points_per_round_by_behaviour": {
+     "random": 39.831,
+     "higher_in_band": 38.462,
+     "lower_in_band": 31.204,
+     "recovery_focused": 43.71,
+     "disagreement": 64.5
+    }
+   },
+   "floor_sensitivity": {
+    "25": {
+     "champion_behaviour_share": {
+      "random": 0.1,
+      "higher_in_band": 0.082,
+      "lower_in_band": 0.044,
+      "recovery_focused": 0.14,
+      "disagreement": 0.634
+     },
+     "rho_recoveries_points": 0.964
+    },
+    "50": {
+     "champion_behaviour_share": {
+      "random": 0.1,
+      "higher_in_band": 0.082,
+      "lower_in_band": 0.044,
+      "recovery_focused": 0.14,
+      "disagreement": 0.634
+     },
+     "rho_recoveries_points": 0.964
+    },
+    "75": {
+     "champion_behaviour_share": {
+      "random": 0.1,
+      "higher_in_band": 0.082,
+      "lower_in_band": 0.044,
+      "recovery_focused": 0.14,
+      "disagreement": 0.634
+     },
+     "rho_recoveries_points": 0.964
+    }
+   }
+  },
+  {
+   "participants": 25,
+   "truth": "market",
+   "championships": 1000,
+   "participation": "realistic",
+   "weekly_qualifying_tie_groups_per_round": 0.0866,
+   "cumulative_net": {
+    "champion_behaviour_share": {
+     "random": 0.24,
+     "higher_in_band": 0.191,
+     "lower_in_band": 0.283,
+     "recovery_focused": 0.137,
+     "disagreement": 0.149
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.0,
+    "champion_best_round_share_median": 0.936,
+    "rho_recoveries_points": 0.683,
+    "rho_expected_points": 0.023,
+    "rho_sd_points": -0.05,
+    "zero_points_share": 0.0,
+    "gini": null,
+    "recovery_beats_lower_rate": 0.378,
+    "points_per_round_by_behaviour": {
+     "random": -20.105,
+     "higher_in_band": -19.346,
+     "lower_in_band": -18.015,
+     "recovery_focused": -20.711,
+     "disagreement": -17.179
+    }
+   },
+   "f1": {
+    "champion_behaviour_share": {
+     "random": 0.289,
+     "higher_in_band": 0.149,
+     "lower_in_band": 0.27,
+     "recovery_focused": 0.126,
+     "disagreement": 0.166
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.0,
+    "champion_best_round_share_median": 0.275,
+    "rho_recoveries_points": 0.807,
+    "rho_expected_points": 0.009,
+    "rho_sd_points": -0.031,
+    "zero_points_share": 0.0,
+    "gini": 0.291,
+    "recovery_beats_lower_rate": 0.404,
+    "points_per_round_by_behaviour": {
+     "random": 5.377,
+     "higher_in_band": 5.428,
+     "lower_in_band": 5.249,
+     "recovery_focused": 5.31,
+     "disagreement": 5.329
+    }
+   },
+   "percentile": {
+    "champion_behaviour_share": {
+     "random": 0.245,
+     "higher_in_band": 0.349,
+     "lower_in_band": 0.109,
+     "recovery_focused": 0.157,
+     "disagreement": 0.14
+    },
+    "joint_champions_rate": 0.0,
+    "tiebreak_needed_rate": 0.0,
+    "champion_best_round_share_median": 0.163,
+    "rho_recoveries_points": 0.809,
+    "rho_expected_points": 0.064,
+    "rho_sd_points": -0.205,
+    "zero_points_share": 0.0,
+    "gini": 0.159,
+    "recovery_beats_lower_rate": 0.588,
+    "points_per_round_by_behaviour": {
+     "random": 49.561,
+     "higher_in_band": 55.363,
+     "lower_in_band": 45.719,
+     "recovery_focused": 50.987,
+     "disagreement": 48.446
+    }
+   },
+   "proposed": {
+    "champion_behaviour_share": {
+     "random": 0.341,
+     "higher_in_band": 0.133,
+     "lower_in_band": 0.129,
+     "recovery_focused": 0.259,
+     "disagreement": 0.139
+    },
+    "joint_champions_rate": 0.012,
+    "tiebreak_needed_rate": 0.027,
+    "champion_best_round_share_median": 0.224,
+    "rho_recoveries_points": 0.957,
+    "rho_expected_points": -0.043,
+    "rho_sd_points": -0.09,
+    "zero_points_share": 0.068,
+    "gini": 0.318,
+    "recovery_beats_lower_rate": 0.651,
+    "points_per_round_by_behaviour": {
+     "random": 40.661,
+     "higher_in_band": 35.923,
+     "lower_in_band": 31.887,
+     "recovery_focused": 44.745,
+     "disagreement": 37.014
+    }
+   },
+   "floor_sensitivity": {
+    "25": {
+     "champion_behaviour_share": {
+      "random": 0.342,
+      "higher_in_band": 0.13,
+      "lower_in_band": 0.134,
+      "recovery_focused": 0.252,
+      "disagreement": 0.143
+     },
+     "rho_recoveries_points": 0.954
+    },
+    "50": {
+     "champion_behaviour_share": {
+      "random": 0.342,
+      "higher_in_band": 0.133,
+      "lower_in_band": 0.132,
+      "recovery_focused": 0.254,
+      "disagreement": 0.14
+     },
+     "rho_recoveries_points": 0.957
+    },
+    "75": {
+     "champion_behaviour_share": {
+      "random": 0.343,
+      "higher_in_band": 0.133,
+      "lower_in_band": 0.132,
+      "recovery_focused": 0.257,
+      "disagreement": 0.137
+     },
+     "rho_recoveries_points": 0.96
+    }
+   },
+   "late_or_missing_relative_rank": {
+    "full": 0.488,
+    "late": 0.638
+   }
+  }
+ ]
+}
