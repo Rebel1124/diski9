@@ -252,6 +252,43 @@ def objectives() -> html.Div:
     )
 
 
+BUILD_STEPS = (
+    ("layers", "Choose nine different matches",
+     "One prediction per match: four Foundation, three Balanced and two Challenger."),
+    ("scale", "Compare Market, Diski 9 and Your View",
+     "The market chance sets the bucket; compare it with the model and your own view."),
+    ("shield", "Understand your portfolio risk",
+     "Portfolio analysis shows your chance of 100+ back and every possible payout."),
+    ("clock", "Review and submit before the deadline",
+     "Confirm on Review & Submit; you can replace or withdraw until the round locks."),
+)  # fmt: skip
+
+
+def build_steps() -> html.Div:
+    """How to play: the four steps of building a portfolio (icons with short text)."""
+    return html.Div(
+        [
+            html.H3("Build your portfolio", className="ch-h3"),
+            html.Div(
+                [
+                    html.Div(
+                        [
+                            icon(name, "ic-lg ch-step-ic"),
+                            html.Div(
+                                [html.Strong(title), html.Span(text, className="muted small")]
+                            ),
+                        ],
+                        className="ch-build-step",
+                    )
+                    for name, title, text in BUILD_STEPS
+                ],
+                className="ch-build-steps",
+            ),
+        ],
+        className="ch-build",
+    )
+
+
 def segment_bar(code: str, filled: int, total: int) -> html.Div:
     return html.Div(
         [html.Span(className="seg on" if i < filled else "seg") for i in range(total)],
@@ -465,7 +502,7 @@ def bucket_line(stat) -> html.Div:
     return html.Div(
         [
             html.Span(["All succeed ", html.Strong(pct(stat.combined_probability, 1))]),
-            html.Span(["pays ", html.Strong(credits(stat.payout)), " cr"]),
+            html.Span(["pays ", html.Strong(credits(stat.payout))]),
             html.Span(scope, className="muted") if scope else None,
         ],
         className="ch-bstat small",
@@ -520,7 +557,7 @@ def tracker(
                         [
                             chip(st.code),
                             html.Span(f"{st.selected}/{st.required}", className="ch-count"),
-                            html.Span(f"{st.credits} cr", className="muted small"),
+                            html.Span(f"{st.credits} credits", className="muted small"),
                         ],
                         className="ch-trk-head",
                     ),
@@ -539,7 +576,7 @@ def tracker(
                     [
                         chip("NINE"),
                         html.Span(f"{nine.selected}/9", className="ch-count"),
-                        html.Span(f"{nine.credits} cr", className="muted small"),
+                        html.Span(f"{nine.credits} credits", className="muted small"),
                     ],
                     className="ch-trk-head",
                 ),
@@ -562,7 +599,7 @@ def tracker(
                 html.Div(
                     [
                         html.Span("Expected gross", className="muted small"),
-                        html.Strong(f"{complete_ev.expected_gross:,.2f} cr", className="ch-big"),
+                        html.Strong(f"{complete_ev.expected_gross:,.2f}", className="ch-big"),
                     ]
                 ),
             ],
@@ -699,7 +736,7 @@ def metrics_row(ev: PortfolioEvaluation) -> html.Div:
             metric("Nothing back", pct(ev.p_zero), "no bucket succeeds"),
             metric(
                 "Expected return",
-                f"{ev.expected_gross:,.2f} cr",
+                f"{ev.expected_gross:,.2f}",
                 f"{ev.expected_net:+,.2f} net · an average, not a promise",
             ),
         ],

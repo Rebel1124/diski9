@@ -77,25 +77,40 @@ def challenge_shell(service, state, explore, local, personal=None) -> html.Div:
     )
 
 
+def active_stage(state, complete: bool) -> str:
+    """The step actually shown: Review & Submit only for a complete portfolio."""
+    return "review" if state["stage"] == "review" and complete else "build"
+
+
 def stepper(service, state) -> html.Nav:
+    """Two steps. The current step is highlighted and marked ``aria-current``; a step
+    that can be opened but is not current is shown as available (and the build step
+    as done once the portfolio is complete); an unreachable step is disabled."""
     state = sync(service, state)
     mode, snap, avail, sels = current(service, state)
     complete = snap is not None and service.evaluate(snap, sels) is not None
     reach = {"build": avail.playable and snap is not None, "review": complete}
-    return html.Nav(
-        [
+    now = active_stage(state, complete)
+    items = []
+    for i, (key, label) in enumerate(STAGES):
+        cur = key == now
+        done = key == "build" and complete and not cur
+        cls = "ch-step" + (" on is-current" if cur else "") + (" is-done" if done else "")
+        cls += " is-available" if reach[key] and not cur else ""
+        mark = c.icon("check", "ic-sm") if done else str(i + 1)
+        items.append(
             html.Button(
-                [html.Span(str(i + 1), className="ch-step-n"), label],
+                [html.Span(mark, className="ch-step-n"), label],
                 id={"t": "nav", "to": key, "i": "stepper"},
                 n_clicks=0,
                 disabled=not reach[key],
-                className="ch-step" + (" on" if state["stage"] == key else ""),
+                className=cls,
+                title=("Current step" if cur else "Open this step" if reach[key]
+                       else "Complete all nine predictions first"),
+                **({"aria-current": "step"} if cur else {}),
             )
-            for i, (key, label) in enumerate(STAGES)
-        ],
-        className="ch-stepper",
-        **{"aria-label": "Challenge steps"},
-    )
+        )  # fmt: skip
+    return html.Nav(items, className="ch-stepper", **{"aria-label": "Challenge steps"})
 
 
 def stage_signature(service, state) -> list:
@@ -118,7 +133,7 @@ def stage_body(service, state, explore, local, personal=None):
     complete = snap is not None and service.evaluate(snap, sels) is not None
     if snap is None or not avail.playable:
         return unavailable(service, state, mode, snap, avail, local)
-    if state["stage"] == "review" and complete:
+    if active_stage(state, complete) == "review":
         return review(service, snap, sels, avail, state, local, personal)
     return builder(service, snap, sels, avail, explore, local, personal, state)
 
@@ -142,6 +157,7 @@ def how_to_play(open_: bool) -> html.Details:
                                 className="ch-lead",
                             ),
                             c.objectives(),
+                            c.build_steps(),
                         ],
                         className="ch-htp-col",
                     ),
@@ -560,7 +576,9 @@ def analysis_panel(service, snap, sels, prefs, personal=None) -> html.Div:
     prob = pa.probability_for(source, personal)
     ev = pa.evaluate_with(port, prob)
     cc = pa.correct_count_analysis(port, prob)
+    bd = pa.calculation_breakdown(port, prob)
     label = pa.SOURCE_LABEL[source]
+    names = {o.key: _pick_label(snap, o) for b in port.buckets for o in b}
     return html.Div(
         [
             html.Div(
@@ -570,14 +588,206 @@ def analysis_panel(service, snap, sels, prefs, personal=None) -> html.Div:
                 ],
                 className="ch-row-between",
             ),
-            recovery_section(ev),
-            payouts_section(ev),
-            correct_section(cc),
+            recovery_section(ev, bd, label, names),
+            payouts_section(ev, bd),
+            correct_section(cc, label),
         ]
     )
 
 
-def recovery_section(ev) -> html.Div:
+def _pick_label(snap, o) -> str:
+    fx = snap.fixture(o.fixture_id)
+    return f"{fx.home} v {fx.away}: {c.outcome_text(o)}"
+
+
+def _p(x: float) -> str:
+    """Probability for the calculation tables: 4 significant decimals as a percentage."""
+    return f"{x * 100:.2f}%" if x >= 0.0001 or x == 0 else f"{x * 100:.4f}%"
+
+
+def _odds_product(x) -> str:
+    """The exact product of decimal odds, or ≈ 4 decimals when it has more than 6."""
+    t = format(x.normalize(), "f")
+    return t if len(t.split(".")[-1]) <= 6 or "." not in t else f"≈ {x:.4f}"
+
+
+def outcome_table(bd) -> html.Div:
+    """The eight mutually exclusive outcomes (shared by the payouts section and the
+    calculation breakdown): completed buckets, probability, gross payout, the
+    probability-weighted payout and whether 100.00 is recovered, with a total row."""
+    head = html.Tr(
+        [
+            html.Th("Completed buckets"),
+            html.Th("Probability", className="num"),
+            html.Th("Gross payout", className="num"),
+            html.Th("Probability × payout", className="num"),
+            html.Th("100+ back", className="c"),
+        ]
+    )
+    body = [
+        html.Tr(
+            [
+                html.Td(st.label),
+                html.Td(_p(st.probability), className="num"),
+                html.Td(c.credits(st.gross), className="num"),
+                html.Td(f"{st.weighted:,.2f}", className="num"),
+                html.Td(
+                    [c.icon("check", "ic-sm"), " Yes"] if st.recovers else "No",
+                    className="c " + ("ok" if st.recovers else "muted"),
+                ),
+            ],
+            className="rec" if st.recovers else None,
+        )
+        for st in bd.states
+    ]
+    total = html.Tr(
+        [
+            html.Td(html.Strong("Total")),
+            html.Td(_p(sum(st.probability for st in bd.states)), className="num"),
+            html.Td(""),
+            html.Td(html.Strong(f"{bd.expected_gross:,.2f}"), className="num"),
+            html.Td(""),
+        ],
+        className="total",
+    )
+    return html.Div(
+        html.Table([html.Thead(head), html.Tbody([*body, total])], className="ch-table states"),
+        className="ch-table-wrap",
+    )
+
+
+def calculation_details(bd, source_label: str, names: dict) -> html.Details:
+    """'How are these calculated?': the current portfolio's numbers, step by step,
+    straight from the eight-state engine (no separate UI maths)."""
+    step1 = []
+    for b in bd.buckets:
+        ps = " × ".join(_p(leg.probability) for leg in b.legs)
+        odds = " × ".join(f"{leg.odds:.2f}" for leg in b.legs)
+        step1.append(
+            html.Div(
+                [
+                    html.Div([c.chip(b.code), html.Span(f" {b.stake} credits", className="muted")]),
+                    html.Ul(
+                        [
+                            html.Li(
+                                [
+                                    html.Span(names.get(leg.key, str(leg.key))),
+                                    html.Span(
+                                        f"{_p(leg.probability)} · odds {leg.odds:.2f}",
+                                        className="muted",
+                                    ),
+                                ]
+                            )
+                            for leg in b.legs
+                        ],
+                        className="ch-calc-legs",
+                    ),
+                    html.Div(
+                        [
+                            f"P({b.name} succeeds) = {ps} = ",
+                            html.Strong(_p(b.probability)),
+                        ],
+                        className="ch-calc-eq",
+                    ),
+                    html.Div(
+                        [
+                            f"Payout = {b.stake} × ({odds}) = {b.stake} × "
+                            f"{_odds_product(b.combined_odds)} = ",
+                            html.Strong(c.credits(b.payout)),
+                        ],
+                        className="ch-calc-eq",
+                    ),
+                ],
+                className=f"ch-calc-bucket b-{c.BUCKET_CLASS[b.code]}",
+            )
+        )
+    nf = bd.nine_fold
+    rec = [st for st in bd.states if st.recovers]
+    return html.Details(
+        [
+            html.Summary([c.icon("calculator", "ic-sm"), " How are these calculated?"]),
+            html.P(
+                [
+                    "Using the ",
+                    html.Strong(source_label),
+                    " probabilities for this portfolio. Payouts always use the frozen "
+                    "reference odds, so only the probabilities change between sources.",
+                ],
+                className="small",
+            ),
+            html.H4("Step 1 · Each bucket's chance and payout", className="ch-h4"),
+            html.P(
+                "A bucket pays only if every one of its predictions is correct. The nine "
+                "predictions are on different matches, so we treat them as independent: "
+                "the result of one match doesn't change the chances in another. The chance "
+                "that a bucket succeeds is then its predictions' chances multiplied together.",
+                className="muted small",
+            ),
+            html.Div(step1, className="ch-calc-buckets"),
+            html.P(
+                [
+                    c.chip("NINE"),
+                    f" The Diski 9 ({nf.stake} credits) pays {nf.stake} × "
+                    f"{_odds_product(nf.combined_odds)} (all nine odds multiplied) = "
+                    f"{c.credits(nf.payout)} only when all "
+                    f"nine are correct (chance {_p(nf.probability)}). It is not a fourth "
+                    "independent bucket: it can only pay when Foundation, Balanced and "
+                    "Challenger all succeed, so it appears only in the all-nine outcome below.",
+                ],
+                className="small",
+            ),
+            html.H4("Step 2 · All possible payout outcomes", className="ch-h4"),
+            html.P(
+                "The three buckets can each succeed or fail, giving eight outcomes that "
+                "can't happen together; their probabilities add up to 100%. When all nine "
+                "are correct the gross payout is the three bucket payouts plus The Diski 9.",
+                className="muted small",
+            ),
+            outcome_table(bd),
+            html.H4("Step 3 · Chance of getting 100 credits back", className="ch-h4"),
+            html.P(
+                [
+                    "Add the probabilities of every outcome whose gross payout is at least "
+                    "100.00: ",
+                    " + ".join(_p(st.probability) for st in rec) or "none",
+                    " = ",
+                    html.Strong(_p(bd.p_recover)),
+                    ".",
+                ],
+                className="small",
+            ),
+            html.P(
+                "Here some outcomes pay something but less than 100, so the chance of "
+                "getting 100 back is not simply 100% minus the chance of nothing back."
+                if bd.has_partial
+                else "Here every outcome that pays anything pays at least 100, so this also "
+                "equals 100% minus the chance of nothing back.",
+                className="muted small",
+            ),
+            html.H4("Step 4 · Expected gross and net", className="ch-h4"),
+            html.P(
+                [
+                    "Expected gross = sum of (outcome probability × gross payout) = ",
+                    html.Strong(f"{bd.expected_gross:,.2f}"),
+                    " (the total row above). Expected net = expected gross − 100 = ",
+                    html.Strong(f"{bd.expected_net:+,.2f}"),
+                    ".",
+                ],
+                className="small",
+            ),
+            html.P(
+                "Expected payout is a probability-weighted average over very many imaginary "
+                "repeats of this week. It is not a guarantee and usually not the typical "
+                "result. Values are calculated at full precision and rounded only for "
+                "display, so the rounded figures shown may not add up exactly.",
+                className="muted small",
+            ),
+        ],
+        className="ch-details ch-calc",
+    )
+
+
+def recovery_section(ev, bd=None, source_label: str = "Market", names=None) -> html.Div:
     rows = [
         ("100+ back", ev.p_recover, "teal"),
         ("Something, under 100", ev.p_partial, "amber"),
@@ -611,13 +821,13 @@ def recovery_section(ev) -> html.Div:
                                     html.Div(
                                         [
                                             html.Span("Expected gross", className="muted small"),
-                                            html.Strong(f"{ev.expected_gross:,.2f} cr"),
+                                            html.Strong(f"{ev.expected_gross:,.2f}"),
                                         ]
                                     ),
                                     html.Div(
                                         [
                                             html.Span("Expected net", className="muted small"),
-                                            html.Strong(f"{ev.expected_net:+,.2f} cr"),
+                                            html.Strong(f"{ev.expected_net:+,.2f}"),
                                         ]
                                     ),
                                 ],
@@ -635,12 +845,13 @@ def recovery_section(ev) -> html.Div:
                 ],
                 className="ch-recovery",
             ),
+            calculation_details(bd, source_label, names or {}) if bd is not None else None,
         ],
         className="ch-card",
     )
 
 
-def payouts_section(ev) -> html.Div:
+def payouts_section(ev, bd=None) -> html.Div:
     rows = charts.state_rows(ev)
     by_gross: dict = {}
     for s in rows:
@@ -660,29 +871,6 @@ def payouts_section(ev) -> html.Div:
         ],
         className="ch-acc-pays small",
     )
-    head = html.Tr(
-        [
-            html.Th("Outcome"),
-            html.Th("Foundation", className="c"),
-            html.Th("Balanced", className="c"),
-            html.Th("Challenger", className="c"),
-            html.Th("Diski 9", className="c"),
-            html.Th("Total payout", className="num"),
-            html.Th("Chance", className="num"),
-        ]
-    )
-    body = [
-        html.Tr(
-            [
-                html.Td(pa.state_label(s.wins)),
-                *[html.Td("✓" if w else "—", className="c") for w in s.wins],
-                html.Td("✓" if all(s.wins) else "—", className="c"),
-                html.Td(c.credits(s.gross), className="num"),
-                html.Td(c.pct(s.probability, 2), className="num"),
-            ]
-        )
-        for s in rows
-    ]
     return html.Div(
         [
             html.H3("Possible payouts", className="ch-h3"),
@@ -700,8 +888,7 @@ def payouts_section(ev) -> html.Div:
             html.P(
                 "Same total payout: "
                 + "; ".join(
-                    " and ".join(pa.state_label(s.wins) for s in v)
-                    + f" ({c.credits(v[0].gross)} cr)"
+                    " and ".join(pa.state_label(s.wins) for s in v) + f" ({c.credits(v[0].gross)})"
                     for v in same
                 ),
                 className="muted small",
@@ -709,23 +896,17 @@ def payouts_section(ev) -> html.Div:
             if same
             else None,
             html.Details(
-                [
-                    html.Summary("All eight combinations in a table"),
-                    html.Div(
-                        html.Table(
-                            [html.Thead(head), html.Tbody(body)], className="ch-table states"
-                        ),
-                        className="ch-table-wrap",
-                    ),
-                ],
+                [html.Summary("All eight outcomes in a table"), outcome_table(bd)],
                 className="ch-details",
-            ),
+            )
+            if bd is not None
+            else None,
         ],
         className="ch-card",
     )
 
 
-def correct_section(cc) -> html.Div:
+def correct_section(cc, source_label: str = "Market", view: str = "focus") -> html.Div:
     k0 = cc.most_likely
     head = html.Tr(
         [
@@ -765,11 +946,36 @@ def correct_section(cc) -> html.Div:
                 ],
                 className="ch-kpis small",
             ),
+            html.Div(
+                [
+                    html.Span("Payout line:", className="muted small"),
+                    dcc.RadioItems(
+                        id=c.T("k-view"),
+                        value=view,
+                        inline=True,
+                        className="ch-k ch-kview",
+                        options=[
+                            {"label": "Focus on 0–8 correct", "value": "focus"},
+                            {"label": "Show all nine", "value": "all"},
+                        ],
+                    ),
+                ],
+                className="ch-k-row",
+            ),
             dcc.Graph(
                 id=c.T("k-hist"),
-                figure=charts.correct_histogram(cc, k0),
+                figure=charts.correct_combined(cc, k0, view),
                 config={"displayModeBar": False},
                 className="ch-hist",
+            ),
+            html.P(
+                [
+                    f"Bars: the {source_label} chance of exactly that many correct "
+                    "(left axis). Line: the average gross payout if exactly that many are "
+                    "correct, weighting each combination by its probability (right axis). "
+                    "Click a bar or choose a number below for details.",
+                ],
+                className="muted small",
             ),
             html.Div(
                 [
@@ -791,16 +997,6 @@ def correct_section(cc) -> html.Div:
                 "your 100 back, while six correct picks spread across unfinished buckets can pay "
                 "nothing.",
                 className="muted small",
-            ),
-            html.Details(
-                [
-                    html.Summary("Average payout by number correct"),
-                    dcc.Graph(
-                        figure=charts.conditional_payout_figure(cc, k0),
-                        config={"displayModeBar": False},
-                    ),
-                ],
-                className="ch-details",
             ),
             html.Details(
                 [
@@ -833,14 +1029,13 @@ def k_detail(cc, k: int) -> html.Div:
     return html.Div(
         [
             html.Strong(f"If exactly {r.k} of 9 are correct"),
-            html.Span(
-                f"chance {c.pct(r.probability, 1)} · {r.combinations} combinations",
-                className="muted small",
-            ),
             html.Div(
                 [
-                    html.Span(["Average payout ", html.Strong(f"{r.expected_gross:,.2f} cr")]),
-                    html.Span(["Range ", html.Strong(f"{r.min_gross:,.2f}–{r.max_gross:,.2f}")]),
+                    html.Span(["Chance ", html.Strong(_p(r.probability))]),
+                    html.Span(["Combinations ", html.Strong(str(r.combinations))]),
+                    html.Span(["Average payout ", html.Strong(f"{r.expected_gross:,.2f}")]),
+                    html.Span(["Minimum ", html.Strong(c.credits(r.min_gross))]),
+                    html.Span(["Maximum ", html.Strong(c.credits(r.max_gross))]),
                     html.Span(["Get 100+ back ", html.Strong(c.pct(r.p_recover, 1))]),
                 ],
                 className="ch-kstats small",
@@ -877,7 +1072,7 @@ def estimate_cards(estimates: dict) -> html.Div:
                     html.Div(
                         [
                             html.Span("Expected gross", className="muted small"),
-                            html.Strong(f"{e['expected']:,.2f} cr"),
+                            html.Strong(f"{e['expected']:,.2f}"),
                         ]
                     ),
                 ],
@@ -1084,7 +1279,10 @@ def confirmed_portfolio(sub, local) -> html.Div:
             html.Div(
                 [
                     html.Div(
-                        [c.chip(b.code), html.Span(f"{b.credits} cr", className="muted small")],
+                        [
+                            c.chip(b.code),
+                            html.Span(f"{b.credits} credits", className="muted small"),
+                        ],
                         className="ch-trk-head",
                     ),
                     html.Ul(
@@ -1392,7 +1590,7 @@ def leaderboard_body(tab: str, round_id: str | None):
     r = next(x for x in demo.demo_rounds() if x.round_id == rid)
     score = demo.demo_round_score(rid)
     ranked = [
-        (s.rank, s.participant_id, f"{s.points} pts · {s.gross:,.2f} cr")
+        (s.rank, s.participant_id, f"{s.points} pts · returned {s.gross:,.2f}")
         for s in score.scores
         if s.rank is not None
     ]
@@ -1404,7 +1602,7 @@ def leaderboard_body(tab: str, round_id: str | None):
     else:
         you = c.you_summary(
             f"#{me.rank}",
-            f"{me.points} pts · {me.gross:,.2f} cr",
+            f"{me.points} pts · returned {me.gross:,.2f}",
             "Recovered" if me.recovered else "Not recovered",
         )
     podium = c.podium(ranked) if r.classification.value != "void" else None

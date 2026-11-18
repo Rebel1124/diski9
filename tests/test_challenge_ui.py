@@ -417,14 +417,16 @@ def test_states_chart_lists_eight_states_by_payout(svc, snap):
     assert fig.layout.yaxis.autorange == "reversed"  # smallest payout at the top
 
 
-def test_correct_histogram_and_conditional_chart(svc, snap):
+def test_combined_correct_count_chart(svc, snap):
+    """Phase 6B.2: the histogram and the separate average-payout chart are one chart
+    (bars on the left axis, conditional payout line on the right axis)."""
     port = svc.portfolio(snap, valid_keys(snap))
     cc = pa.correct_count_analysis(port)
-    h = charts.correct_histogram(cc, 5)
+    h = charts.correct_combined(cc, 5, "all")
     assert list(h.data[0].x) == list(range(10))
     assert math.isclose(sum(h.data[0].y), 1.0, abs_tol=1e-12)
-    cond = charts.conditional_payout_figure(cc, 5)
-    assert list(cond.data[0].y) == [r.expected_gross or 0.0 for r in cc.rows]
+    assert list(h.data[1].y) == [r.expected_gross for r in cc.rows]
+    assert h.data[1].yaxis == "y2" and h.layout.yaxis2.overlaying == "y"
     panel = jtext(pages.analysis_panel(svc, snap, valid_keys(snap), {"source": "model"})
                        )  # fmt: skip
     assert "Diski 9 estimate" in panel and "Most likely" in panel

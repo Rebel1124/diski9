@@ -1068,3 +1068,39 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-lab-mkts { margin-top: 4px; }
 .ch-lab-foot { margin: 8px 0 0; display: flex; gap: 4px; align-items: baseline; flex-wrap: wrap; }
 .detail-ref { margin-top: 0; }
+/* How to play: "Build your portfolio" steps under the two objectives */
+.ch-build { margin-top: 12px; }
+.ch-build .ch-h3 { margin: 0 0 6px; }
+.ch-build-steps { display: grid; gap: 8px; }
+.ch-build-step { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; align-items: start; }
+.ch-build-step > div { display: grid; gap: 1px; }
+.ch-step-ic { color: var(--accent); margin-top: 2px; }
+/* Calculation breakdown */
+.ch-calc .ch-h4 { font-size: 13.5px; margin: 14px 0 4px; color: var(--text); }
+.ch-calc-buckets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.ch-calc-bucket { background: var(--surface-2); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; min-width: 0; }
+.ch-calc-bucket.b-found { border-left-color: var(--b-found); } .ch-calc-bucket.b-bal { border-left-color: var(--b-bal); } .ch-calc-bucket.b-chal { border-left-color: var(--b-chal); }
+.ch-calc-legs { margin: 6px 0; padding: 0; list-style: none; display: grid; gap: 3px; }
+.ch-calc-legs li { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.ch-calc-eq { font-variant-numeric: tabular-nums; margin-top: 3px; overflow-wrap: anywhere; }
+.ch-table.states tr.total td { border-top: 1px solid var(--border); }
+.ch-table.states td.ok { color: var(--accent); }
+.ch-kview label { white-space: nowrap; }
+@media (max-width: 960px) { .ch-calc-buckets { grid-template-columns: minmax(0, 1fr); } }
+/* Stepper: current (filled), available (outlined, clickable), done (check), unavailable (dim) */
+.ch-step.is-available { color: var(--text); border-color: var(--muted); }
+.ch-step.is-available:hover { border-color: var(--accent); }
+.ch-step.is-done .ch-step-n { background: var(--accent-dim); color: var(--accent); }
+.ch-step.is-current { box-shadow: 0 0 0 1px var(--accent) inset; }
+/* full outcome names (no "Under ..." truncation); odds wrap below only if space runs out */
+.ch-out-top { flex-wrap: wrap; column-gap: 6px; row-gap: 0; }
+.ch-out-name { overflow: visible; text-overflow: clip; flex: none; }
+.ch-odds { margin-left: auto; }
+@media (min-width: 961px) { .ch-mkts { grid-template-columns: 3fr 2fr 2.3fr; } }
+/* builder filters: the team search gets room for its placeholder and typed names */
+@media (min-width: 1181px) {
+  .ch-filters { grid-template-columns: repeat(4, minmax(0, 1fr)) minmax(180px, 1.35fr) auto; }
+}
+.ch-filters .ch-input { width: 100%; min-width: 0; box-sizing: border-box; }
+.ch-calc-legs li { display: grid; gap: 0; margin: 0; }
+.ch-kview label { font-size: 13px; }

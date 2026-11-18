@@ -243,6 +243,90 @@ def correct_count_analysis(
     return CorrectCountAnalysis(tuple(states), tuple(rows), expected, mode, target)
 
 
+# ------------------------------------------------- calculation breakdown
+@dataclass(frozen=True)
+class LegLine:
+    key: tuple
+    probability: float  # the active source's probability for this prediction
+    odds: Decimal  # frozen reference odds
+
+
+@dataclass(frozen=True)
+class BucketLine:
+    code: str
+    name: str
+    stake: int
+    legs: tuple[LegLine, ...]
+    probability: float  # product of the leg probabilities (engine value)
+    combined_odds: Decimal  # exact product of the frozen odds
+    payout: Decimal  # stake x combined odds, approved rounding
+
+
+@dataclass(frozen=True)
+class StateLine:
+    wins: tuple[int, ...]
+    label: str
+    probability: float
+    gross: Decimal
+    weighted: float  # probability x gross
+    recovers: bool  # gross >= 100.00
+
+
+@dataclass(frozen=True)
+class CalculationBreakdown:
+    """Every number behind the recovery and expected-payout summary, taken from the
+    exact eight-state engine (``evaluate_with``) for one probability source. The
+    totals are the engine's own values, so they reconcile with the summary metrics."""
+
+    buckets: tuple[BucketLine, ...]
+    nine_fold: BucketLine
+    states: tuple[StateLine, ...]  # the eight mutually exclusive outcomes
+    target: Decimal
+    total_stake: int
+    p_recover: float  # sum of probabilities of states with gross >= target
+    p_partial: float
+    p_zero: float
+    expected_gross: float  # sum(probability x gross)
+    expected_net: float
+
+    @property
+    def has_partial(self) -> bool:
+        """True when some outcome pays something but less than the target, i.e. when
+        P(recover) is not simply 1 - P(nothing back)."""
+        return any(0 < s.gross < self.target for s in self.states)
+
+
+def calculation_breakdown(
+    portfolio: StructuredPortfolio, probability: Probability = market_probability
+) -> CalculationBreakdown:
+    ev = evaluate_with(portfolio, probability)
+    lines = []
+    for b, res in zip(portfolio.buckets, ev.buckets, strict=True):
+        legs = tuple(LegLine(o.key, probability(o), o.reference_odds) for o in b)
+        lines.append(BucketLine(res.code, res.name, res.stake, legs, res.win_probability,
+                                res.combined_odds, res.payout))  # fmt: skip
+    nf = ev.nine_fold
+    all_legs = tuple(leg for line in lines for leg in line.legs)
+    nine = BucketLine(nf.code, nf.name, nf.stake, all_legs, nf.win_probability,
+                      nf.combined_odds, nf.payout)  # fmt: skip
+    order = sorted(ev.states, key=lambda st: (sum(st.wins), st.gross))
+    states = tuple(
+        StateLine(
+            st.wins,
+            state_label(st.wins, portfolio.config),
+            st.probability,
+            st.gross,
+            st.probability * float(st.gross),
+            st.gross >= ev.target,
+        )  # fmt: skip
+        for st in order
+    )
+    return CalculationBreakdown(
+        tuple(lines), nine, states, ev.target, ev.total_stake, ev.p_recover, ev.p_partial,
+        ev.p_zero, ev.expected_gross, ev.expected_net,
+    )  # fmt: skip
+
+
 def state_label(wins: Sequence[int | bool], config: ChallengeConfig = DEFAULT_CONFIG) -> str:
     """Plain words for an eight-state outcome, e.g. 'Foundation + Challenger'."""
     names = [b.name for b, w in zip(config.buckets, wins, strict=True) if w]

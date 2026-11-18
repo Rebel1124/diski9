@@ -8,6 +8,8 @@ engine calculations (``payout_distribution``, ``probability_at_least``) remain.
 
 from __future__ import annotations
 
+import math
+
 import plotly.graph_objects as go
 
 from diski9.challenge.analysis import CorrectCountAnalysis, state_label
@@ -67,7 +69,7 @@ def state_rows(ev: GroupEvaluation) -> list:
 
 def states_figure(ev: GroupEvaluation) -> go.Figure:
     rows = state_rows(ev)
-    labels = [f"{state_label(s.wins)}  ·  {s.gross:,.2f} cr" for s in rows]
+    labels = [f"{state_label(s.wins)}  ·  {s.gross:,.2f}" for s in rows]
     colours = [TEAL if s.gross >= ev.target else (AMBER if s.gross > 0 else GREY) for s in rows]
     fig = go.Figure(
         go.Bar(
@@ -81,7 +83,7 @@ def states_figure(ev: GroupEvaluation) -> go.Figure:
             customdata=[
                 [state_label(s.wins), f"{s.gross:,.2f}", f"{s.probability:.2%}"] for s in rows
             ],
-            hovertemplate="%{customdata[0]}: total %{customdata[1]} credits, chance "
+            hovertemplate="%{customdata[0]}: total payout %{customdata[1]}, chance "
             "%{customdata[2]}<extra></extra>",
         )
     )
@@ -103,53 +105,106 @@ def states_figure(ev: GroupEvaluation) -> go.Figure:
     return _base(fig, 300)
 
 
-def correct_histogram(cc: CorrectCountAnalysis, selected: int | None = None) -> go.Figure:
+PURPLE = "#b392f0"
+
+
+def _nice_step(raw: float) -> float:
+    """A readable axis step (1, 2, 2.5 or 5 times a power of ten) of at least ``raw``."""
+    mag = 10 ** math.floor(math.log10(raw))
+    return next(m * mag for m in (1, 2, 2.5, 5, 10) if m * mag >= raw)
+
+
+def correct_combined(
+    cc: CorrectCountAnalysis, selected: int | None = None, view: str = "focus"
+) -> go.Figure:
+    """One chart for the number of correct predictions (0-9):
+
+    * bars (left axis): P(exactly k correct), the unconditional Poisson-binomial
+      probabilities - never renormalised, whatever the view;
+    * line with markers (right axis): E[gross payout | exactly k correct], the
+      probability-weighted average over that count's combinations (the engine's
+      value); impossible counts are left as gaps, never drawn as zero;
+    * a dotted reference at 100 on the payout axis.
+
+    ``view="focus"`` hides the nine-correct point from the payout line (its value is
+    usually far larger and would flatten the rest) and says so on the chart;
+    ``view="all"`` plots every point.
+    """
     ks = [r.k for r in cc.rows]
-    colours = [TEAL if k == selected else "#2a6f66" for k in ks]
-    fig = go.Figure(
+    probs = [r.probability for r in cc.rows]
+    pay = [r.expected_gross for r in cc.rows]
+    focus = view != "all"
+    shown = [None if (focus and r.k == 9) else v for r, v in zip(cc.rows, pay, strict=True)]
+    bar_cols = [TEAL if k == selected else "#2a6f66" for k in ks]
+    fig = go.Figure()
+    fig.add_trace(
         go.Bar(
             x=ks,
-            y=[r.probability for r in cc.rows],
-            marker={"color": colours},
-            text=[f"{r.probability:.0%}" if r.probability >= 0.005 else "" for r in cc.rows],
-            textposition="outside",
-            cliponaxis=False,
+            y=probs,
+            name="Chance of exactly this many correct",
+            marker={"color": bar_cols},
             customdata=[[r.combinations, f"{r.probability:.2%}"] for r in cc.rows],
-            hovertemplate="%{x} correct: %{customdata[1]} (%{customdata[0]} combinations)"
-            "<extra></extra>",
+            hovertemplate="%{x} correct: chance %{customdata[1]} "
+            "(%{customdata[0]} combinations)<extra></extra>",
+            yaxis="y",
         )
     )
-    fig.update_xaxes(tickvals=ks, title="Correct predictions", color=MUTED, showgrid=False)
-    fig.update_yaxes(
-        tickformat=".0%",
-        gridcolor=GRID,
-        color=MUTED,
-        zeroline=False,
-        range=[0, max(r.probability for r in cc.rows) * 1.2],
-    )
-    fig.update_layout(margin={"l": 8, "r": 8, "t": 8, "b": 40})
-    return _base(fig, 230)
-
-
-def conditional_payout_figure(cc: CorrectCountAnalysis, selected: int | None = None) -> go.Figure:
-    """Average gross payout if exactly k predictions are correct (a separate chart, not a
-    second axis)."""
-    ks = [r.k for r in cc.rows]
-    vals = [r.expected_gross or 0.0 for r in cc.rows]
-    fig = go.Figure(
-        go.Bar(
+    fig.add_trace(
+        go.Scatter(
             x=ks,
-            y=vals,
-            marker={"color": [AMBER if k == selected else "#7a6233" for k in ks]},
-            customdata=[
-                [f"{v:,.2f}" if r.expected_gross is not None else "impossible"]
-                for v, r in zip(vals, cc.rows, strict=True)
-            ],
-            hovertemplate="%{x} correct: average %{customdata[0]} credits<extra></extra>",
+            y=shown,
+            name="Average payout if exactly this many correct",
+            mode="lines+markers",
+            line={"color": PURPLE, "width": 2},
+            marker={"size": [10 if k == selected else 7 for k in ks], "color": PURPLE},
+            connectgaps=False,
+            customdata=[[f"{v:,.2f}" if v is not None else "impossible"] for v in pay],
+            hovertemplate="%{x} correct: average payout %{customdata[0]}<extra></extra>",
+            yaxis="y2",
         )
     )
-    fig.add_hline(y=100, line={"color": TEAL, "width": 1, "dash": "dash"})
-    fig.update_xaxes(tickvals=ks, title="Correct predictions", color=MUTED, showgrid=False)
-    fig.update_yaxes(title="Average payout (cr)", gridcolor=GRID, color=MUTED, zeroline=False)
-    fig.update_layout(margin={"l": 8, "r": 8, "t": 8, "b": 40})
-    return _base(fig, 200)
+    visible = [v for v in shown if v is not None]
+    step = _nice_step(max([*visible, 100.0]) * 1.08 / 4)
+    top = step * math.ceil(max([*visible, 100.0]) * 1.08 / step)
+    fig.add_shape(
+        type="line", xref="paper", x0=0, x1=1, yref="y2", y0=100, y1=100,
+        line={"color": TEAL, "width": 1, "dash": "dot"},
+    )  # fmt: skip
+    fig.add_annotation(
+        xref="paper", x=0, yref="y2", y=100, text="100 back", showarrow=False,
+        xanchor="left", yanchor="bottom", font={"size": 10, "color": TEAL},
+    )  # fmt: skip
+    if focus and pay[9] is not None:
+        fig.add_annotation(
+            xref="paper", yref="paper", x=1, y=1.0, xanchor="right", yanchor="bottom",
+            text=f"9 correct hidden from the payout line (average {pay[9]:,.2f})",
+            showarrow=False, font={"size": 10.5, "color": MUTED},
+        )  # fmt: skip
+    _base(fig, 300)
+    fig.update_layout(
+        showlegend=True,
+        legend={"orientation": "h", "x": 0, "y": -0.28, "font": {"size": 11, "color": MUTED}},
+        margin={"l": 8, "r": 8, "t": 22, "b": 8},
+        bargap=0.25,
+        xaxis={"tickvals": ks, "title": "Correct predictions", "color": MUTED, "showgrid": False},
+        yaxis={
+            "title": {"text": "Chance", "font": {"color": TEAL}},
+            "tickformat": ".0%",
+            "gridcolor": GRID,
+            "color": MUTED,
+            "zeroline": False,
+            "range": [0, max(probs) * 1.2],
+        },
+        yaxis2={
+            "title": {"text": "Average payout", "font": {"color": PURPLE}},
+            "overlaying": "y",
+            "side": "right",
+            "showgrid": False,
+            "color": MUTED,
+            "zeroline": False,
+            "range": [0, top],
+            "dtick": step,
+            "tickformat": ",.0f",
+        },
+    )
+    return fig

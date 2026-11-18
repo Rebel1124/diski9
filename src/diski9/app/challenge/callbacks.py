@@ -541,12 +541,13 @@ def register(app, data, service: ChallengeService) -> None:
         Output({"t": "k-detail", "i": ALL}, "children"),
         Output({"t": "k-hist", "i": ALL}, "figure"),
         Input(c.T("k-select", ALL), "value"),
+        Input(c.T("k-view", ALL), "value"),
         State("ch-session", "data"),
         State("ch-prefs", "data"),
         State("lab-store", "data"),
         prevent_initial_call=True,
     )
-    def show_k(k, state, prefs, lab_store):
+    def show_k(k, view, state, prefs, lab_store):
         if not k or k[0] is None:
             return [], []
         state = pages.sync(service, state)
@@ -558,7 +559,8 @@ def register(app, data, service: ChallengeService) -> None:
             (prefs or {}).get("source", "market"), your_view(state, lab_store)
         )
         cc = pa.correct_count_analysis(port, prob)
-        return [pages.k_detail(cc, int(k[0]))], [charts.correct_histogram(cc, int(k[0]))]
+        v = (view or ["focus"])[0] or "focus"
+        return [pages.k_detail(cc, int(k[0]))], [charts.correct_combined(cc, int(k[0]), v)]
 
     @app.callback(
         Output(c.T("k-select", ALL), "value"),

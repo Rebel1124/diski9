@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from diski9.app import icons
@@ -106,3 +107,136 @@ def test_disabled_outcomes_explain_with_icon_and_text(snap):  # noqa: F811
 def test_icon_stylesheet_is_generated_from_the_icon_set():
     assert (APP / "assets/icons.css").read_text() == icons.css()
     assert set(icons.ICONS) >= {"trophy", "medal", "circle-check", "undo", "calculator"}
+
+
+# ------------------------------------------------------------- analytics
+def _port(svc, snap):  # noqa: F811
+    return svc.portfolio(snap, valid_keys(snap))
+
+
+def test_calculation_breakdown_reconciles_with_engine(svc, snap):  # noqa: F811
+    import math
+
+    from diski9.challenge import analysis as pa
+
+    port = _port(svc, snap)
+    for source in pa.SOURCES:
+        prob = pa.probability_for(source, {port.buckets[0][0].key: 0.9})
+        ev = pa.evaluate_with(port, prob)
+        bd = pa.calculation_breakdown(port, prob)
+        assert len(bd.states) == 8
+        assert math.isclose(sum(s.probability for s in bd.states), 1.0, abs_tol=1e-12)
+        for line in bd.buckets:  # step 1: product of the constituent probabilities
+            assert math.isclose(line.probability, math.prod(g.probability for g in line.legs),
+                                rel_tol=1e-12)  # fmt: skip
+            assert line.payout == round(line.stake * line.combined_odds, 2)
+        for st in bd.states:  # step 2: weighted = probability x gross
+            assert st.weighted == st.probability * float(st.gross)
+            assert st.recovers == (st.gross >= 100)
+        allnine = next(st for st in bd.states if all(st.wins))
+        assert allnine.gross == sum(b.payout for b in bd.buckets) + bd.nine_fold.payout
+        others = [st for st in bd.states if not all(st.wins)]
+        assert all(st.gross == sum(b.payout for b, w in zip(bd.buckets, st.wins, strict=True)
+                                   if w) for st in others)  # fmt: skip
+        # step 3 and 4 reconcile with the summary metrics
+        assert math.isclose(bd.p_recover, sum(s.probability for s in bd.states if s.recovers),
+                            abs_tol=1e-12)  # fmt: skip
+        assert math.isclose(bd.p_recover, ev.p_recover, abs_tol=1e-12)
+        assert math.isclose(bd.expected_gross, sum(s.weighted for s in bd.states), rel_tol=1e-12)
+        assert math.isclose(bd.expected_gross, ev.expected_gross, rel_tol=1e-12)
+        assert math.isclose(bd.expected_net, bd.expected_gross - 100, abs_tol=1e-9)
+        assert bd.has_partial == (ev.p_partial > 0)
+        if bd.has_partial:
+            assert not math.isclose(bd.p_recover, 1 - bd.p_zero, abs_tol=1e-12)
+
+
+def test_conditional_payout_is_probability_weighted(svc, snap):  # noqa: F811
+    import math
+
+    from diski9.challenge import analysis as pa
+
+    cc = pa.correct_count_analysis(_port(svc, snap))
+    for row in cc.rows:
+        group = [s for s in cc.states if s.n_correct == row.k]
+        weighted = sum(s.probability * float(s.gross) for s in group) / row.probability
+        assert math.isclose(row.expected_gross, weighted, rel_tol=1e-12)
+    # differs from a plain average of the combinations where payouts vary
+    k = next(r.k for r in cc.rows if r.min_gross != r.max_gross)
+    group = [s for s in cc.states if s.n_correct == k]
+    plain = sum(float(s.gross) for s in group) / len(group)
+    assert not math.isclose(cc.rows[k].expected_gross, plain, rel_tol=1e-6)
+
+
+def test_combined_chart_focus_and_full_views(svc, snap):  # noqa: F811
+    from diski9.app.challenge import charts
+    from diski9.challenge import analysis as pa
+
+    cc = pa.correct_count_analysis(_port(svc, snap))
+    focus, full = charts.correct_combined(cc, 3, "focus"), charts.correct_combined(cc, 3, "all")
+    assert list(focus.data[0].y) == list(full.data[0].y) == [r.probability for r in cc.rows]
+    assert focus.data[1].y[9] is None and full.data[1].y[9] == cc.rows[9].expected_gross
+    assert list(focus.data[1].y[:9]) == [r.expected_gross for r in cc.rows[:9]]
+    assert any("9 correct hidden" in a.text for a in focus.layout.annotations)
+    assert not any("hidden" in a.text for a in full.layout.annotations)
+    assert focus.layout.yaxis2.range[1] < full.layout.yaxis2.range[1]
+    assert any(sh.y0 == 100 and sh.yref == "y2" for sh in full.layout.shapes)
+
+
+def test_zero_probability_counts_are_gaps_not_zeros(svc, snap):  # noqa: F811
+    from diski9.app.challenge import charts, pages
+    from diski9.challenge import analysis as pa
+
+    port = _port(svc, snap)
+    first = port.buckets[0][0].key
+
+    def prob(o):  # one certain prediction: zero correct becomes impossible
+        return 1.0 if o.key == first else o.market_probability
+
+    cc = pa.correct_count_analysis(port, prob)
+    assert cc.rows[0].probability == 0 and cc.rows[0].expected_gross is None
+    assert cc.rows[0].p_recover is None
+    fig = charts.correct_combined(cc, 0, "all")
+    assert fig.data[1].y[0] is None and fig.data[1].customdata[0][0] == "impossible"
+    assert "can't happen" in jtext(pages.k_detail(cc, 0))
+
+
+def test_analysis_panel_has_calculation_details_and_no_cr_suffix(svc, snap):  # noqa: F811
+    from diski9.app.challenge import pages
+
+    for source in ("market", "model", "personal"):
+        text = jtext(pages.analysis_panel(svc, snap, valid_keys(snap), {"source": source}))
+        label = {"market": "Market", "model": "Diski 9", "personal": "Your View"}[source]
+        assert "How are these calculated?" in text and "Using the " in text and label in text
+        assert "Focus on 0\\u20138 correct" in text and "Show all nine" in text
+        assert "Average payout by number correct" not in text  # merged into one chart
+        assert re.search(r"\d cr\b", text) is None
+
+
+def test_stepper_never_shows_review_for_an_incomplete_draft(svc, snap):  # noqa: F811
+    from diski9.app.challenge import pages
+
+    keys = valid_keys(snap)
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    for k in keys[:5]:
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    s["stage"] = "review"  # e.g. a stale stored step
+    nav = pages.stepper(svc, s)
+    build, review = nav.children
+    assert "is-current" in build.className and "is-current" not in review.className
+    assert review.disabled and getattr(build, "aria-current", None) == "step"
+    for k in keys[5:]:
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    build, review = pages.stepper(svc, s).children
+    assert "is-current" in review.className and "is-done" in build.className
+    assert "is-available" in build.className and not review.disabled
+
+
+def test_how_to_play_has_build_steps_and_two_objectives():
+    from diski9.app.challenge import pages
+
+    text = jtext(pages.how_to_play(True))
+    for t in ("Get your 100 credits back", "Finish in the top ten", "Build your portfolio",
+              "Choose nine different matches", "Compare Market, Diski 9 and Your View",
+              "Understand your portfolio risk", "Review and submit before the deadline"):  # fmt: skip
+        assert t in text
+    assert text.count('"ch-goal"') == 2  # no extra competitive objectives
