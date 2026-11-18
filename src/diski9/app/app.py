@@ -26,7 +26,13 @@ from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DI
 
 from .challenge.callbacks import nav_links
 from .challenge.callbacks import register as register_challenge
-from .challenge.integration import challenge_cell, challenge_cells, challenge_rank
+from .challenge.integration import (
+    challenge_cell,
+    challenge_cells,
+    frozen_order,
+    frozen_row,
+    frozen_universe,
+)
 from .challenge.service import ChallengeService
 from .data import (
     DIRECTIONS,
@@ -910,41 +916,44 @@ def results_payload(
     Challenge pool and shows its frozen reference odds and portfolio markers."""
     direction = valid_direction(market, direction)
     thr = _threshold_value(market, direction, threshold)
-    results = (
-        data.filtered(
-            market,
-            leagues,
-            _date(start),
-            _date(end),
-            "overall",
-            direction,
-            thr,
-        )
-        if leagues
-        else []
-    )
     if challenge is not None:
-        # exactly the fixtures of the active round snapshot; value rankings and the
-        # Market / Edge cell use the snapshot's frozen probabilities, never live odds
-        results = [r for r in results if r["fixture"]["id"] in challenge["ids"]]
-        if direction in VALUE_DIRECTIONS:
-            results = challenge_rank(challenge, results, direction, thr)
+        # The Weekly Challenge universe is exactly the round snapshot's fixtures. Its
+        # probabilities, estimated goals, market probabilities, odds, edge and EV, and
+        # every ranking and minimum-probability filter, come from the frozen snapshot
+        # - never from the live model cache or live odds.
+        results = (
+            frozen_order(
+                challenge,
+                frozen_universe(data, challenge, market, leagues, _date(start), _date(end)),
+                market,
+                direction,
+                thr,
+            )
+            if leagues
+            else []
+        )
+    else:
+        results = (
+            data.filtered(market, leagues, _date(start), _date(end), "overall", direction, thr)
+            if leagues
+            else []
+        )
     # selection is the fixture id; cleared when filters remove it from the list
     if selected is not None and selected not in {r["fixture"]["id"] for r in results}:
         selected = None
     pg = paginate(results, page)
-    rows = [
-        data.row(market, r) | {"value": data.value_cell(market, r, direction, thr)}
-        for r in pg.results
-    ]
     if challenge is not None:
         mode = "ev" if direction == "ev" else "edge"
-        for row in rows:
-            row.update(
-                value=challenge_cell(challenge, market, row["id"], mode, thr),
-                odds=challenge["odds"].get(row["id"], row["odds"]),
-                odds_status="fresh",
-            )
+        rows = [
+            frozen_row(challenge, market, data.row(market, r), r)
+            | {"value": challenge_cell(challenge, market, r["fixture"]["id"], mode, thr)}
+            for r in pg.results
+        ]
+    else:
+        rows = [
+            data.row(market, r) | {"value": data.value_cell(market, r, direction, thr)}
+            for r in pg.results
+        ]
     if not leagues:
         empty = html.Div("Select at least one league to see fixtures.", className="empty")
     elif challenge is not None and not results:
@@ -1022,7 +1031,9 @@ def results_table(
                 # Data-quality flags (formerly a separate, usually empty "Data" column)
                 if not row["available"]:
                     value = html.Span(
-                        "No model", className="pill subtle", title=row["unavailable_reason"]
+                        "Not in snapshot" if row.get("frozen") else "No model",
+                        className="pill subtle",
+                        title=row["unavailable_reason"],
                     )
                 elif row["limited"]:
                     value = [
@@ -1078,7 +1089,8 @@ def fixture_card(market: str, row: dict, selected: int | None) -> html.Button:
         probs = " · ".join(f"{lbl} {row[f'p_{k}']}" for k, lbl in MARKET_KEYS[market])
         metric = f"Est. goals {row['estimated_goals']}"
     else:
-        probs, metric = row["unavailable_reason"], "No model estimate"
+        probs = row["unavailable_reason"]
+        metric = "Not in the round snapshot" if row.get("frozen") else "No model estimate"
     odds = row["odds"] if row["odds"] in ("No odds", "—") else f"Odds {row['odds']}"
     bottom = [html.Span(odds, className="muted small")]
     if row["odds_status"] == "stale":

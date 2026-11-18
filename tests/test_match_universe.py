@@ -20,7 +20,12 @@ import pytest
 from diski9.api_football.markets import Market
 from diski9.app import create_app
 from diski9.app.app import results_payload
-from diski9.app.challenge.integration import challenge_cell, frozen_market_value
+from diski9.app.challenge.integration import (
+    challenge_cell,
+    frozen_market_value,
+    frozen_probabilities,
+)
+from diski9.challenge.roundsheet import RoundFixture
 from diski9.odds.value import MARKET_ORDER, edge_pp, expected_value
 
 from .test_app import EPL_FIX, EXTRA, PSL_FIX, T0, _text, data, page_ids, populated  # noqa: F401
@@ -56,15 +61,22 @@ def frozen(fid, market, model, mkt, odds):
     ]
 
 
-def challenge_for(market, values, picked=None):
+def challenge_for(market, values, picked=None, eg=None):
+    """A Weekly Challenge view over a small frozen snapshot (fixtures in league 39)."""
     mvs = {fid: frozen_market_value(outs, market) for fid, outs in values.items()}
+    fixtures = [
+        RoundFixture(fid, 39, "EPL", f"Home {fid}", f"Away {fid}", T0 + timedelta(days=1),
+                     (eg or {}).get(fid))
+        for fid in values
+    ]  # fmt: skip
     return {
         "ids": set(values),
         "values": mvs,
         "picked": picked or {},
         "odds": {f: " · ".join(f"{o.odds:.2f}" for o in mv.outcomes) for f, mv in mvs.items()},
+        "frozen": {fid: frozen_probabilities(outs) for fid, outs in values.items()},
         "message": None,
-        "snapshot": SimpleNamespace(snapshot_at=T0),
+        "snapshot": SimpleNamespace(snapshot_at=T0, fixtures=fixtures),
     }
 
 
@@ -161,3 +173,69 @@ def test_universe_switch_resets_page_and_dates(data):
     assert (start, end) == (min(days), max(days))
     # no playable round: the date range is left alone
     assert universe_dates(data, svc, None, "challenge") in (None, (start, end))
+
+
+# ------------------------------------------- Phase 6B.3: frozen probability ranking
+def _conflict(data):
+    """Frozen snapshot probabilities chosen to rank opposite to the live cache."""
+    live = {fid: data.detail(fid)[0]["goal_model"]["probabilities"]["home"]
+            for fid in (EPL_FIX, EXTRA[0], EXTRA[1])}  # fmt: skip
+    by_live = sorted(live, key=lambda f: -live[f])
+    frozen_home = {fid: 0.30 + 0.15 * i for i, fid in enumerate(by_live)}  # reversed
+    values = {
+        fid: frozen(fid, "1X2", [p, 0.25, 0.75 - p], [p - 0.02, 0.27, 0.75 - p],
+                    [round(1 / (p - 0.02), 2), 3.6, round(1 / (0.75 - p), 2)])
+        for fid, p in frozen_home.items()
+    }  # fmt: skip
+    eg = {fid: (1.0 + i, 0.5) for i, fid in enumerate(by_live)}
+    return live, by_live, frozen_home, challenge_for("1X2", values, eg=eg)
+
+
+def test_frozen_probabilities_rank_differently_from_the_live_cache(data):
+    live, by_live, frozen_home, ch = _conflict(data)
+    live_order = page_ids(run(data, direction="home_win", leagues=(39,)))
+    assert [f for f in live_order if f in frozen_home] == by_live  # live ranking
+    p = run(data, direction="home_win", challenge=ch)
+    assert page_ids(p) == list(reversed(by_live))  # frozen ranking: the opposite
+    table = _text(p[0])
+    for fid, ph in frozen_home.items():  # the displayed values are the frozen ones
+        assert f"{ph * 100:.1f}%" in table
+        assert f"{live[fid] * 100:.1f}%" not in table or abs(live[fid] - ph) < 0.0005
+
+
+def test_frozen_minimum_probability_filter_uses_the_displayed_values(data):
+    live, by_live, frozen_home, ch = _conflict(data)
+    # 50% keeps only fixtures whose *frozen* home probability is at least 50%
+    keep = {f for f, ph in frozen_home.items() if ph >= 0.5}
+    p = run(data, direction="home_win", challenge=ch, thr=50)
+    assert set(page_ids(p)) == keep and total(p) == len(keep)
+
+
+def test_frozen_estimated_goals_and_market_columns(data):
+    live, by_live, frozen_home, ch = _conflict(data)
+    p = run(data, direction="kickoff_earliest", challenge=ch)
+    table = _text(p[0])
+    assert "1.00 – 0.50" in table and "3.00 – 0.50" in table
+    cards = _text(p[1])
+    fid = by_live[0]
+    assert ch["odds"][fid] in cards  # frozen reference odds on the cards
+
+
+def test_missing_frozen_market_is_explicit_not_filled_from_live(data):
+    outs = frozen(EPL_FIX, "1X2", [0.6, 0.25, 0.15], [0.5, 0.3, 0.2], [1.9, 3.2, 4.8])
+    ch = challenge_for("1X2", {EPL_FIX: outs, EXTRA[0]: outs[:2]})  # EXTRA[0]: incomplete
+    p = run(data, direction="home_win", challenge=ch)
+    assert page_ids(p) == [EPL_FIX, EXTRA[0]]  # unavailable listed last
+    assert "Not in snapshot" in _text(p[0]) and "Not in the round snapshot" in str(p[0])
+    assert page_ids(run(data, direction="home_win", challenge=ch, thr=10)) == [EPL_FIX]
+    # BTTS is not in this snapshot at all: no fixture is ranked with live values
+    btts = run(data, market="BTTS", direction="btts_yes", challenge=ch, thr=10)
+    assert page_ids(btts) == []
+
+
+def test_frozen_universe_ignores_the_live_cache_entirely(data, monkeypatch):
+    live, by_live, frozen_home, ch = _conflict(data)
+    calls = []
+    monkeypatch.setattr(type(data), "filtered", lambda *a, **k: calls.append(1) or [])
+    assert set(page_ids(run(data, direction="home_win", challenge=ch))) == set(frozen_home)
+    assert calls == []  # never consulted for the Weekly Challenge universe

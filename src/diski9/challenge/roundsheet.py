@@ -57,6 +57,9 @@ class RoundFixture:
     home: str
     away: str
     kickoff: datetime
+    # Goal Model 1.0 expected goals (home, away) frozen with the snapshot, for display
+    # in the Weekly Challenge view; None when the source did not record them
+    estimated_goals: tuple[float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -154,6 +157,7 @@ def snapshot_from_research_pool(
         if not chosen:
             continue
         home, away = _split_match(f.get("match", str(f["fixture_id"])))
+        lam = f.get("lambda_model")
         fixtures.append(
             RoundFixture(
                 f["fixture_id"],
@@ -162,6 +166,7 @@ def snapshot_from_research_pool(
                 home,
                 away,
                 datetime.fromisoformat(f["kickoff"]),
+                (float(lam[0]), float(lam[1])) if lam and f.get("model_available", True) else None,
             )
         )
         for o in chosen:
@@ -274,6 +279,7 @@ def build_live_snapshot(
                     )
             if not chosen:
                 continue
+            eg = gm.get("estimated_goals") or {}
             fixtures.append(
                 RoundFixture(
                     row.id,
@@ -282,6 +288,9 @@ def build_live_snapshot(
                     payload["fixture"]["home"],
                     payload["fixture"]["away"],
                     kickoff,
+                    (float(eg["home"]), float(eg["away"]))
+                    if eg.get("home") is not None and eg.get("away") is not None
+                    else None,
                 )
             )
             outcomes.extend(chosen)

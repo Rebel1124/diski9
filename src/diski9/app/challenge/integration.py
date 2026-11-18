@@ -31,6 +31,7 @@ from diski9.odds.value import (
 )
 
 from .. import lab
+from ..data import MARKET_KEYS
 from . import components as c
 from .service import key_str
 
@@ -100,6 +101,17 @@ def frozen_market_value(outs, market: str) -> MarketValue | None:
     return MarketValue(m, tuple(rows), len(rows) == len(MARKET_ORDER[m]))
 
 
+def frozen_probabilities(outs) -> dict:
+    """{"model": {key: Goal Model p}, "market": {key: market p}} from snapshot outcomes,
+    keyed like the Screener's model probabilities (home, draw, away, btts_yes, ...)."""
+    return {
+        "model": {OUTCOME_KEY[Outcome(str(o.outcome))]: float(o.model_probability)
+                  for o in outs if o.model_probability is not None},
+        "market": {OUTCOME_KEY[Outcome(str(o.outcome))]: float(o.market_probability)
+                   for o in outs},
+    }  # fmt: skip
+
+
 def challenge_cells(service, state, market: str) -> dict | None:
     """Screener data for the Weekly Challenge view: exactly the fixtures of the
     active round snapshot, each with its frozen model-versus-market comparison for
@@ -110,14 +122,15 @@ def challenge_cells(service, state, market: str) -> dict | None:
     state = pages.sync(service, state)
     mode, snap, avail, sels = pages.current(service, state)
     if snap is None or not avail.playable:
-        return {"ids": set(), "values": {}, "picked": {}, "odds": {}, "message": avail.message,
-                "snapshot": None}  # fmt: skip
+        return {"ids": set(), "values": {}, "picked": {}, "odds": {}, "frozen": {},
+                "message": avail.message, "snapshot": None}  # fmt: skip
     chosen = set(sels)
     by_fx: dict = {}
     for o in snap.outcomes:
         by_fx.setdefault(o.fixture_id, []).append(o)
-    values, picked, odds = {}, {}, {}
+    values, picked, odds, frozen = {}, {}, {}, {}
     for fid, outs in by_fx.items():
+        frozen[fid] = frozen_probabilities(outs)
         values[fid] = frozen_market_value(outs, market)
         mv = values[fid]
         odds[fid] = " · ".join(f"{o.odds:.2f}" for o in mv.outcomes) if mv else "Not in this market"
@@ -129,6 +142,7 @@ def challenge_cells(service, state, market: str) -> dict | None:
         "values": values,
         "picked": picked,
         "odds": odds,
+        "frozen": frozen,
         "message": None,
         "snapshot": snap,
     }
@@ -162,6 +176,88 @@ def challenge_cell(challenge: dict, market: str, fid: int, mode: str, threshold)
     if fid in challenge["picked"]:
         cell["picked"] = challenge["picked"][fid]
     return cell
+
+
+FROZEN_MISSING = "Not in the round snapshot for this market"
+
+
+def frozen_universe(data, challenge: dict, market: str, leagues, start, end) -> list[dict]:
+    """The Weekly Challenge match universe as Screener payloads built **from the round
+    snapshot**: every snapshot fixture passing the league and date filters, with the
+    snapshot's frozen Goal Model 1.0 probabilities and estimated goals in place of the
+    live model cache. A market the snapshot does not hold for a fixture is marked
+    unavailable (never filled in from live data)."""
+    snap = challenge.get("snapshot")
+    if snap is None:
+        return []
+    keys = [k for k, _ in MARKET_KEYS[market]]
+    out = []
+    for fx in snap.fixtures:
+        if leagues is not None and fx.league_id not in leagues:
+            continue
+        day = fx.kickoff.astimezone(data.tz).date()
+        if (start and day < start) or (end and day > end):
+            continue
+        model = (challenge["frozen"].get(fx.fixture_id) or {}).get("model", {})
+        complete = all(k in model for k in keys)
+        eg = fx.estimated_goals
+        out.append(
+            {
+                "fixture": {
+                    "id": fx.fixture_id,
+                    "kickoff": fx.kickoff.isoformat(),
+                    "competition_id": fx.league_id,
+                    "competition": fx.league,
+                    "home": fx.home,
+                    "away": fx.away,
+                },
+                "goal_model": {
+                    "available": complete,
+                    "probabilities": dict(model) if complete else {},
+                    "estimated_goals": {"home": eg[0], "away": eg[1]} if eg else {},
+                    "message": FROZEN_MISSING,
+                    "frozen": True,
+                },
+            }
+        )
+    return out
+
+
+def frozen_order(challenge: dict, results: list, market: str, direction: str, threshold) -> list:
+    """Filter and rank the frozen universe with the same rules as the live Screener:
+    kickoff order, model-probability order (fixtures without that frozen probability
+    last, or removed when a minimum probability is set), or edge / EV."""
+    from diski9.screener.rank import VALUE_DIRECTIONS, rank
+
+    if direction in VALUE_DIRECTIONS:
+        if threshold is not None:
+            keys = [k for k, _ in MARKET_KEYS[market]]
+            results = [r for r in results if r["goal_model"]["available"] and any(
+                r["goal_model"]["probabilities"][k] >= threshold for k in keys)]  # fmt: skip
+        return challenge_rank(challenge, results, direction, threshold)
+    return rank(results, direction, threshold)
+
+
+def frozen_row(challenge: dict, market: str, row: dict, r: dict) -> dict:
+    """Display values from the snapshot: estimated goals, Diski 9 and market
+    probabilities and reference odds (the live odds strip is never shown here)."""
+    fid = row["id"]
+    gm = r["goal_model"]
+    eg = gm.get("estimated_goals") or {}
+    if gm["available"]:
+        row["estimated_goals"] = f"{eg['home']:.2f} – {eg['away']:.2f}" if eg else "—"
+    mkt = (challenge["frozen"].get(fid) or {}).get("market", {})
+    keys = [k for k, _ in MARKET_KEYS[market]]
+    row["market"] = (
+        " · ".join(f"{mkt[k] * 100:.0f}%" for k in keys)
+        if all(k in mkt for k in keys)
+        else "Not in snapshot"
+    )
+    row["market_status"] = "fresh" if all(k in mkt for k in keys) else "unavailable"
+    row["odds"] = challenge["odds"].get(fid, "Not in snapshot")
+    row["odds_status"] = "fresh"
+    row["frozen"] = True
+    return row
 
 
 def challenge_rank(challenge: dict, results: list, mode: str, threshold) -> list:
