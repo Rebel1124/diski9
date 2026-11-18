@@ -1,83 +1,109 @@
-# Diski 9 Weekly Challenge — Decision Register (Phase 5C)
+# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6A.2)
+
+This register supersedes the Phase 5C register (`2e079ba`). Phase 5C IDs are
+kept, so history can be traced. Superseded items are listed at the end.
 
 **Legend:**
-* **Confirmed:** decided by the owner.
-* **Recommended:** Claude's recommendation, adopted in the design unless the owner
-  objects.
-* **Approval:** requires the owner's decision before implementation.
-* **Blocking:** must be resolved before the named phase starts.
+* **Approved:** decided by the owner.
+* **Provisional (empirical):** supported by the Phase 6A.1/6A.2 synthetic
+  simulations, still to be confirmed on 6–8 captured real round pools.
+* **Proposed (technical):** Claude's recommendation for an implementation detail.
+  It is adopted unless the owner objects.
+* **Outstanding:** needs an owner decision before the named phase.
 
-## Confirmed by the owner
+## Approved by the owner
 
 | ID | Decision |
 |---|---|
-| C-01 | 100 virtual credits per week; 9 selections on 9 distinct fixtures; 1X2, BTTS and Over/Under 2.5 |
-| C-02 | 3 buckets of 3 selections plus a nine-fold; fixed stakes 30 / 30 / 30 / 10; no adjustable stakes; no allocation helper |
-| C-03 | All 280 arrangements shown; dominated ones visible but disabled; efficient ones selectable |
-| C-04 | Chart: X = probability of recovering 100; Y = expected gross return |
-| C-05 | Recommended = the efficient portfolio with the highest recovery probability; ties: higher expected return, then the lowest canonical ID |
-| C-06 | Goal Model 1.0 unchanged; existing consensus odds and eligibility (≥ 3 groups, fresh) |
+| C-01 | 100 virtual credits per completed round; 9 selections on 9 distinct fixtures; markets 1X2, BTTS and Over/Under 2.5 |
+| C-06 | Goal Model 1.0 unchanged; existing strict consensus and eligibility (≥ 3 bookmaker groups, fresh within 24 h) |
 | C-07 | Weekly leaderboard by net virtual credits; no real money, prizes, affiliate links or staking advice |
-| C-08 | **"Your Payout Probability"** (Phase 5C addendum), beneath the selected grouping's buckets and nine-fold. View A: X = gross payout in credits (0 to the maximum), Y = chance of at least that payout; exact eight-state downward steps, no smoothing; nine-fold only when all three buckets win; 100-credit threshold with its exact probability, equal to the summary and the frontier. View B: discrete probability-mass bars for exact payouts, with identical payouts aggregated, summing to 100%. Updated with every efficient selection from the same frozen inputs, with no API calls. Credits only, never percentages; labelled as conditional on Goal Model 1.0; the eight states hidden unless requested |
+| C-08 | "Your Payout Probability" chart kept: cumulative step view plus exact-payout view; the 100-credit value equals the summary; the nine-fold only in the all-win state; credits, never percentages, on the x axis |
+| C-09 | **Broad-60 buckets by margin-adjusted market probability at full precision:** A Foundation 60–95% inclusive; B Balanced 40% to < 60%; C Challenger 20% to < 40%. Outcomes outside 20–95% are not eligible |
+| C-10 | **Strict structure:** exactly 4 A, 3 B and 2 C picks, plus the nine-fold "The Diski 9"; no flexible counts |
+| C-11 | **Fixed credits:** 40 / 30 / 20 / 10; no adjustable stakes |
+| C-12 | Configuration is versioned (`broad60-432-v1`); a change means a new version, never an in-place edit |
+| C-13 | No 280 groupings, no efficient frontier, no recommendation. The Phase 6A engine is kept as a baseline and generalised |
+| C-14 | Eight-state maths and D-15 rounding kept; market-based and model-based estimates shown separately, never mixed |
+| C-15 | Bucket tracker: Foundation X/4, Balanced X/3, Challenger X/2, Total X/9 |
+| C-16 | Permanent "Explore Your Bucket Risk" feature with hypothetical probabilities and fair odds, never linked to the participant's portfolio |
+| C-17 | Incomplete portfolios show only completed-bucket figures, clearly distinguished; portfolio analytics only at 9/9 |
+| C-18 | No championship or season explorer |
+| C-19 | **Championships:** exactly 10 completed rounds, then reset; join any time; every round counts; nothing carries forward |
+| C-20 | **Weekly points:** top ten 150/135/120/110/100/95/90/85/80/75 *if gross ≥ 100*; outside the top ten with gross ≥ 100: 50; gross < 100 or no entry: 0. "No recovery, no championship points." |
+| D-15 | Settlement precision: each accumulator rounded half-up to 0.01; state gross = sum; recovery = gross ≥ 100.00 (approved in Phase 6A) |
 
-**Verified:** uniform 5× scaling preserves recovery and the efficient set, and
-multiplies expected return, SD and net by 5. No contradiction with Phase 5B
-(PRD §9).
+## Provisional (empirical) — synthetic evidence, to confirm on real pools
 
-## Recommended by Claude (adopted unless you object)
+Evidence: [championship scoring research](../research/weekly_challenge_championship_scoring.md)
+and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 
-| ID | Recommendation | Rationale |
+| ID | Finding | Status |
 |---|---|---|
-| R-01 | **Common deadline (Option A):** the earliest eligible kickoff in the round minus 15 minutes, fixed at publish | Same information for everyone; coherent with frozen prices and a nine-pick grouping; one simple, testable rule |
-| R-02 | **Round sheet:** model probabilities and consensus odds frozen once per round at publish time, shared by all players | Fairness (everyone faces the same prices); determinism; an efficient cache; no timing games |
-| R-03 | The picker lists **only eligible fixtures**, plus a disclosed count of the others with the reason | Simplest; avoids disabled clutter; the Screener still covers every fixture |
-| R-04 | One entry per user per round, **resubmittable until the deadline**; every version stored; the latest counts | Forgiving for users; auditable; trivial with insert-only versions |
-| R-05 | Store the inputs plus the chosen portfolio as the source of truth, plus a compact JSON of all 280 points per submission | Exact record of what the user saw, at about 10 KB |
-| R-06 | Production maths as a **dependency-free port** of Phase 5B, with exact decimal payouts; equivalence tests against the research code | numpy and scipy are dev-only; exact threshold comparisons |
-| R-07 | Settle on the **90-minute score**; ignore extra time and penalties | Matches stored `ft_home`/`ft_away` and the market definitions |
-| R-08 | **Void selection = odds 1.00** in every accumulator containing it; probabilities at submission are not recomputed | Simple, common, explainable; all-void returns the stake |
-| R-09 | Payout per accumulator computed exactly, then **rounded half-up to 0.01 credit**. The same rounded values drive every modelled figure (frontier, summary, payout chart) and settlement | One rounding step; reproducible; the chart's threshold value always equals what settlement would pay (addendum §3). Confirmation: D-15 |
-| R-10 | Weekly ties **share a rank** (1, 2, 2, 4); no hidden tie-breakers | Transparent |
-| R-11 | Three new routes (`/challenge`, `/challenge/me`, `/leaderboards`) plus header navigation; the Screener is unchanged at `/` | Minimum screens; natural extension |
-| R-12 | Market-implied probabilities shown per pick (tooltips and review), never on chart axes | Transparency without clutter |
-| R-13 | No smoothing, no jitter; ties drawn as one counted marker; an efficient list as an accessible alternative | Honest chart; works on mobile |
-| R-14 | Settlement correction window of 24 hours before a round is final; later corrections only via an audited `--reopen` | Balances accuracy and finality |
-| R-15 | **"Your Payout Probability"** (owner requirement, added to Phase 5C). Cumulative step chart as the default view; exact-outcome stems as the secondary view, with a table form; full payout range by default, plus an optional "Focus on buckets" zoom | The all-win payout is often 4–10× the bucket payouts, so it squeezes the steps that matter; the zoom keeps them readable without hiding the maximum |
+| P-01 | With up to 25 entrants, the proposed points track **recoveries** (Spearman 0.93–0.96), not one big week. The champion's best round is about 20% of their total, against 96–114% under cumulative net | Provisional |
+| P-02 | With up to 25 entrants, recovery-focused selection wins 1.7–2.4× its share of championships, and lowest-in-band selection 0.4–0.7×. This matches the product goal | Provisional |
+| P-03 | Cumulative net (the old baseline) is close to a lottery, decided by a single round. F1-style rewards variance in larger fields; percentile rewards low-variance mid-table finishes without recovery | Provisional |
+| P-04 | **Large fields reward variance under the 50 floor:** at 100 entrants, lowest-in-band wins 1.94× its share. A 75 floor restores the intended incentive (recovery-focused 1.90×); a 25 floor worsens it. With 10 or fewer entrants the floor never applies; at 25 it matters little | Provisional; see D-31 |
+| P-05 | Exact weekly gross ties among recoverers grow with field size: about 0.03 groups per round at N = 10, 0.14 at 25 and 1.18 at 100 (herding on popular favourites). The top two are level on points in 2–4% of championships | Provisional |
+| P-06 | The real weekend pool (60 eligible fixtures, 6 leagues) passes every opening check. 15-fixture random sub-pools open 99.75% of the time; 10-fixture pools contain a portfolio 96.5% of the time but fail the minimum | Provisional |
+| P-07 | Points are never negative, so skipping a round can never help (the old D-09 perverse incentive is gone). Late joiners finish lower on average (relative position 0.64 vs 0.49), as intended by "all rounds count" | Provisional |
 
-## Requires your approval
+## Proposed (technical) — adopted unless you object
 
-| ID | Question | Options | Recommendation | Blocking |
-|---|---|---|---|---|
-| D-01 | **Identity and sign-in.** The app has no authentication today. | (a) Hosted behind an authenticating reverse proxy that passes a verified user identity; the app stores only a stable subject and a display name. (b) In-app accounts (email and password, or magic links; needs a session library and an email sender). (c) A third-party OAuth sign-in (needs an OAuth library and a provider choice). | (a): the least code and the smallest attack surface in the app. Provider to be chosen by you. | Phase 4 |
-| D-02 | **Hosting.** Today it is a local, single-user Flask dev server. | A small cloud VM or PaaS with a WSGI server (for example gunicorn), TLS and scheduled jobs; or keep it local only (no shared leaderboard). | Hosted single server, one process to start | Phase 4 |
-| D-03 | **Database for hosted use** | SQLite (WAL, one server process) or PostgreSQL | Start on SQLite if single-process; move to PostgreSQL before scaling to several workers | Phase 4 |
-| D-04 | **Leaderboard privacy** | Public by default with an opt-out to hide, or opt-in | Public display names by default, with an opt-out (hidden users excluded from public tables but shown their own rank) | Phase 6 |
-| D-05 | **Display-name policy** | Free text; unique; moderation level | 3–24 characters; unique case-insensitive; basic blocklist; operator can rename | Phase 4 |
-| D-06 | **Deadline buffer** | 0, 15 or 60 minutes before the earliest kickoff | 15 minutes | Phase 2 |
-| D-07 | **Edit policy** | Resubmit until the deadline, or a single final submission | Resubmit until the deadline (R-04) | Phase 4 |
-| D-08 | **Settlement and void rules** `settle/v1` (design §7): 90-minute score; void codes V1–V5; settlement cutoff = window end + 48 h; void = odds 1.00 | Accept, or adjust the cutoff or awarded-match handling | Accept as specified | Phase 5 |
-| D-09 | **Season scoring** | (a) Cumulative net with skipped rounds = 0. (b) Cumulative net with a skipped round = −100 ("unused credits are lost"). (c) Average net per round entered, qualifying at ≥ 50% of completed rounds and ≥ 3 entries. | (c). (a) rewards not playing, because expected net is negative at market prices (about −18 per round); (b) is simple but harsh on late joiners | Phase 6 |
-| D-10 | **Market-implied expected return** next to the model's | Show in details, or omit from the MVP | Omit from the MVP; per-pick market probability only (R-12) | Phase 3 |
-| D-11 | **Round calendar** | Weekend window Fri 00:00 – Mon 23:59 UTC; publish Thursday 06:00 UTC after the odds refresh; no round when fewer than 9 eligible fixtures | As stated | Phase 2 |
-| D-12 | **PSL coverage** | API-Football currently has no qualifying odds for the PSL or PSL 1st Division, so they cannot appear in rounds. Accept, or pursue another odds source (a separate project) | Accept for the MVP; state it in the UI ("PSL fixtures will join when reference odds are available") | Phase 2 |
-| D-13 | **Season definition** | Calendar-based (European season Aug–May) or a rolling year; PSL and European calendars differ | Aug–May season matching the leagues with odds | Phase 6 |
-| D-15 | **Settlement-precision policy for modelled figures.** The addendum requires threshold probabilities to follow "the agreed settlement-precision policy" | (a) R-09 everywhere: each accumulator rounded half-up to 0.01; state gross = sum of the rounded payouts; recovery = gross ≥ 100.00 (modelled = settled, to the cent). (b) Exact unrounded payouts for modelled figures, with rounding only at settlement (may differ from the settled amount by a cent, and in rare knife-edge cases flip recovery) | (a). No recovery flips occurred in 8,960 real or 640,000 random state comparisons, but (a) guarantees agreement by construction. Note it shows R1's maximum as 1,162.92 (sum of rounded payouts), not 1,162.91 | Phase 1 |
-| D-14 | **Phase 5B merge** | Merge the research branch into `main`, or keep it separate and copy the reference into tests | Merge the research branch (code is research-only and tested) before Phase 1 | Phase 1 |
+| ID | Proposal | Rationale |
+|---|---|---|
+| D-26 | **Weekly ties:** identical gross shares the *average* of the points for the positions occupied, with positions beyond 10 valued at 50; exact fractions stored, shown to 2 decimals. Example: four players tied 9th–12th get (80 + 75 + 50 + 50) / 4 = 63.75 each | No hidden tie-breakers. The total awarded is unchanged by ties. Never below the 50 floor for a recoverer |
+| D-27 | **Championship standings:** total points → total recoveries → qualifying top-ten finishes → joint position (no further tie-break) | Rewards consistency first, which is the product goal; transparent; deterministic |
+| T-01 | Generalised engine `ChallengeConfig` (bands, sizes, stakes, classification source); the 6A 3/3/3 config kept as a legacy regression vector | Reuses tested 6A code; one source of truth |
+| T-02 | Bucket derived server-side from the stored full-precision `market_prob`; the client never sends a bucket | Integrity; no boundary disputes from display rounding |
+| T-03 | **Opening checks:** at least 15 eligible fixtures, at least 3 leagues, and an exact max-flow strict 4/3/2 check. Failing rounds are postponed and don't count | Variety plus guaranteed completeness; per-bucket outcome counts alone are insufficient (proved by a test) |
+| T-04 | **Minimum participants:** a round counts toward a championship only with **at least 5 entrants**; smaller rounds still settle and show a weekly table as a "practice round" | Joint champions are most frequent in the smallest fields (3.8% at 5 entrants); fewer than 5 was not simulated (research §6) |
+| T-05 | Points stored as exact fractions (`points_num`/`points_den`); championship standings computed by aggregation, plus a frozen snapshot at completion | Corrections re-score automatically; no floating-point ties |
+| T-06 | Any settlement correction re-scores the whole round; after a championship is frozen, only the audited `--reopen` path | Positions depend on all entrants |
+| R-01 | Common deadline: earliest eligible kickoff minus 15 minutes | Unchanged from 5C |
+| R-02 | Round sheet frozen at publish | Unchanged |
+| R-03 | Picker lists only eligible outcomes, with a count of the hidden fixtures | Unchanged |
+| R-04 | One entry per user per round, resubmittable until the deadline | Unchanged |
+| R-06 | Dependency-free production maths with exact decimals | Unchanged |
+| R-07 | Settle on the 90-minute score | Unchanged |
+| R-08 | Void selection = odds 1.00; an all-void bucket returns its own stake (40 / 30 / 20) | Updated for unequal stakes |
+| R-09 | Same as D-15 | Unchanged |
+| R-11 | Routes `/challenge`, `/challenge/learn`, `/challenge/me`, `/leaderboards` | Adds the learn page |
+| R-14 | 24-hour correction window before a round is final | Unchanged |
 
-## Issues to resolve before implementation
+## Outstanding — owner decision needed
 
-1. **Identity, hosting and database** (D-01, D-02, D-03): no multi-user feature can
-   ship without them. Phases 1–3 can proceed meanwhile.
-2. **Season scoring (D-09):** plain cumulative net with skips scored 0 creates a
-   perverse incentive not to play. Choose a rule before the first season starts.
-3. **PSL coverage (D-12):** Diski 9 has a South African focus, but the PSL cannot
-   currently feature in the Challenge. This is a product-positioning decision.
-4. **Model-based expected returns:**
-   * Goal Model 1.0 is more cautious than the market on favourites. Underdog-heavy
-     picks can show large modelled expected returns (Phase 5B slate R3: about
-     350–450 credits at 100-credit scale under 30/30/30/10).
-   * The recommendation uses recovery, not expected return, and the copy labels
-     expected return as a model estimate.
-   * Please confirm this framing is acceptable before launch.
-5. **Scheduling:** hosted operation needs scheduled jobs (odds refresh, publish,
-   settle). Confirm the operator will run, or automate, the CLI lifecycle.
+| ID | Question | Recommendation | Blocking |
+|---|---|---|---|
+| D-01 | Identity and sign-in | An authenticating reverse proxy | Phase 6E |
+| D-02 | Hosting | A single hosted server | Phase 6E |
+| D-03 | Database for hosted use | SQLite (WAL) first; PostgreSQL before multiple workers | Phase 6E |
+| D-04 | Leaderboard privacy | Public display names with an opt-out | Phase 6G |
+| D-05 | Display-name policy | 3–24 characters; unique; blocklist | Phase 6E |
+| D-06 | Deadline buffer | 15 minutes | Phase 6C |
+| D-08 | Settlement and void rules `settle/v1` | Accept as specified | Phase 6F |
+| D-11 | Round calendar | Weekend window; publish Thursday 06:00 UTC; postpone when the opening checks fail | Phase 6C |
+| D-12 | PSL coverage (no qualifying odds) | Accept for the MVP and state it in the UI | Phase 6C |
+| D-28 | Confirm D-26, D-27, T-03 and T-04 (tie rules, opening thresholds, minimum entrants) | Accept as proposed | Phase 6G |
+| D-29 | Real-pool confirmation: re-run the 6A.2 simulation on 6–8 captured weekend pools before the first championship | Yes; the odds trial supplies the pools | Championship launch |
+| D-31 | **Large-field safeguard.** The 50 floor rewards high-variance play once fields reach roughly 50–100 entrants (P-04) | Keep 50 for launch (small fields are expected). Revisit if a round exceeds about 50 entrants: raise the floor to 75 (simulated), or define "top ten" as a share of entrants (not simulated) | Before fields exceed ~50 |
+| D-30 | Copy for a championship cut short (for example, end of the football season with fewer than 10 completed rounds) | Carry the open championship over the break, because "exactly 10 completed rounds" is approved | Phase 6G |
+
+## Superseded Phase 5C items
+
+| Old ID | Old decision | Superseded by |
+|---|---|---|
+| C-02 | 3 buckets × 3 picks; 30/30/30/10 | C-09, C-10, C-11 |
+| C-03 | All 280 arrangements shown; dominated ones disabled | C-13 |
+| C-04 | Frontier chart (recovery × expected return) | C-13 |
+| C-05 | Recommended = efficient with the highest recovery | C-13 |
+| R-05 | Store all 280 points per submission | Design §4.3: inputs plus 8 states only |
+| R-10 | Weekly ties share a rank, net only | D-26 (shared position plus averaged points) |
+| R-12 | Market probability shown only in tooltips | C-09 (market probability decides the bucket and is always shown) |
+| R-13 | Frontier marker and tie rules | C-13 |
+| R-15 | Payout chart under the selected grouping | C-08 (kept, under the complete portfolio) |
+| D-07 | Edit policy | Folded into R-04 (unchanged) |
+| **D-09** | Season scoring: average net per round entered, with a qualification threshold | **C-19, C-20, D-27:** 10-round championships with recovery-gated points |
+| D-10 | Market-implied expected return omitted from the MVP | C-14 (market and model shown separately) |
+| D-13 | Season definition (Aug–May) | C-19 (championships of 10 completed rounds) |
+| D-14 | Merge Phase 5B research | Not needed: 6A.1/6A.2 research is stdlib-only and self-contained |

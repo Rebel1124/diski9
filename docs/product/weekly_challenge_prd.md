@@ -1,453 +1,311 @@
-# Diski 9 Weekly Challenge — Product Requirements (Phase 5C)
+# Diski 9 Weekly Challenge — Product Requirements (revised, Phase 6A.2)
 
-Status: **design for review**. Nothing here is implemented.
+Status: **revised specification for review**. Nothing here is implemented.
 
 | | |
 |---|---|
-| Branch | `design/weekly-challenge-phase-5c`, from `main` at v3.2.0 (`2b4dcd7`) |
-| Research basis | Phase 5B, branch `research/weekly-challenge-optimisation` (`6f5a2f9`), report `docs/research/weekly_challenge_portfolio_optimisation.md` |
-| Companion documents | [UX specification](weekly_challenge_ux.md) · [technical design](../architecture/weekly_challenge_design.md) · [implementation plan](weekly_challenge_implementation_plan.md) · [decision register](weekly_challenge_decisions.md) |
+| Branch | `design/weekly-challenge-phase-6a2` (from the Phase 5C spec `2e079ba`) |
+| Supersedes | The Phase 5C PRD (`2e079ba`): the free choice of nine, the 280-grouping explorer, the efficient frontier, the recommendation, 30/30/30/10, and season scoring |
+| Evidence | Phase 5B `6f5a2f9` (portfolio maths) · Phase 6A `48392c1` (engine, preserved as baseline) · Phase 6A.1 `197e8ae` (risk structure) · Phase 6A.2 championship research (`docs/research/weekly_challenge_championship_scoring.md`) |
+| Companions | [UX](weekly_challenge_ux.md) · [technical design](../architecture/weekly_challenge_design.md) · [implementation plan](weekly_challenge_implementation_plan.md) · [decisions](weekly_challenge_decisions.md) |
 
-## 1. Product objectives
+## 1. Philosophy and objectives
 
-The Weekly Challenge turns Diski 9's probabilities into a weekly game that
-teaches probability, uncertainty and the trade-offs of grouping bets, without
-any real money.
+* **What Diski 9 is:** a football predictive analytics and virtual-credit
+  competition platform.
+* **What the Weekly Challenge teaches:** probability, risk, diversification,
+  accumulator mathematics and capital recovery, through an accessible prediction
+  game.
+* **The participant's two objectives:**
+  1. **Recover at least the original 100 virtual credits** through thoughtful
+     portfolio construction.
+  2. **Finish in the weekly top ten while recovering at least 100 credits.**
+* **Winning a week is not presented as a separate objective,** and the product
+  never encourages maximising potential payout.
+* **Credits are virtual,** non-purchasable, non-withdrawable and have no monetary
+  value.
+* **No real money,** no prizes with cash value, no bookmaker links, and no staking
+  advice.
+* **The product must not encourage** chasing losses, maximising speculative
+  payouts, or real-money wagering.
+* **Outcomes and accumulators are never called** "safe", "guaranteed" or
+  "risk-free".
 
-1. **Teach by doing.** Players pick nine outcomes. They then see how 280
-   different ways of grouping them change two things: the chance of getting
-   their 100 credits back, and the average return the model expects.
-2. **Make one idea memorable.** Once your nine picks are fixed, the way you group
-   them still matters. Some groupings are strictly better than others on both
-   counts; those are the "efficient" ones.
-3. **Be honest.** Every figure is labelled as a Goal Model 1.0 estimate at frozen
-   reference prices. Nothing is presented as a guarantee or as advice.
-4. **Build a community habit.** Players come back weekly, compare results on
-   weekly and season leaderboards, and review past entries.
+## 2. Users
 
-**Out of bounds:** no real money, no prizes with cash value, no sportsbook links
-or affiliate codes, no staking advice, and no adjustable stakes.
-
-## 2. Target users
-
-| User | Needs | Implication |
-|---|---|---|
-| **Casual football fan** (primary) | Fun, quick, understandable; knows teams, not probability theory | Plain language, one central chart, a recommended choice, details on demand |
-| **Engaged Diski 9 user** | Already uses the Screener and Match Lab; curious about models | Links back to Match Lab, model and market probabilities, an expandable "how it's calculated" |
-| **Competitive player** | Leaderboards, history, fairness | Transparent, deterministic scoring; immutable entries; a clear deadline |
-| **Operator** (the project owner) | Run rounds safely with little effort | Simple CLI round lifecycle, scheduled jobs, an audit trail, idempotent settlement |
-
-## 3. Confirmed decisions (MVP)
-
-These are fixed for the MVP unless a mathematical or technical contradiction is
-found. None was found (§9).
-
-| Component | Decision |
+| User | Need |
 |---|---|
-| Weekly allocation | 100 virtual credits |
-| Selections | Exactly 9, on 9 distinct fixtures |
-| Outcomes | Home / Draw / Away, BTTS Yes / No, Over / Under 2.5 |
-| Structure | 3 buckets of 3 selections, plus one nine-fold of all 9 |
-| Stakes | **30 / 30 / 30 / 10**, fixed; not adjustable; no allocation helper |
-| Arrangements | All 280; dominated ones visible but disabled; efficient ones selectable |
-| Chart | X = probability of recovering 100 credits; Y = expected gross return (credits) |
-| Recommendation | The efficient portfolio with the highest recovery probability. Ties: higher expected return, then lowest canonical partition ID |
-| Model | Goal Model 1.0 (k_s 12, k_t 96, m0 30), unchanged |
-| Odds | Existing v3.2.0 consensus; Challenge-eligible = fresh with ≥ 3 independent bookmaker groups |
-| Weekly leaderboard | Net virtual credits (gross returned − 100) |
-| Real money | None |
+| Casual fan (primary) | Simple rules, clear progress, plain-language risk |
+| Engaged Diski 9 user | Compare the market and the Diski 9 model; understand the maths |
+| Competitive player | Fair, transparent weekly and championship scoring |
+| Operator | Safe round lifecycle, auditable settlement and scoring |
 
-## 4. User journeys
+## 3. Approved Weekly Challenge rules (MVP configuration `broad60-432-v1`)
 
-### 4.1 First entry: the core journey
+* **Allocation:** each participant receives a fresh **100 virtual credits per
+  completed round**.
+* **Selections:** exactly **nine outcomes on nine distinct eligible fixtures**,
+  one outcome per fixture.
+* **Markets:** match result (home / draw / away), Both Teams to Score (yes / no),
+  Over / Under 2.5 total goals.
+* **Bucket assignment:** each selected outcome is assigned automatically to a
+  bucket by its **margin-adjusted market-implied probability**, at full precision
+  (never a rounded display value).
 
-1. **Discover.** From the Screener header, open **Weekly Challenge**. See this
-   week's round, its deadline in local time, and a two-line explanation.
-2. **Pick nine.** Browse the round's eligible fixtures, filtered by league and
-   day. Tap an outcome chip, which shows the model probability and reference
-   odds. A slip tray tracks progress (`6 of 9`). Tapping another outcome on the
-   same fixture replaces the earlier pick.
-3. **Explore groupings.** Tap **Explore groupings**. The chart shows all 280
-   arrangements: grey ones are dominated, coloured ones efficient, and a star
-   marks the recommended one, which is pre-selected. Tap other efficient points
-   to compare; a panel shows the three buckets and the nine-fold.
-4. **Review.** Tap **Review entry**. See the nine picks, the chosen grouping,
-   the summary (100 credits allocated, recovery probability, expected return,
-   maximum return) and the plain-language caveats.
-5. **Submit.** Tick "I understand credits are virtual and these figures are
-   model estimates", then **Submit entry**. A receipt shows the entry, the
-   submission time and the lock time.
-6. **Before the deadline:** the player may reopen, change and resubmit. Each
-   submission is kept; the latest one counts.
-7. **After the deadline:** the entry is locked. Matches play out.
-8. **Results.** As fixtures finish, **My Challenge** shows each selection as won,
-   lost, void or pending, each bucket as won or lost, and the gross and net
-   credits. Leaderboards update once the round settles.
+| Bucket | Display name | Probability range | Selections | Credits |
+|---|---|---|---:|---:|
+| A | **Foundation** | 60% ≤ p ≤ 95% | 4 | 40 |
+| B | **Balanced** | 40% ≤ p < 60% | 3 | 30 |
+| C | **Challenger** | 20% ≤ p < 40% | 2 | 20 |
+| Nine-fold | **The Diski 9** | all nine selections | 9 | 10 |
 
-### 4.2 Returning player
+* **Ranges** are non-overlapping. Outcomes below 20% or above 95% are
+  ineligible.
+* **Labels describe outcome categories,** not accumulator risk. Foundation,
+  Balanced and Challenger categorise individual outcomes. They are **not**
+  rankings of how likely each accumulator is to win.
+* **Membership follows the outcome, not the fixture.** Different outcomes of one
+  fixture can fall into different buckets, but only one outcome per fixture may
+  be selected.
+* **Strict structure:** exactly 4 / 3 / 2 selections, 9 unique fixtures, and the
+  fixed 40 / 30 / 20 / 10 credits. Participants cannot change the buckets or the
+  allocation.
+* **Versioning:** the configuration is versioned (`broad60-432-v1`). A change
+  creates a new version and never affects existing rounds.
+* **Evidence status:** the configuration is approved for the MVP. Its empirical
+  validation so far is **one complete real weekly pool** (Phase 6A.1).
 
-Open **My Challenge**: the current round's status, the last round's result,
-season position and history. Then start this week's entry.
+## 4. Probability and odds sources (kept separate)
 
-### 4.3 Viewer without an account
+| Source | Used for | Notes |
+|---|---|---|
+| **Market-implied probability** | Bucket eligibility and classification; the market-based portfolio estimate | The existing method: consensus odds from at least 3 independent bookmaker groups, fresh (24 h) and complete; margin removed proportionally. These are estimates, not true probabilities. |
+| **Goal Model 1.0 probability** | Independent predictive analysis; the model-based portfolio estimate | Goals-based Poisson model (not shot-based xG). Unchanged, not recalibrated. |
+| **Frozen consensus reference odds** | Virtual-credit payouts | Frozen in the round sheet when the round is published. Reference prices, not offers. |
 
-They can see the explanation, this round's fixtures and the public leaderboards.
-Creating an entry requires signing in (identity model: decision D-01).
+**Known model limitations, shown in the methodology:**
+* Relative to the market, Goal Model 1.0 rates favourites lower (−6.1 points for
+  market ≥ 60%) and long shots higher (+4.5 points for market < 25%).
+* Its highest probability for any outcome in the Phase 6A.1 pool was 75.7%.
+* Under plausible model error (logit noise, sd 0.3), 24–28% of outcomes would
+  change band. This is why eligibility uses market probabilities.
 
-### 4.4 Operator
-
-1. Refresh data and odds (the existing workflow).
-2. **Publish** the round, which freezes the round sheet of eligible picks.
-3. The round locks automatically at its deadline.
-4. Settlement jobs run after results refresh.
-5. Review the settlement report, then finalise the round.
+**Estimates are never mixed:** market and model estimates are shown separately.
+No single estimate combines both sources.
 
 ## 5. Functional requirements
 
-### 5.1 Challenge rounds
+### 5.1 Rounds and the round sheet (kept from Phase 5C, with changes)
 
-* FR-R1. Rounds are configurable records with a window, publish (snapshot) time,
-  deadline, settlement cutoff and status.
-* FR-R2. MVP cadence: one **weekend round** per week (Friday 00:00 to Monday
-  23:59, UTC window; configurable). Midweek rounds are a future extension.
-* FR-R3. Fixtures in the eight supported leagues whose kickoff falls inside the
-  window at publish time belong to the round.
-* FR-R4. **One common deadline** (Option A), fixed when the round is published:
-  the earliest kickoff among the round's eligible fixtures, minus a buffer
-  (recommended 15 minutes). After the deadline, no submission or change is
-  accepted.
-* FR-R5. All timestamps are stored in UTC and displayed in the viewer's time zone
-  (browser-detected, with the app's configured zone as fallback).
-* FR-R6. A round needs at least 9 eligible fixtures to open. Otherwise it is not
-  published, and the page says why.
+* FR-R1. Configurable rounds. MVP cadence: a weekend round, with a window of
+  Friday 00:00 to Monday 23:59 UTC.
+* FR-R2. **Round sheet** frozen at publish time. Every eligible outcome stores:
+  * the market probability (full precision) and its **bucket**;
+  * the Goal Model 1.0 probability;
+  * the consensus reference odds;
+  * the bookmaker-group count and timestamps;
+  * the configuration version.
+* FR-R3. **One common deadline:** the earliest eligible kickoff minus 15 minutes,
+  fixed at publish time. No submission or change is accepted after it.
+* FR-R4. **Opening checks.** A round opens only if all of the following hold:
+  1. **at least 15 eligible fixtures** (fixtures with at least one outcome in A, B
+     or C);
+  2. **at least 3 eligible leagues**;
+  3. **an exact feasibility check** confirms that a strict 4/3/2 portfolio on nine
+     distinct fixtures exists (max-flow matching; technical design §5.2).
+     Counting outcomes per bucket is not sufficient.
+* FR-R5. If the checks fail, the round is **postponed**, never weakened. A
+  postponed or cancelled week is not a completed round.
+* FR-R6. Times are stored in UTC and shown in the viewer's time zone.
 
-### 5.2 Eligibility and the round sheet
+### 5.2 Selection and the bucket tracker
 
-* FR-E1. At publish time the system freezes a **round sheet**: for every round
-  fixture and supported outcome, the Goal Model 1.0 probability, the consensus
-  odds, the market-implied probability, the number of bookmaker groups and the
-  observation and provider timestamps.
-* FR-E2. An outcome is **Challenge-eligible** only if its market had a fresh
-  consensus from ≥ 3 independent bookmaker groups at publish time
-  (`challenge_consensus`, the existing strict rule) and the fixture has an
-  available Goal Model 1.0 forecast.
-* FR-E3. The picker shows **only fixtures with at least one eligible outcome**,
-  plus a one-line count of the round's other fixtures with an expandable reason
-  ("no qualifying reference odds"). Statistical analysis of every fixture stays
-  in the Screener.
-* FR-E4. The round sheet is never recalculated. Every player builds from the same
-  frozen inputs.
+* FR-S1. The participant browses eligible fixtures and compares market and Diski 9
+  probabilities for each outcome.
+* FR-S2. Selecting an outcome places it in its bucket automatically. A second
+  outcome on the same fixture **replaces** the first.
+* FR-S3. A bucket that is full cannot take more: "Foundation is full (4/4).
+  Remove one to change."
+* FR-S4. A live **bucket tracker** shows Foundation X/4, Balanced X/3, Challenger
+  X/2 and Total X/9.
+* FR-S5. Selections can be reviewed and changed until submission, and resubmitted
+  until the deadline (every version is kept; the latest counts).
+* FR-S6. Ineligible outcomes (outside 20–95%, or without a qualifying market) are
+  shown disabled, with the reason.
 
-### 5.3 Selection
+### 5.3 Portfolio analytics (complete portfolios only)
 
-* FR-S1. Exactly 9 selections on 9 distinct fixtures; one outcome per fixture. A
-  second outcome on the same fixture **replaces** the first; it never adds.
-* FR-S2. Selections can be removed or replaced before submission. The slip shows
-  progress toward 9.
-* FR-S3. Only eligible outcomes on the round sheet can be selected.
-* FR-S4. A fixture whose kickoff moves before the deadline after publication
-  becomes unselectable as soon as the change is known.
+* FR-P1. The buckets are defined by the selections. There is **no** grouping
+  step, efficient frontier or recommendation.
+* FR-P2. For a complete portfolio, show, **separately for the market-based and the
+  model-based estimate**:
+  * per bucket and for The Diski 9: the individual probabilities, the combined
+    probability, the combined decimal odds and the potential gross payout;
+  * the expected gross and expected net return;
+  * the probability of recovering at least 100 credits;
+  * the probability of receiving zero credits;
+  * the maximum possible payout;
+  * the exact payout distribution (the "Your Payout Probability" chart: an
+    "at least" view and an "exactly" view).
+* FR-P3. **Calculation rules:**
+  * the exact eight-state method;
+  * The Diski 9 pays only when all three buckets win;
+  * independence across fixtures (stated);
+  * D-15 rounding: each accumulator's gross payout is rounded half-up to 0.01
+    credit, then summed per state;
+  * recovery means the state gross is at least 100.00.
+* FR-P4. **Incomplete portfolios** show progress, and per-bucket figures only for
+  completed buckets. They never show portfolio recovery or return figures.
 
-### 5.4 Portfolio explorer
+### 5.4 Explore Your Bucket Risk (permanent educational feature)
 
-* FR-P1. With 9 selections, the system evaluates all 280 canonical partitions at
-  30/30/30/10, using the exact eight-state distribution.
-* FR-P2. For each partition it calculates:
-  * per bucket: combined odds, win probability, potential payout;
-  * nine-fold: combined odds, win probability, potential payout;
-  * expected gross and net return;
-  * probability of recovering 100, probability of profit, probability of a
-    complete loss;
-  * SD (internal only);
-  * efficiency.
-* FR-P3. Pareto efficiency is on (recovery ↑, expected return ↑), with the
-  documented tolerances.
-* FR-P4. The chart shows all 280: dominated points grey and not selectable,
-  efficient points selectable, the recommended point starred and pre-selected.
-  Nothing is smoothed.
-* FR-P5. Identical coordinates are drawn as one point labelled with the number of
-  arrangements, and the player can choose among them.
-* FR-P6. An accessible list of efficient arrangements mirrors the chart.
-* FR-P7. Selecting a point never submits. Submission happens only on the review
-  step, with explicit confirmation.
+* FR-X1. Explains:
+  * individual vs combined probability;
+  * why four likely outcomes can still make an unlikely accumulator;
+  * potential payout vs expected return;
+  * the probability of recovery;
+  * the probability of zero;
+  * the assumptions and limitations.
+* FR-X2. Has adjustable **hypothetical** probabilities and **fair odds** (1 ÷ p),
+  clearly labelled "Illustration".
+* FR-X3. **Never changes** the participant's portfolio, the reference odds or the
+  fixed credits.
 
-### 5.4a "Your Payout Probability" chart
+### 5.5 Settlement (kept from Phase 5C)
 
-A second educational chart, separate from the frontier:
-* the **frontier** helps a player **choose between groupings**;
-* **Your Payout Probability** explains **the spread of possible returns for the
-  grouping they selected**.
+* 90-minute result. Void rules V1–V5. A void leg counts as odds 1.00.
+* Exact payouts with D-15 rounding.
+* Idempotent, audited settlement, with a 24-hour correction window before a round
+  is final.
 
-**Placement and updates**
+### 5.6 Weekly leaderboard
 
-* FR-D1. Shown beneath the selected grouping's three buckets and nine-fold, in
-  the portfolio details.
-* FR-D2. Selecting a different efficient grouping (or loading the pre-selected
-  recommendation) updates, together and deterministically:
-  * the three bucket compositions;
-  * bucket odds and potential payouts;
-  * recovery probability;
-  * expected return;
-  * this chart.
+* FR-W1. Ranks entrants by **realised net credits** (gross − 100). This is
+  equivalent to ranking by gross.
+* FR-W2. Shows the finishing position, display name, gross credits returned, net
+  credits, and championship points. Gross and net are clearly labelled.
+* FR-W3. It resets each completed round. History is retained.
+* FR-W4. Entrants who don't recover still appear, with 0 points.
 
-  All of them come from the same frozen round sheet (model probabilities and
-  reference odds). Chart interactions make no API requests and no database
-  writes.
+### 5.7 Championships (replaces season scoring; supersedes D-09)
 
-**Primary view: "At least this payout"**
+* FR-C1. A championship consists of **exactly ten completed rounds**, independent
+  of league calendars. Cancelled or postponed weeks don't count.
+* FR-C2. After the tenth completed round:
+  * standings are finalised;
+  * the winner, or joint winners, are recorded;
+  * the championship is archived;
+  * the next championship starts with points reset to 0.
+  * History and lifetime statistics are kept.
+* FR-C3. **Joining and entering:**
+  * participants may join at any time;
+  * all ten rounds count (no best-X);
+  * non-entry scores 0;
+  * nothing carries forward between championships.
+* FR-C4. **Points** (approved schedule; **no recovery, no championship points**):
 
-* FR-D3. A survival-function chart:
-  * X = gross virtual payout in credits, from 0 to the maximum possible payout;
-  * Y = probability (%) of receiving **at least** that payout:
-    P(R ≥ x) = Σ P(s) over the states s with R(s) ≥ x.
-  * Drawn as a **downward-stepping** line that never increases as x grows.
-    Never smoothed or interpolated.
-* FR-D4. **Exact eight-state distribution at the fixed 30 / 30 / 30 / 10
-  credits.**
-  * The nine-fold payout is included **only** in the state where all three
-    buckets win.
-  * Never simulated.
+| Weekly position (gross ≥ 100.00) | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11+ |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Points | 150 | 135 | 120 | 110 | 100 | 95 | 90 | 85 | 80 | 75 | 50 |
 
-**Recovery threshold and maximum**
+  * Gross < 100.00 scores **0** in any position, as does not entering.
+  * Points are non-additive.
+  * Maximum: 150 per round, 1,500 per championship.
+  * Because every participant who recovers ranks above every one who doesn't, top-ten points never go
+    to a participant who failed to recover.
+* FR-C5. **Championship table:** ranking, display name, rounds entered, successful
+  recoveries, total points.
+* FR-C6. **Proposed tie rules** (pending approval, D-26 and D-27; see the research):
+  * **Weekly:** tied participants with the same gross share the **average** of the
+    position points they jointly occupy. A position beyond tenth is worth 50.
+    Points are kept as exact fractions and shown to 2 decimals. There are no
+    timestamp or ID tie-breaks.
+  * **Championship:** total points, then successful recoveries, then qualifying
+    top-ten finishes. Participants still equal are **joint** (joint winners
+    allowed). Cumulative credits are never a tie-break.
+* FR-C7. **Proposed minimum participants** (T-04, pending D-28): a round counts
+  toward a championship only with at least 5 entrants. Smaller rounds settle and
+  show a weekly table, labelled "practice round".
+* FR-C8. **Known large-field effect** (P-04, D-31): with about 50 or more entrants,
+  the 50-point floor favours high-variance play. Revisit before fields reach that
+  size.
 
-* FR-D5. The 100-credit recovery threshold is clearly marked and labelled with
-  the exact modelled P(R ≥ 100).
-  * This value **must equal** the recovery probability on the frontier and in the
-    portfolio summary: one calculation, one value.
-* FR-D6. The maximum possible gross payout (all three buckets plus the nine-fold,
-  when all nine selections win) is marked with its probability.
-* FR-D7. A compact summary above the chart shows the chance of getting at least
-  100 credits back and the maximum potential payout.
+### 5.8 Communication
 
-**Precision**
-
-* FR-D8. Every payout, threshold comparison and modelled figure uses the single
-  agreed **settlement-precision policy** (R-09, confirmation D-15):
-  * each accumulator's payout = stake × exact combined odds, rounded half-up to
-    0.01 credit;
-  * a state's gross = the sum of its winning accumulators' payouts.
-  * Threshold comparisons use these values exactly (`≥ 100.00`). They never use
-    display-rounded numbers or floating-point approximations.
-  * The frontier, summary, chart and settlement therefore all agree to the cent.
-
-**Secondary view: "Exactly this payout"**
-
-* FR-D9. A toggle switches to a **discrete probability-mass bar chart**, not a
-  line:
-  * one bar per distinct gross payout;
-  * states with identical payouts are aggregated;
-  * bar heights sum to 100%;
-  * each bar notes which buckets win.
-
-**Wording and education**
-
-* FR-D10. The two views are always distinguished: "at least X credits"
-  (cumulative) vs "exactly X credits" (exact). "Chance of X credits" alone is
-  never used.
-* FR-D11. A short explanation: "As the payout target increases, the probability
-  of reaching it generally decreases or stays the same." Plus notes that:
-  * the chart shows modelled probabilities, not guarantees (conditional on Goal
-    Model 1.0 and the frozen reference odds);
-  * gross payout includes returned virtual credits;
-  * 100 credits means recovering the weekly allocation;
-  * above 100 credits is a positive net return;
-  * virtual credits have no cash value.
-* FR-D12. Allocations and payouts are always expressed in credits
-  (30 / 30 / 30 / 10). Never percentages.
-* FR-D13. The full list of eight states is hidden by default, behind an "All
-  possible outcomes" disclosure (which is also the accessible table form).
-
-### 5.5 Recommendation
-
-* FR-Rec1. Recommended = the efficient arrangement with the highest recovery
-  probability. Ties: higher expected gross return, then the lowest canonical
-  partition ID. It is always efficient (§9).
-* FR-Rec2. Explanation shown: "Recommended because it has the highest modelled
-  probability of recovering your 100 weekly credits." Shown with its expected
-  return and the uncertainty note.
-
-### 5.6 Submission
-
-* FR-Sub1. Each user has one entry per round. Submissions are insert-only
-  versions; the latest version before the deadline is the entry.
-* FR-Sub2. Every submission stores an immutable snapshot: the round sheet values
-  for its nine selections, the partition, buckets, stakes, the metrics at
-  submission, the efficient set and the recommended ID, the calculation version
-  and timestamps.
-* FR-Sub3. Server-side validation of every rule. Client state is never trusted.
-* FR-Sub4. Duplicate clicks and concurrent requests produce exactly one new
-  version (an idempotency key, plus optimistic versioning).
-* FR-Sub5. At the deadline the entry locks: its final submission is fixed and can
-  never change.
-
-### 5.7 Settlement
-
-* FR-Set1. Selections settle on the **90-minute result** (regular time including
-  stoppage time). Extra time and penalties are ignored.
-* FR-Set2. Void rules for postponed, cancelled, abandoned, awarded and walkover
-  fixtures, for a kickoff moved before the deadline, and for fixtures not
-  completed by the settlement cutoff (technical design §7). A void selection
-  counts as odds 1.00 in its accumulators.
-* FR-Set3. Settlement is deterministic, idempotent and audited. A round stays
-  *settling* until every selection is settled or void, then becomes *final*
-  after a correction window.
-* FR-Set4. Accumulator payouts are computed exactly and rounded half-up to 0.01
-  credit.
-
-### 5.8 Leaderboards and history
-
-* FR-L1. **Weekly:** the round's entrants ranked by net credits, high to low. Ties
-  share a rank. Provisional until the round is final.
-* FR-L2. **Season:** decision D-09 (recommended: average net credits per round
-  entered, qualifying at ≥ 50% of completed rounds and at least 3 entries; see
-  the decision register). Columns: rounds entered, total net, average net.
-* FR-L3. Non-entrants are not ranked in a weekly table.
-* FR-L4. **My Challenge:** current entry, past entries with selection-level
-  results, season summary.
-
-### 5.9 Communication
-
-* FR-C1. The fixed caveats appear on the explorer and review steps (UX §8).
-* FR-C2. Banned phrasing: guaranteed, safe bet, sure win, risk-free, lock, banker,
-  free money.
-* FR-C3. Market-implied probability is shown per selection in details, never on
-  the chart axes.
+* Fixed caveats appear on analytics and review:
+  * modelled estimates, not guarantees;
+  * reference odds, not offers;
+  * credits have no value.
+* **Banned words:** safe, guaranteed, risk-free, sure, lock, banker, free money.
+* Explanations distinguish **potential payout** from **expected return**, and
+  **individual** probability from **combined** probability.
 
 ## 6. Non-functional requirements
 
-* **Correctness:**
-  * exact eight-state maths;
-  * integer credits;
-  * exact decimal combined odds;
-  * one settlement-precision policy for every payout and threshold (FR-D8);
-  * deterministic tie-breaks;
-  * the 20→100 scaling invariants are tested.
-* **Determinism:** the same round sheet and the same nine selections always give
-  the same 280 results, efficient set and recommendation.
-* **Immutability:**
-  * round-sheet, submission and settlement-history rows are insert-only, enforced
-    by database triggers (the `forecast_snapshots` pattern);
-  * locked entries never change.
-* **Performance:** the 280 evaluations plus the frontier take well under 100 ms,
-  in pure Python. Chart interactions make no API requests.
-* **Security:**
-  * authenticated submissions;
-  * server-side validation and deadline checks against server time;
-  * no secrets in the client.
-* **Accessibility:**
-  * keyboard-operable list alternative to the chart;
-  * colour is never the only signal;
-  * WCAG AA contrast in both themes.
-* **Responsiveness:** usable at 390 px width; no horizontal page scroll.
-* **Privacy:** leaderboards show display names only. Policy in decision D-04.
-* **Operability:**
-  * every lifecycle step is available as a CLI command with clear output;
-  * jobs are idempotent and safe to rerun.
+* **Exact and deterministic:** exact `Decimal` odds and payouts, D-15 rounding,
+  exact fractional points, deterministic ranking and ties.
+* **Immutable:** round sheets, submissions, settlements and scoring history are
+  insert-only. Configuration versions are never edited.
+* **Auditable:** settlement corrections re-score the affected round and its
+  championship with an audit record.
+* **Offline analytics:** portfolio analytics make no API calls (they work from
+  the round sheet).
+* **Accessible:** a keyboard-operable tracker and builder; table alternatives to
+  the charts; WCAG AA contrast.
+* **Responsive:** usable at 390 px with no horizontal page scroll.
 * **No regression:** the Screener, Match Lab, odds, Edge/EV and Goal Model 1.0
   are unchanged.
 
 ## 7. MVP scope and exclusions
 
 **In scope:**
-* weekend rounds;
+* rounds with opening checks;
 * round sheet;
-* picker;
-* explorer;
-* "Your Payout Probability" chart (cumulative and exact views);
-* recommendation;
-* review, submit and resubmit before the deadline;
-* lock;
-* settlement with void rules;
-* weekly and season leaderboards;
-* My Challenge history;
-* operator CLI;
-* sign-in (per the identity decision).
+* bucket builder and tracker;
+* complete-portfolio analytics (market and model);
+* Your Payout Probability;
+* Explore Your Bucket Risk;
+* submission;
+* settlement;
+* weekly leaderboard;
+* championships;
+* history.
 
-**Excluded from the MVP:**
-* adjustable stakes or any allocation helper;
-* a variable nine-fold stake;
-* midweek or multiple concurrent rounds;
-* per-fixture deadlines;
-* private leagues or friends;
-* notifications;
-* prizes;
-* market-implied expected return on the chart;
-* social sharing images;
-* admin web UI (the CLI only);
-* new markets or providers;
-* any change to Goal Model 1.0 or the odds methodology.
+**Excluded:**
+* adjustable stakes or buckets;
+* allocation helpers;
+* the 280-grouping explorer;
+* the efficient frontier;
+* recommendations;
+* an interactive championship or season explorer;
+* best-X rounds;
+* carry-forward of credits or points;
+* real money;
+* private leagues;
+* notifications.
 
-## 8. Acceptance criteria (product level)
+## 8. Acceptance criteria
 
-1. A signed-in user can build, explore, review and submit a valid entry before
-   the deadline, and sees it in My Challenge.
-2. Invalid entries (fewer than 9, duplicate fixtures, ineligible outcomes, a
-   dominated grouping, after the deadline) are impossible to submit, including
-   via direct callback calls.
-3. The chart shows exactly 280 arrangements, efficiency is correct, and the
-   recommended point is efficient and matches the rule.
-4. All displayed metrics match the reference implementation for the frozen
-   inputs. Scaling to 100 credits preserves recovery, scales expected return,
-   SD and net by 5, and keeps the efficient set.
-5. Submissions and the round sheet are immutable. Resubmission creates a new
-   version. A locked entry never changes.
-6. Settlement produces the specified results for each market and void case, and
-   rerunning it changes nothing.
-7. Weekly and season leaderboards match hand-calculated examples, including ties
-   and skipped rounds.
-8. "Your Payout Probability" meets all of the following (tests in the
-   implementation plan, Phases 1 and 3):
-   1. Probabilities come from the exact eight-state distribution.
-   2. Cumulative probabilities are non-increasing in the payout threshold and
-      start at 100%.
-   3. Exact-payout probabilities sum to 100%.
-   4. The nine-fold is included only in the all-buckets-win state; the maximum
-      equals the all-win payout, with probability P_A·P_B·P_C.
-   5. The 100-credit threshold value is P(R ≥ 100.00) computed from
-      settlement-precision payouts.
-   6. That value is identical to the portfolio summary and the frontier recovery
-      probability.
-   7. Identical payouts are aggregated into one outcome.
-   8. Selecting another efficient grouping updates the buckets, odds, payouts,
-      recovery, expected return and the chart deterministically (the same inputs
-      always give the same output), with no API request.
-   9. Settlement rounding and threshold comparisons follow FR-D8 exactly, so the
-      modelled payouts equal what settlement would pay.
-9. The whole existing test suite still passes. The Screener and Match Lab are
-   unchanged. Goal Model 1.0 is unchanged.
+1. Only valid strict portfolios (4/3/2, nine distinct fixtures, eligible market
+   bands) can be submitted, including via direct callback calls.
+2. Bucket assignment uses full-precision market probabilities from the frozen
+   round sheet. Boundary values are assigned to the correct bucket.
+3. Complete-portfolio analytics match the exact eight-state reference for both
+   sources. Incomplete portfolios show no portfolio-level recovery or return.
+4. The payout-chart "at least 100" value equals the summary recovery probability.
+   The exact-payout probabilities sum to 100%. The maximum includes The Diski 9.
+5. Weekly points and championship standings match the worked examples (§5.7 and
+   the research tests), including ties across tenth place, nobody or everybody
+   recovering, and single-participant rounds.
+6. A championship finalises after exactly ten completed rounds, archives, and
+   resets points.
+7. Rounds that fail the opening checks are postponed, not counted.
+8. Existing Diski 9 functionality and Goal Model 1.0 are unchanged.
 
-## 9. Mathematical consistency check (100-credit scaling)
+## 9. Evidence status
 
-Phase 5B used 6 / 6 / 6 / 2 with a 20-credit threshold. The MVP uses
-30 / 30 / 30 / 10 with 100, a uniform factor of 5.
-
-* **Returns:** in every one of the eight states, R₁₀₀ = 5·R₂₀. Therefore:
-  * E[R₁₀₀] = 5·E[R₂₀];
-  * σ₁₀₀ = 5·σ₂₀;
-  * net₁₀₀ = 5·net₂₀.
-* **Recovery:** R₁₀₀ ≥ 100 ⇔ R₂₀ ≥ 20, so P(recover) is unchanged.
-* **Efficiency:** the x-coordinates are unchanged and every y-coordinate is
-  multiplied by the same positive constant. So dominance, and therefore the
-  efficient set and the recommended portfolio, are unchanged.
-* **Checked numerically** on all 17 Phase 5B slates (13 synthetic, 4 real):
-  * recovery probabilities bitwise identical;
-  * E[R] and SD scaled by 5 (relative error below 1e-12);
-  * efficient sets identical (1–14 efficient arrangements, or all 280 for
-    identical selections);
-  * recommended arrangement identical in every slate.
-* **The recommendation rule is always efficient.** The arrangement with the
-  maximum recovery probability (ties broken by higher expected return) cannot be
-  dominated: a dominator would need higher recovery, or equal recovery and higher
-  expected return.
-* **Precision note:**
-  * These invariants hold exactly in unrounded arithmetic, which is how the
-    regression tests check them (`precision="exact"`).
-  * The product rounds each accumulator payout to 0.01 credit (FR-D8, D-15).
-    That can differ from 5× a 20-credit figure by at most a cent per accumulator,
-    and could change a recovery decision only if a state's exact gross lies
-    within that band of 100.
-  * No such case occurred in the Phase 5B slates.
-* **No contradiction found.**
-* **One Phase 5B finding the product must respect:** the identity of the best
-  arrangement is sensitive to small model-probability changes. The UI therefore
-  frames "efficient" and "recommended" as conditional on the model (UX §8).
+| | Evidence |
+|---|---|
+| **Empirical** | One complete real weekly pool: 60 fixtures, 420 outcomes, 6 leagues, as of 17 Nov 2026 |
+| **Synthetic** | Pool-size feasibility, and the championship simulations (shared Poisson scorelines) |
+| **Required before treating the configuration as validated** | 6–8 real weekly pools, including an international break and small rounds, plus their settled results |

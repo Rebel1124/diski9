@@ -1,6 +1,17 @@
-# Diski 9 Weekly Challenge — Technical Design (Phase 5C)
+# Diski 9 Weekly Challenge — Technical Design (revised, Phase 6A.2)
 
-Status: **design for review**. No code, schema or migration has been changed.
+Status: **revised design for review**. No production code, schema or migration has
+been changed. This revision supersedes the Phase 5C design (`2e079ba`) where they
+conflict:
+* the 280-partition explorer, Pareto frontier and recommendation are removed;
+* buckets are fixed by **market-probability bands** (`broad60-432-v1`) with
+  4/3/2 picks and 40/30/20/10 credits;
+* championships of 10 completed rounds with recovery-gated position points
+  replace season scoring (old D-09);
+* rounds open only after an exact feasibility check (§5.4).
+
+The Phase 6A engine (`feature/weekly-challenge-engine`, `48392c1`) is the
+baseline. It is reused and generalised (§3), not discarded.
 Requirements: [PRD](../product/weekly_challenge_prd.md). Decisions:
 [register](../product/weekly_challenge_decisions.md).
 
@@ -15,7 +26,7 @@ Requirements: [PRD](../product/weekly_challenge_prd.md). Decisions:
 | Results | `fixtures` stores `status_short`, `kickoff_utc`, `ft_home`/`ft_away` (90-minute `score.fulltime`), plus extra-time and penalty columns. Rows are overwritten on refresh; there is no result history. | Settlement must snapshot the result values it used. |
 | Odds | `challenge_consensus(conn, fixture, t)`: strict, fresh, ≥ 3 groups, no stale fallback. `implied.normalise` removes the margin. | The round sheet calls these unchanged. |
 | Model | The screener cache payload holds Goal Model 1.0 probabilities, version, parameter hash and data cutoff. | Copy them into the round sheet; never recompute after publishing. |
-| Research code | `diski9.research.challenge_portfolio` (branch 5B): correct and tested, but needs **numpy and scipy, which are dev-only**. It hard-codes 6/6/6/2 and 20. | Port the needed pure functions into a dependency-free production module. Cross-check against the research code in tests. |
+| Engine baseline | `feature/weekly-challenge-engine` (`48392c1`, Phase 6A): dependency-free 3/3/3, 30/30/30/10 engine with D-15 rounding. Research: `risk_structure.py` (6A.1), `championship.py` (6A.2), stdlib only. | Generalise the 6A engine with a versioned config (§3.1); cross-check against the research code in tests. |
 | Dependencies | Production: dash, sqlalchemy, alembic, httpx, pydantic-settings. Dev: numpy, scipy, hypothesis, pytest, ruff. | No new production dependency is needed for the maths or the chart (Plotly ships with Dash). Hosting and identity may add one: D-01, D-02. |
 
 ## 2. Proposed architecture
@@ -30,8 +41,8 @@ Requirements: [PRD](../product/weekly_challenge_prd.md). Decisions:
                  │                      submit; validates; transactions)                            │
                  │                              │  uses                                             │
                  │                              ▼                                                   │
-                 │                 diski9.challenge.portfolio  (pure: partitions, 8 states,         │
-                 │                 metrics, Pareto, recommendation)                                 │
+                 │                 diski9.challenge.portfolio  (pure: bands, 8 states, metrics,     │
+                 │                 payout distribution, feasibility, points)                        │
                  └──────────────────────────────┬───────────────────────────────────────────────────┘
                                                 │ SQLAlchemy Core
                                                 ▼
@@ -54,86 +65,65 @@ The Screener package is untouched apart from one header navigation element.
 
 ## 3. Portfolio calculation integration
 
-### 3.1 Production module `diski9.challenge.portfolio`
+### 3.1 Production module `diski9.challenge.portfolio` (generalised)
 
-A dependency-free port of the Phase 5B logic, parameterised by an immutable
-allocation:
+The Phase 6A engine (`48392c1`) implements 3/3/3 picks, 30/30/30/10 credits,
+the eight-state distribution, D-15 rounding and the payout distribution. Phase
+6A.2 generalises it through one immutable, versioned configuration:
 
 ```python
 @dataclass(frozen=True)
-class Allocation:          # MVP constant: Allocation(30, 30, 30, 10, target=100)
-    bucket: tuple[int, int, int]   # integer credits
-    nine: int
-    target: int
-    version: str = "30-30-30-10/v1"
+class Band:
+    low: Decimal            # inclusive
+    high: Decimal           # exclusive, unless high_inclusive
+    high_inclusive: bool = False
+
+@dataclass(frozen=True)
+class ChallengeConfig:      # broad60-432-v1
+    version: str            # "broad60-432-v1"
+    bands: tuple[Band, Band, Band]       # A [0.60, 0.95], B [0.40, 0.60), C [0.20, 0.40)
+    sizes: tuple[int, int, int]          # (4, 3, 2)
+    stakes: tuple[int, int, int]         # (40, 30, 20) credits
+    nine_stake: int                      # 10
+    target: Decimal                      # Decimal("100.00")
+    classification_source: str           # "market" (margin-adjusted consensus)
 ```
 
-Functions:
-* `partitions()`: the 280 canonical partitions, IDs as in Phase 5B
-  (`012|345|678` … `078|156|234`, lexicographic).
-* `evaluate(selections, allocation) -> list[PortfolioResult]`: the eight-state
-  distribution for every partition.
-* `pareto_efficient(results)`: recovery ↑, expected ↑.
-* `recommend(results)`: maximum recovery, then maximum expected return, then the
-  lowest ID.
+Invariants checked at import: `sum(stakes) + nine_stake == target`;
+`sum(sizes) == 9`; bands disjoint and ordered.
 
-**Numerics:**
-* **Odds** are stored and used as exact 2-decimal values (`Decimal`, or integer
-  hundredths).
-* **Combined odds are exact:** a product of 2-decimal odds, kept as an exact
-  `Decimal` (6 decimals for a bucket, 18 for the nine-fold).
-* **One settlement-precision policy** (R-09, confirmation D-15) for every
-  modelled and settled payout:
-  * accumulator payout = round_half_up(stake × exact combined odds, 0.01);
-  * state gross = the sum of the winning accumulators' payouts.
-  * Recovery is `state_gross >= Decimal("100.00")`, an exact decimal comparison,
-    never floating point and never display-rounded values.
-  * The frontier (x and y), summary, payout chart and settlement all use these
-    same state values, so they agree to the cent.
-  * Example: R1's all-win state is 116.58 + 176.83 + 100.70 + 768.81 = 1,162.92.
-    Rounding the exact total (1,162.913…) would give 1,162.91. The policy
-    deliberately uses the former.
-* **Why the policy rarely changes anything, and how it is tested:**
-  * Rounding can only change a recovery decision when a state's exact gross is
-    within 0.005 credit per accumulator of 100.
-  * There were no such cases in 8,960 real-slate state comparisons (Phase 5B
-    snapshot, all 280 partitions × 8 states × 4 slates), nor in 640,000 random
-    ones.
-  * Constructed knife-edge cases are covered by tests (implementation plan,
-    Phase 1).
-* **Probabilities** are binary floats, products of nine model probabilities (each
-  stored at full precision in the round sheet). P(recover) is a sum of exact
-  state indicators times float state probabilities.
-* **Pareto comparison:** coordinates are snapped to a grid first (probability
-  1e-12, credits 1e-6 × 5 = 5e-6). This is documented and deterministic, as in
-  Phase 5B, with the credit grid scaled with the stakes.
-* **Display rounding:** probabilities to 0.1%, credits to 0.01.
+**Functions (pure, stdlib only):**
+* `classify(market_prob, config) -> "A" | "B" | "C" | None`: compares the
+  **full-precision** stored float; boundaries 0.60 and 0.95 belong to A, 0.40 to
+  B, 0.20 to C. Never the displayed (rounded) value.
+* `validate_portfolio(selections, config)`: exactly `sizes[b]` picks in each
+  bucket, nine distinct fixtures, every pick eligible and in the bucket its
+  market probability dictates. The bucket is **derived**, never chosen by the
+  client.
+* `evaluate(selections, config, source) -> PortfolioResult`: the eight-state
+  distribution, metrics and payout distribution, for `source` = `"market"` or
+  `"model"`. Market and model results are separate objects, never mixed.
+* `bucket_summary(picks, stake, source)`: combined probability and odds, potential
+  payout and "alone ≥ 100" for a single complete bucket (used before 9/9).
+* `payout_distribution(result)`: unchanged from Phase 6A.
+* Removed from the product path: `partitions()`, `pareto_efficient()`,
+  `recommend()`.
 
-**Cost:**
-* 280 partitions × 8 states is about 2,240 state evaluations, plus a Pareto pass.
-* In pure Python this is a few milliseconds (a sort-based two-dimensional sweep is
-  O(n log n); a 280² check is also fine).
-* No background job is needed for exploration.
+**Numerics:** unchanged from Phase 6A (D-15): exact `Decimal` combined odds;
+each accumulator payout rounded half-up to 0.01; state gross = sum; recovery =
+`gross >= Decimal("100.00")`. Probabilities are floats.
 
-### 3.2 Equivalence with Phase 5B
+**Cost:** one portfolio is 8 states, microseconds. There is no explorer, so no
+per-request LRU is needed beyond the round sheet.
 
-Tests (numpy available in dev) cross-check the production module against
-`diski9.research.challenge_portfolio` on all 17 Phase 5B slates, the frozen real
-snapshot included.
+### 3.2 Equivalence and regression
 
-**In the module's `precision="exact"` test mode** (unrounded payouts, as in the
-research):
-* identical partition IDs;
-* recovery equal;
-* E[R], SD and payouts equal to 5× the research values;
-* identical efficient sets and recommendations.
-
-**In the product's `precision="settlement"` mode:**
-* every recovery decision equals the exact mode's, except where a state's exact
-  gross lies within the rounding band around 100 (none occur in these slates);
-* E[R] differs from the exact mode by less than 0.03 credits.
-
-The research module stays research-only and is never imported by the app.
+* With `ChallengeConfig("legacy-333-v0", sizes=(3,3,3), stakes=(30,30,30), …)`
+  the generalised engine must reproduce every Phase 6A test vector exactly.
+* With `broad60-432-v1` it must match `diski9.research.risk_structure.evaluate`
+  (Phase 6A.1) on all real-pool portfolios used in research, to 1e-12 in
+  probabilities and exactly in credits.
+* The research modules stay research-only.
 
 ### 3.3 Payout distribution ("Your Payout Probability")
 
@@ -152,8 +142,8 @@ def at_least(dist: list[PayoutOutcome], x: Decimal) -> float              # P(R 
 ```
 
 **Construction:**
-* Take the eight states of the selected grouping (the same `PortfolioResult` the
-  frontier uses, at 30/30/30/10).
+* Take the eight states of the complete portfolio (the same `PortfolioResult` as
+  the summary, at 40/30/20/10).
 * Group them by gross payout at settlement precision. This is `Decimal` equality,
   so merging is exact and never tolerance-based. It gives 1–8 distinct outcomes.
   For example, the "nothing wins" state is always 0, and two buckets with
@@ -170,7 +160,7 @@ def at_least(dist: list[PayoutOutcome], x: Decimal) -> float              # P(R 
 * The nine-fold payout appears only in the (1,1,1) outcome.
 * Selecting the same grouping again returns an identical distribution.
 * All outcomes come from the cached `PortfolioResult`, with no I/O.
-* The last outcome is the all-win payout 30·(O_A + O_B + O_C) + 10·O_9, with
+* The last outcome is the all-win payout 40·O_A + 30·O_B + 20·O_C + 10·O_9, with
   probability P_A·P_B·P_C (= P_9).
 * Σ gross × probability = `result.expected_gross`.
 
@@ -185,24 +175,22 @@ def at_least(dist: list[PayoutOutcome], x: Decimal) -> float              # P(R 
   * one narrow bar per distinct payout (Plotly `Bar` with a fixed narrow width,
     so bars do not imply ranges);
   * heights sum to 100%.
-* Both are recalculated in the same callback that updates the details panel,
-  keyed by `(round_id, selections, partition_id)`, using the cached
-  `PortfolioResult`. Cost: microseconds.
+* Both are recalculated in the same callback that updates the review panel,
+  keyed by `(round_id, selections, source)`. Cost: microseconds.
 
 **Storage:**
 * Nothing new is persisted. The distribution is a pure function of the stored
   inputs.
-* Optionally, the submission keeps the eight `(gross, probability)` pairs inside
-  the existing `portfolio_points` JSON, so the receipt can redraw exactly what
+* The submission keeps the eight `(gross, market probability, model
+  probability)` triples in `states_json`, so the receipt can redraw exactly what
   was shown.
 
 ### 3.4 Caching
 
 * The round sheet is cached per round (it never changes after publishing).
-* Explorer results are cached in an LRU per process, keyed by
-  `(round_id, sorted selection keys, allocation.version)`. Deterministic, so
-  safe to share between users.
-* No API calls during exploration. The database is read only for the round sheet.
+* Portfolio evaluation is cheap enough to compute per request; no explorer cache.
+* No API calls during building or review. The database is read only for the
+  round sheet.
 
 ## 4. Data model and schema proposal
 
@@ -236,7 +224,9 @@ challenge_rounds
   settle_cutoff_at   -- later completions are void (default window_end + 48 h)
   finalised_at
   status             TEXT  -- draft | open | locked | settling | final | cancelled
-  allocation_version TEXT  -- "30-30-30-10/v1"
+  config_version     TEXT  -- "broad60-432-v1" (bands, sizes, stakes)
+  championship_id    INTEGER NULL       -- set when the round completes (§12)
+  championship_round INTEGER NULL       -- 1..10 within that championship
   rules_version      TEXT  -- settlement and void rules version
   calc_version       TEXT  -- portfolio module version
   model_version      TEXT  -- "goal-model-1.0" (+ params_hash)
@@ -254,7 +244,8 @@ challenge_round_offers              -- the round sheet; insert-only
   bookmaker_groups    INTEGER
   latest_observation_at, provider_updated_at
   eligible            BOOLEAN NOT NULL      -- ≥3 groups, fresh at published_at, model available
-  ineligible_reason   TEXT
+  bucket              TEXT                  -- 'A'|'B'|'C' from market_prob (full precision); NULL if outside 20–95%
+  ineligible_reason   TEXT                  -- incl. 'below_20' / 'above_95'
 
 challenge_entries                    -- one per user per round
   id TEXT PK, round_id, user_id      UNIQUE(round_id, user_id)
@@ -267,14 +258,12 @@ challenge_submissions                -- insert-only, one row per version
   id TEXT PK (UUID), entry_id, round_id, user_id, version
   idempotency_key  TEXT UNIQUE       -- client token per Submit click
   submitted_at
-  partition_id     TEXT              -- e.g. "024|158|367"
-  recommended_partition_id TEXT, chose_recommended BOOLEAN
-  p_recover, p_profit, p_loss  FLOAT
-  expected_gross   NUMERIC(14,4), max_gross NUMERIC(14,2)
-  efficient_ids    TEXT              -- JSON list of efficient partition IDs
-  portfolio_points TEXT              -- compact JSON of all 280 [id, x, y, efficient] (§4.3)
-  inputs_hash      TEXT              -- SHA-256 over round_id + offers + selections + allocation
-  allocation_version, calc_version, model_version, rules_version
+  p_recover_market, p_recover_model     FLOAT
+  expected_gross_market, expected_gross_model  NUMERIC(14,4)
+  max_gross        NUMERIC(14,2)
+  states_json      TEXT              -- 8 × [state, gross, p_market, p_model] (§3.3)
+  inputs_hash      TEXT              -- SHA-256 over round_id + offers + selections + config
+  config_version, calc_version, model_version, rules_version
 
 challenge_submission_selections     -- insert-only; a copy of the offer values used
   submission_id, position (0–8)  PK
@@ -285,7 +274,7 @@ challenge_submission_selections     -- insert-only; a copy of the offer values u
 
 challenge_submission_accumulators   -- insert-only
   submission_id, leg ('A'|'B'|'C'|'NINE')  PK
-  stake INTEGER, combined_odds NUMERIC(20,8), win_prob FLOAT,
+  stake INTEGER, combined_odds NUMERIC(30,18), win_prob_market FLOAT, win_prob_model FLOAT,
   potential_gross NUMERIC(14,2), recovers_alone BOOLEAN
 
 challenge_fixture_results           -- insert-only result observations used for settlement
@@ -305,7 +294,26 @@ challenge_entry_settlements         -- insert-only history; latest per entry is 
   gross NUMERIC(14,2), net NUMERIC(14,2),
   legs_json   -- per leg: verdict, effective odds, payout
   status ('provisional'|'final'), inputs_hash
+
+challenge_round_scores              -- insert-only history; latest per (round, entry) is current
+  id PK, run_id, round_id, entry_id, user_id,
+  gross NUMERIC(14,2), position INTEGER,     -- best occupied position of the tie group
+  tie_size INTEGER,
+  points_num INTEGER, points_den INTEGER,    -- exact fraction (e.g. 255/4)
+  recovered BOOLEAN, qualifying_top10 BOOLEAN,
+  scoring_version TEXT                       -- "points-150-50-v1"
+
+challenge_championships
+  id PK, number INTEGER UNIQUE, scoring_version TEXT,
+  started_round_id, completed_round_count INTEGER (0..10),
+  status ('active'|'complete'), completed_at
 ```
+
+**Championship standings are not stored as authoritative rows.** They are a pure
+aggregation over the current `challenge_round_scores` of the championship's ten
+rounds (sum of fractions; recoveries; qualifying top-ten finishes), so a
+corrected round re-scores automatically. A frozen snapshot is written when the
+championship completes, for display and audit only.
 
 ### 4.2 Integrity rules
 
@@ -313,24 +321,22 @@ challenge_entry_settlements         -- insert-only history; latest per entry is 
   * UNIQUE(round_id, user_id) gives one entry per user per round;
   * `locked_at` and `final_submission_id` can be set only once (the trigger
     rejects changes when they are non-NULL).
-* `challenge_submission_selections`: UNIQUE(submission_id, fixture_id), plus a
-  CHECK (or an application rule) of exactly 9 rows, validated in the service
-  transaction.
+* `challenge_submission_selections`: UNIQUE(submission_id, fixture_id), plus an
+  application rule of exactly 4/3/2 rows by bucket, validated in the service
+  transaction; each row's bucket must equal the offer's `bucket`.
+* `challenge_round_scores`: `points_den > 0`; fractions stored reduced; points are
+  never floats.
 * Offers and selections reference `(round_id, fixture_id, market, outcome)`, and
   the service checks `eligible = TRUE`.
 * Round-sheet tables are insert-only once the round is published.
 
-### 4.3 Store all 280 portfolios?
+### 4.3 What a submission stores
 
-**Recommendation: store the inputs and the chosen portfolio as the source of
-truth, plus a compact JSON of all 280 points.**
-
-* The 280 points can be regenerated deterministically from the immutable inputs
-  plus `calc_version`.
-* Storing them as well (about 280 × 3 numbers, roughly 10 KB per submission)
-  preserves exactly what the player saw, even if the calculation code changes
-  later. That makes disputes and audits trivial.
-* Per-portfolio rows are not needed (280 × 15 fields × submissions).
+* The inputs (selections with copied offer values) and the config version are the
+  source of truth.
+* Plus the eight states with market and model probabilities (`states_json`),
+  about 1 KB, so the receipt shows exactly what was seen.
+* The Phase 5C "all 280 points" JSON is **dropped**: there are no groupings.
 
 ### 4.4 Research vs submission snapshots
 
@@ -365,7 +371,9 @@ draft ──publish──▶ open ──(deadline passes)──▶ locked ──
    (unchanged) plus `implied.normalise` for the market probability.
 4. Sets `deadline_at` = earliest `kickoff_at_publish` among the round's
    **eligible** fixtures, minus 15 minutes (configurable).
-5. Refuses to publish with fewer than 9 eligible fixtures, and prints why.
+5. Runs the opening checks (§5.4). If any fails, the round is **postponed**
+   (status `cancelled`, reason `infeasible`), it is not counted in any
+   championship, and the CLI prints why.
 6. Writes everything in one transaction.
 
 **Lock:**
@@ -380,7 +388,7 @@ draft ──publish──▶ open ──(deadline passes)──▶ locked ──
 |---|---|---|
 | Rule | All entries lock before the earliest kickoff | Each selection locks at its own kickoff |
 | Information fairness | Everyone decides with the same information and the same frozen prices | Later submitters see earlier results and team news against **stale frozen prices**: unfair |
-| Fit with portfolios | The grouping of nine is decided once | A partially locked portfolio cannot be regrouped coherently: the 280 arrangements depend on all nine picks |
+| Fit with portfolios | The portfolio of nine is decided once | A partially locked portfolio mixes known and unknown legs; buckets and the nine-fold depend on all nine picks |
 | Implementation | One timestamp check | Per-selection locks, partial edits, more states and tests |
 | User clarity | "Submit by Fri 20:45" | Several moving deadlines |
 
@@ -401,20 +409,45 @@ Monday games. Mitigations:
 * **Kickoff moves after `settle_cutoff_at`, or the match is not played by then:**
   void.
 
+### 5.4 Opening checks (feasibility)
+
+A round opens only if **all three** hold on the frozen round sheet:
+
+1. at least **15 eligible fixtures** (a fixture is eligible if at least one of its
+   outcomes is eligible and falls in band A, B or C);
+2. those fixtures span at least **3 leagues**;
+3. a **strict 4/3/2 portfolio exists** on nine distinct fixtures.
+
+Check 3 is exact. Counting outcomes per bucket is not enough, because one fixture
+can hold outcomes in several bands but supply only one pick. The check is a
+bipartite matching (max-flow): source → bucket slot (4 A, 3 B, 2 C) → fixture
+(edge if the fixture has an eligible outcome in that band) → sink (capacity 1).
+A portfolio exists iff all nine slots are matched. Augmenting paths on ≤ 9 slots
+× ~100 fixtures cost well under a millisecond. Reference implementation and
+tests: `diski9.research.championship.strict_portfolio_exists`, cross-checked
+against an exact count (`risk_structure.count_portfolios`).
+
+Thresholds 15 and 3 are **proposed operational values** (decision register
+T-03), not empirically tuned; checks 1–2 protect variety, check 3 protects
+completeness. The builder also warns live when the remaining unused fixtures can
+no longer fill an incomplete bucket (same matching, restricted to unused
+fixtures).
+
 ## 6. Submission service
 
-`ChallengeService.submit(user, round_id, selections, partition_id, idempotency_key, expected_version)`
+`ChallengeService.submit(user, round_id, selections, idempotency_key, expected_version)`
 runs in one transaction (SQLite `BEGIN IMMEDIATE`; PostgreSQL row lock on the
 entry).
 
 **Validation** (any failure aborts with a user-facing message):
 1. The round is `open` and server `now < deadline_at`.
 2. Exactly 9 selections, 9 distinct fixtures, one outcome each. Every
-   `(fixture, market, outcome)` is an eligible offer on this round's sheet.
+   `(fixture, market, outcome)` is an eligible offer on this round's sheet, and
+   the bucket counts are exactly 4 A, 3 B, 2 C using the offers' stored buckets.
 3. No selected fixture has started, or moved before the deadline, by now.
 4. The portfolio is recalculated server-side from the round sheet (never from
    client values).
-5. `partition_id` is in the recalculated efficient set.
+5. Incomplete portfolios are rejected (there is no partial entry).
 6. `idempotency_key`:
    * unused → continue;
    * already used by this user → return the existing submission (duplicate
@@ -470,8 +503,8 @@ are historical and are never recomputed.
 |---|---|
 | Any leg lost | 0 |
 | Otherwise | stake × effective odds, computed exactly, then rounded half-up to 0.01 |
-| All three legs of a bucket void | 30 (the stake back) |
-| All nine void | 30 + 30 + 30 + 10 = 100 (net 0) |
+| All legs of a bucket void | that bucket's stake back (40, 30 or 20) |
+| All nine void | 40 + 30 + 20 + 10 = 100 (net 0, and a recovery: gross ≥ 100) |
 
 **Settlement:**
 * gross = the sum of the four accumulator payouts;
@@ -524,26 +557,15 @@ are historical and are never recomputed.
 ## 8. Leaderboards
 
 * **Weekly:**
-  * computed from the latest `challenge_entry_settlements` per entry, for
-    entrants only;
-  * rank by net, descending;
-  * ties share a rank (1, 2, 2, 4), and tied rows are listed by display name;
+  * computed from the latest `challenge_entry_settlements` per entry, entrants
+    only;
+  * ranked by gross (equivalently net), descending;
+  * ties share the best occupied position, shown "=2";
+  * points per the approved rule (§12), shown beside gross and net;
   * status badge: provisional or final.
-* **Season** (recommended rule, D-09):
-  * average net per entered round;
-  * a player qualifies once they have entered at least 50% of the season's
-    completed rounds and at least 3 rounds;
-  * columns: rank, name, rounds entered, total net, average net;
-  * non-qualifiers are listed below, unranked;
-  * ties share a rank.
-* **Why not plain cumulative net with skipped rounds scored 0:**
-  * at market prices the expected net is negative (about −18 credits per round in
-    Phase 5B's market-implied runs);
-  * so not playing would beat most players.
-  * The alternative "a missed round counts as −100" also fixes the incentive, but
-    penalises late joiners. Both are in D-09.
-* **Implementation:** SQL aggregation over final, plus provisional, settlements,
-  cached for 5 minutes. A materialised table is optional later.
+* **Championship:** §12.
+* **Implementation:** SQL aggregation over current settlements and round scores,
+  cached for 5 minutes.
 
 ## 9. Security and concurrency
 
@@ -579,7 +601,9 @@ are historical and are never recomputed.
 |---|---|---|
 | Round-sheet publish | CLI or scheduled job | about 60–160 fixtures × 3 consensus queries; seconds; weekly |
 | Picker data | Web, cached per round | one query, then memory |
-| 280 evaluations + Pareto + recommendation | Web request, pure Python, LRU cache | a few ms; no API calls |
+| Portfolio evaluation (8 states, market + model) | Web request, pure Python | microseconds; no API calls |
+| Opening checks (matching) | Publish job | < 1 ms |
+| Round scoring + championship aggregation | Settlement job | O(entries log entries) |
 | Submit | Web, one transaction | about 15 inserts |
 | Settlement | Scheduled CLI | O(entries × 4 legs); thousands of entries in seconds |
 | Leaderboards | Web, SQL aggregate, 5-minute cache | indexed by round_id and user_id |
@@ -600,6 +624,55 @@ are historical and are never recomputed.
   * publish, weekly (for example Thursday 06:00 UTC);
   * settle, hourly from the round window start until finalisation.
 * **Health checks:**
-  * a round with fewer than 9 eligible fixtures;
+  * a round that fails the opening checks (§5.4);
   * pending selections beyond the cutoff;
   * odds freshness at publish time.
+
+## 12. Weekly points and championships
+
+Rules version `points-150-50-v1` (approved by the owner in Phase 6A.2; tie rules
+proposed, D-26/D-27).
+
+### 12.1 Weekly points
+
+* Positions by gross among all entrants of the round.
+* Gross ≥ 100.00 (inclusive, exact decimal): position 1–10 earns
+  150/135/120/110/100/95/90/85/80/75; position 11+ earns 50.
+* Gross < 100.00: 0, whatever the position. Non-entrants: 0.
+* Every recovering entrant ranks above every non-recovering one, so a tie group
+  is either wholly recovering or wholly not.
+* **Ties (proposed D-26):** a tie group occupying positions p..q shares the mean
+  of those positions' values, where positions beyond 10 are valued at 50. Example:
+  four players tied for 9th–12th get (80 + 75 + 50 + 50) / 4 = 63.75 each. Stored
+  as an exact fraction (`points_num/points_den`); displayed to 2 decimals.
+* `qualifying_top10` is true when the entrant recovered and the group's best
+  occupied position is ≤ 10.
+
+### 12.2 Championships
+
+* A championship is exactly **10 completed rounds**. A postponed (infeasible) or
+  cancelled round does not count and does not advance the counter.
+* The next championship starts with the next completed round; nothing carries
+  forward.
+* Anyone may join at any time; every round counts; missed rounds score 0.
+* **Standings (proposed D-27):** total points (exact fractions) → total
+  recoveries → total qualifying top-ten finishes → joint position.
+* Display: rank, name, rounds entered, recoveries, points (2 decimals).
+
+### 12.3 Re-scoring on corrections
+
+* A settlement correction (new `challenge_entry_settlements` row) triggers
+  re-scoring of **the whole round** (positions depend on everyone), inserting new
+  `challenge_round_scores` rows only where values changed.
+* Championship standings are recomputed by aggregation, so no cascade logic is
+  needed. After a championship is frozen, a correction needs the audited
+  `--reopen` path, which re-freezes the snapshot.
+* Rounding: none. Fractions are exact; ordering compares fractions.
+
+### 12.4 Minimum participants
+
+* Proposed (T-04): a round still **settles** with any number of entrants, but it
+  counts toward a championship only with **at least 5 entrants**. Below that the
+  weekly table is shown as "practice round" and the round is not counted, so a
+  championship is not decided by a two-player week. See the research report §6
+  for the evidence and alternatives.
