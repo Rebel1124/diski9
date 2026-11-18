@@ -19,29 +19,19 @@ from diski9.challenge.structured import (
 
 from . import charts
 from . import components as c
+from . import state as st
 from .service import ChallengeService, key_str
 
 CFG = DEFAULT_CONFIG
-STAGES = (("build", "Build portfolio"), ("review", "Review & Submit"))
-DEFAULT_STATE = {
-    "mode": None,
-    "fp": None,
-    "selections": [],
-    "stage": "build",
-    "submitted": None,
-    "meta": {},
-    "notes": [],
-    "modal": None,
-}
+# participant state lives in .state (one documented source of truth)
+STAGES = st.STAGES
+DEFAULT_STATE = st.DEFAULT_STATE
+normal_state = st.normal_state
 
 
-def normal_state(state: dict | None) -> dict:
-    s = dict(DEFAULT_STATE)
-    s.update(state or {})
-    s["selections"] = list(s.get("selections") or [])
-    if s.get("stage") not in {k for k, _ in STAGES}:
-        s["stage"] = "build"  # Phase 6B "overview"/"analyse" steps no longer exist
-    return s
+def sync(service: ChallengeService, state: dict | None) -> dict:
+    """The stored state reconciled with the current snapshot (see ``state.reconcile``)."""
+    return st.reconcile(service, state)
 
 
 def effective_mode(service: ChallengeService, state: dict) -> str | None:
@@ -53,6 +43,7 @@ def effective_mode(service: ChallengeService, state: dict) -> str | None:
 
 def current(service: ChallengeService, state: dict):
     """(mode, snapshot, availability, selections valid for this snapshot)."""
+    state = sync(service, state)
     mode = effective_mode(service, state)
     snap = service.snapshot(mode) if mode else None
     avail = service.availability(mode or "live")
@@ -66,7 +57,7 @@ def locked(avail) -> bool:
 
 # ------------------------------------------------------------------ shell
 def challenge_shell(service, state, explore, local, personal=None) -> html.Div:
-    state = normal_state(state)
+    state = sync(service, state)
     return html.Div(
         [
             html.Div(
@@ -87,7 +78,7 @@ def challenge_shell(service, state, explore, local, personal=None) -> html.Div:
 
 
 def stepper(service, state) -> html.Nav:
-    state = normal_state(state)
+    state = sync(service, state)
     mode, snap, avail, sels = current(service, state)
     complete = snap is not None and service.evaluate(snap, sels) is not None
     reach = {"build": avail.playable and snap is not None, "review": complete}
@@ -108,7 +99,7 @@ def stepper(service, state) -> html.Nav:
 
 
 def stage_signature(service, state) -> list:
-    state = normal_state(state)
+    state = sync(service, state)
     mode, snap, _, _ = current(service, state)
     sub = (state.get("submitted") or {}).get("at")
     return [
@@ -122,7 +113,7 @@ def stage_signature(service, state) -> list:
 
 
 def stage_body(service, state, explore, local, personal=None):
-    state = normal_state(state)
+    state = sync(service, state)
     mode, snap, avail, sels = current(service, state)
     complete = snap is not None and service.evaluate(snap, sels) is not None
     if snap is None or not avail.playable:
@@ -932,8 +923,8 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
                     ]
                 )
             )
-    sub = state.get("submitted")
-    same = bool(sub) and sub.get("fp") == snap.fingerprint and sub.get("selections") == sels
+    sub = st.submission_for(state, snap)
+    same = st.same_portfolio(sub, sels)
     other = bool(sub) and not same
     can_submit = avail.playable and not locked(avail)
     label = (
@@ -1067,13 +1058,19 @@ def confirmation_modal(state, local) -> html.Div:
 # ------------------------------------------------------------- my challenge
 def round_state(state, snap, avail, sels) -> tuple[str, str, str]:
     """(label, css class, one-line explanation) for the participant's round status."""
-    sub = state.get("submitted")
+    sub = st.submission_for(state, snap)
     if snap is None or not avail.playable:
         return "Unavailable", "off", avail.message
     if locked(avail):
         return "Locked", "warn", "The deadline has passed; predictions can no longer change."
-    if sub and sub.get("fp") == snap.fingerprint and sub.get("selections") == sels:
+    if sub and st.same_portfolio(sub, sels):
         return "Confirmed", "ok", "Your portfolio is confirmed for this round."
+    if sub:
+        return (
+            "Confirmed",
+            "ok",
+            "Your portfolio is confirmed. Your working draft differs and has not been submitted.",
+        )
     if sels:
         return "Draft in progress", "demo", f"{len(sels)} of 9 predictions chosen."
     return "Not started", "off", "Build a portfolio of nine predictions."
@@ -1173,7 +1170,7 @@ def timeline(items) -> html.Div:
 
 
 def my_challenge(service, state, local) -> html.Div:
-    state = normal_state(state)
+    state = sync(service, state)
     mode, snap, avail, sels = current(service, state)
     label, cls, line = round_state(state, snap, avail, sels)
     status = html.Div(

@@ -299,7 +299,7 @@ def test_snapshot_change_revalidates_draft_and_keeps_submission(svc, snap):
     s["meta"][changed]["odds"] = "9.99"
     s["selections"] = [*s["selections"], "123|1X2|HOME"]
     s["meta"]["123|1X2|HOME"] = {"odds": "2.00", "p": "0.5", "label": "Gone v Away: Home win"}
-    s2, flash = cb.apply_action(svc, s, "pick", keys[2])
+    s2, flash = cb.apply_action(svc, s, "close_modal")
     assert s2["fp"] == snap.fingerprint and "need your review" in flash["text"]
     assert changed not in s2["selections"] and "123|1X2|HOME" not in s2["selections"]
     assert vanished in s2["selections"] and len(s2["selections"]) == 8
@@ -307,9 +307,13 @@ def test_snapshot_change_revalidates_draft_and_keeps_submission(svc, snap):
     assert any("changed" in r for r in reasons.values())
     assert reasons["Gone v Away: Home win"] == "no longer on the round sheet"
     assert s2["submitted"] == confirmed  # the confirmed record is never touched
-    # rendering never shows selections from another snapshot either
+    # Phase 6B.2: rendering reconciles exactly as actions do, so a page never shows an
+    # empty draft that the next click would then resurrect (the restart bug)
     stale = {"mode": "demo", "fp": "old", "selections": keys, "stage": "build"}
-    assert pages.current(svc, pages.normal_state(stale))[3] == []
+    assert (
+        pages.current(svc, stale)[3] == cb.apply_action(svc, stale, "close_modal")[0]["selections"]
+    )
+    assert pages.current(svc, stale)[3] == keys  # unchanged odds: all nine kept
     s3, _ = cb.apply_action(svc, s2, "dismiss_notes")
     assert s3["notes"] == []
 
@@ -331,8 +335,11 @@ def test_confirmed_submission_is_frozen_and_survives_mode_changes(svc, snap):
     assert set(sub["estimates"]) == {"market", "model", "personal"}
     s, _ = cb.apply_action(svc, s, "close_modal")
     assert s["modal"] is None
-    s, _ = cb.apply_action(svc, s, "mode", "live")  # leaving the demo keeps the record
-    assert s["submitted"] == sub and s["selections"] == []
+    s, _ = cb.apply_action(svc, s, "mode", "live")  # leaving the demo parks the record
+    assert s["submitted"] is None and s["selections"] == []
+    assert s["parked"]["demo"]["submitted"] == sub  # isolated, never shown in live mode
+    s, _ = cb.apply_action(svc, s, "mode", "demo")  # and it comes back unchanged
+    assert s["submitted"] == sub and s["selections"] == keys
 
 
 def test_resubmission_is_explicit_and_failed_replacement_keeps_old(svc, snap):

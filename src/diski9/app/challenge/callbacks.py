@@ -19,6 +19,7 @@ from diski9.challenge.structured import SelectionBlock, selection_blocks, valida
 
 from . import charts, integration, pages
 from . import components as c
+from . import state as st
 from .service import ChallengeService, key_str, parse_key
 
 NAV = (
@@ -59,76 +60,35 @@ def _meta(o) -> dict:
     return {"odds": str(o.reference_odds), "p": repr(o.market_probability)}
 
 
-def migrate_draft(service, s, snap) -> tuple[list[str], list[dict]]:
-    """Revalidate a draft against a different snapshot. Selections whose outcome, odds
-    and market chance are unchanged and still fit are kept; every other selection is
-    taken out of the draft and listed for the participant to review. Nothing is ever
-    moved to different odds or probabilities silently."""
-    kept, notes, meta = [], [], s.get("meta") or {}
-    for k in s["selections"]:
-        o = snap.outcome(parse_key(k))
-        m = meta.get(k)
-        label = (m or {}).get("label", k)
-        if o is None:
-            notes.append({"label": label, "reason": "no longer on the round sheet"})
-            continue
-        if m and (
-            m.get("odds") != str(o.reference_odds) or m.get("p") != repr(o.market_probability)
-        ):
-            notes.append(
-                {
-                    "label": label,
-                    "reason": f"odds or market chance changed (odds "
-                    f"{m.get('odds')} → {o.reference_odds})",
-                }
-            )
-            continue
-        blocks = selection_blocks(
-            service.outcomes_for(snap, kept), snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG
-        )
-        if blocks.get(o.key) is not None:
-            notes.append({"label": label, "reason": "no longer eligible or no longer fits"})
-            continue
-        kept.append(k)
-    return kept, notes
+migrate_draft = st.migrate_draft  # kept importable from here (Phase 6B.1 tests)
 
 
 def apply_action(
     service: ChallengeService, state: dict | None, action: str, arg=None, personal=None
 ):
     """Pure state transition: (new state, flash or None). Every rule check is an
-    engine call; this function only decides what the UI does with the answer."""
-    s = pages.normal_state(state)
+    engine call; this function only decides what the UI does with the answer.
+
+    The stored state is reconciled first, exactly as every page render does, and the
+    action is then applied to the reconciled state (a click is never swallowed by a
+    snapshot change). Predictions taken out by the revalidation are reported."""
+    before = len(pages.normal_state(state)["notes"])
+    s, flash = _apply(service, state, action, arg, personal)
+    review = len(s.get("notes") or []) - before
+    if flash is None and review > 0:
+        flash = _flash(
+            f"The round snapshot changed. {review} prediction(s) need your review.", "warn"
+        )
+    return s, flash
+
+
+def _apply(service, state, action, arg, personal):
+    s = st.reconcile(service, state)  # the same reconciliation every page render uses
     mode = pages.effective_mode(service, s)
     snap = service.snapshot(mode) if mode else None
-    if snap is not None and s.get("fp") != snap.fingerprint:
-        if s["selections"]:
-            kept, notes = migrate_draft(service, s, snap)
-            s.update(
-                selections=kept,
-                notes=notes,
-                fp=snap.fingerprint,
-                mode=mode,
-                meta={k: v for k, v in (s.get("meta") or {}).items() if k in kept},
-            )
-            # a confirmed submission is a frozen record: it is never changed or deleted here
-            return s, _flash(
-                f"The round snapshot changed. {len(kept)} prediction(s) kept; "
-                f"{len(notes)} need your review."
-                if notes
-                else "The round snapshot changed; your predictions were checked and kept.",
-                "warn",
-            )
-        s.update(fp=snap.fingerprint, mode=mode)
     avail = service.availability(mode or "live")
-
     if action == "mode":
-        new = service.snapshot(arg)
-        keep = {"submitted": s.get("submitted")}  # never drop a confirmed submission
-        s = pages.normal_state(
-            {"mode": arg if arg == "demo" else None, "fp": new.fingerprint if new else None, **keep}
-        )
-        return s, None
+        return st.switch_mode(service, s, arg), None
     if action == "close_modal":
         s["modal"] = None
         return s, None
@@ -292,12 +252,22 @@ def submit(service, s, snap, avail, personal=None):
     )
 
 
+def store_sync(service, state):
+    """The reconciled state to write back, or ``no_update``. An empty store is never
+    written: a value not yet hydrated from sessionStorage must not overwrite one that
+    has been."""
+    if not state:
+        return no_update
+    new = st.reconcile(service, state)
+    return no_update if new == state else new
+
+
 # ------------------------------------------------------------- registration
 def register(app, data, service: ChallengeService) -> None:
     local = data.local
 
     def your_view(state, lab_store):
-        _, snap, _, _ = pages.current(service, pages.normal_state(state))
+        _, snap, _, _ = pages.current(service, state)
         return integration.personal_probabilities(data, snap, lab_store)
 
     @app.callback(
@@ -338,6 +308,19 @@ def register(app, data, service: ChallengeService) -> None:
             nav_links(path),
             None,
         )
+
+    @app.callback(
+        Output("ch-session", "data", allow_duplicate=True),
+        Input("ch-session", "data"),
+        Input("url", "pathname"),
+        prevent_initial_call="initial_duplicate",
+    )
+    def sync_store(state, _path):
+        """Write the reconciled state back to the store as soon as the page loads
+        (and whenever the snapshot moved on), so what is stored is exactly what every
+        page shows. An empty store is never written: a value that has not been
+        hydrated from sessionStorage yet must not overwrite one that has."""
+        return store_sync(service, state)
 
     @app.callback(
         Output("ch-session", "data"),
@@ -430,7 +413,7 @@ def register(app, data, service: ChallengeService) -> None:
         first = lambda v: v[0] if v else None  # noqa: E731
         if ctx.triggered_id == "ch-session" and not first(avail_f):
             return [no_update] * len(ids), [no_update] * len(ids)
-        state = pages.normal_state(state)
+        state = pages.sync(service, state)
         mode, snap, avail, sels = pages.current(service, state)
         if snap is None:
             return [no_update] * len(ids), [no_update] * len(ids)
@@ -461,7 +444,7 @@ def register(app, data, service: ChallengeService) -> None:
         outcome buttons, from the same engine call and component as a full render."""
         if not ids:
             return [], [], []
-        state = pages.normal_state(state)
+        state = pages.sync(service, state)
         _, snap, avail, sels = pages.current(service, state)
         if snap is None:
             n = len(ids)
@@ -486,7 +469,7 @@ def register(app, data, service: ChallengeService) -> None:
     def refresh_tracker(state, prefs, lab_store, ids):
         if not ids:
             return []
-        state = pages.normal_state(state)
+        state = pages.sync(service, state)
         mode, snap, avail, sels = pages.current(service, state)
         if snap is None:
             return [no_update] * len(ids)
@@ -547,7 +530,7 @@ def register(app, data, service: ChallengeService) -> None:
         n = len(ids)
         if (prefs or {}).get("view", "matches") != "analysis":
             return [None] * n, [{"display": "none"}] * n, [{}] * n
-        state = pages.normal_state(state)
+        state = pages.sync(service, state)
         _, snap, _, sels = pages.current(service, state)
         if snap is None:
             return [no_update] * n, [{}] * n, [{"display": "none"}] * n
@@ -566,7 +549,7 @@ def register(app, data, service: ChallengeService) -> None:
     def show_k(k, state, prefs, lab_store):
         if not k or k[0] is None:
             return [], []
-        state = pages.normal_state(state)
+        state = pages.sync(service, state)
         _, snap, _, sels = pages.current(service, state)
         port = service.portfolio(snap, sels) if snap is not None else None
         if port is None:

@@ -66,7 +66,7 @@ def challenge_cells(service, state, market: str) -> dict | None:
     per fixture, the frozen odds of the chosen market and portfolio markers."""
     from . import pages
 
-    state = pages.normal_state(state)
+    state = pages.sync(service, state)
     mode, snap, avail, sels = pages.current(service, state)
     if snap is None or not avail.playable:
         return {"ids": set(), "cells": {}, "message": avail.message, "snapshot": None}
@@ -96,7 +96,7 @@ def challenge_cells(service, state, market: str) -> dict | None:
 def progress_strip(service, state) -> html.Div | None:
     from . import pages
 
-    state = pages.normal_state(state)
+    state = pages.sync(service, state)
     mode, snap, avail, sels = pages.current(service, state)
     if snap is None or not avail.playable:
         return None
@@ -129,7 +129,7 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
 
     if fixture_id is None:
         return None
-    state = pages.normal_state(state)
+    state = pages.sync(service, state)
     mode, snap, avail, sels = pages.current(service, state)
     if snap is None or not avail.playable:
         return html.Div(
