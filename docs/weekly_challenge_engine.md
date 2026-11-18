@@ -348,6 +348,32 @@ uv run python scripts/benchmark_challenge_engine.py
 | Weekly scoring, 25 / 100 / 500 / 1,000 entrants | 0.09 / 0.35 / 1.8 / 3.8 ms |
 | Ten-round championship, 25 / 100 / 500 / 1,000 entrants | 1.2 / 4.5 / 24 / 49 ms |
 
+## 13a. Portfolio analytics (Phase 6B.1): `diski9.challenge.analysis`
+
+| Function | Purpose |
+|---|---|
+| `probability_for(source, personal)` | `market`, `model` (Goal Model 1.0) or `personal` (the participant's view; unadjusted outcomes fall back to the model) |
+| `bucket_stats(selections, probability)` | Per bucket and The Diski 9: selected / required, combined probability, combined odds and D-15 payout **of the selections so far** |
+| `evaluate_with(portfolio, probability)` / `evaluate_sources(portfolio, personal)` | Exact eight-state evaluation for any source; payouts identical for all sources |
+| `correct_count_analysis(portfolio, probability)` | All 512 success/failure combinations. Per k = 0–9: combinations C(9, k), P(exactly k), conditional expected gross (None when P = 0), min and max gross, conditional recovery, and unconditional contribution; plus expected and most likely number correct |
+| `state_label(wins)` | Plain words for an eight-state outcome |
+
+**Reconciliation** (tested on 1 synthetic and 12 real-pool portfolios × 3 sources,
+plus property tests). The 512-state values agree with the eight-state engine
+within 1e-12 for:
+* probability totals;
+* expected gross;
+* recovery and zero-payout probability;
+* the aggregated payout distribution;
+* the all-nine probability.
+
+Also tested:
+* expected correct = Σ p;
+* the Poisson-binomial counts match an exact-rational reference;
+* every state's gross equals the sum of D-15-rounded accumulator payouts.
+
+**`structured.p_partial`** = P(0 < gross < 100). Recovery, partial and zero sum to 1.
+
 ## 14. Limitations
 
 * Independence across fixtures is an assumption.

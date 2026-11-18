@@ -492,6 +492,28 @@ def fixture_list(
     return [*cards, pager], text
 
 
+def outcome_states(service, snap, sels, keys, is_locked: bool, personal=None) -> list:
+    """(className, disabled, title) for the given outcome keys with the current
+    selections (used to update visible buttons in place)."""
+    chosen = service.outcomes_for(snap, sels)
+    blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, CFG)
+    personal = personal or {}
+    out = []
+    for key in keys:
+        o = snap.outcome(key)
+        a = assess_outcome(o, snap.snapshot_at, CFG)
+        out.append(
+            c.outcome_state(
+                o,
+                a.bucket if a.eligible else None,
+                blocks.get(o.key),
+                is_locked,
+                personal.get(o.key),
+            )
+        )
+    return out
+
+
 def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None) -> html.Div:
     source = (prefs or {}).get("source", "market")
     prob = pa.probability_for(source, personal)

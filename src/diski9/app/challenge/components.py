@@ -272,26 +272,28 @@ def pct_in_band(p: float, bucket: str | None) -> str:
     return f"{p * 100:.6f}%"
 
 
-def outcome_button(o, bucket, block, locked: bool, personal=None) -> html.Button:
-    """One outcome: name, market and Diski 9 chances, frozen odds, bucket label and
-    selection state; disabled outcomes say why (text and an icon, not only colour)."""
-    k = key_str(o.key)
+STATE_CLASS = {
+    None: "st-open",
+    SelectionBlock.SELECTED: "st-selected",
+    SelectionBlock.INELIGIBLE: "st-ineligible",
+    SelectionBlock.FIXTURE_TAKEN: "st-fixture_taken",
+    SelectionBlock.BUCKET_FULL: "st-bucket_full",
+    SelectionBlock.WOULD_BLOCK_COMPLETION: "st-would_block_completion",
+}
+
+
+def outcome_state(o, bucket, block, locked: bool, personal=None) -> tuple[str, bool, str]:
+    """(className, disabled, title) for an outcome button. Every possible tag is
+    rendered once and CSS shows the one matching the state class, so selection
+    changes update only these three properties (fast in the browser)."""
+    if bucket is None and block is None:
+        block = SelectionBlock.INELIGIBLE
     selected = block is SelectionBlock.SELECTED
     disabled = locked or (block is not None and not selected)
-    cls = "ch-out" + (f" b-{BUCKET_CLASS[bucket]}" if bucket else " b-none")
+    cls = "ch-out " + (f"b-{BUCKET_CLASS[bucket]}" if bucket else "b-none")
+    cls += " " + STATE_CLASS.get(block, "st-open")
     cls += " is-selected" if selected else ""
     cls += " is-blocked" if disabled else ""
-    if selected:
-        tag = html.Span(
-            ["✓ ", BUCKET_NAME[bucket]], className=f"ch-tag b-{BUCKET_CLASS[bucket]} on"
-        )
-    elif block is SelectionBlock.INELIGIBLE or bucket is None:
-        tag = html.Span("⊘ Not eligible", className="ch-tag off")
-    elif block in BLOCK_TEXT:
-        tag = html.Span("⊘ " + BLOCK_SHORT[block], className="ch-tag off")
-    else:
-        tag = html.Span(BUCKET_NAME[bucket], className=f"ch-tag b-{BUCKET_CLASS[bucket]}")
-    model = pct_in_band(o.model_probability, None) if o.model_probability is not None else "—"
     title = BLOCK_HELP.get(block) or (
         "Outside the 20%–95% market range, or the odds don't qualify"
         if block is SelectionBlock.INELIGIBLE
@@ -302,6 +304,24 @@ def outcome_button(o, bucket, block, locked: bool, personal=None) -> html.Button
     title = f"{outcome_text(o)}: {title}"
     if personal is not None:
         title += f" · Your View {pct(personal, 1)}"
+    return cls, disabled, title
+
+
+def outcome_button(o, bucket, block, locked: bool, personal=None) -> html.Button:
+    """One outcome: name, market and Diski 9 chances, frozen odds, bucket label and
+    selection state; disabled outcomes say why (text and an icon, not only colour)."""
+    cls, disabled, title = outcome_state(o, bucket, block, locked, personal)
+    bc = BUCKET_CLASS[bucket] if bucket else None
+    name = BUCKET_NAME[bucket] if bucket else ""
+    tags = [
+        html.Span(name, className=f"ch-tag t-open b-{bc}") if bc else None,
+        html.Span(["✓ ", name], className=f"ch-tag t-selected on b-{bc}") if bc else None,
+        html.Span("⊘ Not eligible", className="ch-tag off t-ineligible"),
+        html.Span("⊘ Match used", className="ch-tag off t-fixture_taken"),
+        html.Span("⊘ Bucket full", className="ch-tag off t-bucket_full"),
+        html.Span("⊘ Can't complete", className="ch-tag off t-would_block_completion"),
+    ]
+    model = pct_in_band(o.model_probability, None) if o.model_probability is not None else "—"
     return html.Button(
         [
             html.Span(
@@ -320,14 +340,13 @@ def outcome_button(o, bucket, block, locked: bool, personal=None) -> html.Button
                 ],
                 className="ch-out-nums",
             ),
-            tag,
+            html.Span([tg for tg in tags if tg is not None], className="ch-tags"),
         ],
-        id={"t": "pick", "k": k},
+        id={"t": "pick", "k": key_str(o.key)},
         n_clicks=0,
         disabled=disabled,
         className=cls,
         title=title,
-        **{"aria-pressed": "true" if selected else "false"},
     )
 
 

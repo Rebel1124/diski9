@@ -1,4 +1,22 @@
-# Diski 9 Weekly Challenge — UX Specification (revised, Phase 6A.2; prototype Phase 6B)
+# Diski 9 Weekly Challenge — UX Specification (revised, Phase 6A.2; prototype Phase 6B.1)
+
+> **Phase 6B.1 refinement (supersedes the Phase 6B notes below where they differ).**
+> The full description is in `docs/weekly_challenge_ui.md`.
+> * Two steps: Build portfolio → Review & Submit. How to play is an expandable
+>   panel.
+> * Analysis lives inside the builder (a Choose matches / Portfolio analysis
+>   switch). It has three sections: a recovery doughnut, eight-state payout bars,
+>   and correct-prediction counts from all 512 combinations.
+> * The tracker shows combined chance and payout so far per bucket, with a
+>   Market / Diski 9 / Your View selector.
+> * Explore Your Bucket Risk and the survival chart are removed from the UI.
+> * The Screener has a Weekly Challenge view, a progress strip and a Match Lab
+>   panel (add, remove, replace with confirmation) sharing one portfolio.
+> * Your View comes from Match Lab adjustments.
+> * Confirmed submissions are frozen records. Drafts are revalidated, not
+>   cleared, when a snapshot changes.
+> * The confirmation modal reads "You're in!".
+> * My Challenge has a timeline; the leaderboards have a tie-aware podium.
 
 > **Phase 6B prototype.** The implemented prototype follows this specification with
 > these differences (details in `docs/weekly_challenge_ui.md`):

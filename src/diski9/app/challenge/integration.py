@@ -109,13 +109,18 @@ def progress_strip(service, state) -> html.Div | None:
     return html.Div(
         [
             html.Span("Weekly Challenge" + (" (demo)" if snap.is_demo else ""), className="strong"),
-            *[html.Span(f"{b.name[0]} {counts[b.code]}/{b.selections}",
-                        className=f"mini-{c.BUCKET_CLASS[b.code]}") for b in CFG.buckets],
+            *[
+                html.Span(
+                    f"{b.name[0]} {counts[b.code]}/{b.selections}",
+                    className=f"mini-{c.BUCKET_CLASS[b.code]}",
+                )
+                for b in CFG.buckets
+            ],
             html.Strong(f"{len(chosen)}/9"),
             dcc.Link("Open builder →", href="/challenge", className="ch-lab-link"),
         ],
         className="ch-strip",
-    )  # fmt: skip
+    )
 
 
 # ------------------------------------------------------------- Match Lab panel
@@ -128,21 +133,35 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
     mode, snap, avail, sels = pages.current(service, state)
     if snap is None or not avail.playable:
         return html.Div(
-            [html.Strong("Weekly Challenge: "), avail.message,
-             " Open the Weekly Challenge to try the demonstration round."],
+            [
+                html.Strong("Weekly Challenge: "),
+                avail.message,
+                " Open the Weekly Challenge to try the demonstration round.",
+            ],
             className="ch-labpanel muted small",
-        )  # fmt: skip
+        )
     outs = [o for o in snap.outcomes if o.fixture_id == fixture_id]
     if not outs:
         return html.Div(
-            [html.Strong("Weekly Challenge: "), "this match isn't in this week's Challenge pool, "
-             "so it can be analysed but not selected."],
+            [
+                html.Strong("Weekly Challenge: "),
+                "this match isn't in this week's Challenge pool, "
+                "so it can be analysed but not selected.",
+            ],
             className="ch-labpanel muted small",
-        )  # fmt: skip
+        )
     personal = personal_probabilities(data, snap, lab_store)
     chosen = service.outcomes_for(snap, sels)
     blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, CFG)
     taken = next((o for o in chosen if o.fixture_id == fixture_id), None)
+    # what would be possible if the current pick on this match were swapped out
+    swap_blocks = (
+        selection_blocks(
+            [o for o in chosen if o is not taken], snap.outcomes, snap.snapshot_at, CFG
+        )
+        if taken is not None
+        else {}
+    )
     adjusted = fixture_id in adjusted_fixture_ids(personal)
     locked = pages.locked(avail)
     rows = []
@@ -159,7 +178,12 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
                 className="ch-btn small on",
                 disabled=locked,
             )
-        elif block is SelectionBlock.FIXTURE_TAKEN and taken is not None and bucket:
+        elif (
+            block is SelectionBlock.FIXTURE_TAKEN
+            and taken is not None
+            and bucket
+            and swap_blocks.get(o.key) is None
+        ):
             action = html.Button(
                 f"Replace {c.outcome_text(taken)}",
                 id={"t": "labreplace", "k": k},
@@ -182,52 +206,92 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
                 title=c.BLOCK_HELP.get(block, ""),
             )
         yv = personal.get(o.key, o.model_probability)
-        rows.append(html.Tr([
-            html.Td(c.MARKET_SHORT[str(o.market)], className="muted"),
-            html.Td(c.OUTCOME_SHORT[str(o.outcome)]),
-            html.Td(html.Span(c.BUCKET_NAME[bucket], className=f"ch-tag b-{c.BUCKET_CLASS[bucket]}")
-                    if bucket else html.Span("Not eligible", className="ch-tag off")),
-            html.Td(c.pct_in_band(o.market_probability, bucket), className="num"),
-            html.Td(c.pct(o.model_probability, 1), className="num"),
-            html.Td(c.pct(yv, 1) + ("" if adjusted else "*"), className="num strong"),
-            html.Td(f"{o.reference_odds:.2f}", className="num"),
-            html.Td(action, className="num"),
-        ]))  # fmt: skip
+        rows.append(
+            html.Tr(
+                [
+                    html.Td(c.MARKET_SHORT[str(o.market)], className="muted"),
+                    html.Td(c.OUTCOME_SHORT[str(o.outcome)]),
+                    html.Td(
+                        html.Span(
+                            c.BUCKET_NAME[bucket], className=f"ch-tag b-{c.BUCKET_CLASS[bucket]}"
+                        )
+                        if bucket
+                        else html.Span("Not eligible", className="ch-tag off")
+                    ),
+                    html.Td(c.pct_in_band(o.market_probability, bucket), className="num"),
+                    html.Td(c.pct(o.model_probability, 1), className="num"),
+                    html.Td(c.pct(yv, 1) + ("" if adjusted else "*"), className="num strong"),
+                    html.Td(f"{o.reference_odds:.2f}", className="num"),
+                    html.Td(action, className="num"),
+                ]
+            )
+        )
     notice = None
     if flash and flash.get("replace"):
         notice = html.Div(
-            [html.Span(flash["text"]),
-             html.Button("Confirm replace", id={"t": "confirmreplace", "k": flash["replace"]},
-                         n_clicks=0, className="ch-btn small primary"),
-             html.Button("Cancel", id={"t": "cancelflash", "i": "lab"}, n_clicks=0,
-                         className="ch-btn small ghost")],
+            [
+                html.Span(flash["text"]),
+                html.Button(
+                    "Confirm replace",
+                    id={"t": "confirmreplace", "k": flash["replace"]},
+                    n_clicks=0,
+                    className="ch-btn small primary",
+                ),
+                html.Button(
+                    "Cancel",
+                    id={"t": "cancelflash", "i": "lab"},
+                    n_clicks=0,
+                    className="ch-btn small ghost",
+                ),
+            ],
             className="ch-flash warn ch-confirm",
-        )  # fmt: skip
+        )
     elif flash and flash.get("text"):
         notice = html.Div(
             flash["text"], className=f"ch-flash {flash.get('kind', 'info')}", role="status"
         )
-    head = html.Tr([html.Th("Market"), html.Th("Outcome"), html.Th("Bucket"),
-                    html.Th("Market", className="num"), html.Th("Diski 9", className="num"),
-                    html.Th("Your View", className="num"), html.Th("Odds", className="num"),
-                    html.Th("")])  # fmt: skip
+    head = html.Tr(
+        [
+            html.Th("Market"),
+            html.Th("Outcome"),
+            html.Th("Bucket"),
+            html.Th("Market", className="num"),
+            html.Th("Diski 9", className="num"),
+            html.Th("Your View", className="num"),
+            html.Th("Odds", className="num"),
+            html.Th(""),
+        ]
+    )
     return html.Div(
         [
-            html.Div([html.Span("Weekly Challenge" + (" · demonstration round" if snap.is_demo
-                                                      else f" · {snap.round_id}"),
-                                className="strong"),
-                      html.Span(f"Portfolio {len(chosen)}/9", className="muted small"),
-                      dcc.Link("Open builder →", href="/challenge", className="ch-lab-link")],
-                     className="ch-row-between"),
+            html.Div(
+                [
+                    html.Span(
+                        "Weekly Challenge"
+                        + (" · demonstration round" if snap.is_demo else f" · {snap.round_id}"),
+                        className="strong",
+                    ),
+                    html.Span(f"Portfolio {len(chosen)}/9", className="muted small"),
+                    dcc.Link("Open builder →", href="/challenge", className="ch-lab-link"),
+                ],
+                className="ch-row-between",
+            ),
             notice,
-            html.Div(html.Table([html.Thead(head), html.Tbody(rows)], className="ch-table lab"),
-                     className="ch-table-wrap"),
-            html.P(("Your View uses your adjusted expected goals from the Match Lab below."
-                    if adjusted else "* No adjustments for this match yet: Your View equals Diski "
-                    "9. Adjust expected goals in the Match Lab below to set your own view.")
-                   + " Buckets and odds always come from the frozen market snapshot.",
-                   className="muted small"),
+            html.Div(
+                html.Table([html.Thead(head), html.Tbody(rows)], className="ch-table lab"),
+                className="ch-table-wrap",
+            ),
+            html.P(
+                (
+                    "Your View uses your adjusted expected goals from the Match Lab below."
+                    if adjusted
+                    else "* No adjustments for this match yet: Your View equals Diski "
+                    "9. Adjust expected goals in the Match Lab below to set your own view."
+                )
+                + " Buckets and odds always come from the frozen market snapshot.",
+                className="muted small",
+            ),
         ],
         className="ch-labpanel",
         id="lab-challenge-panel",
-    )  # fmt: skip
+    )

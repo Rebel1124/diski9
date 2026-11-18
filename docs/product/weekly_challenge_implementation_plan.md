@@ -28,6 +28,23 @@ market/model analysis and payout charts, prototype submission in the browser
 session, demonstration leaderboards. This covers the UI scope of Phase 6D below.
 No accounts, persistence or settlement. See `docs/weekly_challenge_ui.md`.
 
+**Phase 6B.1 (done, `feature/weekly-challenge-ux-refinement`):** the
+playtesting refinement:
+* the compact builder and live tracker;
+* the 512-state analysis;
+* Screener / Match Lab integration with one shared portfolio and Your View;
+* the two-step journey;
+* frozen confirmed submissions, a pinned round snapshot and draft revalidation;
+* My Challenge and Leaderboard visuals.
+
+See `docs/weekly_challenge_ui.md`.
+
+**Phase 6C must still add:**
+* server-side published round records with deadlines;
+* persistent submissions;
+* snapshot republication and correction handling;
+* settlement, including D-32 and D-33.
+
 **Already done:**
 * Phase 6A engine on `feature/weekly-challenge-engine` (`48392c1`): 3/3/3 picks,
   30/30/30/10 credits, the eight states, D-15 rounding, payout distribution. Not

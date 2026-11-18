@@ -746,3 +746,38 @@ def test_my_challenge_states(svc, snap):
     s, _ = cb.apply_action(svc, s, "submit")
     page = jtext(pages.my_challenge(svc, s, _Data().local))
     assert "Confirmed" in page and "Show my nine predictions" in page and "illustrative" in page
+
+
+def _ids(component, kind):
+    out = []
+    cid = getattr(component, "id", None)
+    if isinstance(cid, dict) and cid.get("t") == kind:
+        out.append(cid["k"])
+    kids = getattr(component, "children", None)
+    for k in kids if isinstance(kids, list | tuple) else [kids]:
+        if k is not None and not isinstance(k, str | int | float):
+            out += _ids(k, kind)
+    return out
+
+
+def test_match_lab_offers_replace_only_when_valid(svc, snap):
+    from diski9.app.challenge import integration
+
+    data = _DataWithResults(snap)  # noqa: F811
+    keys = valid_keys(snap)  # order: 2 Challenger, 4 Foundation, 3 Balanced
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    for k in keys[:6]:  # Challenger full (2/2), Foundation full (4/4)
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    checked = 0
+    for k in keys[2:6]:  # matches whose Foundation outcome is selected
+        fid = parse_key(k)[0]
+        offered = _ids(integration.lab_panel(svc, data, s, fid, {}, None), "labreplace")
+        for key in offered:
+            assert CFG.classify(snap.outcome(parse_key(key)).market_probability) not in ("C",)
+            s2, flash = cb.apply_action(svc, s, "replace", key)
+            assert key in s2["selections"] and k not in s2["selections"], flash
+            checked += 1
+        for o in snap.outcomes:  # Challenger is full: never offered as a swap
+            if o.fixture_id == fid and CFG.classify(o.market_probability) == "C":
+                assert key_str(o.key) not in offered
+    assert checked >= 1  # at least one valid swap was offered and accepted

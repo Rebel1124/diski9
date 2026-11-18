@@ -1041,3 +1041,9 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-pod-name { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 960px) { .ch-grid-me { grid-template-columns: minmax(0, 1fr); } .ch-metrics.five { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .ch-timeline { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+/* outcome tags: every variant is rendered once; the state class picks the visible one */
+.ch-tags { display: flex; }
+.ch-tags .ch-tag { display: none; }
+.ch-out.st-open .t-open, .ch-out.st-selected .t-selected, .ch-out.st-ineligible .t-ineligible,
+.ch-out.st-fixture_taken .t-fixture_taken, .ch-out.st-bucket_full .t-bucket_full,
+.ch-out.st-would_block_completion .t-would_block_completion { display: inline-block; }

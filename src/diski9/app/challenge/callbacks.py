@@ -410,7 +410,6 @@ def register(app, data, service: ChallengeService) -> None:
     @app.callback(
         Output({"t": "fixtures", "i": ALL}, "children"),
         Output({"t": "fx-count", "i": ALL}, "children"),
-        Output({"t": "tracker", "i": ALL}, "children"),
         Input("ch-session", "data"),
         Input(c.T("f-league", ALL), "value"),
         Input(c.T("f-date", ALL), "value"),
@@ -419,23 +418,22 @@ def register(app, data, service: ChallengeService) -> None:
         Input(c.T("f-search", ALL), "value"),
         Input(c.T("f-avail", ALL), "value"),
         Input("ch-fxpage", "data"),
-        Input("ch-prefs", "data"),
-        Input("lab-store", "data"),
         State({"t": "fixtures", "i": ALL}, "id"),
     )
-    def refresh_builder(
-        state, league, date, market, bucket, search, avail_f, page, prefs, lab_store, ids
-    ):
+    def refresh_list(state, league, date, market, bucket, search, avail_f, page, ids):
+        """Re-render the match list only when filters or the page change (or, with
+        'Available only', when selections change). A pick or removal updates the
+        existing outcome buttons in place (``refresh_buttons``): replacing ~70
+        pattern-matched buttons on every click was the main source of latency."""
         if not ids:
-            return [], [], []
+            return [], []
+        first = lambda v: v[0] if v else None  # noqa: E731
+        if ctx.triggered_id == "ch-session" and not first(avail_f):
+            return [no_update] * len(ids), [no_update] * len(ids)
         state = pages.normal_state(state)
         mode, snap, avail, sels = pages.current(service, state)
         if snap is None:
-            return [no_update] * len(ids), [no_update] * len(ids), [no_update] * len(ids)
-
-        def first(v):
-            return v[0] if v else None
-
+            return [no_update] * len(ids), [no_update] * len(ids)
         filters = {
             "league": first(league),
             "date": first(date),
@@ -445,19 +443,57 @@ def register(app, data, service: ChallengeService) -> None:
             "available": bool(first(avail_f)),
         }
         cards, count = pages.fixture_list(
+            service, snap, sels, filters, local, pages.locked(avail), page or 1
+        )
+        return [cards] * len(ids), [count] * len(ids)
+
+    @app.callback(
+        Output({"t": "pick", "k": ALL}, "className"),
+        Output({"t": "pick", "k": ALL}, "disabled"),
+        Output({"t": "pick", "k": ALL}, "title"),
+        Input("ch-session", "data"),
+        Input("lab-store", "data"),
+        State({"t": "pick", "k": ALL}, "id"),
+        prevent_initial_call=True,
+    )
+    def refresh_buttons(state, lab_store, ids):
+        """Selection state, disabled reasons and Your View titles for the visible
+        outcome buttons, from the same engine call and component as a full render."""
+        if not ids:
+            return [], [], []
+        state = pages.normal_state(state)
+        _, snap, avail, sels = pages.current(service, state)
+        if snap is None:
+            n = len(ids)
+            return [no_update] * n, [no_update] * n, [no_update] * n
+        states = pages.outcome_states(
             service,
             snap,
             sels,
-            filters,
-            local,
+            [parse_key(i["k"]) for i in ids],
             pages.locked(avail),
-            page or 1,
             your_view(state, lab_store),
         )
+        return [s[0] for s in states], [s[1] for s in states], [s[2] for s in states]
+
+    @app.callback(
+        Output({"t": "tracker", "i": ALL}, "children"),
+        Input("ch-session", "data"),
+        Input("ch-prefs", "data"),
+        Input("lab-store", "data"),
+        State({"t": "tracker", "i": ALL}, "id"),
+    )
+    def refresh_tracker(state, prefs, lab_store, ids):
+        if not ids:
+            return []
+        state = pages.normal_state(state)
+        mode, snap, avail, sels = pages.current(service, state)
+        if snap is None:
+            return [no_update] * len(ids)
         trk = pages.tracker_view(
             service, snap, sels, pages.locked(avail), prefs, your_view(state, lab_store)
         )
-        return [cards] * len(ids), [count] * len(ids), [trk] * len(ids)
+        return [trk] * len(ids)
 
     @app.callback(
         Output("ch-fxpage", "data"),
