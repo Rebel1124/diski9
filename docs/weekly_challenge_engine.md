@@ -273,20 +273,23 @@ order-independent and reproducible.
 | Practice | ranked | 0 | doesn't advance |
 | Void | unranked, stakes returned | 0 | doesn't advance |
 
-**All-void entries (outstanding decision D-33):**
+**All-void entries (D-33, approved at the Phase 6B close-out):**
 * Under the literal approved rule ("exactly 100.00 recovers") an entry whose nine
   picks were all void would recover and earn points at its rank.
 * `ScoringConfig.all_void_policy` makes this explicit:
   * `score_as_settled` (the literal approved rule);
   * `no_points` (ranked, so others' ranks are unchanged, but no points, recovery
     or top-ten credit).
-  * `refund_unranked` (Phase 6B, the default since then): the proposed D-33
-    clarification. The entry is refunded, unranked, earns 0 points and is shown as
-    "Void — Refunded". It is pending product-owner confirmation; see
-    `docs/weekly_challenge_ui.md` §10.
+  * `refund_unranked` (the default): the approved D-33 treatment. The entry is
+    refunded (gross 100.00, net 0.00), unranked, earns 0 points, records no
+    recovery or top-ten finish, is shown as "Void — Refunded", still counts toward
+    the five-entry minimum fixed at the deadline, and is kept for audit.
 
-**Partial voids (D-32):** they settle normally upstream; the engine just receives
-the settled gross. There is no majority-void threshold.
+**Partial voids (D-32, approved):** they settle upstream (void legs at 1.00,
+payouts recalculated with D-15 rounding); the engine receives the settled gross.
+The engine has no majority-void threshold: whether widespread voids invalidate a
+round is the open decision D-32b and, once decided, is applied in settlement
+(Phase 6C) by classifying the round as `void`.
 
 ## 11. Legacy compatibility
 
@@ -394,7 +397,9 @@ count's combinations (tested against a plain average, which differs).
 ## 14. Limitations
 
 * Independence across fixtures is an assumption.
-* The championship incentive evidence is simulated, using one real pool (D-29).
+* The championship incentive evidence is simulated, using one real pool. D-29
+  (approach approved) validates it on six to eight real weekly pools before the
+  first official public championship.
 
 ## Appendix — Legacy 3/3/3 engine (Phase 6A, unchanged)
 

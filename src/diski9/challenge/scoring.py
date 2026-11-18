@@ -54,12 +54,12 @@ class SettlementBasis(StrEnum):
 
 
 class AllVoidPolicy(StrEnum):
-    """How an entry whose nine selections were all void is treated (outstanding
-    decision; see the engine documentation)."""
+    """How an entry whose nine selections were all void is treated (D-33; see the
+    engine documentation)."""
 
     SCORE_AS_SETTLED = "score_as_settled"  # literal rule: 100.00 recovers
     NO_POINTS = "no_points"  # ranked, but no points, recovery or top-ten credit
-    # Proposed D-33 clarification (Phase 6B, pending product-owner confirmation):
+    # D-33 (approved at the Phase 6B close-out):
     # refunded, excluded from competitive ranking, no points, recovery or top-ten
     # credit, shown separately as "Void - Refunded". Other entrants' ranks are
     # computed as if the entry were absent.
@@ -75,7 +75,7 @@ class ScoringConfig:
     max_weekly_points: int = 150
     championship_rounds: int = 10
     min_competitive_entries: int = 5
-    all_void_policy: AllVoidPolicy = AllVoidPolicy.REFUND_UNRANKED  # D-33 (proposed)
+    all_void_policy: AllVoidPolicy = AllVoidPolicy.REFUND_UNRANKED  # D-33 (approved)
 
     def __post_init__(self) -> None:
         def pos_int(v):

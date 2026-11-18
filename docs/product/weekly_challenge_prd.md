@@ -174,6 +174,17 @@ No single estimate combines both sources.
 ### 5.5 Settlement (kept from Phase 5C)
 
 * 90-minute result. Void rules V1–V5. A void leg counts as odds 1.00.
+* **Partially voided portfolios (D-32, approved):** other predictions settle
+  normally; a bucket with an incorrect non-void prediction pays 0; bucket payouts,
+  including The Diski 9, are recalculated on the adjusted odds with D-15 rounding;
+  recoveries of at least 100.00 stay eligible for championship points in
+  competitive rounds; no replacement predictions after the deadline.
+* **Entire portfolio voided (D-33, approved):** 100.00 returned, net 0.00, 0
+  points, excluded from the weekly ranking, no recovery or top-ten finish
+  recorded, shown as "Void — Refunded"; counts toward the five-entry minimum at the
+  deadline; kept for history and audit.
+* **Round invalidation after widespread voids (D-32b, open):** see the
+  recommendation in `weekly_challenge_d32_round_invalidation.md`.
 * Exact payouts with D-15 rounding.
 * Idempotent, audited settlement, with a 24-hour correction window before a round
   is final.

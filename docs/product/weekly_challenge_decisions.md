@@ -1,4 +1,10 @@
-# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6B)
+# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6B close-out)
+
+**Phase 6B close-out (owner review):** D-33 approved; D-32 settlement rules
+approved, with the round-invalidation question (D-32b) open pending review of the
+[recommendation](weekly_challenge_d32_round_invalidation.md); D-29 remains an open
+validation requirement with an approved approach. The technical backlog for the
+next phases is in the implementation plan.
 
 This register supersedes the Phase 5C register (`2e079ba`) and the Phase 6A.2
 version (`6d5b47f`). IDs are kept, so history can be traced. Superseded items are
@@ -39,6 +45,8 @@ listed at the end.
 | D-30 | **Championship continuation (approved):** a championship is always ten completed championship-eligible rounds, independent of league seasons and calendar quarters. Breaks, end of season or unavailable pools **pause** it with points preserved; it is never shortened and no champion is crowned early. After ten rounds: finalise, archive, record the champion(s), reset. Join any time; all ten rounds count; history and lifetime statistics kept |
 | D-31 | **Approved for the MVP (Phase 6A.3): Scenario D, `points-150-75-v2`.** Ranks 1–10 earn 150/135/125/120/115/110/105/100/95/90, any other recovery 75, no recovery 0; D-26 ties; maximum 150 per round and 1,500 per championship. Implemented in `diski9.challenge.scoring`. The incentive evidence is simulated (D-29); approval does not claim real-world incentives are eliminated |
 | D-15 | Settlement precision: each accumulator rounded half-up to 0.01; state gross = sum; recovery = gross ≥ 100.00 (approved in Phase 6A) |
+| D-32 | **Partially voided portfolios (approved, Phase 6B close-out):** a voided prediction settles at decimal odds 1.00; all other predictions settle normally; a bucket containing an incorrect, non-voided prediction pays 0; bucket payouts, including The Diski 9, are recalculated with the adjusted odds; the approved payout rounding (D-15) is retained; an entry recovering at least 100.00 credits stays eligible for championship points in a competitive round, except a fully voided entry (D-33); no replacement predictions after the submission deadline. *Open part: D-32b (round invalidation), below* |
+| D-33 | **Entire portfolio voided (approved, Phase 6B close-out):** when all nine predictions of a confirmed portfolio are void: gross returned 100.00; net 0.00; championship points 0; excluded from the weekly ranking (other entrants ranked as if it were absent); no successful recovery and no qualifying top-ten finish recorded; settlement status "Void — Refunded"; the entry counts toward the five-valid-entry minimum assessed at the deadline, subject to the round-invalidation rule (D-32b); the portfolio and its settlement record are retained for history and audit. The participant is neither penalised nor rewarded for predictions that were never tested. Implemented in the scoring engine as `AllVoidPolicy.REFUND_UNRANKED` (the default of `points-150-75-v2`) |
 
 ## Provisional (empirical) — synthetic evidence, to confirm on real pools
 
@@ -66,7 +74,7 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | T-02 | Bucket derived server-side from the stored full-precision `market_prob`; the client never sends a bucket | Integrity; no boundary disputes from display rounding |
 | T-05 | Points stored as integers; championship standings computed by aggregation, plus a frozen snapshot at completion (replaces the fraction storage needed only by the superseded average-points rule) | Corrections re-score automatically |
 | T-07 | Round **designation** fixed at the deadline: `championship` / `practice` / `postponed` / `void`. Only an audited operator action can void a round afterwards | Designation must not depend on match results |
-| T-08 | **Void round:** a round cancelled or invalidated as a whole after the deadline returns every stake and does not count (no points, counter unchanged). Partial voids settle normally under `settle/v1` | Prevents an all-void round handing every entrant 100.00, a recovery and a shared first place (150 points each) |
+| T-08 | **Void round:** a round cancelled or invalidated as a whole after the deadline returns every stake and does not count (no points, counter unchanged). Partial voids settle normally under D-32; when widespread voids invalidate a round is D-32b | Prevents an all-void round handing every entrant 100.00, a recovery and a shared first place (150 points each) |
 | T-06 | Any settlement correction re-scores the whole round; after a championship is frozen, only the audited `--reopen` path | Positions depend on all entrants |
 | R-01 | Common deadline: earliest eligible kickoff minus 15 minutes | Unchanged from 5C |
 | R-02 | Round sheet frozen at publish | Unchanged |
@@ -74,7 +82,7 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | R-04 | One entry per user per round, resubmittable until the deadline | Unchanged |
 | R-06 | Dependency-free production maths with exact decimals | Unchanged |
 | R-07 | Settle on the 90-minute score | Unchanged |
-| R-08 | Void selection = odds 1.00; an all-void bucket returns its own stake (40 / 30 / 20) | Updated for unequal stakes |
+| R-08 | Void selection = odds 1.00; an all-void bucket returns its own stake (40 / 30 / 20); a fully void portfolio follows D-33 (refunded, unranked, not a recovery) | Updated for unequal stakes; consistent with D-32 and D-33 |
 | R-09 | Same as D-15 | Unchanged |
 | R-11 | Routes `/challenge`, `/challenge/learn`, `/challenge/me`, `/leaderboards` | Adds the learn page |
 | R-14 | 24-hour correction window before a round is final | Unchanged |
@@ -89,12 +97,11 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | D-04 | Leaderboard privacy | Public display names with an opt-out | Phase 6G |
 | D-05 | Display-name policy | 3–24 characters; unique; blocklist | Phase 6E |
 | D-06 | Deadline buffer | 15 minutes | Phase 6C |
-| D-08 | Settlement and void rules `settle/v1` | Accept as specified | Phase 6F |
+| D-08 | Settlement and void rules `settle/v1` (void codes V1–V5, cutoff). The payout treatment of voids is now decided by D-32 and D-33 | Accept as specified | Phase 6C (settlement) |
 | D-11 | Round calendar | Weekend window; publish Thursday 06:00 UTC; postpone when the opening checks fail | Phase 6C |
 | D-12 | PSL coverage (no qualifying odds) | Accept for the MVP and state it in the UI | Phase 6C |
-| D-29 | **Empirical validation (outstanding):** collect 6–8 complete real weekly pools with settled outcomes and re-run the 6A.2 / 6A.2.1 simulations before the first official championship. Runs in parallel; does not delay the engine or the Dash prototype | Yes; the odds trial supplies the pools | First official championship |
-| D-32 | **Partially voided rounds (settlement, Phase 6C):** should a round where most fixtures are void at settlement (for example more than half) be reclassified as void, and at what threshold? Today only an explicit void classification (operator cancellation, T-08) voids a round; the scoring engine has no hard-coded threshold | Keep operator-only for the MVP; review after real data | Phase 6C (settlement) |
-| D-33 | **Entries with all nine selections void (proposed clarification, implemented in Phase 6B, pending product-owner confirmation):** refund all 100 credits; 0 points; no championship recovery or top-ten finish; excluded from competitive ranking (other ranks computed as if absent); shown separately as "Void — Refunded"; still counts toward the five valid entries fixed at the deadline; never voids the whole round. Implemented as `AllVoidPolicy.REFUND_UNRANKED`, now the default of `points-150-75-v2`; `score_as_settled` and `no_points` remain available | Confirm the proposed clarification | Before the first official championship |
+| D-29 | **Championship scoring validation (open validation requirement; approach approved at the Phase 6B close-out):** keep collecting real weekly fixture pools and reference odds through the existing scheduled odds trial; validate the championship scoring system on six to eight real weekly pools, assessing fixture availability, round feasibility, scoring fairness, recovery rates, participant behaviour and the effect of growing competition size. The approved scoring (D-31, `points-150-75-v2`) is retained unless that research gives compelling evidence for an amendment. Not a blocker for continued development | Approach approved; run the validation as pools accumulate | Before the first official public championship |
+| D-32b | **Round invalidation after widespread voids:** how widespread cancellations or voids should affect the competitive status of a whole round. Recommendation for review: [most predictions must be tested](weekly_challenge_d32_round_invalidation.md): the round stays competitive only if more than half of all confirmed predictions settled on a played result and at least five entries remain ranked; otherwise it is void (T-08) | Review the recommendation | Before Phase 6C settlement design |
 
 ## Superseded Phase 5C items
 

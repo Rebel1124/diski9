@@ -509,7 +509,12 @@ are historical and are never recomputed.
 | Any leg lost | 0 |
 | Otherwise | stake × effective odds, computed exactly, then rounded half-up to 0.01 |
 | All legs of a bucket void | that bucket's stake back (40, 30 or 20) |
-| All nine void | 40 + 30 + 20 + 10 = 100 (net 0, and a recovery: gross ≥ 100) |
+| All nine void (D-33, approved) | 100.00 returned, net 0.00, status "Void — Refunded": unranked, 0 points, no recovery or qualifying top-ten finish recorded; the record is kept for audit |
+
+The rules above are the approved D-32 settlement: void legs at 1.00, other legs
+settle normally, any incorrect non-void leg makes its bucket pay 0, payouts
+(including The Diski 9) are recalculated on the adjusted odds with D-15 rounding,
+and no replacement predictions are possible after the deadline.
 
 **Settlement:**
 * gross = the sum of the four accumulator payouts;
@@ -517,8 +522,13 @@ are historical and are never recomputed.
 
 **Leaderboard effect:**
 * voids shorten accumulators;
-* a round where every pick is void scores net 0;
-* there is no other adjustment.
+* an entry whose nine picks are all void is refunded and unranked (D-33);
+* entries recovering at least 100.00 remain eligible for points in a competitive
+  round;
+* whether widespread voids invalidate the whole round is decision D-32b
+  (recommendation: void the round unless more than half of all confirmed
+  predictions settled on a played result and at least five entries remain ranked;
+  see `docs/product/weekly_challenge_d32_round_invalidation.md`).
 
 ### 7.3 Process, idempotency and audit
 
@@ -660,7 +670,9 @@ continuation rules approved, D-26 to D-28 and D-30; implemented in
   * `valid_entries` < 5 → `practice`: settles, weekly table, **no**
     `challenge_round_scores` rows, counter unchanged;
   * whole round cancelled or invalidated after the deadline → `void`: stakes
-    returned, no scores, counter unchanged;
+    returned, no scores, counter unchanged (an operator cancellation, or the
+    widespread-void rule once D-32b is decided, evaluated at final settlement);
+  * fully void entries count toward `valid_entries` at the deadline (D-33);
   * otherwise → `championship`: scored, counter + 1.
 * A championship is exactly **10 championship-designated rounds**; there is no
   time limit, so it pauses across breaks (D-30). On the tenth round it is

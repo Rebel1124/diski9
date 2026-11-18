@@ -53,6 +53,35 @@ compact How to play, frozen probability ranking and filtering for the Weekly
 Challenge universe, Your View in session storage with model-context stamps, and a
 fix for taps swallowed during the builder's mount. See `docs/weekly_challenge_ui.md`.
 
+## Next phases (owner-confirmed at the Phase 6B close-out)
+
+The original 6C–6H lettering below describes the full build-out and is kept for
+reference. The owner has confirmed the next two phases and their backlog:
+
+**Phase 6C — production foundations:**
+* authentication and user accounts;
+* permanent portfolio and Your View storage;
+* server-authoritative round management and deadlines;
+* the submission, replacement and withdrawal lifecycle (with history);
+* automated settlement and correction handling: D-32 settlement rules, D-33
+  refunds, and the D-32b round-invalidation rule once decided;
+* live leaderboards and championship records;
+* historical records and auditability.
+
+**Phase 6D — quality, performance and integration:**
+* initial page-render performance (the builder's ~2.5–3 s first-render pause);
+* clicks that can be ignored while Dash mounts a page (mitigated in Phase 6B.3;
+  a tap in the exact instant of mounting can still be dropped);
+* a clear distinction between frozen Weekly Challenge probabilities and the live
+  Match Lab analysis (for example labelling the live analysis when opened from
+  the Weekly Challenge universe);
+* end-to-end integration testing.
+
+**Open decisions:** D-32b (round invalidation, recommendation ready) before Phase
+6C settlement design; D-29 (championship validation) before the first official
+public championship; D-01 to D-06, D-08, D-11 and D-12 as listed in the decision
+register.
+
 **Phase 6C must still add:**
 * server-side published round records with deadlines;
 * persistent submissions;
@@ -163,7 +192,10 @@ decisions T-01 and T-02.
 
 * As Phase 5C design §7, with these per-bucket stakes:
   * an all-void bucket returns 40, 30 or 20;
-  * all nine void returns 100, which counts as a recovery.
+  * partially voided portfolios follow D-32 (void legs 1.00, payouts recalculated
+    with D-15 rounding);
+  * all nine void returns 100.00 as "Void — Refunded": unranked, 0 points, not a
+    recovery (D-33).
 * **Tests:**
   * every market;
   * void codes V1–V5;
@@ -222,7 +254,11 @@ decisions T-01 and T-02.
 5. Then 6G.
 6. Last, 6H.
 
-**Empirical follow-up before the first official championship (D-29):** re-run
-the Phase 6A.2 and 6A.2.1 simulations on 6–8 captured real weekly pools with
-settled outcomes (the odds trial is producing them). This runs in parallel with
-6B–6D; it does not block the engine or the Dash prototype.
+**Championship scoring validation (D-29, approach approved):** keep collecting
+real weekly fixture pools and reference odds through the scheduled odds trial, then
+validate the approved scoring (D-31) on six to eight real weekly pools: fixture
+availability, round feasibility, scoring fairness, recovery rates, participant
+behaviour and the effect of growing competition size. The scoring is retained
+unless the evidence is compelling. Not a blocker for development; must be complete
+before the first official public championship. The same pools should be used to
+check how often the D-32b round-invalidation rule would trigger.

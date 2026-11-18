@@ -54,7 +54,8 @@
 > * the analysis adds a "something back, but under 100" card;
 > * submissions are prototype submissions held in the browser tab;
 > * the leaderboards and history use labelled demonstration data;
-> * all-void entries show as "Void — Refunded" (proposed D-33).
+> * all-void entries show as "Void — Refunded" (D-33, approved at the Phase 6B
+>   close-out).
 
 
 Status: **revised specification for review**. It supersedes the Phase 5C UX
@@ -288,6 +289,7 @@ can't lose.
 | Round postponed (opening checks failed) | "This week's round is postponed: not enough eligible fixtures to build a full portfolio. The championship is paused and continues with the next full round." |
 | Practice round (fewer than 5 valid entries at the deadline) | "Practice round: fewer than 5 entries this week. Your result counts for your history, but no championship points are awarded." |
 | Void round (cancelled after the deadline) | "This round was cancelled after the deadline. Your 100 credits are returned and the championship is unaffected." |
+| Entry with all nine predictions void (D-33) | "Void — Refunded: none of your predictions could be settled. Your 100 credits are returned; this entry isn't ranked and earns no points." |
 | Bucket full | "Foundation is full (4/4). Remove a Foundation pick to add this." |
 | Not enough fixtures left for a bucket (after other picks) | "Only 1 Challenger outcome left on unused fixtures — swap a pick to free a fixture." |
 | Incomplete portfolio | "Complete all three buckets to see your portfolio's chances." |
