@@ -359,15 +359,16 @@ def register(app, data, service: ChallengeService) -> None:
 
     @app.callback(
         Output("ch-session", "data", allow_duplicate=True),
-        Input("ch-session", "data"),
         Input("url", "pathname"),
+        State("ch-session", "data"),
         prevent_initial_call="initial_duplicate",
     )
-    def sync_store(state, _path):
-        """Write the reconciled state back to the store as soon as the page loads
-        (and whenever the snapshot moved on), so what is stored is exactly what every
-        page shows. An empty store is never written: a value that has not been
-        hydrated from sessionStorage yet must not overwrite one that has."""
+    def sync_store(_path, state):
+        """Write the reconciled state back to the store when a page loads or the route
+        changes, so what is stored is exactly what every page shows. (Pages and actions
+        reconcile eagerly themselves, so correctness never depends on this write.) An
+        empty store is never written: a value that has not been hydrated from
+        sessionStorage yet must not overwrite one that has."""
         return store_sync(service, state)
 
     @app.callback(
@@ -649,8 +650,14 @@ def register(app, data, service: ChallengeService) -> None:
         Input("ch-session", "data"),
         Input("lab-store", "data"),
         Input("ch-flash", "data"),
+        Input("url", "pathname"),
     )
-    def match_lab_panel(fid, state, lab_store, flash):
+    def match_lab_panel(fid, state, lab_store, flash, path):
+        """Rendered only while the Screener is showing (re-rendering its pattern-matched
+        cards inside the hidden Screener made every builder tap slower); returning to
+        the Screener re-renders it from the current state."""
+        if (path or "/").rstrip("/") not in ("", "/"):
+            return None if ctx.triggered_id == "url" else no_update
         return integration.lab_panel(service, data, state, fid, lab_store, flash)
 
     @app.callback(

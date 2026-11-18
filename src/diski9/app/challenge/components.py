@@ -332,6 +332,11 @@ def outcome_state(o, bucket, block, locked: bool, personal=None) -> tuple[str, b
     cls += " " + STATE_CLASS.get(block, "st-open")
     cls += " is-selected" if selected else ""
     cls += " is-blocked" if disabled else ""
+    short = {
+        SelectionBlock.SELECTED: f"Selected, {BUCKET_NAME.get(bucket, '')}",
+        SelectionBlock.INELIGIBLE: "Not eligible",
+        **BLOCK_SHORT,
+    }.get(block, BUCKET_NAME.get(bucket, ""))
     title = BLOCK_HELP.get(block) or (
         "Outside the 20%–95% market range, or the odds don't qualify"
         if block is SelectionBlock.INELIGIBLE
@@ -339,7 +344,7 @@ def outcome_state(o, bucket, block, locked: bool, personal=None) -> tuple[str, b
         if selected
         else "Tap to add"
     )
-    title = f"{outcome_text(o)}: {title}"
+    title = f"{outcome_text(o)} ({short}): {title}"
     if personal is not None:
         title += f" · Your View {pct(personal, 1)}"
     return cls, disabled, title
@@ -378,30 +383,13 @@ def outcome_button(
     never by colour alone. ``replace_from`` marks a valid one-tap replacement of the
     pick already made on this match (Match Lab)."""
     cls, disabled, title = outcome_state(o, bucket, block, locked, personal)
-    bc = BUCKET_CLASS[bucket] if bucket else None
     name = BUCKET_NAME[bucket] if bucket else ""
     if replace_from and not locked:
         cls = cls.replace("st-fixture_taken", "st-replace").replace(" is-blocked", "")
         disabled = False
-        title = f"{outcome_text(o)}: replace your pick on this match ({replace_from})"
-    tags = [
-        html.Span(name, className=f"ch-tag t-open b-{bc}") if bc else None,
-        html.Span([icon("check", "ic-sm"), name], className=f"ch-tag t-selected on b-{bc}")
-        if bc
-        else None,
-        html.Span([icon("ban", "ic-sm"), "Not eligible"], className="ch-tag off t-ineligible"),
-        html.Span([icon("ban", "ic-sm"), "Match used"], className="ch-tag off t-fixture_taken"),
-        html.Span([icon("ban", "ic-sm"), "Bucket full"], className="ch-tag off t-bucket_full"),
-        html.Span(
-            [icon("ban", "ic-sm"), "Can't complete"],
-            className="ch-tag off t-would_block_completion",
-        ),
-        html.Span(
-            [icon("swap", "ic-sm"), f"Replace · {name}"], className=f"ch-tag t-replace b-{bc}"
+        title = (
+            f"{outcome_text(o)} (Replace, {name}): replace your pick on this match ({replace_from})"
         )
-        if replace_from
-        else None,
-    ]
     model = pct_in_band(o.model_probability, None) if o.model_probability is not None else "—"
     return html.Button(
         [
@@ -425,13 +413,17 @@ def outcome_button(
                 ],
                 className="ch-out-nums",
             ),
-            html.Span([tg for tg in tags if tg is not None], className="ch-tags"),
+            # one state tag: its label and icon come from the button's state and bucket
+            # classes (style.css), so a selection change updates only className, disabled
+            # and title; the same words are in the title / aria-label for assistive tech
+            html.Span(className="ch-tag ch-tag-s", **{"aria-hidden": "true"}),
         ],
         id={"t": id_type, "k": key_str(o.key)},
         n_clicks=0,
         disabled=disabled,
         className=cls,
         title=title,
+        **{"aria-label": title},
     )
 
 

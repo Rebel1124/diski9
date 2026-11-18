@@ -39,11 +39,24 @@ playtesting refinement:
 
 See `docs/weekly_challenge_ui.md`.
 
+**Phase 6B.2 (done, `feature/weekly-challenge-playtest-refinement`):** the second
+playtesting refinement: the submission-restoration fix (eager state reconciliation,
+one source of truth, demo/live isolation), compact Screener filters without the
+odds-only toggle, one table presentation using frozen snapshot values, Match Lab
+outcome cards, How to play guidance, calculation explanations, a combined
+correct-predictions chart, submission withdrawal, the My Challenge layout, rank
+icons and no emojis. See `docs/weekly_challenge_ui.md`.
+
 **Phase 6C must still add:**
 * server-side published round records with deadlines;
 * persistent submissions;
 * snapshot republication and correction handling;
-* settlement, including D-32 and D-33.
+* settlement, including D-32 and D-33;
+* persistent submission history and withdrawal records (the prototype withdrawal
+  only clears the browser-tab entry; a real one needs an audit trail, the deadline
+  enforced server-side and a resubmission record);
+* a stable round snapshot that survives a server restart (the prototype pins it in
+  process memory and reconciles drafts when it is rebuilt).
 
 **Already done:**
 * Phase 6A engine on `feature/weekly-challenge-engine` (`48392c1`): 3/3/3 picks,

@@ -1130,3 +1130,33 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-tl-item .dot .ic, .ch-tl-legend .dot .ic { width: .8em; height: .8em; vertical-align: -0.05em; }
 .ch-x .ic { width: .95em; height: .95em; }
 .league-cmp .cmp-icon { width: .95em; height: .95em; }
+
+/* ===================== Phase 6B.2: single state tag per outcome card =====================
+   One element instead of six pre-rendered variants (a large builder render cost):
+   the label and icon follow the button's state and bucket classes. */
+.ch-tag-s { display: inline-flex; align-items: center; gap: 4px; }
+.ch-tag-s::before { content: ""; width: .95em; height: .95em; background-color: currentColor;
+  -webkit-mask: var(--tag-ic, none) center / contain no-repeat; mask: var(--tag-ic, none) center / contain no-repeat; display: none; }
+.ch-out.b-found .ch-tag-s { color: var(--b-found); background: var(--b-found-dim); }
+.ch-out.b-bal .ch-tag-s { color: var(--b-bal); background: var(--b-bal-dim); }
+.ch-out.b-chal .ch-tag-s { color: var(--b-chal); background: var(--b-chal-dim); }
+.ch-out.b-found .ch-tag-s::after { content: "Foundation"; }
+.ch-out.b-bal .ch-tag-s::after { content: "Balanced"; }
+.ch-out.b-chal .ch-tag-s::after { content: "Challenger"; }
+.ch-out.st-selected .ch-tag-s { color: #0b1117; }
+.ch-out.st-selected.b-found .ch-tag-s { background: var(--b-found); }
+.ch-out.st-selected.b-bal .ch-tag-s { background: var(--b-bal); }
+.ch-out.st-selected.b-chal .ch-tag-s { background: var(--b-chal); }
+.ch-out.st-selected .ch-tag-s::before { display: inline-block; --tag-ic: var(--ic-check); }
+.ch-out:is(.st-ineligible, .st-fixture_taken, .st-bucket_full, .st-would_block_completion) .ch-tag-s {
+  color: var(--muted); border-color: var(--border); background: transparent; font-weight: 550; }
+.ch-out:is(.st-ineligible, .st-fixture_taken, .st-bucket_full, .st-would_block_completion) .ch-tag-s::before {
+  display: inline-block; --tag-ic: var(--ic-ban); }
+.ch-out.st-ineligible .ch-tag-s::after { content: "Not eligible"; }
+.ch-out.st-fixture_taken .ch-tag-s::after { content: "Match used"; }
+.ch-out.st-bucket_full .ch-tag-s::after { content: "Bucket full"; }
+.ch-out.st-would_block_completion .ch-tag-s::after { content: "Can't complete"; }
+.ch-out.st-replace .ch-tag-s::before { display: inline-block; --tag-ic: var(--ic-swap); }
+.ch-out.st-replace.b-found .ch-tag-s::after { content: "Replace · Foundation"; }
+.ch-out.st-replace.b-bal .ch-tag-s::after { content: "Replace · Balanced"; }
+.ch-out.st-replace.b-chal .ch-tag-s::after { content: "Replace · Challenger"; }

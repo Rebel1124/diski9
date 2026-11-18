@@ -1,4 +1,21 @@
-# Diski 9 Weekly Challenge — UX Specification (revised, Phase 6A.2; prototype Phase 6B.1)
+# Diski 9 Weekly Challenge — UX Specification (revised, Phase 6A.2; prototype Phase 6B.2)
+
+> **Phase 6B.2 playtest refinement (supersedes the notes below where they differ).**
+> Full description in `docs/weekly_challenge_ui.md`.
+> * Compact one-row Screener filters; the odds-only toggle is removed; Weekly
+>   Challenge and All upcoming matches use the same model-versus-market cell (frozen
+>   snapshot values for the Challenge view).
+> * The Match Lab uses the builder's outcome cards (Mkt, D9, You) and sits before the
+>   Bookmaker Market Reference.
+> * How to play adds "Build your portfolio"; no "cr" suffix on numbers; professional
+>   icons, no emojis.
+> * "How are these calculated?" explains recovery and expected payout step by step;
+>   one combined correct-predictions chart (focus 0–8 / all nine).
+> * Withdraw submission with confirmation; My Challenge splits status, confirmed
+>   summary and the nine predictions into separate cards.
+> * Leaderboards: trophy / medal icons for the top three positions, shared ranks alike.
+> * Participant state has one source of truth, reconciled eagerly; demo and live are
+>   isolated; prototype entries are browser-tab only.
 
 > **Phase 6B.1 refinement (supersedes the Phase 6B notes below where they differ).**
 > The full description is in `docs/weekly_challenge_ui.md`.

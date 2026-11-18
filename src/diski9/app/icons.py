@@ -91,8 +91,10 @@ def css() -> str:
         ".ic-sm { width: .9em; height: .9em; vertical-align: -0.1em; }",
         ".ic-lg { width: 1.35em; height: 1.35em; vertical-align: -0.28em; }",
     ]
+    root = " ".join(f'--ic-{name}: url("data:image/svg+xml,{quote(svg(name))}");' for name in ICONS)
+    lines.append(f":root {{ {root} }}")
     for name in ICONS:
-        lines.append(f'.ic-{name} {{ --ic: url("data:image/svg+xml,{quote(svg(name))}"); }}')
+        lines.append(f".ic-{name} {{ --ic: var(--ic-{name}); }}")
     return "\n".join(lines) + "\n"
 
 

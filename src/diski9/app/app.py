@@ -733,9 +733,15 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Output("detail-reference", "children"),
         Input("selected", "data"),
         Input("market", "value"),
+        Input("url", "pathname"),
         State("lab-store", "data"),
     )
-    def update_detail(fid, market, lab):
+    def update_detail(fid, market, path, lab):
+        """The Match Lab is unmounted while another page shows (its large tree inside
+        the hidden Screener slowed every Weekly Challenge tap) and rebuilt from the
+        selection and the Match Lab store on return, so nothing is lost."""
+        if (path or "/").rstrip("/") not in ("", "/"):
+            return (None, None) if ctx.triggered_id == "url" else (no_update, no_update)
         r, ov, official = data.detail(fid) if fid else (None, None, {})
         adj = (lab or {}).get(str(fid)) if fid else None
         return split_detail(render_detail(r, ov, official, market, data, adj))

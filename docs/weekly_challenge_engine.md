@@ -374,6 +374,23 @@ Also tested:
 
 **`structured.p_partial`** = P(0 < gross < 100). Recovery, partial and zero sum to 1.
 
+**`calculation_breakdown(portfolio, probability)`** (Phase 6B.2) returns every number
+behind the "How are these calculated?" panel, straight from `evaluate_with`:
+* per bucket: each leg's probability and frozen odds, the bucket probability (the
+  product of its legs), the exact combined odds and the D-15 payout;
+* The Diski 9: the product over all nine legs and its payout (it pays only in the
+  all-nine state, never as an independent fourth bucket);
+* the eight mutually exclusive states (sorted by number of buckets won, then gross),
+  each with probability, gross, probability × gross and whether gross >= 100.00;
+* `p_recover` (sum over states with gross >= 100.00, never 1 − P(nothing)),
+  `p_partial`, `p_zero`, expected gross (sum of probability × gross) and net;
+* `has_partial`: whether some state pays something below 100 (when it doesn't, recovery
+  happens to equal 1 − P(nothing)).
+
+Tests reconcile it with `evaluate_with` within 1e-12 for every source. The
+conditional payout per number correct is the probability-weighted average over that
+count's combinations (tested against a plain average, which differs).
+
 ## 14. Limitations
 
 * Independence across fixtures is an assumption.

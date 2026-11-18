@@ -74,19 +74,20 @@ the eight-state distribution, D-15 rounding and the payout distribution. Phase
 ```python
 @dataclass(frozen=True)
 class Band:
-    low: Decimal            # inclusive
-    high: Decimal           # exclusive, unless high_inclusive
+    low: Decimal  # inclusive
+    high: Decimal  # exclusive, unless high_inclusive
     high_inclusive: bool = False
 
+
 @dataclass(frozen=True)
-class ChallengeConfig:      # broad60-432-v1
-    version: str            # "broad60-432-v1"
-    bands: tuple[Band, Band, Band]       # A [0.60, 0.95], B [0.40, 0.60), C [0.20, 0.40)
-    sizes: tuple[int, int, int]          # (4, 3, 2)
-    stakes: tuple[int, int, int]         # (40, 30, 20) credits
-    nine_stake: int                      # 10
-    target: Decimal                      # Decimal("100.00")
-    classification_source: str           # "market" (margin-adjusted consensus)
+class ChallengeConfig:  # broad60-432-v1
+    version: str  # "broad60-432-v1"
+    bands: tuple[Band, Band, Band]  # A [0.60, 0.95], B [0.40, 0.60), C [0.20, 0.40)
+    sizes: tuple[int, int, int]  # (4, 3, 2)
+    stakes: tuple[int, int, int]  # (40, 30, 20) credits
+    nine_stake: int  # 10
+    target: Decimal  # Decimal("100.00")
+    classification_source: str  # "market" (margin-adjusted consensus)
 ```
 
 Invariants checked at import: `sum(stakes) + nine_stake == target`;

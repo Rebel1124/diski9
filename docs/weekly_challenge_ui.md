@@ -1,262 +1,240 @@
-# Weekly Challenge prototype UI (Phase 6B.1)
+# Weekly Challenge prototype UI (Phase 6B.2)
 
-**Status:** interactive prototype on branch `feature/weekly-challenge-ux-refinement`.
-* Phase 6B.1 refines the Phase 6B prototype (`556eb24`) after product-owner
+**Status:** interactive prototype on branch `feature/weekly-challenge-playtest-refinement`.
+* Phase 6B.2 refines Phase 6B.1 (`680127d`) after a second round of product-owner
   playtesting.
-* It has no accounts, stored entries, settlement or live competition.
+* It has no accounts, stored entries, settlement or live competition. A
+  confirmed portfolio is **browser-scoped and non-authoritative** until Phase 6C.
 * Leaderboards and history are labelled demonstration data.
 
 ## 1. Routes and journey
 
 | Route | Page |
 |---|---|
-| `/` | Screener and Match Lab. It now has a **Matches: Weekly Challenge / All upcoming matches** view, a portfolio progress strip and a **Weekly Challenge panel** for the selected match. It stays mounted, so its state survives navigation. |
+| `/` | Screener and Match Lab: Matches (Weekly Challenge / All upcoming matches), a portfolio progress strip, and the Weekly Challenge selection cards for the selected match. |
 | `/challenge` | Two steps: **1 Build portfolio → 2 Review & Submit**. |
 | `/challenge/me` | My Challenge. |
 | `/leaderboards` | This week and Championship (demonstration data). |
 
-**Journey:**
-* Open **Build portfolio** (or arrive from the Match Lab).
-* **How to play** is an expandable panel: open for new users, closed once
-  there's a draft or a confirmation. It holds the two goals, the bucket and
-  credit table, the points schedule and the rules (everything from the former
-  Overview).
-* A compact **status strip** shows the round, status, deadline (live rounds),
-  eligible fixtures and leagues, and the snapshot time. The demo strip has a
-  "Leave demo" button.
-* The builder's main area switches between **Choose matches** and **Portfolio
-  analysis**, while the tracker stays visible.
-* **Review & Submit** is the safeguard against accidental submission, followed
-  by a **"You're in!"** confirmation.
+Intended Screener journey: select a fixture → review the Diski 9 model analysis
+(Match Lab) → adjust expected goals to form Your View → select a Weekly Challenge
+prediction (cards) → explore the Bookmaker Market Reference.
 
-When the live round isn't playable, the page explains why (stale odds, missing
-markets, too few fixtures, infeasible pool, no fixtures) and offers the labelled
-demonstration round.
+**Design standards.** Dark theme with the teal accent; bucket colours Foundation
+green, Balanced blue, Challenger amber, The Diski 9 purple (`--b-nine`, also used
+for the portfolio count on both pages). No emojis anywhere (a test scans the app
+source). Icons are from the Lucide set (ISC licence), bundled locally in
+`app/icons.py` and drawn as CSS masks in the text colour (`assets/icons.css` is
+generated from it; a test checks they match). Icons are decorative and always sit
+beside text, so no state is shown by colour or icon alone.
 
-**Layout decision — analysis panel.** I chose a two-state switch in the builder
-over a drawer or a separate page:
-* it uses the same column, so desktop and mobile behave identically;
-* the tracker (with its remove buttons) stays beside the analysis, so changing a
-  pick updates the analysis immediately;
-* a drawer would hide the tracker on phones.
+**Numbers.** Values carry no "cr" suffix (151.99, Expected gross 80.30). The word
+"credits" stays in labels and explanations that establish the unit
+("Foundation · 40 credits", "100 credits back"). Points keep "pts".
 
-## 2. Builder
+## 2. Screener
 
-**Fixture cards**
-* The three market groups sit side by side on wide screens: Match result (Home,
-  Draw, Away) · Both teams score (Yes, No) · Total goals (Over, Under 2.5). They
-  stack below 1180 px.
-* Each outcome shows:
-  * a short name;
-  * the frozen odds;
-  * **Mkt** (market chance, one decimal; it decides the bucket);
-  * **D9** (Diski 9);
-  * a bucket tag in the tracker colours (Foundation green, Balanced blue,
-    Challenger amber).
-* **States:** a selected outcome gets a filled tag with ✓ and a highlighted
-  border. Disabled outcomes show "⊘ Not eligible / Match used / Bucket full /
-  Can't complete" (text, icon and tooltip, never colour alone). Your View appears
-  in the tooltip.
-* **Band-safe rounding:** a percentage that would round across a band boundary
-  (59.96% → "60.0%" in Balanced) is shown with more decimals.
-* Each card links to the **Match Lab** (`/?fixture=<id>` selects the match and
-  the Weekly Challenge view).
+**Filter bar.** One desktop row: Matches · Market · Leagues · Dates · Rank by ·
+Minimum probability, wrapping to three columns (900–1179 px), two (721–899 px)
+and one on phones. Matches is a two-option segmented control. The
+"Only show matches with odds" toggle was **removed** (layout, callback input,
+`ScreenerData.filtered`, JS and CSS). Minimum probability keeps its disabled state
+and explanation for non-probability rankings.
 
-**Filters** (one row on wide screens, wrapping below): League · Date · Market ·
-Bucket · Team · **Available only**.
-* Available only hides outcomes that can't be selected now; selected outcomes
-  stay visible.
-* Filters never change the portfolio.
-* Matches are listed 10 per page.
+**Match universes.**
+* *All upcoming matches*: every upcoming fixture, including those without
+  bookmaker odds (shown as "No odds"; ranked after priced fixtures by edge / EV).
+* *Weekly Challenge*: exactly the fixtures of the active round snapshot.
+  Switching universe resets to page 1 and sets a compatible date range (the
+  snapshot's kickoff dates, or the default fortnight for All upcoming).
+* Odds are never treated as Weekly Challenge eligibility; eligibility and
+  snapshot rules are unchanged.
 
-**Tracker** (sticky on desktop; above the list on phones, with a fixed bottom bar
-"F 2/4 · B 0/3 · C 2/2 · 4/9 · View"):
-* **Probability source** selector: Market / Diski 9 / Your View, with "What do
-  these mean?" beside it.
-* Each bucket is expandable and shows:
-  * picks made and required;
-  * credits;
-  * a segmented bar;
-  * **All succeed x%** and **pays y cr**, labelled "(so far: n of N picks)" until
-    the bucket is complete;
-  * its picks (match, outcome, chance under the chosen source, odds, ✕ remove).
-* The Diski 9 row shows the same for all picks so far.
-* At 9/9 it adds **Get 100+ back** and **Expected gross**.
-* Changing the source changes chances only; odds and payouts are fixed.
-* **Overflow fix:** rows have `min-width: 0` and wrap long names, so removing a
-  pick can no longer push rows outside the card.
+**One table presentation.** Both universes show the same Market / Edge cell: the
+outcome with the best probability edge (or EV when ranking by EV), the
+percentage-point difference and the market probability. For the Weekly Challenge
+view the cell is computed by `integration.frozen_market_value` from the **frozen
+snapshot** (its Diski 9 and margin-adjusted market probabilities and reference
+odds) with the shared `diski9.odds.value` definitions, and formatted by the shared
+`data.fill_value_cell`. Edge / EV ranking in that view uses the same frozen
+values. The raw odds sequence and the "Challenge odds" label are gone; a "Your
+pick: …" line marks matches in the portfolio. The tooltip states the snapshot
+time, the frozen odds and that edge is a probability difference, not expected
+value. Bucket eligibility still uses the full-precision market probability.
 
-**Responsiveness.**
-* *Root cause of slow taps:* every pick re-rendered the whole match list (~70
-  pattern-matched buttons). Dash then rebuilt its callback graph for the whole
-  layout, including the mounted Screener: about 2.5 s per tap.
-* *Fix:* the list now re-renders only on filter or page changes. A pick updates
-  the visible buttons' `className`, `disabled` and `title` in place. Every tag
-  variant is rendered once and CSS shows the one for the state. Taps now take
-  about 0.5 s end to end.
+**Progress strip.** F / B / C counts in bucket colours; the overall count (5/9) in
+Diski 9 purple.
 
-## 3. Portfolio analysis (builder → Portfolio analysis)
+## 3. Match Lab Weekly Challenge cards
 
-All values come from `diski9.challenge.analysis` and the eight-state engine, for
-the selected source:
-1. **Will you get your 100 credits back?** A doughnut of 100+ back / something
-   under 100 / nothing back (they sum to 100%), with expected gross and net, and
-   a plain-language note that the expected payout is an average, not a promise
-   or the most likely result.
-2. **Possible payouts.** Each bucket's own payout if it completes, then a
-   horizontal bar per bucket-success state (No buckets complete → … → All nine
-   correct), ordered by total payout from the top. Identical totals are named. An
-   aligned eight-state table is in an expander.
-3. **How many predictions might you get right?**
-   * a histogram of P(exactly k correct) for k = 0–9 (Poisson-binomial over all
-     512 combinations);
-   * the expected and most likely counts;
-   * choosing a count (bar click or the 0–9 selector) shows that count's
-     conditional average payout, range and chance of 100+;
-   * an expander with the conditional average payout by count (separate chart, no
-     dual axis);
-   * a full table with combinations C(9, k) and unconditional contributions;
-   * an explanation that completing buckets, not the number correct, decides the
-     payout.
+The former seven-row table is replaced by the builder's own outcome-card
+component (`components.outcome_button`), in three market groups: Match result
+(Home, Draw, Away) · Both teams score (Yes, No) · Total goals (Over 2.5, Under
+2.5). Each card shows the outcome, frozen odds, **Mkt** (sets the bucket), **D9**
+and **You**, the bucket tag and the selection or availability state. "You = D9"
+marks a match without adjustments; a legend explains Mkt / D9 / You.
 
-**Removed from the participant UI:**
-* Explore Your Bucket Risk (hypothetical sliders);
-* the survival curve, exact-payout toggle, range toggle and payout slider.
+Tapping an open card adds it, tapping the selected card removes it, and a card
+offering **Replace · bucket** (shown only when the engine would accept the swap)
+asks for confirmation before replacing the pick on that match. Every action goes
+through the shared reducer and engine validation, so the builder and the Match
+Lab always show the same portfolio. The panel sits after the Match Lab and before
+the Bookmaker Market Reference (the detail callback fills two containers with the
+panel between them). The Match Lab calculations are unchanged.
 
-The engine calculations (`payout_distribution`, `probability_at_least`) and the
-education maths stay, with their tests.
+## 4. Weekly Challenge builder
 
-## 4. Screener and Match Lab integration
+* **How to play** keeps the two objectives (get your 100 credits back; finish in
+  the top ten and get your 100 back), the allocation table and the points
+  schedule, and adds **Build your portfolio**: choose nine different matches;
+  compare Market, Diski 9 and Your View; understand your portfolio risk; review
+  and submit before the deadline (icons and one line each).
+* **Stepper.** The current step is filled and marked `aria-current="step"`; an
+  available step is outlined; the build step shows a check once complete; Review &
+  Submit is disabled until the portfolio is complete. A stored "review" step with
+  an incomplete draft always shows the builder.
+* **Outcome cards** show full names (no "Under …" truncation). Builder cards show
+  **You** only for matches the participant adjusted, beside the Mkt value that
+  decides the bucket.
+* **Filters** keep Available only; the team search is wide enough for its
+  placeholder and names.
+* **Probability source.** Market / Diski 9 / Your View changes the tracker
+  probabilities, combined bucket chances, recovery, expected payout, charts and
+  the calculation explanation (which names the source). It never changes buckets,
+  eligibility, frozen odds or possible payouts.
 
-**One portfolio.**
-* The session store `ch-session` holds the draft for the whole app.
-* Builder buttons (`pick`/`remove`) and Match Lab buttons (`labpick`, `labremove`,
-  `labreplace` → confirm) go through one reducer (`apply_action`) and the same
-  engine validation:
-  * one prediction per match;
-  * bucket membership and capacity;
-  * snapshot identity;
-  * round availability and deadline;
-  * eligibility;
-  * exact remaining feasibility.
-* Edits in either place appear in the other immediately.
+## 5. Portfolio analysis
 
-**Weekly Challenge view.**
-* Lists exactly the frozen pool: same fixture ids, same snapshot.
-* Its value column shows the **frozen reference odds** of the chosen market and
-  "✓ <outcome>" for portfolio matches.
-* *All upcoming matches* is the original Screener.
-* The view defaults to Weekly Challenge when a live round is playable.
-* Matches outside the pool can be analysed but not selected.
+All numbers come from `diski9.challenge.analysis` and the eight-state engine.
 
-**Match Lab panel.** It sits above the Match Lab for the selected match. It lists
-the match's Challenge outcomes:
-* market, bucket tag, Market, Diski 9 and Your View chances, frozen odds;
-* **Add to Weekly Challenge**, **✓ Added · Remove**, or **Replace <current
-  pick>**. Replace is offered only when the engine would accept the swap, and it
-  asks for confirmation. Otherwise a reason is shown.
+1. **Will you get your 100 credits back?** Recovery doughnut (100+ back /
+   something under 100 / nothing back) with expected gross and net.
+   **How are these calculated?** (collapsed) shows, for the current portfolio and
+   source (`analysis.calculation_breakdown`):
+   * Step 1: each bucket's legs, P(bucket succeeds) = product of the leg
+     probabilities, payout = credits × combined frozen odds (D-15 rounding), and
+     the independence assumption in plain words; The Diski 9 pays only in the
+     all-nine outcome, not as a fourth independent bucket.
+   * Step 2: the eight outcomes table: completed buckets, probability, gross,
+     probability × gross, 100+ back, and a total row.
+   * Step 3: recovery = the sum of the qualifying outcome probabilities (shown),
+     with a note on when this equals 100% minus nothing back.
+   * Step 4: expected gross = sum of probability × gross; expected net = expected
+     gross − 100; an explanation that it is a probability-weighted average, and
+     that rounding is for display only.
+2. **Possible payouts.** Bucket payouts and the eight-state bar chart; the same
+   outcome table is in its expander (one shared component).
+3. **How many predictions might you get right?** One combined chart: bars of
+   P(exactly k correct) on the left axis (unconditional, never renormalised) and a
+   line of the probability-weighted conditional expected gross on the right axis,
+   with a dotted 100 reference. **Focus on 0–8 correct** (default) hides the
+   nine-correct point from the payout line and says so on the chart, with its
+   value; **Show all nine** plots it. Impossible counts are gaps. Clicking a bar
+   or the 0–9 selector shows the chance, combinations, conditional average,
+   minimum, maximum and conditional chance of 100+. The 512-combination table
+   stays in its expander. The separate average-payout chart was removed.
 
-There's no automatic redirect. A progress strip ("Weekly Challenge (demo) F 3/4 ·
-B 0/3 · C 2/2 · 5/9 · Open builder") sits under the Screener filters.
+## 6. Participant state: source of truth and storage policy
 
-## 5. Your View
+`app/challenge/state.py` is the single source of truth. The browser-session store
+`ch-session` holds:
+* the **working draft** (`fp`, `selections`, `meta`, `notes`, `stage`) for the
+  active mode;
+* the **confirmed submission** (`submitted`), written only by Submit and removed
+  only by Withdraw;
+* `parked`: the other mode's draft and submission (demo and live are isolated);
+* `withdrawn` (a note of the last withdrawal) and `confirm` (a pending dialog).
 
-**Definition.**
-* It's computed with the Match Lab's own functions: `normalise_state` →
-  `user_estimates` → `adjusted_probabilities`, which is Goal Model 1.0's `markets`
-  for the adjusted expected goals.
-* It's keyed by fixture id in the existing Match Lab store `lab-store`.
-* Matches without adjustments use the unadjusted Diski 9 probability; the panel
-  marks them "*" and says so.
-* Adjusting expected goals updates all seven outcomes consistently.
+Every page render and every action calls `state.reconcile`, which brings the
+stored state up to date with the current snapshot identically on both paths.
+`sync_store` writes the reconciled state back on page load and navigation, and
+never writes an empty (not yet hydrated) store.
 
-**What it never changes:** official buckets, reference odds, eligibility,
-allocations, payouts, points, other participants' views, or the stored Goal Model
-output.
+**Root cause of the reported restart bug (reproduced in a browser).** The live
+snapshot is pinned in server memory and its fingerprint includes its build time,
+so a restarted server built a new fingerprint for the same round. Phase 6B.1 page
+renders treated a draft with another fingerprint as empty and matched the
+submission by fingerprint ("not confirmed"), while the reducer migrated the draft
+lazily on the next action, so the next unrelated click brought the old portfolio
+back (and that click was discarded). Now reconciliation is eager on reads and
+writes, submissions are matched by round and mode, drafts are compared
+order-free, and actions are applied after reconciliation.
 
-**Persistence:** `lab-store` keeps the existing Match Lab behaviour (browser
-memory). Adjustments survive navigation within the app but not a page refresh. A
-confirmed submission stores the Your View values used at that moment.
+**Lifecycle (prototype, browser tab only).**
 
-## 6. Snapshots, drafts and confirmed submissions
+| Event | Draft | Confirmed submission |
+|---|---|---|
+| Page navigation | kept | kept |
+| Page refresh | kept (`sessionStorage`) | kept, shown immediately |
+| App server restart, same tab | kept; revalidated against the rebuilt snapshot (unchanged picks kept, changed ones listed for review) | kept, shown immediately |
+| Closing and reopening the tab | gone | gone |
+| Opening another tab | empty (new session); a *duplicated* tab copies the session | as draft |
+| Snapshot refresh (same round) | revalidated, never silently moved to new odds | kept (frozen record) |
+| New round | cleared | closed as an earlier round, not shown as current |
+| Demo ↔ live | parked and restored per mode | parked and restored per mode |
+| Clear draft | cleared | unchanged |
+| Replace | — | replaced only after every check passes |
+| Withdraw (confirmed) | cleared | removed; stays removed after refresh, restart and later actions |
 
-**Root cause of disappearing submissions:**
-* the live snapshot was rebuilt every 15 minutes, giving it a new fingerprint;
-* on the next action the reducer cleared the draft **and** `submitted`;
-* switching between demo and live also reset the state.
+Your View (`lab-store`) stays in browser memory as before: it survives navigation,
+not a refresh. A submission stores the Your View values used at confirmation.
+No `localStorage` or database persistence is used (both need approval and belong to
+Phase 6C).
 
-**Fixes:**
-* **One official snapshot per round.** Once a live snapshot passes the opening
-  checks it is pinned for its round (ISO week) for the life of the process. An
-  unplayable snapshot is retried every 15 minutes. Freshness is still assessed
-  at the snapshot time.
-* **Draft revalidation.** On a different snapshot, each pick is checked:
-  * picks whose outcome, odds and market chance are unchanged, and which still
-    fit, are kept;
-  * the others are removed from the draft and listed in a **Please review**
-    banner with the reason (removed from the sheet, odds or market chance
-    changed, no longer eligible or fits).
-  * Nothing moves to new odds silently, and the whole draft is never cleared
-    automatically.
-* **Frozen confirmed submission.** `submitted` records:
-  * round id, snapshot fingerprint and time, configuration version;
-  * each pick: key, bucket, match, outcome, frozen odds, market, Diski 9 and Your
-    View probabilities, and whether Your View was adjusted;
-  * Market / Diski 9 / Your View estimates;
-  * the maximum payout and the confirmation time.
-  * A snapshot change, mode change, refresh or failed resubmission never changes
-    or deletes it.
-* **Resubmission is explicit.** "Replace my confirmed portfolio" only replaces
-  the record after every check passes; a failure keeps the old one.
+## 7. Review & Submit, withdrawal, My Challenge, Leaderboards
 
-**Session behaviour:**
-* `ch-session` (draft, step, notes, confirmed submission) and `ch-prefs` (source,
-  view) use `sessionStorage`: they survive a refresh in the same tab and are
-  cleared when the tab closes.
-* Filters and the match-list page reset when the builder re-renders.
-* The confirmation modal stays until closed.
+**Review & Submit:** source cards, the nine picks, allocation and snapshot; the
+confirm / replace button; **Withdraw submission** when a confirmed entry exists;
+the confirmation dialog (check icon, "You're in!").
 
-**Phase 6C:** server-side round records with publication, deadline and frozen
-snapshots; persistent submissions; snapshot lifecycle (republication and
-corrections).
+**Withdrawal.** A secondary button with an undo icon and restrained red styling,
+on Review & Submit and My Challenge, while the round is open. A confirmation
+dialog explains that the confirmed entry for the round is removed and the working
+portfolio cleared, and that a new portfolio can be submitted before the deadline.
+"Keep my submission" changes nothing. After the deadline the action is refused. On
+success the round shows **Withdrawn** with "Build a new portfolio"; old selections
+are never resubmitted. Clear draft, Replace and Withdraw remain separate actions.
 
-## 7. Review & Submit, My Challenge, Leaderboards
+**My Challenge:** a compact "This round" card (status, progress, prototype
+browser-tab notice) and a confirmed-summary card (frozen Market / Diski 9 / Your
+View metrics, maximum payout, Withdraw) side by side; "Show my nine predictions"
+as a separate full-width card with three bucket columns (stacked on phones) and a
+one-line Diski 9 summary; then the illustrative championship and history. The body
+re-renders whenever the stored state changes.
 
-**Review & Submit:**
-* Market / Diski 9 / Your View cards (Your View only when adjusted): get 100+
-  back, nothing back, expected gross;
-* the nine picks with bucket, Market, Diski 9 and odds;
-* the allocation and snapshot;
-* the explicit confirm or replace button;
-* the "You're in!" modal with **View My Challenge**.
+**Leaderboards:** gold trophy, silver medal and bronze medal icons for positions
+1–3 on the podium and in the weekly and championship rank columns, next to the
+numeric rank. Shared ranks get identical icons and no position is manufactured
+(1, 1, 3 shows two trophies and a bronze). Scoring, ranking, tie-breaks,
+highlighting and demonstration notices are unchanged.
 
-**My Challenge:**
-* compact round status: Unavailable / Not started / Draft in progress /
-  Confirmed / Locked;
-* an inspectable confirmed portfolio (source cards and nine picks by bucket);
-* an illustrative championship summary: points, rank, recoveries and rate,
-  top-ten finishes, best weekly finish, progress;
-* a ten-round timeline (recovered / not recovered / not entered / to play);
-* the history table in an expander.
-* Practice and void rounds never count. Invented demo history is labelled
-  separately from the user's own confirmed portfolio.
+## 8. Performance
 
-**Leaderboards:**
-* a "You (demo)" summary card;
-* a podium of the top three **positions**: ties share a place, nothing is
-  reordered (ranks 1, 1, 3 show a shared 1st and a 3rd, with no 2nd);
-* aligned tables;
-* championship rounds completed and remaining;
-* practice, void and "Void — Refunded" labels as before.
+Measured in headless Chromium against the same database (demo round). Phase 6B.1
+is commit `680127d`.
 
-## 8. Testing and checking
+| Measure | Phase 6B.1 | Phase 6B.2 |
+|---|---|---|
+| Main-thread block after the builder renders | ~5.0 s | ~2.5 s |
+| Builder tap | 0.33–0.43 s | 0.18–0.27 s |
+| Builder tap after visiting the Match Lab | 1.8–2.0 s | 0.43–0.50 s |
 
-* **Tests:** `tests/test_challenge_ui.py` and `tests/test_challenge_analysis.py`
-  (512-state reconciliation, sources, bucket stats).
-* **Screenshots:** `docs/screenshots/weekly_challenge_ux_refinement/` (desktop
-  1366 × 900 at 2×, iPhone 13, iPad).
+Changes: one CSS-driven state tag per outcome card (7 elements instead of 13–18),
+the Match Lab unmounted while another page shows (rebuilt from the selection and
+the Match Lab store on return), the Match Lab panel rendered only on the Screener,
+and the store write-back limited to page loads. The remaining render block is
+Dash's per-component store subscriptions over ~1,500 elements.
 
-Run the app, then open http://127.0.0.1:8050/challenge:
+## 9. Testing
+
+* `tests/test_challenge_state.py`: restart, hydration, isolation, withdrawal, and a
+  Playwright server-restart walkthrough.
+* `tests/test_match_universe.py`: toggle removal, universes, frozen edge cells for
+  all three markets.
+* `tests/test_playtest_refinement.py`: Match Lab cards, calculation reconciliation,
+  combined chart, zero-probability counts, stepper, How to play, rank icons, no
+  emojis.
+* Screenshots: `docs/screenshots/weekly_challenge_playtest_refinement/`.
 
 ```bash
 uv run diski9 serve

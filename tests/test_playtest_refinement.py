@@ -99,8 +99,15 @@ def test_builder_cards_show_your_view_only_for_adjusted_matches(snap):  # noqa: 
 
 def test_disabled_outcomes_explain_with_icon_and_text(snap):  # noqa: F811
     o = snap.outcomes[0]
-    text = jtext(comp.outcome_button(o, "A", SelectionBlock.BUCKET_FULL, False))
-    assert "ic-ban" in text and "Bucket full" in text
+    btn = comp.outcome_button(o, "A", SelectionBlock.BUCKET_FULL, False)
+    assert "st-bucket_full" in btn.className and btn.disabled
+    assert "Bucket full" in btn.title and "Bucket full" in getattr(btn, "aria-label")
+    css = (APP / "assets/style.css").read_text()  # visible label and ban icon follow state
+    assert '.ch-out.st-bucket_full .ch-tag-s::after { content: "Bucket full"; }' in css
+    assert (
+        "--tag-ic: var(--ic-ban)" in css and "--ic-ban:" in (APP / "assets/icons.css").read_text()
+    )
+    assert len(list(_walk(btn))) <= 9  # compact: one tag element, not six variants
 
 
 # ------------------------------------------------------------- icons, no emoji
