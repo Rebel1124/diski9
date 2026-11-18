@@ -322,7 +322,7 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                                 className="segmented universe",
                             ),
                         ],
-                        className="filter",
+                        className="filter f-matches",
                     ),
                     html.Div(
                         [
@@ -336,7 +336,7 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                                 className="dropdown",
                             ),
                         ],
-                        className="filter",
+                        className="filter f-market",
                     ),
                     html.Div(
                         [
@@ -354,7 +354,7 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                                 className="dropdown leagues",
                             ),
                         ],
-                        className="filter",
+                        className="filter f-leagues",
                     ),
                     html.Div(
                         [
@@ -368,7 +368,7 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                                 className="dates",
                             ),
                         ],
-                        className="filter",
+                        className="filter f-dates",
                     ),
                     html.Div(
                         [
@@ -384,7 +384,7 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                                 value=DEFAULT_DIRECTION,
                             ),
                         ],
-                        className="filter",
+                        className="filter f-rank",
                     ),
                     html.Div(
                         [

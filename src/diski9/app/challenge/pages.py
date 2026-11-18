@@ -174,9 +174,10 @@ def how_to_play(open_: bool) -> html.Details:
                 className="ch-points",
             ),
             html.P(
-                "Championship points need a recovery: at least 100.00 credits back. Ten "
+                "Championship points are awarded for recoveries (at least 100.00 credits back) "
+                "in competitive rounds only, never in demonstration or practice rounds. Ten "
                 "competitive rounds make a championship.",
-                className="muted small",
+                className="muted small ch-points-note",
             ),
             c.rules_details(),
         ],
@@ -1331,6 +1332,90 @@ def round_state(state, snap, avail, sels) -> tuple[str, str, str]:
     return "Not started", "off", "Build a portfolio of nine predictions."
 
 
+def round_facts(state, snap, avail, sels, sub, label, local) -> list[tuple[str, str]]:
+    """Round details for the "This round" card, all from the stored prototype state
+    and the round snapshot (nothing hard-coded beyond the approved allocation)."""
+    if snap is None or not avail.playable:
+        facts = [("Status", label)]
+        if snap is not None:
+            facts.insert(0, ("Round", snap.round_id))
+        return facts + [("Credits", f"{CFG.total_credits} virtual credits per entry")]
+    facts = [
+        ("Round", ("Demonstration · " if snap.is_demo else "Live · ") + snap.round_id),
+        ("Status", label),
+    ]
+    if sub:
+        n = len(sub.get("selections") or [])
+        facts.append(("Predictions", f"{n} of {CFG.required_selections} submitted"))
+    else:
+        facts.append(("Predictions", f"{len(sels)} of {CFG.required_selections} in your draft"))
+    if snap.is_demo:
+        facts.append(("Deadline", "None: demonstration round, practice only"))
+    elif snap.deadline:
+        facts.append(("Deadline", f"{local(snap.deadline)} SAST"))
+    alloc = " / ".join(str(b.credits) for b in CFG.buckets) + f" / {CFG.nine_fold_credits}"
+    facts.append(("Credits", f"{CFG.total_credits} virtual ({alloc})"))
+    wd = state.get("withdrawn") or {}
+    if sub:
+        facts.append(("Confirmation", f"Confirmed {local(sub['at'])} SAST"))
+    elif wd.get("round_id") == snap.round_id and wd.get("mode") == st.mode_key(snap):
+        facts.append(("Confirmation", f"Withdrawn {local(wd['at'])} SAST"))
+    else:
+        facts.append(("Confirmation", "Not confirmed"))
+    if locked(avail):
+        facts.append(("Changes", "Locked: the deadline has passed"))
+    elif sub:
+        facts.append(("Changes", "You can replace or withdraw until the round locks"))
+    else:
+        facts.append(("Changes", "Build and confirm before the round locks"))
+    return facts
+
+
+def round_card(state, snap, avail, sels, sub, label, cls, line, local) -> html.Div:
+    facts = round_facts(state, snap, avail, sels, sub, label, local)
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.H2("This round", className="ch-h2"),
+                    html.Span(label, className=f"ch-pill {cls}"),
+                ],
+                className="ch-row-between",
+            ),
+            html.P(line, className="small ch-round-line"),
+            html.Dl(
+                [item for k, v in facts if k != "Status" for item in (html.Dt(k), html.Dd(v))],
+                className="ch-facts small",
+            ),
+            html.Div(
+                className="ch-total-bar",
+                children=html.Div(className="fill", style={"width": f"{len(sels) / 9:.0%}"}),
+            ),
+            html.Div(
+                [
+                    dcc.Link(
+                        [
+                            "Build a new portfolio "
+                            if label == "Withdrawn"
+                            else "Open the Weekly Challenge ",
+                            c.icon("arrow-right", "ic-sm"),
+                        ],
+                        href="/challenge",
+                        className="ch-lab-link",
+                    ),  # fmt: skip
+                    html.P(
+                        "Prototype: this entry is kept only in this browser tab. It is not an "
+                        "official competition entry.",
+                        className="muted small ch-proto-note",
+                    ),
+                ],
+                className="ch-card-foot",
+            ),
+        ],
+        className="ch-card ch-compact ch-round-card",
+    )
+
+
 def confirmed_summary(sub, local, can_withdraw: bool) -> html.Div:
     """Compact card: the frozen submission's Market / Diski 9 / Your View estimates."""
     return html.Div(
@@ -1356,10 +1441,10 @@ def confirmed_summary(sub, local, can_withdraw: bool) -> html.Div:
                     ),
                     withdraw_button("me") if can_withdraw else None,
                 ],
-                className="ch-row-between ch-conf-foot",
+                className="ch-row-between ch-conf-foot ch-card-foot",
             ),
         ],
-        className="ch-card ch-compact",
+        className="ch-card ch-compact ch-conf-summary",
     )
 
 
@@ -1482,49 +1567,7 @@ def my_challenge_body(service, state, local) -> list:
     label, cls, line = round_state(state, snap, avail, sels)
     sub = st.submission_for(state, snap)
     can_withdraw = bool(sub) and avail.playable and not locked(avail)
-    status = html.Div(
-        [
-            html.Div(
-                [
-                    html.H2("This round", className="ch-h2"),
-                    html.Span(label, className=f"ch-pill {cls}"),
-                ],
-                className="ch-row-between",
-            ),
-            html.P(
-                [
-                    (
-                        f"{'Demonstration' if snap and snap.is_demo else 'Live'} round "
-                        f"{snap.round_id} · "
-                        if snap
-                        else ""
-                    ),
-                    line,
-                ],
-                className="small",
-            ),
-            html.Div(
-                className="ch-total-bar",
-                children=html.Div(className="fill", style={"width": f"{len(sels) / 9:.0%}"}),
-            ),
-            dcc.Link(
-                [
-                    "Build a new portfolio "
-                    if label == "Withdrawn"
-                    else "Open the Weekly Challenge ",
-                    c.icon("arrow-right", "ic-sm"),
-                ],
-                href="/challenge",
-                className="ch-lab-link",
-            ),  # fmt: skip
-            html.P(
-                "Prototype: this entry is kept only in this browser tab. It is not an "
-                "official competition entry.",
-                className="muted small ch-proto-note",
-            ),
-        ],
-        className="ch-card ch-compact",
-    )
+    status = round_card(state, snap, avail, sels, sub, label, cls, line, local)
     if sub:
         confirmed = confirmed_summary(sub, local, can_withdraw)
     else:
@@ -1537,7 +1580,7 @@ def my_challenge_body(service, state, local) -> list:
                     className="muted small",
                 ),
             ],
-            className="ch-card ch-compact",
+            className="ch-card ch-compact ch-conf-summary",
         )
     m = demo.demo_summary()
     rate = c.pct(m["recovery_rate"], 0) if m["recovery_rate"] is not None else "—"

@@ -1167,3 +1167,61 @@ table.results td.value-cell { white-space: nowrap; }
 .page-head .page-meta { margin-left: auto; }
 .page .tagline { margin: 0 2px 12px; }
 @media (max-width: 720px) { .page-head .page-meta { margin-left: 0; flex-basis: 100%; } }
+
+/* ===================== Phase 6B.3: readable Match Lab filters =====================
+   Columns sized for the longest values ("Both Teams to Score (BTTS)",
+   "Highest model vs market edge", "7 leagues selected", custom date ranges);
+   Minimum probability stays on the right, spanning both rows, on desktop. */
+.filters .f-matches { grid-area: matches; } .filters .f-market { grid-area: market; }
+.filters .f-leagues { grid-area: leagues; } .filters .f-dates { grid-area: dates; }
+.filters .f-rank { grid-area: rank; } .filters .threshold-filter { grid-area: slider; }
+@media (min-width: 1180px) {
+  .filters { grid-template-columns: minmax(165px, .8fr) minmax(200px, 1fr) minmax(250px, 1.2fr) minmax(220px, 300px);
+    grid-template-areas: "matches matches market slider" "leagues dates rank slider"; gap: 10px 14px; }
+  .filters .threshold-filter { align-self: center; padding-left: 14px; border-left: 1px solid var(--border); }
+}
+@media (min-width: 900px) and (max-width: 1179px) {
+  .filters { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr);
+    grid-template-areas: "matches matches market" "leagues dates rank" "slider slider slider"; }
+}
+@media (min-width: 721px) and (max-width: 899px) {
+  .filters { grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas: "matches matches" "market leagues" "dates rank" "slider slider"; }
+}
+@media (max-width: 720px) {
+  .filters { grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "matches" "market" "leagues" "dates" "rank" "slider"; }
+}
+.filters .universe { width: 100%; }
+.filters .universe label { flex: 1; justify-content: center; }
+.filters .dash-dropdown-value-item, .filters .dash-dropdown-value { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filters .dates { width: 100%; }
+
+/* ===================== Phase 6B.3: symmetrical My Challenge cards ===================== */
+@media (min-width: 961px) {
+  .ch-grid-me { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
+  .ch-grid-me > .ch-card { display: flex; flex-direction: column; margin: 0; }
+  .ch-grid-me .ch-card-foot { margin-top: auto; }
+}
+.ch-round-line { margin: 4px 0 6px; }
+.ch-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 14px; margin: 0 0 10px; }
+.ch-facts dt { color: var(--muted); }
+.ch-facts dd { margin: 0; font-variant-numeric: tabular-nums; }
+.ch-card-foot { padding-top: 8px; }
+
+/* ===================== Phase 6B.3: compact How to play ===================== */
+.ch-howto .ch-htp { margin: 4px 0 8px; gap: 16px; align-items: start; }
+.ch-howto .ch-lead { margin: 0 0 6px; }
+.ch-howto .ch-goals { gap: 6px; }
+.ch-build { margin-top: 8px; }
+.ch-build .ch-h3 { margin: 0 0 4px; }
+.ch-build-steps { gap: 6px; }
+.ch-howto .ch-points { margin-top: 4px; }
+.ch-points-note { margin: 6px 0 4px; }
+/* compact one-row source cards inside the half-width confirmed-summary card */
+@media (min-width: 961px) {
+  .ch-conf-summary .ch-src-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .ch-conf-summary .ch-src-card { padding: 8px 10px; }
+  .ch-conf-summary .ch-src-card .ch-big, .ch-conf-summary .ch-src-card strong { font-size: 15px; }
+  .ch-howto .ch-htp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}

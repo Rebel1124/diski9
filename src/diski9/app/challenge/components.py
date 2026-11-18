@@ -266,13 +266,14 @@ def objectives() -> html.Div:
 
 BUILD_STEPS = (
     ("layers", "Choose nine different matches",
-     "One prediction per match: four Foundation, three Balanced and two Challenger."),
-    ("scale", "Compare Market, Diski 9 and Your View",
-     "The market chance sets the bucket; compare it with the model and your own view."),
-    ("shield", "Understand your portfolio risk",
-     "Portfolio analysis shows your chance of 100+ back and every possible payout."),
-    ("clock", "Review and submit before the deadline",
-     "Confirm on Review & Submit; you can replace or withdraw until the round locks."),
+     "Four Foundation, three Balanced and two Challenger predictions, with one prediction "
+     "per match."),
+    ("scale", "Compare probabilities and assess your risk",
+     "Explore Market, Diski 9 and Your View, and analyse your potential portfolio outcomes. "
+     "Market probability determines bucket eligibility."),
+    ("circle-check", "Review and submit",
+     "Confirm your portfolio before the deadline. You can replace or withdraw it before the "
+     "round locks."),
 )  # fmt: skip
 
 

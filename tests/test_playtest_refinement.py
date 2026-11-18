@@ -240,14 +240,19 @@ def test_stepper_never_shows_review_for_an_incomplete_draft(svc, snap):  # noqa:
 
 
 def test_how_to_play_has_build_steps_and_two_objectives():
+    """Phase 6B.3: three build steps (superseding the four of 6B.2)."""
     from diski9.app.challenge import pages
 
     text = jtext(pages.how_to_play(True))
     for t in ("Get your 100 credits back", "Finish in the top ten", "Build your portfolio",
-              "Choose nine different matches", "Compare Market, Diski 9 and Your View",
-              "Understand your portfolio risk", "Review and submit before the deadline"):  # fmt: skip
-        assert t in text
+              "Choose nine different matches", "Compare probabilities and assess your risk",
+              "Review and submit", "Market probability determines bucket eligibility",
+              "competitive rounds only, never in demonstration or practice rounds",
+              "Rules and scoring"):  # fmt: skip
+        assert t in text, t
     assert text.count('"ch-goal"') == 2  # no extra competitive objectives
+    assert text.count('"ch-build-step"') == 3
+    assert "Understand your portfolio risk" not in text
 
 
 EMOJI = re.compile("[\U0001f300-\U0001faff\U00002600-\U000027bf\U0001f000-\U0001f2ff⭐⭕✅❌]")
@@ -312,3 +317,31 @@ def test_navigation_and_page_headings_are_consistent(data):  # noqa: F811
         alt = rf'"className":\s*"ch-h1"[^}}]*"children":\s*"{title}"'
         assert re.search(h1, text) or re.search(alt, text), title
         assert "ch-title page-head" in text, title
+
+
+def test_my_challenge_round_card_facts_follow_state(svc, snap):  # noqa: F811
+    from diski9.app.challenge import pages
+
+    keys = valid_keys(snap)
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    text = jtext(pages.my_challenge(svc, s, _Local()))
+    assert "0 of 9 in your draft" in text and "Not confirmed" in text
+    assert "None: demonstration round" in text and "100 virtual (40 / 30 / 20 / 10)" in text
+    for k in keys:
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    s, _ = cb.apply_action(svc, s, "submit")
+    text = jtext(pages.my_challenge(svc, s, _Local()))
+    assert "9 of 9 submitted" in text and "Confirmed " in text
+    assert "replace or withdraw until the round locks" in text and "browser tab" in text
+    assert "ch-round-card" in text and "ch-conf-summary" in text
+    s, _ = cb.apply_action(svc, s, "ask_withdraw")
+    s, _ = cb.apply_action(svc, s, "withdraw")
+    text = jtext(pages.my_challenge(svc, s, _Local()))
+    assert "Withdrawn " in text and "Build a new portfolio" in text
+
+
+class _Local:
+    def __call__(self, dt, fmt="%a %d %b, %H:%M"):
+        from datetime import datetime
+
+        return (datetime.fromisoformat(dt) if isinstance(dt, str) else dt).strftime(fmt)
