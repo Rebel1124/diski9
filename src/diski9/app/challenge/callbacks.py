@@ -30,8 +30,15 @@ NAV = (
 
 
 # Builder and Match Lab buttons share one reducer and the same engine validation.
-ACTION_OF = {"labpick": "pick", "labremove": "remove", "labreplace": "ask_replace",
-             "confirmreplace": "replace", "cancelflash": "cancel"}  # fmt: skip
+ACTION_OF = {
+    "labpick": "pick",
+    "labremove": "remove",
+    "labreplace": "ask_replace",
+    "confirmreplace": "replace",
+    "cancelflash": "cancel",
+    "modalclose": "close_modal",
+    "dismissnotes": "dismiss_notes",
+}
 
 
 def nav_links(path: str) -> list:
@@ -47,7 +54,48 @@ def _flash(text: str, kind: str = "info") -> dict:
 
 
 # ------------------------------------------------------------- the reducer
-def apply_action(service: ChallengeService, state: dict | None, action: str, arg=None):
+def _meta(o) -> dict:
+    """What a draft selection looked like when it was chosen (for revalidation)."""
+    return {"odds": str(o.reference_odds), "p": repr(o.market_probability)}
+
+
+def migrate_draft(service, s, snap) -> tuple[list[str], list[dict]]:
+    """Revalidate a draft against a different snapshot. Selections whose outcome, odds
+    and market chance are unchanged and still fit are kept; every other selection is
+    taken out of the draft and listed for the participant to review. Nothing is ever
+    moved to different odds or probabilities silently."""
+    kept, notes, meta = [], [], s.get("meta") or {}
+    for k in s["selections"]:
+        o = snap.outcome(parse_key(k))
+        m = meta.get(k)
+        label = (m or {}).get("label", k)
+        if o is None:
+            notes.append({"label": label, "reason": "no longer on the round sheet"})
+            continue
+        if m and (
+            m.get("odds") != str(o.reference_odds) or m.get("p") != repr(o.market_probability)
+        ):
+            notes.append(
+                {
+                    "label": label,
+                    "reason": f"odds or market chance changed (odds "
+                    f"{m.get('odds')} → {o.reference_odds})",
+                }
+            )
+            continue
+        blocks = selection_blocks(
+            service.outcomes_for(snap, kept), snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG
+        )
+        if blocks.get(o.key) is not None:
+            notes.append({"label": label, "reason": "no longer eligible or no longer fits"})
+            continue
+        kept.append(k)
+    return kept, notes
+
+
+def apply_action(
+    service: ChallengeService, state: dict | None, action: str, arg=None, personal=None
+):
     """Pure state transition: (new state, flash or None). Every rule check is an
     engine call; this function only decides what the UI does with the answer."""
     s = pages.normal_state(state)
@@ -55,21 +103,37 @@ def apply_action(service: ChallengeService, state: dict | None, action: str, arg
     snap = service.snapshot(mode) if mode else None
     if snap is not None and s.get("fp") != snap.fingerprint:
         if s["selections"]:
-            flash = _flash(
-                "The round snapshot changed, so your earlier draft was cleared. "
-                "Selections are never carried between snapshots.",
+            kept, notes = migrate_draft(service, s, snap)
+            s.update(
+                selections=kept,
+                notes=notes,
+                fp=snap.fingerprint,
+                mode=mode,
+                meta={k: v for k, v in (s.get("meta") or {}).items() if k in kept},
+            )
+            # a confirmed submission is a frozen record: it is never changed or deleted here
+            return s, _flash(
+                f"The round snapshot changed. {len(kept)} prediction(s) kept; "
+                f"{len(notes)} need your review."
+                if notes
+                else "The round snapshot changed; your predictions were checked and kept.",
                 "warn",
             )
-            s.update(selections=[], submitted=None, fp=snap.fingerprint, mode=mode)
-            return s, flash
         s.update(fp=snap.fingerprint, mode=mode)
     avail = service.availability(mode or "live")
 
     if action == "mode":
         new = service.snapshot(arg)
+        keep = {"submitted": s.get("submitted")}  # never drop a confirmed submission
         s = pages.normal_state(
-            {"mode": arg if arg == "demo" else None, "fp": new.fingerprint if new else None}
+            {"mode": arg if arg == "demo" else None, "fp": new.fingerprint if new else None, **keep}
         )
+        return s, None
+    if action == "close_modal":
+        s["modal"] = None
+        return s, None
+    if action == "dismiss_notes":
+        s["notes"] = []
         return s, None
     if action == "nav":
         if arg not in {key for key, _ in pages.STAGES}:
@@ -103,6 +167,7 @@ def apply_action(service: ChallengeService, state: dict | None, action: str, arg
         block = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG).get(o.key)
         if block is None:
             s["selections"] = [*s["selections"], arg]
+            s["meta"] = {**(s.get("meta") or {}), arg: _meta(o) | {"label": _label(snap, o)}}
             return s, None
         return s, _flash(
             {
@@ -118,7 +183,7 @@ def apply_action(service: ChallengeService, state: dict | None, action: str, arg
             "warn",
         )
     if action == "submit":
-        return submit(service, s, snap, avail)
+        return submit(service, s, snap, avail, personal)
     return s, None
 
 
@@ -133,24 +198,41 @@ def replace_selection(service, s, snap, arg, confirm: bool):
     if old is None:
         return apply_action(service, s, "pick", arg)
     rest = [k for k in s["selections"] if k != old]
-    block = selection_blocks(service.outcomes_for(snap, rest), snap.outcomes, snap.snapshot_at,
-                             DEFAULT_CONFIG).get(new.key)  # fmt: skip
+    block = selection_blocks(
+        service.outcomes_for(snap, rest), snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG
+    ).get(new.key)
     if block is not None:
-        return s, _flash("That replacement isn't possible: "
-                         + {SelectionBlock.INELIGIBLE: "the outcome isn't eligible.",
-                            SelectionBlock.BUCKET_FULL: "its bucket is already full.",
-                            SelectionBlock.WOULD_BLOCK_COMPLETION: "the portfolio could no longer "
-                            "be completed."}.get(block, "it isn't allowed."), "warn")  # fmt: skip
+        return s, _flash(
+            "That replacement isn't possible: "
+            + {
+                SelectionBlock.INELIGIBLE: "the outcome isn't eligible.",
+                SelectionBlock.BUCKET_FULL: "its bucket is already full.",
+                SelectionBlock.WOULD_BLOCK_COMPLETION: "the portfolio could no longer "
+                "be completed.",
+            }.get(block, "it isn't allowed."),
+            "warn",
+        )
     old_o = snap.outcome(parse_key(old))
     if not confirm:
-        return s, {"text": f"Replace {c.outcome_text(old_o)} with {c.outcome_text(new)} for this "
-                   "match?", "kind": "confirm", "replace": arg}  # fmt: skip
+        return s, {
+            "text": f"Replace {c.outcome_text(old_o)} with {c.outcome_text(new)} for this match?",
+            "kind": "confirm",
+            "replace": arg,
+        }
     s["selections"] = [*rest, arg]
+    s["meta"] = {**(s.get("meta") or {}), arg: _meta(new) | {"label": _label(snap, new)}}
     return s, _flash(f"Replaced {c.outcome_text(old_o)} with {c.outcome_text(new)}.", "ok")
 
 
-def submit(service, s, snap, avail):
-    """Prototype submission: re-validate everything before recording it in the tab."""
+def _label(snap, o) -> str:
+    fx = snap.fixture(o.fixture_id)
+    return f"{fx.home} v {fx.away}: {c.outcome_text(o)}"
+
+
+def submit(service, s, snap, avail, personal=None):
+    """Prototype submission. Everything is re-validated first; only on success is the
+    frozen record written (replacing an earlier confirmation explicitly). On any
+    failure the existing confirmed submission is kept unchanged."""
     if not avail.playable or pages.locked(avail):
         return s, _flash("Submissions aren't open for this round.", "warn")
     if s.get("fp") != snap.fingerprint:
@@ -159,23 +241,53 @@ def submit(service, s, snap, avail):
         return s, _flash("The round uses a different configuration.", "warn")
     chosen = service.outcomes_for(snap, s["selections"])
     try:
-        validate_portfolio(chosen, snap.snapshot_at, DEFAULT_CONFIG, pool=snap.outcomes)
+        port = validate_portfolio(chosen, snap.snapshot_at, DEFAULT_CONFIG, pool=snap.outcomes)
     except ValueError as e:
         return s, _flash(f"Your portfolio is not valid: {e}", "warn")
-    mk, md = service.evaluate(snap, s["selections"])
+    personal = personal or {}
+    evs = pa.evaluate_sources(port, personal)
+    replacing = s.get("submitted") is not None
     s["submitted"] = {
         "at": service.now().astimezone(UTC).isoformat(),
-        "fp": snap.fingerprint,
         "round_id": snap.round_id,
+        "fp": snap.fingerprint,
+        "snapshot_at": snap.snapshot_at.isoformat(),
         "mode": "demo" if snap.is_demo else "live",
-        "selections": list(s["selections"]),
         "config": snap.config_version,
-        "p_recover_market": mk.p_recover,
-        "p_recover_model": md.p_recover,
-        "expected_market": mk.expected_gross,
+        "selections": list(s["selections"]),
+        "picks": [
+            {
+                "key": key_str(o.key),
+                "bucket": code,
+                "match": f"{snap.fixture(o.fixture_id).home} v {snap.fixture(o.fixture_id).away}",
+                "outcome": c.outcome_text(o),
+                "odds": str(o.reference_odds),
+                "market": o.market_probability,
+                "model": o.model_probability,
+                "personal": personal.get(o.key),
+                "personal_adjusted": o.key in personal,
+            }
+            for code, b in zip(DEFAULT_CONFIG.bucket_codes, port.buckets, strict=True)
+            for o in b
+        ],
+        "estimates": {
+            src: {"p_recover": ev.p_recover, "p_zero": ev.p_zero, "expected": ev.expected_gross}
+            for src, ev in evs.items()
+        },
+        "max_gross": str(evs["market"].max_gross),
+        # kept for Phase 6B readers
+        "p_recover_market": evs["market"].p_recover,
+        "p_recover_model": evs["model"].p_recover,
+        "expected_market": evs["market"].expected_gross,
     }
+    s["modal"] = s["submitted"]["at"]
     return s, _flash(
-        "Demonstration submission confirmed in this browser tab. It is not a competition entry.",
+        (
+            "Your confirmed demonstration portfolio was replaced."
+            if replacing
+            else "Demonstration submission confirmed."
+        )
+        + " It is not a competition entry.",
         "ok",
     )
 
@@ -237,15 +349,18 @@ def register(app, data, service: ChallengeService) -> None:
         Input({"t": "labreplace", "k": ALL}, "n_clicks"),
         Input({"t": "confirmreplace", "k": ALL}, "n_clicks"),
         Input({"t": "cancelflash", "i": ALL}, "n_clicks"),
+        Input({"t": "modalclose", "i": ALL}, "n_clicks"),
+        Input({"t": "dismissnotes", "i": ALL}, "n_clicks"),
         Input({"t": "nav", "to": ALL, "i": ALL}, "n_clicks"),
         Input({"t": "mode", "m": ALL}, "n_clicks"),
         Input(c.T("clear", ALL), "n_clicks"),
         Input(c.T("submit", ALL), "n_clicks"),
         State("ch-session", "data"),
+        State("lab-store", "data"),
         prevent_initial_call=True,
     )
     def reduce(*args):
-        state = args[-1]
+        state, lab_store = args[-2], args[-1]
         trig = ctx.triggered_id
         if not trig or not ctx.triggered or not ctx.triggered[0].get("value"):
             return no_update, no_update  # a component was (re)rendered, not clicked
@@ -253,7 +368,8 @@ def register(app, data, service: ChallengeService) -> None:
         if t == "cancel":
             return no_update, {"text": ""}
         arg = trig.get("k") or trig.get("to") or trig.get("m")
-        new, flash = apply_action(service, state, t, arg)
+        personal = your_view(state, lab_store) if t == "submit" else None
+        new, flash = apply_action(service, state, t, arg, personal)
         return new, flash if flash is not None else no_update
 
     @app.callback(

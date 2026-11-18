@@ -987,3 +987,26 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-btn.on { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
 .ch-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .ch-confirm span { flex: 1 1 200px; }
+
+/* ===================== Phase 6B.1: journey, review, modal ===================== */
+.ch-statusbar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 8px 12px; margin-bottom: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); font-variant-numeric: tabular-nums; }
+.ch-statusbar .ch-btn { margin-left: auto; }
+.ch-howto { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 14px; margin: 0 0 10px; }
+.ch-howto[open] { padding-bottom: 12px; }
+.ch-htp { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 18px; margin: 8px 0 12px; }
+.ch-src-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 6px 0 10px; }
+.ch-src-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 6px; }
+.ch-src-card.primary { border-color: var(--accent); background: linear-gradient(180deg, var(--accent-dim), var(--surface)); }
+.ch-src-card > div { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.ch-src-name { font-weight: 700; }
+.ch-big.teal { color: var(--accent); }
+.ch-btn.big { padding: 11px 20px; font-size: 15.5px; }
+.ch-modal-backdrop { position: fixed; inset: 0; background: rgba(4, 8, 12, .72); z-index: 100; display: grid; place-items: center; padding: 16px; }
+.ch-modal { background: var(--surface); border: 1px solid var(--accent); border-radius: 16px; padding: 26px 28px; max-width: 420px; width: 100%; text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
+.ch-modal p { margin: 6px 0; }
+.ch-modal-icon { font-size: 34px; }
+.ch-modal-title { font-size: 26px; margin: 4px 0 8px; color: var(--accent); }
+.ch-modal .ch-actions { justify-content: center; }
+@media (max-width: 700px) { .ch-htp { grid-template-columns: minmax(0, 1fr); } }

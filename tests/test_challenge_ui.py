@@ -65,6 +65,8 @@ class _Data:
         return self._now
 
     def local(self, dt, fmt="%a %d %b, %H:%M"):
+        if isinstance(dt, str):
+            dt = datetime.fromisoformat(dt)
         return dt.strftime(fmt)
 
 
@@ -225,9 +227,9 @@ def test_pick_remove_and_guards(svc, snap):
     s, _ = cb.apply_action(svc, None, "mode", "demo")
     assert s["mode"] == "demo" and s["fp"] == snap.fingerprint and s["selections"] == []
     s, flash = cb.apply_action(svc, s, "nav", "review")
-    assert s["stage"] == "overview" and "Complete" in flash["text"]
+    assert s["stage"] == "build" and "Complete" in flash["text"]
     s2, flash = cb.apply_action(svc, s, "nav", "no-such-step")
-    assert s2["stage"] == "overview" and flash is None
+    assert s2["stage"] == "build" and flash is None
     for k in keys[:4]:
         s, flash = cb.apply_action(svc, s, "pick", k)
         assert flash is None
@@ -283,14 +285,68 @@ def test_submission_revalidates(svc, snap):
     assert s["submitted"] is None and "not valid" in flash["text"]
 
 
-def test_snapshot_change_clears_draft(svc, snap):
+def test_snapshot_change_revalidates_draft_and_keeps_submission(svc, snap):
+    """Phase 6B.1: a changed snapshot no longer wipes the draft or the confirmed entry."""
     keys = valid_keys(snap)
-    stale = {"mode": "demo", "fp": "old-fingerprint", "selections": keys, "stage": "build"}
-    s, flash = cb.apply_action(svc, stale, "pick", keys[0])
-    assert s["selections"] == [] and s["fp"] == snap.fingerprint
-    assert "snapshot changed" in flash["text"]
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    for k in keys:
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    s, _ = cb.apply_action(svc, s, "submit")
+    confirmed = dict(s["submitted"])
+    # simulate a different source snapshot: one pick's odds changed, one pick vanished
+    changed, vanished = keys[0], keys[1]
+    s["fp"] = "an-older-snapshot"
+    s["meta"][changed]["odds"] = "9.99"
+    s["selections"] = [*s["selections"], "123|1X2|HOME"]
+    s["meta"]["123|1X2|HOME"] = {"odds": "2.00", "p": "0.5", "label": "Gone v Away: Home win"}
+    s2, flash = cb.apply_action(svc, s, "pick", keys[2])
+    assert s2["fp"] == snap.fingerprint and "need your review" in flash["text"]
+    assert changed not in s2["selections"] and "123|1X2|HOME" not in s2["selections"]
+    assert vanished in s2["selections"] and len(s2["selections"]) == 8
+    reasons = {n["label"]: n["reason"] for n in s2["notes"]}
+    assert any("changed" in r for r in reasons.values())
+    assert reasons["Gone v Away: Home win"] == "no longer on the round sheet"
+    assert s2["submitted"] == confirmed  # the confirmed record is never touched
     # rendering never shows selections from another snapshot either
+    stale = {"mode": "demo", "fp": "old", "selections": keys, "stage": "build"}
     assert pages.current(svc, pages.normal_state(stale))[3] == []
+    s3, _ = cb.apply_action(svc, s2, "dismiss_notes")
+    assert s3["notes"] == []
+
+
+def test_confirmed_submission_is_frozen_and_survives_mode_changes(svc, snap):
+    keys = valid_keys(snap)
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    for k in keys:
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    personal = {snap.outcome(parse_key(keys[0])).key: 0.9}
+    s, flash = cb.apply_action(svc, s, "submit", None, personal)
+    sub = s["submitted"]
+    assert s["modal"] == sub["at"] and "confirmed" in flash["text"].lower()
+    assert len(sub["picks"]) == 9 and sub["snapshot_at"] == snap.snapshot_at.isoformat()
+    first = next(p for p in sub["picks"] if p["key"] == keys[0])
+    o = snap.outcome(parse_key(keys[0]))
+    assert first["odds"] == str(o.reference_odds) and first["market"] == o.market_probability
+    assert first["model"] == o.model_probability and first["personal"] == 0.9
+    assert set(sub["estimates"]) == {"market", "model", "personal"}
+    s, _ = cb.apply_action(svc, s, "close_modal")
+    assert s["modal"] is None
+    s, _ = cb.apply_action(svc, s, "mode", "live")  # leaving the demo keeps the record
+    assert s["submitted"] == sub and s["selections"] == []
+
+
+def test_resubmission_is_explicit_and_failed_replacement_keeps_old(svc, snap):
+    keys = valid_keys(snap)
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    for k in keys:
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    s, _ = cb.apply_action(svc, s, "submit")
+    first = dict(s["submitted"])
+    s["selections"] = keys[:8]  # an invalid replacement
+    s2, flash = cb.apply_action(svc, s, "submit")
+    assert s2["submitted"] == first and "not valid" in flash["text"]
+    review = jtext(pages.review(svc, snap, keys, svc.availability("demo"), s, _Data().local))
+    assert "Confirmed" in review  # same portfolio: already confirmed
 
 
 def test_locked_round_refuses_changes(snap):
@@ -475,10 +531,9 @@ def test_browser_journey_demo_round(data):  # noqa: F811
       const p = await (await b.newContext({{ ...devices['iPhone 13'] }})).newPage();
       p.on('pageerror', e => out.errors.push(e.message));
       const idle = async () => {{ await p.waitForTimeout(400); await p.waitForLoadState('networkidle'); }};
-      await p.goto('http://127.0.0.1:{port}/challenge'); await p.waitForSelector('.ch-hero');
+      await p.goto('http://127.0.0.1:{port}/challenge'); await p.waitForSelector('.ch-page');
       await p.locator(sel({{m: 'demo', t: 'mode'}})).tap();
       await p.waitForSelector('text=Demonstration round.'); await idle();
-      await p.locator(sel({{i: 'overview', t: 'nav', to: 'build'}})).tap();
       await p.waitForSelector(sel({{k: KEYS[0], t: 'pick'}}));
       for (const k of KEYS) {{ await p.locator(sel({{k, t: 'pick'}})).tap(); await idle(); }}
       out.total = await p.locator('.ch-total').innerText();

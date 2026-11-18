@@ -22,18 +22,25 @@ from . import components as c
 from .service import ChallengeService, key_str
 
 CFG = DEFAULT_CONFIG
-STAGES = (
-    ("overview", "Overview"),
-    ("build", "Build"),
-    ("review", "Review"),
-)
-DEFAULT_STATE = {"mode": None, "fp": None, "selections": [], "stage": "overview", "submitted": None}
+STAGES = (("build", "Build portfolio"), ("review", "Review & Submit"))
+DEFAULT_STATE = {
+    "mode": None,
+    "fp": None,
+    "selections": [],
+    "stage": "build",
+    "submitted": None,
+    "meta": {},
+    "notes": [],
+    "modal": None,
+}
 
 
 def normal_state(state: dict | None) -> dict:
     s = dict(DEFAULT_STATE)
     s.update(state or {})
     s["selections"] = list(s.get("selections") or [])
+    if s.get("stage") not in {k for k, _ in STAGES}:
+        s["stage"] = "build"  # Phase 6B "overview"/"analyse" steps no longer exist
     return s
 
 
@@ -83,11 +90,7 @@ def stepper(service, state) -> html.Nav:
     state = normal_state(state)
     mode, snap, avail, sels = current(service, state)
     complete = snap is not None and service.evaluate(snap, sels) is not None
-    reach = {
-        "overview": True,
-        "build": avail.playable and snap is not None,
-        "review": complete,
-    }
+    reach = {"build": avail.playable and snap is not None, "review": complete}
     return html.Nav(
         [
             html.Button(
@@ -108,71 +111,33 @@ def stage_signature(service, state) -> list:
     state = normal_state(state)
     mode, snap, _, _ = current(service, state)
     sub = (state.get("submitted") or {}).get("at")
-    return [state["stage"], mode, snap.fingerprint if snap else None, sub]
+    return [
+        state["stage"],
+        mode,
+        snap.fingerprint if snap else None,
+        sub,
+        state.get("modal"),
+        len(state.get("notes") or []),
+    ]
 
 
 def stage_body(service, state, explore, local, personal=None):
     state = normal_state(state)
     mode, snap, avail, sels = current(service, state)
-    stage = state["stage"]
     complete = snap is not None and service.evaluate(snap, sels) is not None
-    if stage == "build" and snap is not None and avail.playable:
-        return builder(service, snap, sels, avail, explore, local, personal)
-    if stage == "review" and complete:
-        return review(service, snap, sels, avail, state, local)
-    return overview(service, state, mode, snap, avail, local)
+    if snap is None or not avail.playable:
+        return unavailable(service, state, mode, snap, avail, local)
+    if state["stage"] == "review" and complete:
+        return review(service, snap, sels, avail, state, local, personal)
+    return builder(service, snap, sels, avail, explore, local, personal, state)
 
 
-# --------------------------------------------------------------- overview
-def overview(service, state, mode, snap, avail, local) -> html.Div:
-    n = len(state["selections"]) if snap is not None and state.get("fp") == snap.fingerprint else 0
-    actions = []
-    if avail.playable and snap is not None:
-        actions.append(
-            html.Button(
-                f"Resume your portfolio ({n}/9) →" if n else "Start building →",
-                id={"t": "nav", "to": "build", "i": "overview"},
-                n_clicks=0,
-                className="ch-btn primary",
-            )
-        )
-    if mode != "demo":
-        if not avail.playable:
-            actions.append(
-                html.Button(
-                    "Try the demonstration round",
-                    id={"t": "mode", "m": "demo"},
-                    n_clicks=0,
-                    className="ch-btn primary",
-                )
-            )
-    else:
-        live = service.availability("live")
-        actions.append(
-            html.Button(
-                "Leave the demonstration" if not live.playable else "Switch to the live round",
-                id={"t": "mode", "m": "live"},
-                n_clicks=0,
-                className="ch-btn ghost",
-            )
-        )
-    unavailable = None
-    if mode != "demo" and not avail.playable:
-        unavailable = html.Div(
-            [
-                html.Strong("The live round isn't available. "),
-                avail.message,
-                " You can still learn how the challenge works with the "
-                "demonstration round: historical fixtures and prices, clearly labelled, for "
-                "practice only.",
-            ],
-            className="ch-ribbon warn",
-        )
+# ------------------------------------------------------------- how to play
+def how_to_play(open_: bool) -> html.Details:
     pts = POINTS_150_75_V2
-    return html.Div(
+    return html.Details(
         [
-            c.demo_ribbon(snap),
-            unavailable,
+            html.Summary("How to play"),
             html.Div(
                 [
                     html.Div(
@@ -181,59 +146,108 @@ def overview(service, state, mode, snap, avail, local) -> html.Div:
                                 [
                                     "Build a portfolio of nine predictions with ",
                                     html.Strong("100 virtual credits"),
-                                    ". The aim is simple: ",
-                                    "get your 100 back.",
+                                    ".",
                                 ],
                                 className="ch-lead",
                             ),
                             c.objectives(),
-                            html.Div(actions, className="ch-actions"),
                         ],
-                        className="ch-card ch-hero",
+                        className="ch-htp-col",
                     ),
-                    c.status_panel(service.availability(mode) if mode else avail, snap, local),
+                    html.Div([c.structure_table()], className="ch-htp-col"),
                 ],
-                className="ch-grid-2",
-            ),
-            html.Div(
-                [html.H2("How your 100 credits are split", className="ch-h2"), c.structure_table()],
-                className="ch-card",
+                className="ch-htp",
             ),
             html.Div(
                 [
-                    html.H2("Championship points", className="ch-h2"),
+                    html.Div([html.Span(f"{i + 1}"), html.Strong(str(p))], className="pt")
+                    for i, p in enumerate(pts.top_points)
+                ]
+                + [
                     html.Div(
-                        [
-                            html.Div([html.Span(f"{i + 1}"), html.Strong(str(p))], className="pt")
-                            for i, p in enumerate(pts.top_points)
-                        ]
-                        + [
-                            html.Div(
-                                [html.Span("11+"), html.Strong(str(pts.recovery_points))],
-                                className="pt",
-                            )
-                        ],
-                        className="ch-points",
-                    ),
-                    html.P(
-                        "Points need a recovery: at least 100.00 credits back. Ten competitive "
-                        "rounds make a championship.",
-                        className="muted small",
-                    ),
-                    c.rules_details(),
+                        [html.Span("11+"), html.Strong(str(pts.recovery_points))], className="pt"
+                    )
                 ],
-                className="ch-card",
+                className="ch-points",
             ),
+            html.P(
+                "Championship points need a recovery: at least 100.00 credits back. Ten "
+                "competitive rounds make a championship.",
+                className="muted small",
+            ),
+            c.rules_details(),
+        ],
+        open=open_,
+        className="ch-details ch-howto",
+    )
+
+
+def status_strip(snap, avail, local) -> html.Div:
+    rep = avail.report
+    items = [("Round", snap.round_id), ("Status", avail.title)]
+    if not snap.is_demo and snap.deadline:
+        items.append(("Deadline", f"{local(snap.deadline)} SAST"))
+    if rep is not None:
+        items.append(("Fixtures", f"{rep.eligible_fixtures} in {rep.eligible_leagues} leagues"))
+    items.append(("Snapshot", f"{local(snap.snapshot_at)} SAST"))
+    leave = (
+        html.Button(
+            "Leave demo", id={"t": "mode", "m": "live"}, n_clicks=0, className="ch-btn small ghost"
+        )
+        if snap.is_demo
+        else None
+    )
+    return html.Div(
+        [
+            *(html.Span([html.Span(k, className="muted"), " ", html.Strong(v)]) for k, v in items),
+            leave,
+        ],
+        className="ch-statusbar small",
+    )
+
+
+def unavailable(service, state, mode, snap, avail, local) -> html.Div:
+    actions = []
+    if mode == "demo" or (snap is not None and snap.is_demo):
+        actions.append(
+            html.Button(
+                "Leave the demonstration",
+                id={"t": "mode", "m": "live"},
+                n_clicks=0,
+                className="ch-btn ghost",
+            )
+        )
+    else:
+        actions.append(
+            html.Button(
+                "Try the demonstration round",
+                id={"t": "mode", "m": "demo"},
+                n_clicks=0,
+                className="ch-btn primary",
+            )
+        )
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Strong(avail.title + ". "),
+                    avail.message,
+                    " You can still learn how the Challenge works with the demonstration round: "
+                    "historical fixtures and prices, clearly labelled, for practice only.",
+                ],
+                className="ch-ribbon warn",
+            ),
+            html.Div(actions, className="ch-actions"),
+            how_to_play(True),
         ]
     )
 
 
-# ---------------------------------------------------------------- builder
 def _filter(label, control, cls="filter"):
     return html.Div([html.Label(label), control], className=cls)
 
 
-def builder(service, snap, sels, avail, prefs, local, personal=None) -> html.Div:
+def builder(service, snap, sels, avail, prefs, local, personal=None, state=None) -> html.Div:
     leagues = sorted({f.league for f in snap.fixtures})
     days = sorted({local(f.kickoff, "%Y-%m-%d") for f in snap.fixtures})
     day_label = {
@@ -324,9 +338,33 @@ def builder(service, snap, sels, avail, prefs, local, personal=None) -> html.Div
             {"label": "Portfolio analysis", "value": "analysis"},
         ],
     )
+    state = state or {}
+    notes = state.get("notes") or []
+    notes_box = (
+        html.Div(
+            [
+                html.Strong("Please review: the round snapshot changed. "),
+                "These predictions were taken out of your draft:",
+                html.Ul([html.Li(f"{n['label']} — {n['reason']}") for n in notes]),
+                html.Button(
+                    "OK",
+                    id={"t": "dismissnotes", "i": 0},
+                    n_clicks=0,
+                    className="ch-btn small ghost",
+                ),
+            ],
+            className="ch-ribbon warn",
+        )
+        if notes
+        else None
+    )
+    new_user = not sels and not state.get("submitted")
     return html.Div(
         [
             c.demo_ribbon(snap),
+            status_strip(snap, avail, local),
+            how_to_play(new_user),
+            notes_box,
             lock_note,
             toggle,
             html.Div(
@@ -800,95 +838,142 @@ def k_detail(cc, k: int) -> html.Div:
 
 
 # ----------------------------------------------------------------- review
-def review(service, snap, sels, avail, state, local) -> html.Div:
-    mk, md = service.evaluate(snap, sels)
+def estimate_cards(estimates: dict) -> html.Div:
+    """Market / Diski 9 / Your View summary cards (recovery first)."""
+    cards = []
+    for src in pa.SOURCES:
+        e = estimates.get(src)
+        if not e:
+            continue
+        cards.append(
+            html.Div(
+                [
+                    html.Span(pa.SOURCE_LABEL[src], className="ch-src-name"),
+                    html.Div(
+                        [
+                            html.Span("Get 100+ back", className="muted small"),
+                            html.Strong(c.pct(e["p_recover"], 1), className="ch-big teal"),
+                        ]
+                    ),
+                    html.Div(
+                        [
+                            html.Span("Nothing back", className="muted small"),
+                            html.Strong(c.pct(e["p_zero"], 1)),
+                        ]
+                    ),
+                    html.Div(
+                        [
+                            html.Span("Expected gross", className="muted small"),
+                            html.Strong(f"{e['expected']:,.2f} cr"),
+                        ]
+                    ),
+                ],
+                className="ch-src-card" + (" primary" if src == "market" else ""),
+            )
+        )
+    return html.Div(cards, className="ch-src-cards")
+
+
+def picks_table(rows) -> html.Div:
+    head = html.Tr(
+        [
+            html.Th("Bucket"),
+            html.Th("Match"),
+            html.Th("Prediction"),
+            html.Th("Market", className="num"),
+            html.Th("Diski 9", className="num"),
+            html.Th("Odds", className="num"),
+        ]
+    )
+    return html.Div(
+        html.Table([html.Thead(head), html.Tbody(rows)], className="ch-table"),
+        className="ch-table-wrap",
+    )
+
+
+def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
+    port = service.portfolio(snap, sels)
+    evs = pa.evaluate_sources(port, personal or {})
     rows = []
-    for acc in mk.buckets:
-        for k in acc.legs:
-            o = snap.outcome(k)
+    for code, b in zip(CFG.bucket_codes, port.buckets, strict=True):
+        for o in b:
             fx = snap.fixture(o.fixture_id)
             rows.append(
                 html.Tr(
                     [
-                        html.Td(c.chip(acc.code, acc.code)),
+                        html.Td(c.chip(code)),
                         html.Td(f"{fx.home} v {fx.away}"),
                         html.Td(c.outcome_text(o)),
-                        html.Td(c.pct(o.market_probability, 1), className="num"),
+                        html.Td(c.pct_in_band(o.market_probability, code), className="num"),
+                        html.Td(c.pct(o.model_probability, 1), className="num"),
                         html.Td(f"{o.reference_odds:.2f}", className="num"),
                     ]
                 )
             )
     sub = state.get("submitted")
-    confirmed = sub and sub.get("fp") == snap.fingerprint and sub.get("selections") == sels
+    same = bool(sub) and sub.get("fp") == snap.fingerprint and sub.get("selections") == sels
+    other = bool(sub) and not same
     can_submit = avail.playable and not locked(avail)
-    compare = html.Div(
-        [
-            html.Div(
-                [
-                    html.Span(label, className="ch-metric-label"),
-                    html.Span(f"Recover 100: {c.pct(ev.p_recover)}"),
-                    html.Span(f"Nothing back: {c.pct(ev.p_zero)}", className="small"),
-                    html.Span(
-                        f"Expected: {ev.expected_gross:,.2f} cr ({ev.expected_net:+,.2f})",
-                        className="small",
-                    ),
-                ],
-                className="ch-metric",
-            )
-            for label, ev in (("Market estimate", mk), ("Diski 9 model", md))
-        ],
-        className="ch-metrics two",
+    label = (
+        "Confirmed ✓"
+        if same
+        else "Replace my confirmed portfolio"
+        if other
+        else "Confirm demonstration portfolio"
+        if snap.is_demo
+        else "Confirm portfolio"
     )
+    estimates = {
+        s: {"p_recover": ev.p_recover, "p_zero": ev.p_zero, "expected": ev.expected_gross}
+        for s, ev in evs.items()
+    }
+    if not personal:
+        estimates.pop("personal")
     return html.Div(
         [
             c.demo_ribbon(snap),
-            html.H2("Review your portfolio", className="ch-h2"),
             html.Div(
                 [
-                    html.Div(
-                        html.Table(
-                            [
-                                html.Thead(
-                                    html.Tr(
-                                        [
-                                            html.Th("Bucket"),
-                                            html.Th("Match"),
-                                            html.Th("Prediction"),
-                                            html.Th("Mkt", className="num"),
-                                            html.Th("Odds", className="num"),
-                                        ]
-                                    )
-                                ),
-                                html.Tbody(rows),
-                            ],
-                            className="ch-table",
-                        ),
-                        className="ch-table-wrap",
-                    ),
+                    html.H2("Review & Submit", className="ch-h2"),
+                    html.Span(f"Round {snap.round_id}", className="muted small"),
+                ],
+                className="ch-row-between",
+            ),
+            estimate_cards(estimates),
+            html.P(
+                (
+                    "Your View uses your Match Lab adjustments where you made them and Diski 9 "
+                    "elsewhere. "
+                    if personal
+                    else ""
+                )
+                + "Every estimate assumes independent "
+                "matches and is uncertain. Payouts are the same under every estimate: the "
+                f"maximum, {c.credits(evs['market'].max_gross)} credits, needs all nine "
+                "predictions to be correct.",
+                className="muted small",
+            ),
+            html.Div(
+                [
+                    picks_table(rows),
                     html.P(
-                        f"Allocation: Foundation 40, Balanced 30, Challenger 20, The Diski 9 10 "
-                        f"credits. Round {snap.round_id} · snapshot {local(snap.snapshot_at)} · "
-                        f"configuration {snap.config_version}.",
+                        f"Allocation: Foundation 40, Balanced 30, Challenger 20, The Diski 9 "
+                        f"10 credits. Snapshot {local(snap.snapshot_at)} SAST · configuration "
+                        f"{snap.config_version}.",
                         className="muted small",
                     ),
                 ],
                 className="ch-card",
             ),
-            compare,
-            html.P(
-                "Estimates assume independent matches and are not guarantees. Credits are "
-                "virtual and have no cash value.",
-                className="muted small",
-            ),
             html.Div(
                 [
-                    html.Strong("Demonstration submission confirmed. "),
-                    f"Recorded in this browser tab only at {local(sub['at'])} — it is not a "
-                    "competition entry and nothing is stored on a server.",
+                    html.Strong("You already have a confirmed portfolio "),
+                    f"(round {sub['round_id']}, confirmed {local(sub['at'])}). It stays recorded "
+                    "unless this one passes every check and you replace it.",
                 ],
-                className="ch-ribbon ok",
+                className="ch-ribbon",
             )
-            if confirmed
+            if other
             else None,
             html.Div(
                 [
@@ -899,21 +984,61 @@ def review(service, snap, sels, avail, state, local) -> html.Div:
                         className="ch-btn ghost",
                     ),
                     html.Button(
-                        "Confirm demonstration submission" if not confirmed else "Confirmed ✓",
+                        label,
                         id=c.T("submit"),
                         n_clicks=0,
-                        disabled=bool(confirmed) or not can_submit,
-                        className="ch-btn primary",
+                        disabled=same or not can_submit,
+                        className="ch-btn primary big",
                     ),
                 ],
                 className="ch-actions end",
             ),
             html.P(
-                "Prototype: confirming checks your portfolio again and records it in this "
-                "browser tab. Live entries, accounts and deadlines arrive in a later phase.",
+                "Prototype: confirming re-checks your portfolio and records it in this browser "
+                "tab only. It is not a competition entry.",
                 className="muted small",
             ),
+            confirmation_modal(state, local) if state.get("modal") and sub else None,
         ]
+    )
+
+
+def confirmation_modal(state, local) -> html.Div:
+    sub = state["submitted"]
+    demo_word = "demonstration " if sub.get("mode") == "demo" else ""
+    return html.Div(
+        html.Div(
+            [
+                html.Div("🎉", className="ch-modal-icon", **{"aria-hidden": "true"}),
+                html.H2("You're in!", className="ch-modal-title"),
+                html.P(f"Your {demo_word}portfolio has been confirmed."),
+                html.P(html.Strong("9 predictions. 100 virtual credits.")),
+                html.P("Good luck with your Diski 9 predictions!"),
+                html.P(
+                    f"Round {sub['round_id']} · {local(sub['at'])} SAST"
+                    + (" · demonstration only, not a competition entry" if demo_word else ""),
+                    className="muted small",
+                ),
+                html.Div(
+                    [
+                        dcc.Link(
+                            "View My Challenge", href="/challenge/me", className="ch-btn primary"
+                        ),
+                        html.Button(
+                            "Close",
+                            id={"t": "modalclose", "i": 0},
+                            n_clicks=0,
+                            className="ch-btn ghost",
+                        ),
+                    ],
+                    className="ch-actions",
+                ),
+            ],
+            className="ch-modal",
+            role="dialog",
+            **{"aria-modal": "true", "aria-label": "Portfolio confirmed"},
+        ),
+        className="ch-modal-backdrop",
     )
 
 

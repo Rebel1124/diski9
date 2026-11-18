@@ -60,28 +60,39 @@ class ChallengeService:
         self._demo: RoundSnapshot | None = None
         self._lock = threading.Lock()
         self._eval_cache: dict = {}
+        self._pinned: dict[str, RoundSnapshot] = {}
 
     # ------------------------------------------------------------ snapshots
     def now(self):
         return self.data.clock()
 
     def live(self) -> RoundSnapshot | None:
+        """The live round's snapshot. Once a round's snapshot passes the opening checks
+        it is **pinned** for that round (one official frozen snapshot per round), so it
+        is never rebuilt during the round; an unplayable snapshot (for example stale
+        odds at publication) is retried every ``live_ttl`` seconds."""
         with self._lock:
+            now = self.now()
+            iso = now.isocalendar()
+            round_id = f"{iso.year}-W{iso.week:02d}"
+            pinned = self._pinned.get(round_id)
+            if pinned is not None:
+                return pinned
             if self._live is None or time.monotonic() - self._live_at > self.live_ttl:
-                now = self.now()
-                iso = now.isocalendar()
                 try:
                     self._live = build_live_snapshot(
                         self.data.engine,
                         now,
                         now,
                         now + timedelta(days=7),
-                        f"{iso.year}-W{iso.week:02d}",
+                        round_id,
                         LEAGUE_SHORT,
                     )
                 except Exception:  # noqa: BLE001 - an unreadable database is "no round"
                     self._live = None
                 self._live_at = time.monotonic()
+                if self._live is not None and assess_round(self._live, now).playable:
+                    self._pinned[round_id] = self._live
             return self._live
 
     def demo(self) -> RoundSnapshot | None:
