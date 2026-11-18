@@ -210,8 +210,8 @@ operational rules below supersede the Phase 6A.2 text.
   * all ten rounds count (no best-X);
   * non-entry scores 0;
   * nothing carries forward between championships.
-* FR-C4. **Points** (preferred final candidate `points-150-75-v2`; validated in
-  Phase 6A.2.1, awaiting final approval, D-31). **No recovery, no championship
+* FR-C4. **Points** (`points-150-75-v2`, approved for the MVP, D-31; validated in
+  Phase 6A.2.1 by simulation). **No recovery, no championship
   points.**
 
 | Weekly rank (gross ≥ 100.00) | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11+ |

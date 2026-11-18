@@ -1,4 +1,4 @@
-# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6A.2.1)
+# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6A.3)
 
 This register supersedes the Phase 5C register (`2e079ba`) and the Phase 6A.2
 version (`6d5b47f`). IDs are kept, so history can be traced. Superseded items are
@@ -37,6 +37,7 @@ listed at the end.
 | D-27 | **Championship ties (approved):** total points → successful recoveries → qualifying top-ten finishes (rank ≤ 10, gross ≥ 100.00, championship-eligible round) → joint position under standard competition ranking (joint champions allowed). Cumulative gross or net credits are never a tie-break |
 | D-28 | **Operational thresholds (approved):** a round opens only with ≥ 15 eligible fixtures, ≥ 3 eligible leagues and an exact strict 4/3/2 feasibility check (existing freshness and ≥ 3 bookmaker-group rules unchanged). A round counts toward the championship only with **≥ 5 valid entries** (distinct participants with a locked, complete, valid final submission at the deadline; resubmissions count once). Otherwise it is a **practice round**: it settles, shows results and a weekly table, awards no points, doesn't affect tie-breakers and doesn't advance the counter. Practice results are kept separately |
 | D-30 | **Championship continuation (approved):** a championship is always ten completed championship-eligible rounds, independent of league seasons and calendar quarters. Breaks, end of season or unavailable pools **pause** it with points preserved; it is never shortened and no champion is crowned early. After ten rounds: finalise, archive, record the champion(s), reset. Join any time; all ten rounds count; history and lifetime statistics kept |
+| D-31 | **Approved for the MVP (Phase 6A.3): Scenario D, `points-150-75-v2`.** Ranks 1–10 earn 150/135/125/120/115/110/105/100/95/90, any other recovery 75, no recovery 0; D-26 ties; maximum 150 per round and 1,500 per championship. Implemented in `diski9.challenge.scoring`. The incentive evidence is simulated (D-29); approval does not claim real-world incentives are eliminated |
 | D-15 | Settlement precision: each accumulator rounded half-up to 0.01; state gross = sum; recovery = gross ≥ 100.00 (approved in Phase 6A) |
 
 ## Provisional (empirical) — synthetic evidence, to confirm on real pools
@@ -92,8 +93,8 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | D-11 | Round calendar | Weekend window; publish Thursday 06:00 UTC; postpone when the opening checks fail | Phase 6C |
 | D-12 | PSL coverage (no qualifying odds) | Accept for the MVP and state it in the UI | Phase 6C |
 | D-29 | **Empirical validation (outstanding):** collect 6–8 complete real weekly pools with settled outcomes and re-run the 6A.2 / 6A.2.1 simulations before the first official championship. Runs in parallel; does not delay the engine or the Dash prototype | Yes; the odds trial supplies the pools | First official championship |
-| D-32 | **Mass voids short of cancellation:** should a round where most fixtures are void at settlement (for example more than half) be reclassified as void? Today only an operator cancellation voids a round (T-08) | Keep operator-only for the MVP; review after real data | Phase 6F |
-| D-31 | **Final points schedule (scoring safeguard), pending final approval:** `points-150-75-v2` = 150/135/125/120/115/110/105/100/95/90 for ranks 1–10, 75 for any other recovery, 0 without recovery, with D-26 ties (scenario D) | **Approve.** Removes the large-field variance incentive at every field size tested (P-02, P-04, P-09), keeps recovery worth half the maximum, treats identical results equally (P-08). Residual: frequent joint champions above ~500 entrants (P-10), allowed by D-27. Optional, not adopted: "most weekly first places" as a final tie-breaker | Phase 6G |
+| D-32 | **Partially voided rounds (settlement, Phase 6C):** should a round where most fixtures are void at settlement (for example more than half) be reclassified as void, and at what threshold? Today only an explicit void classification (operator cancellation, T-08) voids a round; the scoring engine has no hard-coded threshold | Keep operator-only for the MVP; review after real data | Phase 6C (settlement) |
+| D-33 | **Entries with all nine selections void:** they return exactly 100.00. Under the literal approved rule this is a recovery that earns points at its rank. The engine represents such entries explicitly (`SettlementBasis.ALL_SELECTIONS_VOID`) and supports `all_void_policy` = `score_as_settled` (default, literal rule) or `no_points` (ranked, but no points, recovery or top-ten credit) | Decide before the first official championship; a change needs a new scoring version | Phase 6C (settlement) |
 
 ## Superseded Phase 5C items
 
@@ -112,7 +113,7 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | **D-09** | Season scoring: average net per round entered, with a qualification threshold | **C-19, C-20, D-27:** 10-round championships with recovery-gated points |
 | D-10 | Market-implied expected return omitted from the MVP | C-14 (market and model shown separately) |
 | D-13 | Season definition (Aug–May) | C-19 (championships of 10 completed rounds) |
-| C-20 (6A.2 schedule) | 150/135/120/110/100/95/90/85/80/75, 50 outside the top ten | D-31 (`points-150-75-v2`), pending final approval |
+| C-20 (6A.2 schedule) | 150/135/120/110/100/95/90/85/80/75, 50 outside the top ten | D-31 (`points-150-75-v2`), approved Phase 6A.3 |
 | D-26 (6A.2 proposal) | Average-points weekly ties with exact fractions (e.g. 63.75) | D-26 approved: standard competition ranking, full points, integers |
 | T-03, T-04 (6A.2) | Proposed opening checks and 5-entrant minimum | D-28 approved |
 | T-05 (6A.2) | Points stored as exact fractions | T-05 revised: integers |

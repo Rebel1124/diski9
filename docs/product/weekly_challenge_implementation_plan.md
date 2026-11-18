@@ -14,6 +14,13 @@ phase is one feature branch, merged only with the owner's approval, with:
 * Recovery-gated weekly points and 10-round championships, replacing season
   scoring (old D-09).
 
+**Phase 6A.3 (done, `feature/risk-structured-challenge-engine`):** the
+generalised portfolio engine (`diski9.challenge.config`, `diski9.challenge.structured`)
+and the pure scoring engine (`diski9.challenge.scoring`, `points-150-75-v2`),
+covering the engine scope of Phase 6B, the pure checks of 6C and the pure
+scoring logic of 6G. Persistence, UI, settlement and lifecycle remain. See
+`docs/weekly_challenge_engine.md`.
+
 **Already done:**
 * Phase 6A engine on `feature/weekly-challenge-engine` (`48392c1`): 3/3/3 picks,
   30/30/30/10 credits, the eight states, D-15 rounding, payout distribution. Not
@@ -124,7 +131,7 @@ decisions T-01 and T-02.
 
 * `challenge_round_scores` (integer points), `challenge_championships`, and the
   round `designation` / `valid_entries` columns (design §12).
-* Scoring `points-150-75-v2` (after D-31 approval):
+* Scoring `points-150-75-v2` (approved, D-31; pure logic done in Phase 6A.3):
   * 150/135/125/120/115/110/105/100/95/90 for ranks 1–10, else 75;
   * recovery-gated (gross ≥ 100.00);
   * standard competition ranking with full points for ties (D-26).

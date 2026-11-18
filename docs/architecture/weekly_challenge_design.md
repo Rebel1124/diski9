@@ -634,9 +634,9 @@ are historical and are never recomputed.
 
 ## 12. Weekly points and championships
 
-Rules version `points-150-75-v2` (Phase 6A.2.1; the schedule is the preferred
-final candidate awaiting approval, D-31; tie, threshold and continuation rules
-approved, D-26 to D-28 and D-30). Supersedes `points-150-50-v1`.
+Rules version `points-150-75-v2` (approved for the MVP, D-31; tie, threshold and
+continuation rules approved, D-26 to D-28 and D-30; implemented in
+`diski9.challenge.scoring`, Phase 6A.3). Supersedes `points-150-50-v1`.
 
 ### 12.1 Weekly points
 
