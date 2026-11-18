@@ -11,6 +11,7 @@ from diski9.challenge.roundsheet import RoundAvailability, RoundSnapshot, RoundS
 from diski9.challenge.scoring import POINTS_150_75_V2, RoundClassification
 from diski9.challenge.structured import PortfolioEvaluation, SelectionBlock
 
+from ..icons import icon
 from .service import key_str
 
 CFG = DEFAULT_CONFIG
@@ -307,19 +308,62 @@ def outcome_state(o, bucket, block, locked: bool, personal=None) -> tuple[str, b
     return cls, disabled, title
 
 
-def outcome_button(o, bucket, block, locked: bool, personal=None) -> html.Button:
-    """One outcome: name, market and Diski 9 chances, frozen odds, bucket label and
-    selection state; disabled outcomes say why (text and an icon, not only colour)."""
+def you_line(o, personal, show_you: bool):
+    """The Your View number on an outcome card: the participant's own probability, or
+    a clear "= D9" when they have not adjusted this match (Your View then equals the
+    unadjusted Diski 9 probability)."""
+    if not show_you:
+        return None
+    if personal is None:
+        return html.Span("You = D9", className="ch-out-you same", title="No adjustments for this "
+                         "match yet: Your View equals Diski 9")  # fmt: skip
+    return html.Span(
+        f"You {pct(personal, 1)}",
+        className="ch-out-you",
+        title="Your View: Goal Model 1.0 with your adjusted expected goals",
+    )
+
+
+def outcome_button(
+    o,
+    bucket,
+    block,
+    locked: bool,
+    personal=None,
+    *,
+    id_type: str = "pick",
+    show_you: bool = False,
+    replace_from: str | None = None,
+) -> html.Button:
+    """One outcome card (builder and Match Lab): name, frozen odds, market (Mkt, which
+    decides the bucket), Diski 9 (D9) and optionally Your View (You) probabilities,
+    bucket label and selection state. Disabled outcomes say why in text with an icon,
+    never by colour alone. ``replace_from`` marks a valid one-tap replacement of the
+    pick already made on this match (Match Lab)."""
     cls, disabled, title = outcome_state(o, bucket, block, locked, personal)
     bc = BUCKET_CLASS[bucket] if bucket else None
     name = BUCKET_NAME[bucket] if bucket else ""
+    if replace_from and not locked:
+        cls = cls.replace("st-fixture_taken", "st-replace").replace(" is-blocked", "")
+        disabled = False
+        title = f"{outcome_text(o)}: replace your pick on this match ({replace_from})"
     tags = [
         html.Span(name, className=f"ch-tag t-open b-{bc}") if bc else None,
-        html.Span(["✓ ", name], className=f"ch-tag t-selected on b-{bc}") if bc else None,
-        html.Span("⊘ Not eligible", className="ch-tag off t-ineligible"),
-        html.Span("⊘ Match used", className="ch-tag off t-fixture_taken"),
-        html.Span("⊘ Bucket full", className="ch-tag off t-bucket_full"),
-        html.Span("⊘ Can't complete", className="ch-tag off t-would_block_completion"),
+        html.Span([icon("check", "ic-sm"), name], className=f"ch-tag t-selected on b-{bc}")
+        if bc
+        else None,
+        html.Span([icon("ban", "ic-sm"), "Not eligible"], className="ch-tag off t-ineligible"),
+        html.Span([icon("ban", "ic-sm"), "Match used"], className="ch-tag off t-fixture_taken"),
+        html.Span([icon("ban", "ic-sm"), "Bucket full"], className="ch-tag off t-bucket_full"),
+        html.Span(
+            [icon("ban", "ic-sm"), "Can't complete"],
+            className="ch-tag off t-would_block_completion",
+        ),
+        html.Span(
+            [icon("swap", "ic-sm"), f"Replace · {name}"], className=f"ch-tag t-replace b-{bc}"
+        )
+        if replace_from
+        else None,
     ]
     model = pct_in_band(o.model_probability, None) if o.model_probability is not None else "—"
     return html.Button(
@@ -335,14 +379,18 @@ def outcome_button(o, bucket, block, locked: bool, personal=None) -> html.Button
             ),
             html.Span(
                 [
-                    html.Span(f"Mkt {pct_in_band(o.market_probability, bucket)}"),
-                    html.Span(f"D9 {model}", className="muted"),
+                    html.Span(
+                        f"Mkt {pct_in_band(o.market_probability, bucket)}",
+                        title="Market probability (bookmaker margin removed): sets the bucket",
+                    ),
+                    html.Span(f"D9 {model}", className="muted", title="Diski 9 (Goal Model 1.0)"),
+                    you_line(o, personal, show_you),
                 ],
                 className="ch-out-nums",
             ),
             html.Span([tg for tg in tags if tg is not None], className="ch-tags"),
         ],
-        id={"t": "pick", "k": key_str(o.key)},
+        id={"t": id_type, "k": key_str(o.key)},
         n_clicks=0,
         disabled=disabled,
         className=cls,
@@ -352,6 +400,7 @@ def outcome_button(o, bucket, block, locked: bool, personal=None) -> html.Button
 
 def fixture_card(fx, outs, assess, blocks, local, locked, personal=None) -> html.Div:
     personal = personal or {}
+    adjusted = any(o.key in personal for o in outs)  # Your View shown where it differs
     by_market: dict[str, list] = {}
     for o in outs:
         by_market.setdefault(str(o.market), []).append(o)
@@ -370,6 +419,7 @@ def fixture_card(fx, outs, assess, blocks, local, locked, personal=None) -> html
                                 blocks.get(o.key),
                                 locked,
                                 personal.get(o.key),
+                                show_you=adjusted,
                             )
                             for o in items
                         ]
@@ -393,7 +443,7 @@ def fixture_card(fx, outs, assess, blocks, local, locked, personal=None) -> html
                     ),
                     html.Div(f"{fx.home} v {fx.away}", className="ch-fx-teams"),
                     dcc.Link(
-                        "Match Lab ↗",
+                        ["Match Lab ", icon("arrow-right", "ic-sm")],
                         href=f"/?fixture={fx.fixture_id}",
                         className="ch-lab-link",
                         title="Analyse this match in the Match Lab",

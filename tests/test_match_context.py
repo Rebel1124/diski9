@@ -173,17 +173,19 @@ def test_all_seven_recalculated_and_baseline_untouched(data):
 
 def test_per_fixture_isolation_and_market_persistence(data):
     app = create_app(data)
-    detail = next(v for k, v in app.callback_map.items() if k.startswith("detail.children"))
+    # Phase 6B.2: the detail callback also fills the bookmaker reference container
+    # (the Weekly Challenge panel sits between them); [0] is header + Match Lab
+    detail = next(v for k, v in app.callback_map.items() if "detail.children" in k)
     f = detail["callback"].__wrapped__
     st = _ctx(_r(data), home="0.35")
     st, _ = lab_update(_r(data), "ctx-note", "Derby", st)
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = f(EPL_FIX, market, lab)
+        d = f(EPL_FIX, market, lab)[0]
         box = _find(d, lambda c: getattr(c, "id", None) == "ctx-home")[0]
         note = _find(d, lambda c: getattr(c, "id", None) == "ctx-note")[0]
         assert box.value == "+0.35" and note.value == "Derby"
-    other = f(PSL_FIX, "1X2", lab)
+    other = f(PSL_FIX, "1X2", lab)[0]
     assert _find(other, lambda c: getattr(c, "id", None) == "ctx-home")[0].value == "0.00"
     layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
     assert '"storage_type":"memory"' in layout

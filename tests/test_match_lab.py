@@ -158,7 +158,9 @@ def test_adjust_callback_keyed_by_fixture_and_isolated(data):
 
 def test_market_switch_keeps_adjustment(data):
     app = create_app(data)
-    detail = next(v for k, v in app.callback_map.items() if k.startswith("detail.children"))
+    # Phase 6B.2: the detail callback also fills the bookmaker reference container
+    # (the Weekly Challenge panel sits between them); [0] is header + Match Lab
+    detail = next(v for k, v in app.callback_map.items() if "detail.children" in k)
     func = detail["callback"].__wrapped__
     r = _result(data)
     st, _ = lab_update(r, {"type": "cat-adj", "cat": "squad", "side": "home"}, -0.15, None)
@@ -166,7 +168,7 @@ def test_market_switch_keeps_adjustment(data):
     st, _ = lab_update(r, "lab-home-input", 2.5, st)
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = func(EPL_FIX, market, lab)
+        d = func(EPL_FIX, market, lab)[0]
         sliders = _find(d, lambda c: getattr(c, "id", None) == "lab-home-slider")
         assert sliders[0].value == 2.5
         cat = _find(

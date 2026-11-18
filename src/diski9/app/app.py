@@ -26,7 +26,7 @@ from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DI
 
 from .challenge.callbacks import nav_links
 from .challenge.callbacks import register as register_challenge
-from .challenge.integration import challenge_cells
+from .challenge.integration import challenge_cell, challenge_cells, challenge_rank
 from .challenge.service import ChallengeService
 from .data import (
     DIRECTIONS,
@@ -37,6 +37,7 @@ from .data import (
     paginate,
     valid_direction,
 )
+from .icons import icon
 from .lab import (
     ADJUST_MAX,
     CATEGORY_MAX,
@@ -405,15 +406,6 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                         ],
                         className="filter threshold-filter",
                     ),
-                    html.Div(
-                        dcc.Checklist(
-                            id="odds-only",
-                            options=[{"label": "Only show matches with odds", "value": ODDS_ONLY}],
-                            value=[],
-                            className="chips odds-only",
-                        ),
-                        className="filter-row",
-                    ),
                 ],
                 className="filters",
             ),
@@ -444,8 +436,11 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
             # The user's estimated-goal adjustments, keyed by fixture id. Memory only:
             # lives in this browser tab, never sent to storage, never shared.
             dcc.Store(id="lab-store", storage_type="memory", data={}),
-            html.Div(id="lab-challenge"),
+            # Match Lab journey: model analysis and Your View (detail), then the Weekly
+            # Challenge selection cards, then the bookmaker market reference
             html.Div(id="detail", className="detail-holder"),
+            html.Div(id="lab-challenge"),
+            html.Div(id="detail-reference", className="detail-holder"),
             html.Footer(
                 "Diski 9 is an educational football analytics tool. Probabilities are "
                 "statistical estimates from Goal Model 1.0, not guarantees. Bookmaker odds are "
@@ -661,7 +656,6 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Input("dates", "end_date"),
         Input("direction", "value"),
         Input("threshold", "value"),
-        Input("odds-only", "value"),
         Input("prev", "n_clicks"),
         Input("next", "n_clicks"),
         Input({"type": "row", "index": ALL}, "n_clicks"),
@@ -678,7 +672,6 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         end,
         direction,
         threshold,
-        odds_only,
         _p,
         _n,
         _rows,
@@ -717,14 +710,27 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
             threshold,
             page,
             selected,
-            odds_only=ODDS_ONLY in (odds_only or []),
             challenge=challenge_cells(service, ch_state, market)
             if universe == "challenge"
             else None,
         )
 
     @app.callback(
+        Output("dates", "start_date"),
+        Output("dates", "end_date"),
+        Input("universe", "value"),
+        State("ch-session", "data"),
+        prevent_initial_call=True,
+    )
+    def universe_changed(universe, ch_state):
+        """Switching match universe sets a compatible date range: the round snapshot's
+        kickoff dates for the Weekly Challenge, the default fortnight otherwise."""
+        rng = universe_dates(data, service, ch_state, universe)
+        return rng if rng else (no_update, no_update)
+
+    @app.callback(
         Output("detail", "children"),
+        Output("detail-reference", "children"),
         Input("selected", "data"),
         Input("market", "value"),
         State("lab-store", "data"),
@@ -732,7 +738,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
     def update_detail(fid, market, lab):
         r, ov, official = data.detail(fid) if fid else (None, None, {})
         adj = (lab or {}).get(str(fid)) if fid else None
-        return render_detail(r, ov, official, market, data, adj)
+        return split_detail(render_detail(r, ov, official, market, data, adj))
 
     @app.callback(
         Output("lab-store", "data"),
@@ -833,6 +839,30 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
     )
 
 
+def split_detail(detail):
+    """(header + Match Lab, bookmaker reference + footnote): the Weekly Challenge
+    selection panel sits between them, after the participant has formed Your View."""
+    kids = getattr(detail, "children", None)
+    if not isinstance(kids, list) or len(kids) < 3:
+        return detail, None
+    return (
+        html.Div(kids[:2], className=detail.className),
+        html.Div(kids[2:], className=f"{detail.className} detail-ref"),
+    )
+
+
+def universe_dates(data, service, ch_state, universe: str):
+    """(start, end) dates in local time for a match universe, or None to keep."""
+    today = data.clock().astimezone(data.tz).date()
+    if universe != "challenge":
+        return today, today + timedelta(days=14)
+    snap = (challenge_cells(service, ch_state, "1X2") or {}).get("snapshot")
+    if snap is None or not snap.fixtures:
+        return None
+    days = [f.kickoff.astimezone(data.tz).date() for f in snap.fixtures]
+    return min(days), max(days)
+
+
 def header_sort(market: str, key: str, current: str | None) -> str:
     """Clicking 'Kickoff' toggles earliest/latest; clicking the first probability
     header toggles the market's two main outcomes."""
@@ -853,10 +883,6 @@ def _date(value: str | None) -> date | None:
     return date.fromisoformat(value[:10]) if value else None
 
 
-ODDS_ONLY = "odds"
-NO_ODDS_MESSAGE = "No matches with bookmaker odds available for these filters."
-
-
 def results_payload(
     data,
     market,
@@ -868,11 +894,11 @@ def results_payload(
     threshold,
     page,
     selected=None,
-    odds_only=False,
     challenge: dict | None = None,
 ):
-    """Pure function behind the results callback (also used by tests). All filters,
-    including "only matches with odds", apply before ranking and pagination.
+    """Pure function behind the results callback (also used by tests). All filters
+    apply before ranking and pagination. "All upcoming matches" includes fixtures
+    without bookmaker odds (shown as "No odds"); odds are never an eligibility test.
 
     ``challenge`` (the Weekly Challenge view) restricts the list to the frozen
     Challenge pool and shows its frozen reference odds and portfolio markers."""
@@ -887,13 +913,16 @@ def results_payload(
             "overall",
             direction,
             thr,
-            odds_only=bool(odds_only),
         )
         if leagues
         else []
     )
     if challenge is not None:
+        # exactly the fixtures of the active round snapshot; value rankings and the
+        # Market / Edge cell use the snapshot's frozen probabilities, never live odds
         results = [r for r in results if r["fixture"]["id"] in challenge["ids"]]
+        if direction in VALUE_DIRECTIONS:
+            results = challenge_rank(challenge, results, direction, thr)
     # selection is the fixture id; cleared when filters remove it from the list
     if selected is not None and selected not in {r["fixture"]["id"] for r in results}:
         selected = None
@@ -903,10 +932,13 @@ def results_payload(
         for r in pg.results
     ]
     if challenge is not None:
+        mode = "ev" if direction == "ev" else "edge"
         for row in rows:
-            cell = challenge["cells"].get(row["id"])
-            if cell:
-                row.update(value=cell, odds=cell["odds_text"], odds_status="fresh")
+            row.update(
+                value=challenge_cell(challenge, market, row["id"], mode, thr),
+                odds=challenge["odds"].get(row["id"], row["odds"]),
+                odds_status="fresh",
+            )
     if not leagues:
         empty = html.Div("Select at least one league to see fixtures.", className="empty")
     elif challenge is not None and not results:
@@ -918,9 +950,7 @@ def results_payload(
         )
     elif not results:
         empty = html.Div(
-            NO_ODDS_MESSAGE
-            if odds_only
-            else "No fixtures match these filters. Try a wider date range or a lower threshold.",
+            "No fixtures match these filters. Try a wider date range or a lower threshold.",
             className="empty",
         )
     else:
@@ -1027,6 +1057,13 @@ def value_lines(v: dict) -> list:
     out = [html.Span(v["main"], className="v-main")]
     if v["sub"]:
         out.append(html.Span(v["sub"], className="v-sub muted small"))
+    if v.get("picked"):  # Weekly Challenge view: this match's pick in the portfolio
+        out.append(
+            html.Span(
+                [icon("check", "ic-sm"), f"Your pick: {v['picked']}"],
+                className="v-pick small",
+            )
+        )
     return out
 
 

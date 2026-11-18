@@ -224,7 +224,7 @@ def valued(populated):
     return ScreenerData(populated, ttl_seconds=0, clock=lambda: T0)
 
 
-def run(d, market="1X2", direction="edge", thr=0, page=1, odds_only=False, leagues=(39, 288)):
+def run(d, market="1X2", direction="edge", thr=0, page=1, leagues=(39, 288)):
     return results_payload(
         d,
         market,
@@ -235,7 +235,6 @@ def run(d, market="1X2", direction="edge", thr=0, page=1, odds_only=False, leagu
         direction,
         thr,
         page,
-        odds_only=odds_only,
     )
 
 
@@ -316,11 +315,13 @@ def test_value_cell_matches_displayed_odds(valued):
             assert ev_text(pick.ev) in cell["main"]
 
 
-def test_odds_only_toggle_and_leagues_with_value_rankings(valued):
-    with_odds = page_ids(run(valued, direction="edge", odds_only=True)) + page_ids(
-        run(valued, direction="edge", odds_only=True, page=2)
+def test_value_rankings_keep_fixtures_without_odds_last(valued):
+    # Phase 6B.2: the "only matches with odds" toggle was removed; fixtures without
+    # odds stay listed (after every priced fixture) instead of being filtered out
+    ranked = page_ids(run(valued, direction="edge")) + page_ids(
+        run(valued, direction="edge", page=2)
     )
-    assert PSL_FIX not in with_odds and EXTRA[-1] not in with_odds
+    assert PSL_FIX in ranked and ranked.index(PSL_FIX) > ranked.index(EPL_FIX)
     assert run(valued, direction="ev", leagues=(288,))[0].children[1].children[0].children[-1]
     psl = run(valued, direction="ev", leagues=(288,))
     assert "No odds" in _text(psl[0])  # PSL has no collected odds: shown honestly

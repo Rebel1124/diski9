@@ -276,16 +276,14 @@ def test_screener_and_match_lab_use_new_league_odds(liga):
         assert o.ev == pytest.approx(o.probability * float(o.odds) - 1)
     cell = d.value_cell("1X2", r, "edge")
     assert cell["status"] == "fresh" and cell["main"] is not None
-    # rankings include the new league; the odds filter keeps only priced fixtures
+    # rankings include the new league; unpriced fixtures stay listed, ranked last
     for direction in ("edge", "ev"):
         p = results_payload(d, "1X2", [LIGA], None, "2026-12-31", "overall", direction, 0, 1)
         ids = [row.id["index"] for row in p[0].children[1].children]
         assert set(ids) == {FX_FRESH, FX_THIN, FX_STALE, FX_PARTIAL, FX_NONE}
-        p = results_payload(
-            d, "BTTS", [LIGA], None, "2026-12-31", "overall", direction, 0, 1, odds_only=True
-        )
-        ids = {row.id["index"] for row in p[0].children[1].children}
-        assert FX_NONE not in ids and FX_PARTIAL not in ids and FX_FRESH in ids
+        p = results_payload(d, "BTTS", [LIGA], None, "2026-12-31", "overall", direction, 0, 1)
+        ids = [row.id["index"] for row in p[0].children[1].children]
+        assert ids.index(FX_FRESH) < ids.index(FX_NONE) and FX_PARTIAL in ids
     text = str(model_comparison("1X2", snap.odds[FX_FRESH], r["goal_model"]["probabilities"]))
     assert "independent bookmaker group" in text
     # PSL: provider has no odds - the fixture stays visible with the existing state

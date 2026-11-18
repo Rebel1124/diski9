@@ -180,6 +180,39 @@ def paginate(results: list[dict], page: int, size: int = PAGE_SIZE) -> Page:
     return Page(chunk, page, pages, total, start + 1 if chunk else 0, start + len(chunk))
 
 
+def fill_value_cell(cell: dict, market: str, mv, pick, mode: str, model_available: bool) -> dict:
+    """The Screener's model-versus-market cell text for one fixture and market, from a
+    :class:`~diski9.odds.value.MarketValue` and its highlighted outcome. Shared by
+    "All upcoming matches" (live consensus) and the Weekly Challenge view (the
+    frozen round snapshot), so both read identically."""
+    if mv is None:
+        cell["main"] = "No model" if not model_available else "—"
+        return cell
+    if mode == "edge" and not mv.complete:
+        cell.update(main="Incomplete market", sub="Edge unavailable")
+        return cell
+    if pick is None:
+        cell.update(main="No positive edge" if mode == "edge" else "No positive EV")
+        cell["cls"] = "zero"
+        return cell
+    label = OUTCOME_LABEL[pick.outcome]
+    if market == "1X2":  # Home / Draw / Away colours identify the outcome only
+        cell["outcome"] = OUTCOME_COLOUR_KEY.get(pick.outcome)
+    if mode == "edge":
+        cell.update(
+            main=f"{label} {edge_text(pick.edge)}",
+            sub=f"Market {pct1(pick.market_probability)}",
+            cls=sign_class(pick.edge, positive_edge),
+        )
+    else:
+        cell.update(
+            main=f"{label} {ev_text(pick.ev)} EV",
+            sub=f"at {pick.odds}",
+            cls=sign_class(pick.ev, positive_ev),
+        )
+    return cell
+
+
 class ScreenerData:
     def __init__(
         self,
@@ -294,11 +327,9 @@ class ScreenerData:
         basis: str,
         direction: str,
         threshold: float | None,
-        odds_only: bool = False,
     ) -> list[dict]:
-        """Filter first, then rank (deterministic). ``odds_only`` keeps fixtures whose
-        selected market has usable bookmaker odds (fresh or stale), using the same
-        availability as the odds column (``odds_summary``)."""
+        """Filter first, then rank (deterministic). Fixtures without bookmaker odds
+        are kept (they show "No odds"); odds are never a filter."""
         snap = self.snapshot()
         results = list(snap.results.get("overall", {}).values())
         if leagues is not None:
@@ -310,8 +341,6 @@ class ScreenerData:
                 return (start is None or d >= start) and (end is None or d <= end)
 
             results = [r for r in results if in_range(r)]
-        if odds_only:
-            results = [r for r in results if self.has_odds(market, r)]
         direction = valid_direction(market, direction)
         if direction in VALUE_DIRECTIONS:
             return self.rank_value(market, results, direction, threshold)
@@ -395,39 +424,8 @@ class ScreenerData:
             cell.update(main="Prices stale", sub="Not ranked")
             return cell
         mv, pick = self.value_pick(market, r, mode, threshold)
-        if mv is None:
-            cell["main"] = "No model" if not (r.get("goal_model") or {}).get("available") else "—"
-            return cell
-        if mode == "edge" and not mv.complete:
-            cell.update(main="Incomplete market", sub="Edge unavailable")
-            return cell
-        if pick is None:
-            cell.update(main="No positive edge" if mode == "edge" else "No positive EV")
-            cell["cls"] = "zero"
-            return cell
-        label = OUTCOME_LABEL[pick.outcome]
-        if market == "1X2":  # Home / Draw / Away colours identify the outcome only
-            cell["outcome"] = OUTCOME_COLOUR_KEY.get(pick.outcome)
-        if mode == "edge":
-            cell.update(
-                main=f"{label} {edge_text(pick.edge)}",
-                sub=f"Market {pct1(pick.market_probability)}",
-                cls=sign_class(pick.edge, positive_edge),
-            )
-        else:
-            cell.update(
-                main=f"{label} {ev_text(pick.ev)} EV",
-                sub=f"at {pick.odds}",
-                cls=sign_class(pick.ev, positive_ev),
-            )
-        return cell
-
-    def has_odds(self, market: str, r: dict) -> bool:
-        """True when the fixture shows usable odds for the market (fresh or stale),
-        i.e. anything but the 'No odds' / unavailable state."""
-        ov = self.snapshot().odds.get(r["fixture"]["id"])
-        status, _ = self.odds_summary(ov, MARKET_OF[market])
-        return status in ("fresh", "stale")
+        model_ok = bool((r.get("goal_model") or {}).get("available"))
+        return fill_value_cell(cell, market, mv, pick, mode, model_ok)
 
     def row(self, market: str, r: dict) -> dict[str, Any]:
         """Display-ready values for one fixture row/card (Goal Model 1.0)."""

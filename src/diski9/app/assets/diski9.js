@@ -24,16 +24,3 @@ document.addEventListener("keydown", function (e) {
   el.dispatchEvent(new Event("input", { bubbles: true }));
   e.preventDefault();
 });
-
-/* Announce the odds filter as an on/off switch to assistive technology. */
-(function () {
-  function mark() {
-    const box = document.querySelector("#odds-only input[type=checkbox]");
-    if (box && box.getAttribute("role") !== "switch") {
-      box.setAttribute("role", "switch");
-      box.setAttribute("aria-label", "Only show matches with odds");
-    }
-  }
-  new MutationObserver(mark).observe(document.documentElement, { childList: true, subtree: true });
-  document.addEventListener("DOMContentLoaded", mark);
-})();

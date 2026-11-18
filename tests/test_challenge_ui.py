@@ -656,12 +656,16 @@ def test_screener_challenge_view_matches_builder_pool(svc, snap):
         s, _ = cb.apply_action(svc, s, "pick", k)
     info = integration.challenge_cells(svc, s, "1X2")
     assert info["ids"] == {f.fixture_id for f in snap.fixtures} and info["snapshot"] is snap
-    for fid, cell in info["cells"].items():
+    # Phase 6B.2: the raw odds sequence was replaced by the standard edge cell; the
+    # frozen odds are still carried (odds column / tooltip) and come from the snapshot
+    for fid, text in info["odds"].items():
         frozen = [o for o in snap.outcomes if o.fixture_id == fid and str(o.market) == "1X2"]
         if frozen:
-            assert cell["main"] == " · ".join(f"{o.reference_odds:.2f}" for o in frozen)
+            assert text == " · ".join(f"{o.reference_odds:.2f}" for o in frozen)
+            cell = integration.challenge_cell(info, "1X2", fid, "edge", None)
+            assert "Challenge odds" not in str(cell) and text in cell["title"]
     picked = {parse_key(k)[0] for k in keys[:3]}
-    assert {fid for fid, cell in info["cells"].items() if cell["sub"].startswith("✓")} == picked
+    assert set(info["picked"]) == picked
     none = integration.challenge_cells(ChallengeService(_Data()), None, "1X2")  # live unavailable
     assert none["ids"] == set() and none["message"]
 
@@ -695,7 +699,9 @@ def test_match_lab_panel_states(svc, snap):
     s, _ = cb.apply_action(svc, None, "mode", "demo")
     fid = snap.fixtures[0].fixture_id
     panel = jtext(integration.lab_panel(svc, data, s, fid, {}, None))
-    assert "Add to Weekly Challenge" in panel and "Your View" in panel and "equals Diski" in panel
+    # Phase 6B.2: outcome cards (the builder's design) instead of a table with buttons
+    assert '"t": "labpick"' in panel and "Your View" in panel and "equals Diski" in panel
+    assert "You = D9" in panel and panel.count('"ch-mkt"') == 3
     outside = jtext(integration.lab_panel(svc, data, s, 99999999, {}, None))
     assert "isn't in this week's Challenge" in outside
     nolive = jtext(integration.lab_panel(ChallengeService(_Data()), data, None, fid, {}, None))

@@ -18,9 +18,17 @@ from __future__ import annotations
 
 from dash import dcc, html
 
-from diski9.api_football.markets import Outcome
+from diski9.api_football.markets import Market, Outcome
 from diski9.challenge.config import DEFAULT_CONFIG as CFG
 from diski9.challenge.structured import SelectionBlock, assess_outcome, selection_blocks
+from diski9.odds.value import (
+    MARKET_ORDER,
+    OUTCOME_KEY,
+    MarketValue,
+    OutcomeValue,
+    edge_pp,
+    expected_value,
+)
 
 from .. import lab
 from . import components as c
@@ -61,36 +69,117 @@ def adjusted_fixture_ids(personal: dict[tuple, float]) -> set:
 
 
 # ------------------------------------------------------------- screener view
+SNAPSHOT_MARKET = {"1X2": Market.MATCH_RESULT, "BTTS": Market.BTTS, "OU25": Market.OVER_UNDER_25}
+
+
+def frozen_market_value(outs, market: str) -> MarketValue | None:
+    """Model versus market for one fixture and market, from the **frozen round
+    snapshot**: the snapshot's Diski 9 (Goal Model 1.0) probabilities and its
+    margin-adjusted market probabilities and reference odds. The edge and EV use the
+    shared definitions in ``diski9.odds.value``; nothing is refreshed or substituted."""
+    m = SNAPSHOT_MARKET[market]
+    by = {Outcome(str(o.outcome)): o for o in outs if str(o.market) == str(m)}
+    if not by:
+        return None
+    rows = []
+    for oc in MARKET_ORDER[m]:
+        o = by.get(oc)
+        if o is None:
+            continue
+        rows.append(
+            OutcomeValue(
+                key=OUTCOME_KEY[oc],
+                outcome=oc,
+                probability=float(o.model_probability),
+                odds=o.reference_odds,
+                market_probability=float(o.market_probability),
+                edge=edge_pp(float(o.model_probability), float(o.market_probability)),
+                ev=expected_value(float(o.model_probability), o.reference_odds),
+            )
+        )
+    return MarketValue(m, tuple(rows), len(rows) == len(MARKET_ORDER[m]))
+
+
 def challenge_cells(service, state, market: str) -> dict | None:
-    """Screener data for the Weekly Challenge view: the frozen pool's fixture ids and,
-    per fixture, the frozen odds of the chosen market and portfolio markers."""
+    """Screener data for the Weekly Challenge view: exactly the fixtures of the
+    active round snapshot, each with its frozen model-versus-market comparison for
+    the chosen market (shown exactly like "All upcoming matches") and the outcome in
+    the participant's portfolio, if any."""
     from . import pages
 
     state = pages.sync(service, state)
     mode, snap, avail, sels = pages.current(service, state)
     if snap is None or not avail.playable:
-        return {"ids": set(), "cells": {}, "message": avail.message, "snapshot": None}
-    chosen = {k for k in sels}
-    cells = {}
+        return {"ids": set(), "values": {}, "picked": {}, "odds": {}, "message": avail.message,
+                "snapshot": None}  # fmt: skip
+    chosen = set(sels)
     by_fx: dict = {}
     for o in snap.outcomes:
         by_fx.setdefault(o.fixture_id, []).append(o)
+    values, picked, odds = {}, {}, {}
     for fid, outs in by_fx.items():
-        mk = [o for o in outs if str(o.market) == MARKET_OF_SCREENER[market]]
-        picked = next((o for o in outs if key_str(o.key) in chosen), None)
-        odds = " · ".join(f"{o.reference_odds:.2f}" for o in mk) if mk else "Not in this market"
-        cells[fid] = {
-            "mode": "challenge",
-            "status": "fresh",
-            "main": odds,
-            "sub": f"✓ {c.outcome_text(picked)}" if picked else "Challenge odds",
-            "cls": "pos" if picked else "na",
-            "title": "Frozen Weekly Challenge reference odds from the round snapshot (the same "
-            "odds as the builder). Payouts use these odds.",
-            "outcome": None,
-            "odds_text": odds,
-        }
-    return {"ids": set(by_fx), "cells": cells, "message": None, "snapshot": snap}
+        values[fid] = frozen_market_value(outs, market)
+        mv = values[fid]
+        odds[fid] = " · ".join(f"{o.odds:.2f}" for o in mv.outcomes) if mv else "Not in this market"
+        p = next((o for o in outs if key_str(o.key) in chosen), None)
+        if p is not None:
+            picked[fid] = c.outcome_text(p)
+    return {
+        "ids": set(by_fx),
+        "values": values,
+        "picked": picked,
+        "odds": odds,
+        "message": None,
+        "snapshot": snap,
+    }
+
+
+def challenge_cell(challenge: dict, market: str, fid: int, mode: str, threshold) -> dict:
+    """The Market / Edge cell for one fixture in the Weekly Challenge view."""
+    from ..data import fill_value_cell
+
+    mv = challenge["values"].get(fid)
+    snap = challenge["snapshot"]
+    cell = {
+        "mode": mode,
+        "status": "fresh",
+        "main": None,
+        "sub": None,
+        "cls": "na",
+        "outcome": None,
+        "title": (
+            f"Frozen Weekly Challenge snapshot ({snap.snapshot_at:%d %b %Y, %H:%M} UTC): "
+            "Diski 9 and margin-adjusted market probabilities, reference odds "
+            f"{challenge['odds'].get(fid, '')}. Edge = Diski 9 minus market probability in "
+            "percentage points (not expected value). Payouts use these frozen odds."
+        ),
+    }
+    if mv is None:
+        cell["main"] = "Not in this market"
+    else:
+        pick = mv.best_ev(threshold) if mode == "ev" else mv.best_edge(threshold)
+        fill_value_cell(cell, market, mv, pick, mode, True)
+    if fid in challenge["picked"]:
+        cell["picked"] = challenge["picked"][fid]
+    return cell
+
+
+def challenge_rank(challenge: dict, results: list, mode: str, threshold) -> list:
+    """Edge / EV ranking of the Weekly Challenge view from the frozen snapshot values
+    (the same ordering rule as the Screener's live ranking)."""
+    from diski9.screener.rank import rank_by_value
+
+    def value_of(r):
+        mv = challenge["values"].get(r["fixture"]["id"])
+        if mv is None:
+            return False, None
+        has = mv.complete if mode == "edge" else True
+        pick = mv.best_ev(threshold) if mode == "ev" else mv.best_edge(threshold)
+        if pick is None:
+            return has, None
+        return True, pick.ev if mode == "ev" else pick.edge
+
+    return rank_by_value(results, value_of)
 
 
 def progress_strip(service, state) -> html.Div | None:
@@ -116,7 +205,11 @@ def progress_strip(service, state) -> html.Div | None:
                 )
                 for b in CFG.buckets
             ],
-            html.Strong(f"{len(chosen)}/9"),
+            html.Strong(
+                f"{len(chosen)}/9",
+                className="ch-strip-total",
+                title="Predictions in your portfolio (all nine form The Diski 9)",
+            ),
             dcc.Link("Open builder →", href="/challenge", className="ch-lab-link"),
         ],
         className="ch-strip",
@@ -164,66 +257,44 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
     )
     adjusted = fixture_id in adjusted_fixture_ids(personal)
     locked = pages.locked(avail)
-    rows = []
+    by_market: dict[str, list] = {}
     for o in outs:
-        a = assess_outcome(o, snap.snapshot_at, CFG)
-        bucket = a.bucket if a.eligible else None
-        block = blocks.get(o.key)
-        k = key_str(o.key)
-        if block is SelectionBlock.SELECTED:
-            action = html.Button(
-                "✓ Added · Remove",
-                id={"t": "labremove", "k": k},
-                n_clicks=0,
-                className="ch-btn small on",
-                disabled=locked,
+        by_market.setdefault(str(o.market), []).append(o)
+    groups = []
+    for m in ("1X2", "BTTS", "OU25"):
+        cards = []
+        for o in by_market.get(m, []):
+            a = assess_outcome(o, snap.snapshot_at, CFG)
+            bucket = a.bucket if a.eligible else None
+            block = blocks.get(o.key)
+            can_replace = (
+                block is SelectionBlock.FIXTURE_TAKEN
+                and taken is not None
+                and bucket is not None
+                and swap_blocks.get(o.key) is None  # only replacements that validate
             )
-        elif (
-            block is SelectionBlock.FIXTURE_TAKEN
-            and taken is not None
-            and bucket
-            and swap_blocks.get(o.key) is None
-        ):
-            action = html.Button(
-                f"Replace {c.outcome_text(taken)}",
-                id={"t": "labreplace", "k": k},
-                n_clicks=0,
-                className="ch-btn small ghost",
-                disabled=locked,
+            cards.append(
+                c.outcome_button(
+                    o,
+                    bucket,
+                    block,
+                    locked,
+                    personal.get(o.key),
+                    id_type="labreplace" if can_replace else "labpick",
+                    show_you=True,
+                    replace_from=c.outcome_text(taken) if can_replace else None,
+                )
             )
-        elif block is None:
-            action = html.Button(
-                "Add to Weekly Challenge",
-                id={"t": "labpick", "k": k},
-                n_clicks=0,
-                className="ch-btn small primary",
-                disabled=locked,
-            )
-        else:
-            action = html.Span(
-                "⊘ " + (c.BLOCK_SHORT.get(block) or "Not eligible"),
-                className="ch-tag off",
-                title=c.BLOCK_HELP.get(block, ""),
-            )
-        yv = personal.get(o.key, o.model_probability)
-        rows.append(
-            html.Tr(
+        groups.append(
+            html.Div(
                 [
-                    html.Td(c.MARKET_SHORT[str(o.market)], className="muted"),
-                    html.Td(c.OUTCOME_SHORT[str(o.outcome)]),
-                    html.Td(
-                        html.Span(
-                            c.BUCKET_NAME[bucket], className=f"ch-tag b-{c.BUCKET_CLASS[bucket]}"
-                        )
-                        if bucket
-                        else html.Span("Not eligible", className="ch-tag off")
+                    html.Div(c.MARKET_SHORT[m], className="ch-mkt"),
+                    html.Div(
+                        cards or [html.Span("Not in this round", className="muted small")],
+                        className=f"ch-outs n{max(len(cards), 1)}",
                     ),
-                    html.Td(c.pct_in_band(o.market_probability, bucket), className="num"),
-                    html.Td(c.pct(o.model_probability, 1), className="num"),
-                    html.Td(c.pct(yv, 1) + ("" if adjusted else "*"), className="num strong"),
-                    html.Td(f"{o.reference_odds:.2f}", className="num"),
-                    html.Td(action, className="num"),
-                ]
+                ],
+                className=f"ch-mkt-group m-{m.lower()}",
             )
         )
     notice = None
@@ -250,18 +321,6 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
         notice = html.Div(
             flash["text"], className=f"ch-flash {flash.get('kind', 'info')}", role="status"
         )
-    head = html.Tr(
-        [
-            html.Th("Market"),
-            html.Th("Outcome"),
-            html.Th("Bucket"),
-            html.Th("Market", className="num"),
-            html.Th("Diski 9", className="num"),
-            html.Th("Your View", className="num"),
-            html.Th("Odds", className="num"),
-            html.Th(""),
-        ]
-    )
     return html.Div(
         [
             html.Div(
@@ -271,25 +330,35 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
                         + (" · demonstration round" if snap.is_demo else f" · {snap.round_id}"),
                         className="strong",
                     ),
-                    html.Span(f"Portfolio {len(chosen)}/9", className="muted small"),
+                    html.Span(
+                        ["Portfolio ", html.Strong(f"{len(chosen)}/9", className="ch-strip-total")],
+                        className="muted small",
+                    ),
                     dcc.Link("Open builder →", href="/challenge", className="ch-lab-link"),
                 ],
                 className="ch-row-between",
             ),
-            notice,
             html.Div(
-                html.Table([html.Thead(head), html.Tbody(rows)], className="ch-table lab"),
-                className="ch-table-wrap",
+                [
+                    html.Span([html.B("Mkt"), " market probability (sets the bucket)"]),
+                    html.Span([html.B("D9"), " Diski 9 model"]),
+                    html.Span([html.B("You"), " Your View"]),
+                    html.Span("Odds are the frozen round reference odds"),
+                ],
+                className="ch-lab-legend small muted",
             ),
+            notice,
+            html.Div(groups, className="ch-mkts ch-lab-mkts"),
             html.P(
-                (
-                    "Your View uses your adjusted expected goals from the Match Lab below."
+                [
+                    c.icon("user", "ic-sm"),
+                    " Your View uses your adjusted expected goals from the Match Lab above."
                     if adjusted
-                    else "* No adjustments for this match yet: Your View equals Diski "
-                    "9. Adjust expected goals in the Match Lab below to set your own view."
-                )
-                + " Buckets and odds always come from the frozen market snapshot.",
-                className="muted small",
+                    else " No adjustments for this match yet, so Your View equals Diski 9 "
+                    "(shown as You = D9). Adjust expected goals above to form your own view.",
+                    " It never changes buckets, odds or payouts.",
+                ],
+                className="muted small ch-lab-foot",
             ),
         ],
         className="ch-labpanel",
