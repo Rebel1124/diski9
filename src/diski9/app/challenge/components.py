@@ -768,7 +768,7 @@ def weekly_table(score, round_result) -> html.Div:
         )
     head = html.Tr(
         [
-            html.Th("Rank"),
+            html.Th("Rank", className="num"),
             html.Th("Player"),
             html.Th("Gross", className="num"),
             html.Th("Net", className="num"),
@@ -806,7 +806,7 @@ def championship_table(table) -> html.Div:
         )
     head = html.Tr(
         [
-            html.Th("Rank"),
+            html.Th("Rank", className="num"),
             html.Th("Player"),
             html.Th("Points", className="num"),
             html.Th("Rounds", className="num"),
@@ -842,3 +842,52 @@ def championship_table(table) -> html.Div:
             ),
         ],
     )
+
+
+def you_summary(rank: str, main: str, sub: str) -> html.Div:
+    return html.Div(
+        [
+            html.Span("You (demo)", className="muted small"),
+            html.Strong(rank, className="ch-you-rank"),
+            html.Span(main),
+            html.Span(sub, className="muted small"),
+        ],
+        className="ch-you",
+    )
+
+
+MEDAL = {1: ("gold", "1st"), 2: ("silver", "2nd"), 3: ("bronze", "3rd")}
+
+
+def podium(rows) -> html.Div | None:
+    """Top three *positions* by competition rank. Tied players share their position;
+    nobody is reordered or split to force three places (ranks 1, 1, 3 show 1st with
+    two players and 3rd, with no 2nd)."""
+    places = {}
+    for rank, name, detail in rows:
+        if rank in MEDAL:
+            places.setdefault(rank, []).append((name, detail))
+    if not places:
+        return None
+    cols = []
+    for rank in sorted(places):
+        cls, label = MEDAL[rank]
+        cols.append(
+            html.Div(
+                [
+                    html.Div(
+                        label + (" (shared)" if len(places[rank]) > 1 else ""),
+                        className="ch-pod-rank",
+                    ),
+                    *[
+                        html.Div(
+                            [html.Strong(n), html.Span(d, className="muted small")],
+                            className="ch-pod-name",
+                        )
+                        for n, d in places[rank]
+                    ],
+                ],
+                className=f"ch-pod {cls}",
+            )
+        )
+    return html.Div(cols, className="ch-podium", **{"aria-label": "Top three positions"})

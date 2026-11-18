@@ -695,3 +695,54 @@ def test_match_lab_panel_states(svc, snap):
     assert "demonstration round" in nolive
     adjusted = jtext(integration.lab_panel(svc, data, s, fid, {str(fid): _lab_state(0.5)}, None))
     assert "uses your adjusted expected goals" in adjusted
+
+
+# ------------------------------------------------------ Phase 6B.1 Stage E
+def test_podium_respects_competition_ranking():
+    from diski9.app.challenge import components as comp
+
+    rows = [(1, "Ann", "150"), (1, "Bob", "150"), (3, "Cat", "125"), (4, "Dee", "120")]
+    text = jtext(comp.podium(rows))
+    assert "1st (shared)" in text and "3rd" in text and "2nd" not in text and "Dee" not in text
+    text = jtext(comp.podium([(1, "A", ""), (2, "B", ""), (2, "C", ""), (4, "E", "")]))
+    assert "2nd (shared)" in text and "3rd" not in text
+    assert comp.podium([(5, "Z", "")]) is None
+
+
+def test_leaderboards_show_user_summary_and_progress():
+    weekly = jtext(pages.leaderboard_body("weekly", demo.LATEST_ROUND))
+    assert "You (demo)" in weekly and "#4" in weekly and "1st (shared)" in weekly
+    champ = jtext(pages.leaderboard_body("championship", None))
+    assert "7 rounds completed, 3 remaining" in champ and "You (demo)" in champ
+    void = jtext(pages.leaderboard_body("weekly", "DEMO-V1"))
+    assert "1st" not in void  # no podium for a void round
+
+
+def test_demo_summary_excludes_practice_and_void():
+    m = demo.demo_summary()
+    assert len(m["timeline"]) == 10 and m["completed"] == 7
+    assert sum(1 for t in m["timeline"] if t["state"] == "remaining") == 3
+    assert all(t["round"] not in ("DEMO-P1", "DEMO-V1") for t in m["timeline"])
+    t = demo.demo_championship()
+    me = next(s for s in t.standings if s.participant_id == demo.YOU)
+    assert (m["points"], m["recoveries"], m["top10"], m["rank"]) == (
+        me.points,
+        me.recoveries,
+        me.qualifying_top10,
+        me.rank,
+    )
+    assert m["recovery_rate"] == me.recoveries / me.rounds_entered
+
+
+def test_my_challenge_states(svc, snap):
+    keys = valid_keys(snap)
+    empty = jtext(pages.my_challenge(svc, None, _Data().local))
+    assert "Unavailable" in empty and "Nothing confirmed yet" in empty
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    s, _ = cb.apply_action(svc, s, "pick", keys[0])
+    assert "Draft in progress" in jtext(pages.my_challenge(svc, s, _Data().local))
+    for k in keys[1:]:
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    s, _ = cb.apply_action(svc, s, "submit")
+    page = jtext(pages.my_challenge(svc, s, _Data().local))
+    assert "Confirmed" in page and "Show my nine predictions" in page and "illustrative" in page

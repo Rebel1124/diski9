@@ -176,3 +176,44 @@ def demo_history(participant: str = YOU) -> list[tuple[RoundResult, object]]:
         s = score_round(r)
         out.append((r, next((x for x in s.scores if x.participant_id == participant), None)))
     return out
+
+
+def demo_summary(participant: str = YOU) -> dict:
+    """Performance summary for the demo participant from engine outputs. Practice and
+    void rounds never count toward recoveries, finishes or progress."""
+    table = demo_championship()
+    me = next((s for s in table.standings if s.participant_id == participant), None)
+    timeline = []
+    finishes = []
+    for r, s in demo_history(participant):
+        if r.classification is not RoundClassification.COMPETITIVE:
+            continue
+        if s is None or not s.counts_for_championship:
+            timeline.append({"round": r.round_id, "state": "missed", "points": 0, "rank": None})
+            continue
+        timeline.append(
+            {
+                "round": r.round_id,
+                "state": "recovered" if s.recovered else "lost",
+                "points": s.points,
+                "rank": s.rank,
+            }
+        )
+        if s.rank is not None:
+            finishes.append(s.rank)
+    remaining = table.rounds_required - table.completed_rounds
+    timeline += [{"round": None, "state": "remaining", "points": 0, "rank": None}] * remaining
+    entered = me.rounds_entered if me else 0
+    return {
+        "points": me.points if me else 0,
+        "rank": me.rank if me else None,
+        "field": len(table.standings),
+        "recoveries": me.recoveries if me else 0,
+        "entered": entered,
+        "recovery_rate": (me.recoveries / entered) if me and entered else None,
+        "top10": me.qualifying_top10 if me else 0,
+        "best_finish": min(finishes) if finishes else None,
+        "completed": table.completed_rounds,
+        "required": table.rounds_required,
+        "timeline": timeline,
+    }

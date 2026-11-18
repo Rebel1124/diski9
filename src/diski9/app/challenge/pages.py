@@ -1043,58 +1043,199 @@ def confirmation_modal(state, local) -> html.Div:
 
 
 # ------------------------------------------------------------- my challenge
-def my_challenge(service, state, local) -> html.Div:
-    state = normal_state(state)
-    mode, snap, avail, sels = current(service, state)
-    draft = html.Div(
+def round_state(state, snap, avail, sels) -> tuple[str, str, str]:
+    """(label, css class, one-line explanation) for the participant's round status."""
+    sub = state.get("submitted")
+    if snap is None or not avail.playable:
+        return "Unavailable", "off", avail.message
+    if locked(avail):
+        return "Locked", "warn", "The deadline has passed; predictions can no longer change."
+    if sub and sub.get("fp") == snap.fingerprint and sub.get("selections") == sels:
+        return "Confirmed", "ok", "Your portfolio is confirmed for this round."
+    if sels:
+        return "Draft in progress", "demo", f"{len(sels)} of 9 predictions chosen."
+    return "Not started", "off", "Build a portfolio of nine predictions."
+
+
+def confirmed_portfolio(sub, local) -> html.Div:
+    groups = []
+    for b in CFG.buckets:
+        picks = [p for p in sub.get("picks", []) if p["bucket"] == b.code]
+        groups.append(
+            html.Div(
+                [
+                    html.Div(
+                        [c.chip(b.code), html.Span(f"{b.credits} cr", className="muted small")],
+                        className="ch-trk-head",
+                    ),
+                    html.Ul(
+                        [
+                            html.Li(
+                                [
+                                    html.Span(p["match"], className="ch-pick-fx"),
+                                    html.Span(
+                                        f"{p['outcome']} · Mkt {c.pct(p['market'], 1)} · "
+                                        f"{p['odds']}",
+                                        className="muted small",
+                                    ),
+                                ],
+                                className="ch-pick-text",
+                            )
+                            for p in picks
+                        ],
+                        className="ch-conf-list",
+                    ),
+                ],
+                className=f"ch-conf-bucket b-{c.BUCKET_CLASS[b.code]}",
+            )
+        )
+    return html.Div(
         [
-            html.H2("This round", className="ch-h2"),
-            html.P(
-                f"{'Demonstration' if mode == 'demo' else 'Live'} round "
-                f"{snap.round_id if snap else '—'} · {avail.title}",
-                className="small",
+            html.Div(
+                [
+                    html.H2("Confirmed portfolio", className="ch-h2"),
+                    html.Span(
+                        ("Demonstration · " if sub.get("mode") == "demo" else "")
+                        + f"round {sub['round_id']} · {local(sub['at'])} SAST",
+                        className="muted small",
+                    ),
+                ],
+                className="ch-row-between",
             ),
-            html.P(
-                f"Draft: {len(sels)} of 9 predictions."
-                if sels
-                else "You haven't started a portfolio for this round.",
-                className="muted",
+            estimate_cards(sub.get("estimates") or {}),
+            html.Details(
+                [
+                    html.Summary("Show my nine predictions"),
+                    html.Div(groups, className="ch-conf-grid"),
+                ],
+                className="ch-details",
             ),
-            dcc.Link("Go to the Weekly Challenge →", href="/challenge", className="ch-btn ghost"),
         ],
         className="ch-card",
     )
+
+
+def timeline(items) -> html.Div:
+    icons = {"recovered": "✓", "lost": "✗", "missed": "–", "remaining": ""}
+    titles = {
+        "recovered": "Recovered",
+        "lost": "Not recovered",
+        "missed": "Not entered",
+        "remaining": "Still to play",
+    }
+    dots = []
+    for i, it in enumerate(items):
+        tip = f"Round {i + 1}: {titles[it['state']]}"
+        if it.get("rank"):
+            tip += f" · rank {it['rank']} · {it['points']} pts"
+        dots.append(
+            html.Div(
+                [
+                    html.Span(icons[it["state"]], className="dot"),
+                    html.Span(str(i + 1), className="lbl"),
+                ],
+                className=f"ch-tl-item {it['state']}",
+                title=tip,
+            )
+        )
+    legend = html.Div(
+        [
+            html.Span([html.Span("✓", className="dot k recovered"), "recovered"]),
+            html.Span([html.Span("✗", className="dot k lost"), "not recovered"]),
+            html.Span([html.Span("–", className="dot k missed"), "not entered"]),
+            html.Span([html.Span("", className="dot k remaining"), "to play"]),
+        ],
+        className="ch-tl-legend small muted",
+    )
+    return html.Div([html.Div(dots, className="ch-timeline"), legend])
+
+
+def my_challenge(service, state, local) -> html.Div:
+    state = normal_state(state)
+    mode, snap, avail, sels = current(service, state)
+    label, cls, line = round_state(state, snap, avail, sels)
+    status = html.Div(
+        [
+            html.Div(
+                [
+                    html.H2("This round", className="ch-h2"),
+                    html.Span(label, className=f"ch-pill {cls}"),
+                ],
+                className="ch-row-between",
+            ),
+            html.P(
+                [
+                    (
+                        f"{'Demonstration' if snap and snap.is_demo else 'Live'} round "
+                        f"{snap.round_id} · "
+                        if snap
+                        else ""
+                    ),
+                    line,
+                ],
+                className="small",
+            ),
+            html.Div(
+                className="ch-total-bar",
+                children=html.Div(className="fill", style={"width": f"{len(sels) / 9:.0%}"}),
+            ),
+            dcc.Link("Open the Weekly Challenge →", href="/challenge", className="ch-lab-link"),
+        ],
+        className="ch-card ch-compact",
+    )
     sub = state.get("submitted")
-    if sub:
-        submitted = html.Div(
+    confirmed = (
+        confirmed_portfolio(sub, local)
+        if sub
+        else html.Div(
             [
-                html.H2("Demonstration submission", className="ch-h2"),
+                html.H2("Confirmed portfolio", className="ch-h2"),
                 html.P(
-                    f"Round {sub['round_id']} · confirmed {local(sub['at'])} in this tab only.",
-                    className="small",
-                ),
-                html.P(
-                    f"Recover 100: {c.pct(sub['p_recover_market'])} (market) · "
-                    f"{c.pct(sub['p_recover_model'])} (Diski 9 model). Expected return "
-                    f"{sub['expected_market']:,.2f} credits (market).",
+                    "Nothing confirmed yet. Confirm a portfolio on the Review & Submit step.",
                     className="muted small",
                 ),
             ],
-            className="ch-card",
+            className="ch-card ch-compact",
         )
-    else:
-        submitted = html.Div(
-            [
-                html.H2("Demonstration submission", className="ch-h2"),
-                html.P("Nothing confirmed yet.", className="muted"),
-            ],
-            className="ch-card",
-        )
-    history = demo.demo_history()
-    table = demo.demo_championship()
-    me = next((s for s in table.standings if s.participant_id == demo.YOU), None)
+    )
+    m = demo.demo_summary()
+    rate = c.pct(m["recovery_rate"], 0) if m["recovery_rate"] is not None else "—"
+    perf = html.Div(
+        [
+            html.Div(
+                [
+                    html.H2("Championship (illustrative)", className="ch-h2"),
+                    html.Span(
+                        f"Round {m['completed']} of {m['required']}", className="muted small"
+                    ),
+                ],
+                className="ch-row-between",
+            ),
+            html.Div(
+                "Demonstration data: invented results that show how weekly and championship "
+                "points work. They are not your submitted portfolio's results.",
+                className="ch-ribbon small",
+            ),
+            html.Div(
+                [
+                    c.metric("Championship points", str(m["points"])),
+                    c.metric("Rank", f"{m['rank']} of {m['field']}" if m["rank"] else "—"),
+                    c.metric(
+                        "Recoveries",
+                        f"{m['recoveries']} of {m['entered']}",
+                        f"{rate} recovery rate",
+                    ),
+                    c.metric("Top-ten finishes", str(m["top10"]), "with a recovery"),
+                    c.metric("Best weekly finish", str(m["best_finish"] or "—")),
+                ],
+                className="ch-metrics five",
+            ),
+            timeline(m["timeline"]),
+        ],
+        className="ch-card",
+    )
     rows = []
-    for r, s in history:
+    for r, s in demo.demo_history():
         kind = {"competitive": "Competitive", "practice": "Practice", "void": "Void"}[
             r.classification.value
         ]
@@ -1105,29 +1246,21 @@ def my_challenge(service, state, local) -> html.Div:
                     html.Td(kind),
                     html.Td(c.credits(s.gross) if s else "—", className="num"),
                     html.Td(str(s.rank) if s and s.rank else "—", className="num"),
-                    html.Td("Yes" if s and s.recovered else "No"),
+                    html.Td(
+                        "Yes"
+                        if s and s.recovered and s.counts_for_championship
+                        else "—"
+                        if kind != "Competitive"
+                        else "No",
+                        className="c",
+                    ),
                     html.Td(str(s.points) if s else "0", className="num strong"),
                 ]
             )
         )
-    hist = html.Div(
+    hist = html.Details(
         [
-            html.H2("Illustrative history", className="ch-h2"),
-            html.Div(
-                "Demonstration data: invented results to show how weekly and championship "
-                "points work. Not your real results.",
-                className="ch-ribbon",
-            ),
-            html.Div(
-                [
-                    c.metric("Championship points", str(me.points), f"rank {me.rank}"),
-                    c.metric("Recoveries", str(me.recoveries), f"in {me.rounds_entered} rounds"),
-                    c.metric("Top-ten finishes", str(me.qualifying_top10), "with a recovery"),
-                ]
-                if me
-                else [],
-                className="ch-metrics",
-            ),
+            html.Summary("Round-by-round history (illustrative)"),
             html.Div(
                 html.Table(
                     [
@@ -1138,7 +1271,7 @@ def my_challenge(service, state, local) -> html.Div:
                                     html.Th("Type"),
                                     html.Th("Gross", className="num"),
                                     html.Th("Rank", className="num"),
-                                    html.Th("Recovered"),
+                                    html.Th("Recovered", className="c"),
                                     html.Th("Points", className="num"),
                                 ]
                             )
@@ -1149,13 +1282,18 @@ def my_challenge(service, state, local) -> html.Div:
                 ),
                 className="ch-table-wrap",
             ),
+            html.P(
+                "Practice and void rounds don't count toward points, recoveries or progress.",
+                className="muted small",
+            ),
         ],
-        className="ch-card",
+        className="ch-details ch-card",
     )
     return html.Div(
         [
             html.H1("My Challenge", className="ch-h1"),
-            html.Div([draft, submitted], className="ch-grid-2"),
+            html.Div([status, confirmed], className="ch-grid-me"),
+            perf,
             hist,
         ],
         className="ch-page",
@@ -1179,7 +1317,7 @@ def leaderboards() -> html.Div:
                         id=c.T("lb-tab"),
                         value="weekly",
                         inline=True,
-                        className="segmented",
+                        className="segmented ch-view",
                         options=[
                             {"label": "This week", "value": "weekly"},
                             {"label": "Championship", "value": "championship"},
@@ -1203,11 +1341,7 @@ def leaderboards() -> html.Div:
                 ],
                 className="ch-row-between",
             ),
-            html.Div(
-                id=c.T("lb-body"),
-                children=leaderboard_body("weekly", demo.LATEST_ROUND),
-                className="ch-card",
-            ),
+            html.Div(id=c.T("lb-body"), children=leaderboard_body("weekly", demo.LATEST_ROUND)),
         ],
         className="ch-page",
     )
@@ -1215,15 +1349,53 @@ def leaderboards() -> html.Div:
 
 def leaderboard_body(tab: str, round_id: str | None):
     if tab == "championship":
+        table = demo.demo_championship()
+        rows = [(s.rank, s.participant_id, f"{s.points} pts") for s in table.standings]
+        me = next((s for s in table.standings if s.participant_id == demo.YOU), None)
+        you = c.you_summary(
+            f"#{me.rank}" if me else "—",
+            f"{me.points} pts · {me.recoveries} recoveries" if me else "not entered",
+            f"{table.completed_rounds} rounds completed, "
+            f"{table.rounds_required - table.completed_rounds} remaining",
+        )
         return [
-            html.H2(f"Championship {demo.CHAMPIONSHIP_ID}", className="ch-h2"),
-            c.championship_table(demo.demo_championship()),
+            you,
+            c.podium(rows),
+            html.Div(
+                [
+                    html.H2(f"Championship {demo.CHAMPIONSHIP_ID}", className="ch-h2"),
+                    c.championship_table(table),
+                ],
+                className="ch-card",
+            ),
         ]
     rid = round_id or demo.LATEST_ROUND
     r = next(x for x in demo.demo_rounds() if x.round_id == rid)
+    score = demo.demo_round_score(rid)
+    ranked = [
+        (s.rank, s.participant_id, f"{s.points} pts · {s.gross:,.2f} cr")
+        for s in score.scores
+        if s.rank is not None
+    ]
+    me = next((s for s in score.scores if s.participant_id == demo.YOU), None)
+    if me is None:
+        you = c.you_summary("—", "not entered this week", "")
+    elif me.rank is None:
+        you = c.you_summary("—", "Void — Refunded" if me.refunded else "not ranked", "")
+    else:
+        you = c.you_summary(
+            f"#{me.rank}",
+            f"{me.points} pts · {me.gross:,.2f} cr",
+            "Recovered" if me.recovered else "Not recovered",
+        )
+    podium = c.podium(ranked) if r.classification.value != "void" else None
     return [
-        html.H2(f"Week {rid}", className="ch-h2"),
-        c.weekly_table(demo.demo_round_score(rid), r),
+        you,
+        podium,
+        html.Div(
+            [html.H2(f"Week {rid}", className="ch-h2"), c.weekly_table(score, r)],
+            className="ch-card",
+        ),
     ]
 
 

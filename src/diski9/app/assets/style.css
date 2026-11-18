@@ -1010,3 +1010,34 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-modal-title { font-size: 26px; margin: 4px 0 8px; color: var(--accent); }
 .ch-modal .ch-actions { justify-content: center; }
 @media (max-width: 700px) { .ch-htp { grid-template-columns: minmax(0, 1fr); } }
+
+/* ===================== Phase 6B.1: My Challenge, leaderboards ===================== */
+.ch-grid-me { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 14px; align-items: start; }
+.ch-compact p { margin: 4px 0 8px; }
+.ch-compact .ch-total-bar { margin: 4px 0 10px; }
+.ch-conf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 8px; }
+.ch-conf-bucket { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; border-left: 3px solid var(--border); }
+.ch-conf-bucket.b-found { border-left-color: var(--b-found); } .ch-conf-bucket.b-bal { border-left-color: var(--b-bal); } .ch-conf-bucket.b-chal { border-left-color: var(--b-chal); }
+.ch-conf-list { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 4px; }
+.ch-conf-list li { display: flex; flex-direction: column; min-width: 0; }
+.ch-metrics.five { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.ch-timeline { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; margin: 4px 0 6px; }
+.ch-tl-item { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.ch-tl-item .dot, .dot.k { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; border: 2px solid var(--border); }
+.dot.k { width: 16px; height: 16px; font-size: 10px; display: inline-grid; margin-right: 5px; vertical-align: middle; border-width: 1px; }
+.ch-tl-item .lbl { font-size: 11px; color: var(--muted); }
+.ch-tl-item.recovered .dot, .dot.k.recovered { background: var(--accent); border-color: var(--accent); color: #062a24; }
+.ch-tl-item.lost .dot, .dot.k.lost { background: var(--surface-2); color: var(--muted); }
+.ch-tl-item.missed .dot, .dot.k.missed { border-style: dashed; color: var(--muted); }
+.ch-tl-item.remaining .dot, .dot.k.remaining { border-style: dotted; background: transparent; }
+.ch-tl-legend { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.ch-you { display: flex; align-items: baseline; gap: 6px 14px; flex-wrap: wrap; background: var(--accent-dim); border: 1px solid rgba(45,212,191,.35); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 10px; }
+.ch-you-rank { font-size: 22px; color: var(--accent); font-variant-numeric: tabular-nums; }
+.ch-podium { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.ch-pod { background: var(--surface); border: 1px solid var(--border); border-top: 4px solid var(--border); border-radius: var(--radius); padding: 10px 12px; display: grid; gap: 4px; }
+.ch-pod.gold { border-top-color: #e3b341; } .ch-pod.silver { border-top-color: #b8c2cc; } .ch-pod.bronze { border-top-color: #c98a55; }
+.ch-pod-rank { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 700; }
+.ch-pod.gold .ch-pod-rank { color: #e3b341; } .ch-pod.silver .ch-pod-rank { color: #b8c2cc; } .ch-pod.bronze .ch-pod-rank { color: #c98a55; }
+.ch-pod-name { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 960px) { .ch-grid-me { grid-template-columns: minmax(0, 1fr); } .ch-metrics.five { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .ch-timeline { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
