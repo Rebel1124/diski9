@@ -24,6 +24,9 @@ from dash.exceptions import PreventUpdate
 
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DIRECTIONS
 
+from .challenge.callbacks import nav_links
+from .challenge.callbacks import register as register_challenge
+from .challenge.service import ChallengeService
 from .data import (
     DIRECTIONS,
     MARKET_KEYS,
@@ -201,15 +204,50 @@ def create_app(data: ScreenerData) -> Dash:
     app = Dash(
         __name__,
         assets_folder=str(ASSETS),
-        title="Diski 9 Screener",
+        title="Diski 9",
         update_title=None,
         meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
         suppress_callback_exceptions=True,
     )
     app.server.config["DISKI9_DATA"] = data
-    app.layout = lambda: build_layout(data)
+    service = ChallengeService(data)
+    app.server.config["DISKI9_CHALLENGE"] = service
+    app.layout = lambda: build_shell(data)
     register_callbacks(app, data)
+    register_challenge(app, data, service)
     return app
+
+
+def build_shell(data: ScreenerData) -> html.Div:
+    """Site shell: navigation, the Screener page (unchanged, shown at ``/``) and the
+    Weekly Challenge pages (``/challenge``, ``/challenge/me``, ``/leaderboards``).
+
+    The Screener stays mounted and is only hidden on other routes, so its filters,
+    selection and Match Lab state survive navigation. Weekly Challenge state lives
+    in the browser-session store ``ch-session`` (this tab only, kept on refresh)."""
+    return html.Div(
+        [
+            dcc.Location(id="url", refresh=False),
+            html.Nav(
+                html.Div(
+                    [
+                        html.Span("Diski 9", className="nav-brand"),
+                        html.Div(nav_links("/"), id="site-nav-links", className="nav-links"),
+                    ],
+                    className="nav-inner",
+                ),
+                className="site-nav",
+                **{"aria-label": "Main"},
+            ),
+            html.Div(build_layout(data), id="screener-root"),
+            html.Div(id="ch-root"),
+            dcc.Store(id="ch-session", storage_type="session"),
+            dcc.Store(id="ch-explore", storage_type="memory"),
+            dcc.Store(id="ch-flash", storage_type="memory"),
+            dcc.Store(id="ch-rendered", storage_type="memory"),
+            dcc.Store(id="ch-fxpage", storage_type="memory", data=1),
+        ]
+    )
 
 
 def build_layout(data: ScreenerData) -> html.Div:

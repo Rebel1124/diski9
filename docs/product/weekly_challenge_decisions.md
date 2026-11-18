@@ -1,4 +1,4 @@
-# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6A.3)
+# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6B)
 
 This register supersedes the Phase 5C register (`2e079ba`) and the Phase 6A.2
 version (`6d5b47f`). IDs are kept, so history can be traced. Superseded items are
@@ -94,7 +94,7 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | D-12 | PSL coverage (no qualifying odds) | Accept for the MVP and state it in the UI | Phase 6C |
 | D-29 | **Empirical validation (outstanding):** collect 6–8 complete real weekly pools with settled outcomes and re-run the 6A.2 / 6A.2.1 simulations before the first official championship. Runs in parallel; does not delay the engine or the Dash prototype | Yes; the odds trial supplies the pools | First official championship |
 | D-32 | **Partially voided rounds (settlement, Phase 6C):** should a round where most fixtures are void at settlement (for example more than half) be reclassified as void, and at what threshold? Today only an explicit void classification (operator cancellation, T-08) voids a round; the scoring engine has no hard-coded threshold | Keep operator-only for the MVP; review after real data | Phase 6C (settlement) |
-| D-33 | **Entries with all nine selections void:** they return exactly 100.00. Under the literal approved rule this is a recovery that earns points at its rank. The engine represents such entries explicitly (`SettlementBasis.ALL_SELECTIONS_VOID`) and supports `all_void_policy` = `score_as_settled` (default, literal rule) or `no_points` (ranked, but no points, recovery or top-ten credit) | Decide before the first official championship; a change needs a new scoring version | Phase 6C (settlement) |
+| D-33 | **Entries with all nine selections void (proposed clarification, implemented in Phase 6B, pending product-owner confirmation):** refund all 100 credits; 0 points; no championship recovery or top-ten finish; excluded from competitive ranking (other ranks computed as if absent); shown separately as "Void — Refunded"; still counts toward the five valid entries fixed at the deadline; never voids the whole round. Implemented as `AllVoidPolicy.REFUND_UNRANKED`, now the default of `points-150-75-v2`; `score_as_settled` and `no_points` remain available | Confirm the proposed clarification | Before the first official championship |
 
 ## Superseded Phase 5C items
 

@@ -155,20 +155,60 @@ def test_ineligible_entry_is_unranked_and_does_not_displace_others():
                                   (sc.EntryResult("x", D(5), championship_eligible=False),)))  # fmt: skip
 
 
+def _policy(policy):
+    return sc.ScoringConfig(version=V, top_points=CFG.top_points, recovery_points=75,
+                            all_void_policy=policy)  # fmt: skip
+
+
 def test_all_void_entries_are_distinguishable_and_policy_driven():
     ents = entries(300, 250, 90, 80) + (sc.EntryResult("v", D("100.00"), SB.ALL_SELECTIONS_VOID),)
-    s = sc.score_round(rnd_result("r", (), ents=ents))
+    # literal rule: exactly 100.00 recovers and earns points at its rank
+    s = sc.score_round(rnd_result("r", (), ents=ents), _policy(sc.AllVoidPolicy.SCORE_AS_SETTLED))
     v = s.score_of("v")
     assert v.basis is SB.ALL_SELECTIONS_VOID and v.rank == 3 and v.points == 125 and v.recovered
-    strict = sc.ScoringConfig(version=V, top_points=CFG.top_points, recovery_points=75,
-                              all_void_policy=sc.AllVoidPolicy.NO_POINTS)  # fmt: skip
-    s2 = sc.score_round(rnd_result("r", (), ents=ents), strict)
+    # ranked but no points
+    s2 = sc.score_round(rnd_result("r", (), ents=ents), _policy(sc.AllVoidPolicy.NO_POINTS))
     v2 = s2.score_of("v")
     assert v2.rank == 3 and v2.points == 0 and not v2.recovered and not v2.qualifying_top10
-    assert s2.score_of("p02").rank == 4  # still ranked: other ranks are unchanged
+    assert s2.score_of("p02").rank == 4
     with pytest.raises(sc.ScoringInputError, match="exactly 100.00"):
         sc.score_round(rnd_result("r", (), ents=entries(1, 2, 3, 4) +
                                   (sc.EntryResult("v", D("99.00"), SB.ALL_SELECTIONS_VOID),)))  # fmt: skip
+
+
+def test_d33_refund_unranked_is_the_proposed_default():
+    assert CFG.all_void_policy is sc.AllVoidPolicy.REFUND_UNRANKED
+    ents = entries(300, 250, 90, 80, 70) + (
+        sc.EntryResult("v", D("100.00"), SB.ALL_SELECTIONS_VOID),
+    )
+    s = sc.score_round(rnd_result("r", (), ents=ents))
+    v = s.score_of("v")
+    assert v.refunded and v.rank is None and v.points == 0 and not v.recovered
+    assert not v.qualifying_top10 and not v.counts_for_championship and v.net == 0
+    assert "Void \u2014 Refunded" in v.note
+    # other entrants are ranked as if the refunded entry were absent
+    assert [s.score_of(f"p{i:02d}").rank for i in range(5)] == [1, 2, 3, 4, 5]
+    assert [s.score_of(f"p{i:02d}").points for i in range(5)] == [150, 135, 0, 0, 0]
+    assert s.scores[-1].participant_id == "v"  # listed separately, after ranked entries
+    # the round stays competitive and the refund does not count for the championship
+    t = sc.aggregate_championship("c1", [rnd_result("r", (), ents=ents)])
+    assert "v" not in {x.participant_id for x in t.standings}
+    # a refunded entry still counts toward the five valid entries fixed at the deadline
+    four_plus_void = entries(300, 250, 90, 80) + (
+        sc.EntryResult("v", D("100.00"), SB.ALL_SELECTIONS_VOID),
+    )
+    assert sc.score_round(rnd_result("r", (), ents=four_plus_void)).awards_points
+
+
+def test_genuine_100_recovery_differs_from_refund():
+    ents = entries(300, "100.00", 90, 80) + (
+        sc.EntryResult("v", D("100.00"), SB.ALL_SELECTIONS_VOID),
+    )
+    s = sc.score_round(rnd_result("r", (), ents=ents))
+    real, void = s.score_of("p01"), s.score_of("v")
+    assert real.gross == void.gross == D("100.00")
+    assert real.recovered and real.points == 135 and real.rank == 2
+    assert not void.recovered and void.points == 0 and void.rank is None
 
 
 # ------------------------------------------------------- input validation

@@ -1,4 +1,19 @@
-# Diski 9 Weekly Challenge — UX Specification (revised, Phase 6A.2)
+# Diski 9 Weekly Challenge — UX Specification (revised, Phase 6A.2; prototype Phase 6B)
+
+> **Phase 6B prototype.** The implemented prototype follows this specification with
+> these differences (details in `docs/weekly_challenge_ui.md`):
+> * the four steps (Overview, Build, Analyse, Review) live on `/challenge`, with a
+>   stepper;
+> * Explore Your Bucket Risk is an expandable panel in Build and Analyse, not a
+>   separate `/challenge/learn` page; its defaults are 70 / 50 / 30 with sliders
+>   kept inside each band;
+> * matches are listed ten per page;
+> * on phones the tracker sits above the list, with a fixed bottom bar;
+> * the analysis adds a "something back, but under 100" card;
+> * submissions are prototype submissions held in the browser tab;
+> * the leaderboards and history use labelled demonstration data;
+> * all-void entries show as "Void — Refunded" (proposed D-33).
+
 
 Status: **revised specification for review**. It supersedes the Phase 5C UX
 (`2e079ba`).

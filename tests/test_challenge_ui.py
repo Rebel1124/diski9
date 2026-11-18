@@ -1,0 +1,503 @@
+"""Phase 6B: Weekly Challenge prototype (snapshots, states, UI reducer, charts, pages)."""
+
+from __future__ import annotations
+
+import json
+import math
+import shutil
+import subprocess
+import threading
+import time
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+from decimal import Decimal
+from pathlib import Path
+
+import pytest
+
+from diski9.app.challenge import callbacks as cb
+from diski9.app.challenge import charts, pages
+from diski9.app.challenge.service import ChallengeService, key_str, parse_key
+from diski9.challenge import demo, education
+from diski9.challenge.config import DEFAULT_CONFIG as CFG
+from diski9.challenge.roundsheet import (
+    RoundFixture,
+    RoundSnapshot,
+    RoundStatus,
+    SnapshotKind,
+    assess_round,
+    build_live_snapshot,
+    snapshot_from_research_pool,
+)
+from diski9.challenge.scoring import RoundClassification, score_round
+from diski9.challenge.structured import (
+    SelectionBlock,
+    assess_outcome,
+    evaluate_groups,
+    make_outcome,
+    selection_blocks,
+)
+
+from .test_app import _free_port, data, populated  # noqa: F401  (fixtures)
+
+ROOT = Path(__file__).parents[1]
+POOL = json.loads((ROOT / "docs/research/weekly_challenge_risk/pool_weekend.json").read_text())
+NOW = datetime(2026, 11, 18, 9, 0, tzinfo=UTC)  # after the demo snapshot, before kickoffs
+D = Decimal
+
+
+class _Data:
+    """Minimal data stand-in: no database (the live round is then unavailable)."""
+
+    engine = None
+
+    def __init__(self, now=NOW):
+        self._now = now
+
+    def clock(self):
+        return self._now
+
+    def local(self, dt, fmt="%a %d %b, %H:%M"):
+        return dt.strftime(fmt)
+
+
+@pytest.fixture(scope="module")
+def svc():
+    return ChallengeService(_Data())
+
+
+@pytest.fixture(scope="module")
+def snap(svc):
+    return svc.demo()
+
+
+def valid_keys(snap, fixtures=None):
+    """A deterministic valid 4/3/2 portfolio (test helper, not a recommendation)."""
+    pool = [o for o in snap.outcomes if fixtures is None or o.fixture_id in fixtures]
+    sel, need = [], {"A": 4, "B": 3, "C": 2}
+    for code in "CAB":
+        for o in pool:
+            if not need[code]:
+                break
+            a = assess_outcome(o, snap.snapshot_at, CFG)
+            if (
+                a.eligible
+                and a.bucket == code
+                and o.key not in selection_blocks(sel, snap.outcomes, snap.snapshot_at, CFG)
+            ):
+                sel.append(o)
+                need[code] -= 1
+    assert not any(need.values())
+    return [key_str(o.key) for o in sel]
+
+
+# ------------------------------------------------------------------ snapshots
+def test_demo_snapshot_is_labelled_and_assessed_at_its_own_time(snap):
+    assert snap.kind is SnapshotKind.DEMO and snap.is_demo
+    assert snap.snapshot_at == datetime.fromisoformat(POOL["as_of"])
+    assert len(snap.fixtures) == 60 and snap.config_version == CFG.version
+    later = datetime(2027, 6, 1, tzinfo=UTC)  # long after: wall clock must not matter
+    a = assess_round(snap, later)
+    assert a.status is RoundStatus.DEMO and a.playable and a.report.opens
+    assert all(f.home and f.away for f in snap.fixtures)
+
+
+def test_fingerprint_is_stable_and_content_sensitive(snap):
+    again = snapshot_from_research_pool(POOL, snap.round_id, {})
+    assert again.fingerprint == snap.fingerprint
+    changed = replace(snap, outcomes=snap.outcomes[:-1])
+    assert changed.fingerprint != snap.fingerprint
+    assert replace(snap, snapshot_at=snap.snapshot_at + timedelta(minutes=1)).fingerprint != (
+        snap.fingerprint
+    )
+
+
+def _live(snap, **kw):
+    return replace(snap, kind=SnapshotKind.LIVE, **kw)
+
+
+def test_round_states(snap):
+    assert assess_round(None, NOW).status is RoundStatus.NO_ROUND
+    empty = _live(snap, outcomes=(), fixtures=(), diagnostics={"fixtures_in_window": 0})
+    assert assess_round(empty, NOW).status is RoundStatus.NO_ROUND
+    stale = _live(
+        snap,
+        outcomes=(),
+        diagnostics={"fixtures_in_window": 40, "exclusions": {"stale_provider_update": 90}},
+    )
+    assert assess_round(stale, NOW).status is RoundStatus.STALE_ODDS
+    missing = _live(
+        snap, outcomes=(), diagnostics={"fixtures_in_window": 40, "exclusions": {"no_prices": 90}}
+    )
+    assert assess_round(missing, NOW).status is RoundStatus.MISSING_MARKETS
+    few = {f.fixture_id for f in snap.fixtures[:12]}
+    small = _live(snap, outcomes=tuple(o for o in snap.outcomes if o.fixture_id in few))
+    assert assess_round(small, NOW).status is RoundStatus.INSUFFICIENT
+    # 20 fixtures but only Foundation-band outcomes: enough fixtures, no 4/3/2 portfolio
+    only_a = tuple(o for o in snap.outcomes if CFG.classify(o.market_probability) == "A")
+    a = assess_round(_live(snap, outcomes=only_a), NOW)
+    assert a.status in (RoundStatus.INFEASIBLE, RoundStatus.INSUFFICIENT)
+    assert not a.report.portfolio_feasible
+    live = _live(snap)
+    before = snap.earliest_kickoff - timedelta(hours=1)
+    assert assess_round(live, before).status is RoundStatus.OPEN
+    assert live.deadline == snap.earliest_kickoff - timedelta(minutes=15)
+    assert assess_round(live, live.deadline).status is RoundStatus.LOCKED
+
+
+def test_live_snapshot_reads_database_without_api(data):  # noqa: F811
+    from tests.factories import T0
+
+    s = build_live_snapshot(data.engine, T0, T0, T0 + timedelta(days=30), "W", {})
+    assert s.kind is SnapshotKind.LIVE and s.snapshot_at == T0
+    assert s.diagnostics["fixtures_in_window"] >= 1
+    for o in s.outcomes:  # everything on the sheet passed the strict consensus
+        assert o.bookmaker_groups >= 3 and o.model_probability is not None
+    assert assess_round(s, T0).status is not RoundStatus.DEMO
+
+
+# ------------------------------------------------------------- engine helpers
+def test_selection_blocks_reasons(snap):
+    keys = valid_keys(snap)
+    sels = [snap.outcome(parse_key(k)) for k in keys[:5]]  # 2 Challenger + 3 Foundation
+    blocks = selection_blocks(sels, snap.outcomes, snap.snapshot_at, CFG)
+    for o in sels:
+        assert blocks[o.key] is SelectionBlock.SELECTED
+    used = {o.fixture_id for o in sels}
+    for o in snap.outcomes:
+        a = assess_outcome(o, snap.snapshot_at, CFG)
+        b = blocks.get(o.key)
+        if o.fixture_id in used and o not in sels:
+            assert b in (SelectionBlock.FIXTURE_TAKEN, SelectionBlock.INELIGIBLE)
+        if not a.eligible:
+            assert b in (SelectionBlock.INELIGIBLE, SelectionBlock.SELECTED)
+        if a.eligible and a.bucket == "C" and o.fixture_id not in used:
+            assert b is SelectionBlock.BUCKET_FULL  # Challenger already 2/2
+
+
+def test_would_block_completion_is_detected():
+    t = datetime(2026, 11, 17, tzinfo=UTC)
+
+    def oc(f, p, out="HOME"):
+        return make_outcome(f, "1X2", out, p, "2.00", p, 5, t, 39)
+
+    # nine fixtures: one is the only Challenger source; using it for Foundation blocks completion
+    pool = [oc(1, 0.7), oc(1, 0.3, "AWAY")] + [oc(f, 0.7) for f in (2, 3, 4, 5)]
+    pool += [oc(f, 0.5) for f in (6, 7, 8)] + [oc(9, 0.3)]
+    blocks = selection_blocks([], pool, t, CFG)
+    assert blocks[oc(1, 0.7).key] is SelectionBlock.WOULD_BLOCK_COMPLETION
+    assert oc(2, 0.7).key not in blocks
+
+
+def test_partial_payout_probability():
+    ev = evaluate_groups(
+        [[(0.5, D("1.50"))], [(0.5, D("4.00"))], [(0.5, D("6.00"))]], (40, 30, 20), 10
+    )  # A pays 60 (< 100), B 120, C 120
+    assert math.isclose(ev.p_partial, 0.125)  # only A wins
+    assert math.isclose(ev.p_partial + ev.p_zero + ev.p_recover, 1.0)
+
+
+def test_education_defaults_and_validation():
+    ill = education.illustrate(education.DEFAULT_ILLUSTRATION)
+    got = {b.code: b for b in ill.buckets}
+    assert f"{got['A'].combined:.2%}" == "24.01%"
+    assert f"{got['B'].combined:.2%}" == "12.50%"
+    assert f"{got['C'].combined:.2%}" == "9.00%"
+    assert math.isclose(got["B"].fair_odds, 8.0) and math.isclose(got["B"].fair_payout, 240.0)
+    assert math.isclose(got["A"].fair_payout, 40 / 0.7**4)
+    assert math.isclose(ill.all_nine, 0.7**4 * 0.5**3 * 0.3**2)
+    assert [b.legs for b in ill.buckets] == [4, 3, 2]
+    assert [b.credits for b in ill.buckets] == [40, 30, 20]
+    with pytest.raises(ValueError):
+        education.illustrate({"A": 0})
+
+
+# ------------------------------------------------------------------ reducer
+def test_pick_remove_and_guards(svc, snap):
+    keys = valid_keys(snap)
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    assert s["mode"] == "demo" and s["fp"] == snap.fingerprint and s["selections"] == []
+    s, flash = cb.apply_action(svc, s, "nav", "analyse")
+    assert s["stage"] == "overview" and "Complete" in flash["text"]
+    for k in keys[:4]:
+        s, flash = cb.apply_action(svc, s, "pick", k)
+        assert flash is None
+    assert s["selections"] == keys[:4]
+    # another outcome of an already used fixture is refused, not swapped
+    fid = parse_key(keys[0])[0]
+    other = next(key_str(o.key) for o in snap.outcomes
+                 if o.fixture_id == fid and key_str(o.key) != keys[0])  # fmt: skip
+    s2, flash = cb.apply_action(svc, s, "pick", other)
+    assert s2["selections"] == keys[:4] and "already have" in flash["text"]
+    # Challenger is full (2/2): a third Challenger outcome is refused
+    used = {parse_key(k)[0] for k in keys}
+    third_c = next(key_str(o.key) for o in snap.outcomes if o.fixture_id not in used
+                   and assess_outcome(o, snap.snapshot_at, CFG).eligible
+                   and CFG.classify(o.market_probability) == "C")  # fmt: skip
+    _, flash = cb.apply_action(svc, s, "pick", third_c)
+    assert "full" in flash["text"]
+    # an ineligible outcome is refused
+    bad = next(key_str(o.key) for o in snap.outcomes
+               if not assess_outcome(o, snap.snapshot_at, CFG).eligible)  # fmt: skip
+    _, flash = cb.apply_action(svc, s, "pick", bad)
+    assert "isn't eligible" in flash["text"]
+    # tapping a selected outcome removes it; remove and clear work
+    s3, _ = cb.apply_action(svc, s, "pick", keys[0])
+    assert keys[0] not in s3["selections"]
+    s3, _ = cb.apply_action(svc, s, "remove", keys[1])
+    assert keys[1] not in s3["selections"] and len(s3["selections"]) == 3
+    s3, _ = cb.apply_action(svc, s, "clear")
+    assert s3["selections"] == []
+
+
+def test_complete_portfolio_navigation_and_submission(svc, snap):
+    keys = valid_keys(snap)
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    for k in keys:
+        s, _ = cb.apply_action(svc, s, "pick", k)
+    s, flash = cb.apply_action(svc, s, "nav", "analyse")
+    assert s["stage"] == "analyse" and flash is None
+    s, flash = cb.apply_action(svc, s, "submit")
+    sub = s["submitted"]
+    assert flash["kind"] == "ok" and "not a competition entry" in flash["text"]
+    assert sub["fp"] == snap.fingerprint and sub["config"] == CFG.version
+    assert sub["selections"] == keys and sub["mode"] == "demo"
+    mk, md = svc.evaluate(snap, keys)
+    assert sub["p_recover_market"] == mk.p_recover and sub["p_recover_model"] == md.p_recover
+
+
+def test_submission_revalidates(svc, snap):
+    keys = valid_keys(snap)
+    s, _ = cb.apply_action(svc, None, "mode", "demo")
+    s["selections"] = keys[:8]  # tampered / incomplete
+    s, flash = cb.apply_action(svc, s, "submit")
+    assert s["submitted"] is None and "not valid" in flash["text"]
+
+
+def test_snapshot_change_clears_draft(svc, snap):
+    keys = valid_keys(snap)
+    stale = {"mode": "demo", "fp": "old-fingerprint", "selections": keys, "stage": "build"}
+    s, flash = cb.apply_action(svc, stale, "pick", keys[0])
+    assert s["selections"] == [] and s["fp"] == snap.fingerprint
+    assert "snapshot changed" in flash["text"]
+    # rendering never shows selections from another snapshot either
+    assert pages.current(svc, pages.normal_state(stale))[3] == []
+
+
+def test_locked_round_refuses_changes(snap):
+    live = _live(snap)
+
+    class Locked(ChallengeService):
+        def snapshot(self, mode):
+            return live
+
+        def availability(self, mode):
+            return assess_round(live, live.deadline + timedelta(minutes=1))
+
+    svc = Locked(_Data())
+    s = {"mode": "live", "fp": live.fingerprint, "selections": [], "stage": "build"}
+    s2, flash = cb.apply_action(svc, s, "pick", valid_keys(snap)[0])
+    assert s2["selections"] == [] and "locked" in flash["text"]
+    _, flash = cb.apply_action(svc, s, "submit")
+    assert "aren't open" in flash["text"]
+
+
+def test_states_are_isolated_values(svc, snap):
+    keys = valid_keys(snap)
+    a, _ = cb.apply_action(svc, None, "mode", "demo")
+    b, _ = cb.apply_action(svc, None, "mode", "demo")
+    a, _ = cb.apply_action(svc, a, "pick", keys[0])
+    assert b["selections"] == [] and a["selections"] == [keys[0]]
+    assert not hasattr(cb, "STATE") and not hasattr(pages, "STATE")  # no module-level drafts
+
+
+def test_filters_never_drop_selections(svc, snap):
+    keys = valid_keys(snap)
+    cards, text = pages.fixture_list(svc, snap, keys, {"search": "zzzz-no-team"}, _Data().local,
+                                     False)  # fmt: skip
+    assert "0 of 60" in text
+    trk = pages.tracker_view(svc, snap, keys, False)
+    assert "9/9" in json.dumps(trk.to_plotly_json(), default=str)
+    _, text = pages.fixture_list(svc, snap, keys, {"market": "BTTS", "bucket": "B"},
+                                 _Data().local, False)  # fmt: skip
+    assert "filtered from 60" in text
+
+
+# ------------------------------------------------------------------- charts
+def test_survival_curve_steps_and_threshold_semantics(svc, snap):
+    mk, md = svc.evaluate(snap, valid_keys(snap))
+    pts = mk.distribution()
+    xs, ys = charts.survival_vertices(pts, 600)
+    assert (xs[0], ys[0]) == (0.0, 1.0)  # starts at 100% at zero credits
+    assert xs[1] == 0.0 and ys[1] == pts[1].at_least  # drops just after 0
+    for i in range(1, len(xs) - 1):  # only vertical or horizontal segments, never sloped
+        assert xs[i] == xs[i + 1] or ys[i] == ys[i + 1]
+        assert ys[i + 1] <= ys[i]  # never increases
+    for p in pts[1:]:  # each attainable payout is the closed right end of its level
+        i = xs.index(float(p.gross))
+        assert ys[i] == p.at_least
+        assert mk.at_least(p.gross) == p.at_least  # threshold equal to a payout includes it
+    assert ys[-1] == 0.0 and xs[-2] == float(pts[-1].gross)
+    fig = charts.at_least_figure(mk, charts.focus_range(mk), 100)
+    marker = [t for t in fig.data if t.x and list(t.x) == [100]][0]
+    assert marker.y[0] == mk.p_recover  # matches the summary
+    assert all(t.line.shape in (None, "linear") for t in fig.data if t.mode == "lines")
+
+
+def test_exact_chart_and_focus_do_not_change_probabilities(svc, snap):
+    mk, _ = svc.evaluate(snap, valid_keys(snap))
+    full = charts.exact_figure(mk, float(mk.max_gross) * 1.05)
+    focus = charts.exact_figure(mk, charts.focus_range(mk))
+    assert list(full.data[0].y) == list(focus.data[0].y)
+    assert math.isclose(sum(full.data[0].y), 1.0, abs_tol=1e-12)
+    assert len(full.data[0].x) == len(mk.distribution()) <= 8
+    assert (
+        charts.focus_range(mk) >= 100 and full.layout.xaxis.range[1] > focus.layout.xaxis.range[1]
+    )
+
+
+def test_market_model_switch_keeps_payouts(svc, snap):
+    mk, md = svc.evaluate(snap, valid_keys(snap))
+    assert [s.gross for s in mk.states] == [s.gross for s in md.states]
+    assert [a.payout for a in mk.buckets] == [a.payout for a in md.buckets]
+    assert mk.p_recover != md.p_recover
+    body_m = json.dumps(pages.analysis_body(mk, snap).to_plotly_json(), default=str)
+    body_d = json.dumps(pages.analysis_body(md, snap).to_plotly_json(), default=str)
+    for a in mk.buckets:
+        assert f"{a.payout:,.2f}" in body_m and f"{a.payout:,.2f}" in body_d
+
+
+# --------------------------------------------------------------- demo boards
+def test_demo_leaderboards_use_the_scoring_engine():
+    s = demo.demo_round_score(demo.LATEST_ROUND)
+    r = next(x for x in demo.demo_rounds() if x.round_id == demo.LATEST_ROUND)
+    assert s == score_round(r)
+    ranked = [x for x in s.scores if x.rank]
+    assert [x.rank for x in ranked[:3]] == [1, 1, 3] and ranked[0].points == ranked[1].points == 150
+    tenth = [x for x in ranked if x.rank == 10]
+    assert len(tenth) == 3 and all(x.points == 90 for x in tenth)
+    assert next(x for x in ranked if x.rank == 13).points == 75
+    refund = [x for x in s.scores if x.refunded]
+    assert len(refund) == 1 and refund[0].rank is None and refund[0].points == 0
+    kinds = {x.classification for x in demo.demo_rounds()}
+    assert {RoundClassification.PRACTICE, RoundClassification.VOID} <= kinds
+    t = demo.demo_championship()
+    assert t.completed_rounds == 7 and set(t.ignored_round_ids) == {"DEMO-P1", "DEMO-V1"}
+    ranks = [x.rank for x in t.standings]
+    assert len(ranks) != len(set(ranks))  # at least one shared position
+    assert not t.is_complete and t.champions == ()
+
+
+def test_leaderboard_rendering_shows_ties_and_round_types():
+    text = json.dumps(pages.leaderboard_body("weekly", demo.LATEST_ROUND), default=str)
+    assert "=1" in text and "=10" in text and "Void \\u2014 Refunded" in text
+    assert "Practice round" in json.dumps(pages.leaderboard_body("weekly", "DEMO-P1"), default=str)
+    assert "Void round" in json.dumps(pages.leaderboard_body("weekly", "DEMO-V1"), default=str)
+    champ = json.dumps(pages.leaderboard_body("championship", None), default=str)
+    assert "Round 7 of 10 completed" in champ and "=6" in champ
+
+
+# ------------------------------------------------------------------- routing
+def _callback(app, fragment):
+    k = next(k for k in app.callback_map if fragment in k)
+    return app.callback_map[k]["callback"].__wrapped__
+
+
+def test_routes_and_existing_screener(data):  # noqa: F811
+    from diski9.app import create_app
+
+    app = create_app(data)
+    client = app.server.test_client()
+    for path in ("/", "/challenge", "/challenge/me", "/leaderboards"):
+        assert client.get(path).status_code == 200
+    layout = client.get("/_dash-layout").get_data(as_text=True)
+    for cid in ("url", "site-nav-links", "screener-root", "ch-root", "ch-session", "results-table"):
+        assert f'"{cid}"' in layout
+    assert '"storage_type":"session"' in layout.replace(" ", "")
+    route = _callback(app, "ch-root.children")
+    style, content, nav, _ = route("/", None, None)
+    assert style == {"display": "block"} and content is None
+    for path, words in (("/challenge", "Weekly Challenge"), ("/challenge/me", "My Challenge"),
+                        ("/leaderboards", "Leaderboards")):  # fmt: skip
+        style, content, nav, _ = route(path, None, None)
+        assert style == {"display": "none"}
+        assert words in json.dumps(content.to_plotly_json(), default=str)
+        assert any("on" in link.className for link in nav)
+
+
+def test_explorer_is_separate_from_portfolio_state(data):  # noqa: F811
+    from diski9.app import create_app
+
+    app = create_app(data)
+    edu = next(k for k in app.callback_map if "ch-explore.data" in k and "edu-out" in k)
+    assert "ch-session" not in edu  # the explorer never writes portfolio state
+    reducer = next(k for k in app.callback_map if k.startswith("..ch-session.data"))
+    assert "edu" not in reducer
+
+
+# ------------------------------------------------------------------- browser
+@pytest.mark.skipif(shutil.which("node") is None, reason="node not available")
+def test_browser_journey_demo_round(data):  # noqa: F811
+    if subprocess.run(["node", "-e", "require('playwright')"], capture_output=True).returncode:
+        pytest.skip("playwright for node not available")
+    from werkzeug.serving import make_server
+
+    from diski9.app import create_app
+
+    snap = ChallengeService(_Data()).demo()
+    keys = valid_keys(snap, {f.fixture_id for f in snap.fixtures[:10]})
+    port = _free_port()
+    server = make_server("127.0.0.1", port, create_app(data).server, threaded=True)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    script = f"""
+    const {{ chromium, devices }} = require('playwright');
+    const KEYS = {json.dumps(keys)};
+    const sel = (o) => `[id='${{JSON.stringify(o)}}']`;
+    (async () => {{
+      const b = await chromium.launch();
+      const out = {{ errors: [] }};
+      const p = await (await b.newContext({{ ...devices['iPhone 13'] }})).newPage();
+      p.on('pageerror', e => out.errors.push(e.message));
+      const idle = async () => {{ await p.waitForTimeout(400); await p.waitForLoadState('networkidle'); }};
+      await p.goto('http://127.0.0.1:{port}/challenge'); await p.waitForSelector('.ch-hero');
+      await p.locator(sel({{m: 'demo', t: 'mode'}})).tap();
+      await p.waitForSelector('text=Demonstration round.'); await idle();
+      await p.locator(sel({{i: 'overview', t: 'nav', to: 'build'}})).tap();
+      await p.waitForSelector(sel({{k: KEYS[0], t: 'pick'}}));
+      for (const k of KEYS) {{ await p.locator(sel({{k, t: 'pick'}})).tap(); await idle(); }}
+      out.total = await p.locator('.ch-total').innerText();
+      await p.locator(sel({{i: 'tracker', t: 'nav', to: 'analyse'}})).tap();
+      await p.waitForSelector('.ch-metric.primary'); await idle();
+      const pays = await p.locator('.ch-acc-num.strong').allInnerTexts();
+      await p.locator('#ch-root').getByText('Diski 9 model', {{ exact: true }}).tap(); await idle();
+      out.payoutsSame = JSON.stringify(pays) === JSON.stringify(await p.locator('.ch-acc-num.strong').allInnerTexts());
+      out.overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      await p.goto('http://127.0.0.1:{port}/leaderboards'); await p.waitForSelector('.ch-table.lb');
+      out.first = await p.locator('.ch-table.lb tbody tr').first().locator('td').first().innerText();
+      console.log(JSON.stringify(out));
+      await b.close();
+    }})().catch(e => {{ console.error(e); process.exit(1); }});
+    """
+    try:
+        time.sleep(0.3)
+        res = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=240)
+        assert res.returncode == 0, res.stderr
+        out = json.loads(res.stdout.strip().splitlines()[-1])
+        assert out == {"errors": [], "total": "9/9", "payoutsSame": True, "overflow": 0,
+                       "first": "=1"}  # fmt: skip
+    finally:
+        server.shutdown()
+
+
+def test_goal_model_unchanged():
+    from diski9.screener import goal_model as gm
+
+    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.m0, gm.GOAL_MODEL_VERSION) == (
+        12,
+        96,
+        30,
+        "1.0",
+    )
+
+
+__all__ = ["RoundFixture", "RoundSnapshot"]

@@ -27,6 +27,7 @@ D-31):
 
 from __future__ import annotations
 
+import dataclasses
 from collections.abc import Sequence
 from dataclasses import dataclass
 from decimal import Decimal
@@ -56,8 +57,13 @@ class AllVoidPolicy(StrEnum):
     """How an entry whose nine selections were all void is treated (outstanding
     decision; see the engine documentation)."""
 
-    SCORE_AS_SETTLED = "score_as_settled"  # literal approved rule: 100.00 recovers
+    SCORE_AS_SETTLED = "score_as_settled"  # literal rule: 100.00 recovers
     NO_POINTS = "no_points"  # ranked, but no points, recovery or top-ten credit
+    # Proposed D-33 clarification (Phase 6B, pending product-owner confirmation):
+    # refunded, excluded from competitive ranking, no points, recovery or top-ten
+    # credit, shown separately as "Void - Refunded". Other entrants' ranks are
+    # computed as if the entry were absent.
+    REFUND_UNRANKED = "refund_unranked"
 
 
 @dataclass(frozen=True)
@@ -69,7 +75,7 @@ class ScoringConfig:
     max_weekly_points: int = 150
     championship_rounds: int = 10
     min_competitive_entries: int = 5
-    all_void_policy: AllVoidPolicy = AllVoidPolicy.SCORE_AS_SETTLED
+    all_void_policy: AllVoidPolicy = AllVoidPolicy.REFUND_UNRANKED  # D-33 (proposed)
 
     def __post_init__(self) -> None:
         def pos_int(v):
@@ -246,6 +252,7 @@ class WeeklyScore:
     basis: SettlementBasis
     display_order: int
     note: str = ""
+    refunded: bool = False  # all-void entry under REFUND_UNRANKED: "Void - Refunded"
 
 
 @dataclass(frozen=True)
@@ -282,8 +289,15 @@ def score_round(r: RoundResult, config: ScoringConfig = POINTS_150_75_V2) -> Rou
     validate_round(r, config)
     cls = RoundClassification(r.classification)
     target = config.recovery_target
+
+    def refunded(e: EntryResult) -> bool:
+        return (
+            SettlementBasis(e.basis) is SettlementBasis.ALL_SELECTIONS_VOID
+            and config.all_void_policy is AllVoidPolicy.REFUND_UNRANKED
+        )
+
     ranked = (
-        [e for e in r.entries if e.championship_eligible]
+        [e for e in r.entries if e.championship_eligible and not refunded(e)]
         if cls is not RoundClassification.VOID
         else []
     )
@@ -299,7 +313,12 @@ def score_round(r: RoundResult, config: ScoringConfig = POINTS_150_75_V2) -> Rou
         basis = SettlementBasis(e.basis)
         rank = ranks.get(e.participant_id)
         recovered = e.gross >= target and cls is not RoundClassification.VOID
-        counted = cls is RoundClassification.COMPETITIVE and e.championship_eligible
+        is_refund = refunded(e) and cls is not RoundClassification.VOID
+        counted = (
+            cls is RoundClassification.COMPETITIVE and e.championship_eligible and not is_refund
+        )
+        if is_refund:
+            recovered = False  # a financial refund is not a competition recovery
         note = ""
         if cls is RoundClassification.VOID:
             note = "void round: stakes returned, nothing counts"
@@ -307,6 +326,8 @@ def score_round(r: RoundResult, config: ScoringConfig = POINTS_150_75_V2) -> Rou
             note = "practice round: no championship points"
         elif not e.championship_eligible:
             note = f"not eligible for championship scoring: {e.ineligible_reason}"
+        if is_refund:
+            note = "Void \u2014 Refunded: all nine selections void; 100 credits returned"
         scoring_recovery = recovered
         if (
             counted
@@ -331,25 +352,11 @@ def score_round(r: RoundResult, config: ScoringConfig = POINTS_150_75_V2) -> Rou
                 basis,
                 0,
                 note,
+                is_refund,
             )
         )
     rows.sort(key=lambda s: (s.rank is None, s.rank or 0, -s.gross, s.participant_id))
-    rows = [
-        WeeklyScore(
-            s.participant_id,
-            s.gross,
-            s.net,
-            s.rank,
-            s.points,
-            s.recovered,
-            s.qualifying_top10,
-            s.counts_for_championship,
-            s.basis,
-            i + 1,
-            s.note,
-        )
-        for i, s in enumerate(rows)
-    ]
+    rows = [dataclasses.replace(s, display_order=i + 1) for i, s in enumerate(rows)]
     return RoundScore(r.round_id, r.championship_id, cls, config.version, r.final, tuple(rows))
 
 

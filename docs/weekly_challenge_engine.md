@@ -277,10 +277,13 @@ order-independent and reproducible.
 * Under the literal approved rule ("exactly 100.00 recovers") an entry whose nine
   picks were all void would recover and earn points at its rank.
 * `ScoringConfig.all_void_policy` makes this explicit:
-  * `score_as_settled` (the default, as approved);
+  * `score_as_settled` (the literal approved rule);
   * `no_points` (ranked, so others' ranks are unchanged, but no points, recovery
     or top-ten credit).
-* Changing the policy needs an owner decision and a new scoring version.
+  * `refund_unranked` (Phase 6B, the default since then): the proposed D-33
+    clarification. The entry is refunded, unranked, earns 0 points and is shown as
+    "Void — Refunded". It is pending product-owner confirmation; see
+    `docs/weekly_challenge_ui.md` §10.
 
 **Partial voids (D-32):** they settle normally upstream; the engine just receives
 the settled gross. There is no majority-void threshold.

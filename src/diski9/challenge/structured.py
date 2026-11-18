@@ -341,6 +341,56 @@ def portfolio_feasible(
     return _match(dict(progress.remaining), bands)
 
 
+class SelectionBlock(StrEnum):
+    """Why an outcome cannot be added to the current selections (for builder UIs)."""
+
+    SELECTED = "selected"  # already in the portfolio (it can be removed)
+    INELIGIBLE = "ineligible"  # fails the band or odds rules at the snapshot
+    FIXTURE_TAKEN = "fixture_taken"  # another outcome of this fixture is selected
+    BUCKET_FULL = "bucket_full"
+    WOULD_BLOCK_COMPLETION = "would_block_completion"
+
+
+def selection_blocks(
+    selections: Sequence[ChallengeOutcome],
+    pool: Sequence[ChallengeOutcome],
+    snapshot_at: datetime,
+    config: ChallengeConfig = DEFAULT_CONFIG,
+) -> dict[tuple, SelectionBlock]:
+    """For every pool outcome that cannot be added now, the reason (keyed by
+    ``outcome.key``); outcomes absent from the result can be added.
+
+    "Would block completion" means: adding the outcome leaves the remaining slots
+    impossible to fill from the unused fixtures (exact matching, as in
+    :func:`portfolio_feasible`). The pool is assessed once. Nothing is
+    recommended: the result only explains what is not possible."""
+    _check_snapshot(snapshot_at)
+    assess = {o.key: assess_outcome(o, snapshot_at, config) for o in pool}
+    chosen = {o.key for o in selections}
+    used = {o.fixture_id for o in selections}
+    progress = portfolio_progress(selections, snapshot_at, config)
+    blocking_now = any(i.code in BLOCKING for i in progress.issues)
+    bands_all = _bands_by_fixture(assess.values())
+    out: dict[tuple, SelectionBlock] = {}
+    for o in pool:
+        a = assess[o.key]
+        if o.key in chosen:
+            out[o.key] = SelectionBlock.SELECTED
+        elif not a.eligible:
+            out[o.key] = SelectionBlock.INELIGIBLE
+        elif o.fixture_id in used:
+            out[o.key] = SelectionBlock.FIXTURE_TAKEN
+        elif progress.remaining.get(a.bucket, 0) == 0:
+            out[o.key] = SelectionBlock.BUCKET_FULL
+        elif not blocking_now:
+            need = dict(progress.remaining)
+            need[a.bucket] -= 1
+            bands = {f: b for f, b in bands_all.items() if f not in used and f != o.fixture_id}
+            if not _match(need, bands):
+                out[o.key] = SelectionBlock.WOULD_BLOCK_COMPLETION
+    return out
+
+
 @dataclass(frozen=True)
 class RoundOpeningReport:
     config_version: str
@@ -612,6 +662,11 @@ class GroupEvaluation:
         return sum(s.probability for s in self.states if s.gross == 0)
 
     @property
+    def p_partial(self) -> float:
+        """P(0 < gross < target): something back, but less than the 100 credits."""
+        return sum(s.probability for s in self.states if 0 < s.gross < self.target)
+
+    @property
     def expected_gross(self) -> float:
         return sum(s.probability * float(s.gross) for s in self.states)
 
@@ -772,6 +827,10 @@ class PortfolioEvaluation:
     @property
     def p_zero(self) -> float:
         return self.result.p_zero
+
+    @property
+    def p_partial(self) -> float:
+        return self.result.p_partial
 
     @property
     def expected_gross(self) -> float:

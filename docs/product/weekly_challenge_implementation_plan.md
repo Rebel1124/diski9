@@ -21,6 +21,13 @@ covering the engine scope of Phase 6B, the pure checks of 6C and the pure
 scoring logic of 6G. Persistence, UI, settlement and lifecycle remain. See
 `docs/weekly_challenge_engine.md`.
 
+**Phase 6B (done, `feature/weekly-challenge-ui`):** the interactive Dash
+prototype (`/challenge`, `/challenge/me`, `/leaderboards`) on the 6A.3 engines:
+frozen live/demo round snapshots, builder with tracker, Explore Your Bucket Risk,
+market/model analysis and payout charts, prototype submission in the browser
+session, demonstration leaderboards. This covers the UI scope of Phase 6D below.
+No accounts, persistence or settlement. See `docs/weekly_challenge_ui.md`.
+
 **Already done:**
 * Phase 6A engine on `feature/weekly-challenge-engine` (`48392c1`): 3/3/3 picks,
   30/30/30/10 credits, the eight states, D-15 rounding, payout distribution. Not
