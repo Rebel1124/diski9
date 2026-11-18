@@ -6,13 +6,14 @@ import math
 
 from dash import dcc, html
 
+from diski9.challenge import analysis as pa
 from diski9.challenge import demo
 from diski9.challenge.config import DEFAULT_CONFIG
-from diski9.challenge.education import DEFAULT_ILLUSTRATION
 from diski9.challenge.roundsheet import RoundStatus
 from diski9.challenge.scoring import POINTS_150_75_V2
 from diski9.challenge.structured import (
     IssueCode,
+    SelectionBlock,
     assess_outcome,
     portfolio_progress,
     selection_blocks,
@@ -232,7 +233,11 @@ def overview(service, state, mode, snap, avail, local) -> html.Div:
 
 
 # ---------------------------------------------------------------- builder
-def builder(service, snap, sels, avail, explore, local) -> html.Div:
+def _filter(label, control, cls="filter"):
+    return html.Div([html.Label(label), control], className=cls)
+
+
+def builder(service, snap, sels, avail, prefs, local, personal=None) -> html.Div:
     leagues = sorted({f.league for f in snap.fixtures})
     days = sorted({local(f.kickoff, "%Y-%m-%d") for f in snap.fixtures})
     day_label = {
@@ -243,80 +248,75 @@ def builder(service, snap, sels, avail, explore, local) -> html.Div:
     }
     filters = html.Div(
         [
-            html.Div(
-                [
-                    html.Label("League"),
-                    dcc.Dropdown(
-                        id=c.T("f-league"),
-                        options=leagues,
-                        value=[],
-                        multi=True,
-                        placeholder="All leagues",
-                        className="dropdown",
-                    ),
-                ],
-                className="filter",
+            _filter(
+                "League",
+                dcc.Dropdown(
+                    id=c.T("f-league"),
+                    options=leagues,
+                    value=[],
+                    multi=True,
+                    placeholder="All leagues",
+                    className="dropdown",
+                ),
+            ),
+            _filter(
+                "Date",
+                dcc.Dropdown(
+                    id=c.T("f-date"),
+                    options=[{"label": day_label[d], "value": d} for d in days],
+                    value=None,
+                    placeholder="All dates",
+                    className="dropdown",
+                ),
+            ),
+            _filter(
+                "Market",
+                dcc.Dropdown(
+                    id=c.T("f-market"),
+                    options=[{"label": v, "value": k} for k, v in c.MARKET_SHORT.items()],
+                    value=None,
+                    placeholder="All markets",
+                    className="dropdown",
+                ),
+            ),
+            _filter(
+                "Bucket",
+                dcc.Dropdown(
+                    id=c.T("f-bucket"),
+                    options=[{"label": b.name, "value": b.code} for b in CFG.buckets],
+                    value=None,
+                    placeholder="All buckets",
+                    className="dropdown",
+                ),
+            ),
+            _filter(
+                "Team",
+                dcc.Input(
+                    id=c.T("f-search"),
+                    type="search",
+                    placeholder="Search a team",
+                    debounce=True,
+                    className="ch-input",
+                ),
             ),
             html.Div(
-                [
-                    html.Label("Date"),
-                    dcc.Dropdown(
-                        id=c.T("f-date"),
-                        options=[{"label": day_label[d], "value": d} for d in days],
-                        value=None,
-                        placeholder="All dates",
-                        className="dropdown",
-                    ),
-                ],
-                className="filter",
-            ),
-            html.Div(
-                [
-                    html.Label("Market"),
-                    dcc.Dropdown(
-                        id=c.T("f-market"),
-                        options=[{"label": v, "value": k} for k, v in c.MARKET_NAME.items()],
-                        value=None,
-                        placeholder="All markets",
-                        className="dropdown",
-                    ),
-                ],
-                className="filter",
-            ),
-            html.Div(
-                [
-                    html.Label("Bucket"),
-                    dcc.Dropdown(
-                        id=c.T("f-bucket"),
-                        options=[{"label": b.name, "value": b.code} for b in CFG.buckets],
-                        value=None,
-                        placeholder="All buckets",
-                        className="dropdown",
-                    ),
-                ],
-                className="filter",
-            ),
-            html.Div(
-                [
-                    html.Label("Team"),
-                    dcc.Input(
-                        id=c.T("f-search"),
-                        type="search",
-                        placeholder="Search a team",
-                        debounce=True,
-                        className="ch-input",
-                    ),
-                ],
-                className="filter",
+                dcc.Checklist(
+                    id=c.T("f-avail"),
+                    options=[{"label": "Available only", "value": "on"}],
+                    value=[],
+                    className="chips",
+                ),
+                className="filter ch-avail",
             ),
         ],
-        className="filters ch-filters",
+        className="ch-filters",
     )
     lock_note = (
         html.Div("This round is locked: the deadline has passed.", className="ch-ribbon warn")
         if locked(avail)
         else None
     )
+    cards, count = fixture_list(service, snap, sels, {}, local, locked(avail), 1, personal)
     return html.Div(
         [
             c.demo_ribbon(snap),
@@ -328,33 +328,31 @@ def builder(service, snap, sels, avail, explore, local) -> html.Div:
                             html.Div(
                                 [
                                     html.H2("Choose nine predictions", className="ch-h2"),
-                                    html.Span(id=c.T("fx-count"), className="muted small"),
+                                    html.Span(count, id=c.T("fx-count"), className="muted small"),
                                 ],
                                 className="ch-row-between",
                             ),
-                            html.P(
-                                "Each outcome's bucket comes from the market's chance (Mkt). D9 is "
-                                "Diski 9's own model estimate, for comparison. Odds are the frozen "
-                                "reference odds that set your payout.",
-                                className="muted small",
-                            ),
                             filters,
-                            html.Div(
-                                id=c.T("fixtures"),
-                                children=fixture_list(
-                                    service, snap, sels, {}, local, locked(avail)
-                                )[0],
-                                className="ch-fixtures",
+                            html.P(
+                                "Mkt: the market's chance, which sets the bucket. D9: Diski 9's "
+                                "model. Odds: the frozen reference odds that set your payout.",
+                                className="muted small ch-legend",
                             ),
-                            c.explorer(explore or DEFAULT_ILLUSTRATION_PCT),
+                            html.Div(cards, id=c.T("fixtures"), className="ch-fixtures"),
                         ],
+                        id=c.T("matches-view"),
                         className="ch-main",
                     ),
                     html.Aside(
-                        html.Div(
-                            id=c.T("tracker"),
-                            children=tracker_view(service, snap, sels, locked(avail)),
-                        ),
+                        [
+                            c.source_selector((prefs or {}).get("source", "market")),
+                            html.Div(
+                                id=c.T("tracker"),
+                                children=tracker_view(
+                                    service, snap, sels, locked(avail), prefs, personal
+                                ),
+                            ),
+                        ],
                         className="ch-side",
                     ),
                 ],
@@ -364,20 +362,21 @@ def builder(service, snap, sels, avail, explore, local) -> html.Div:
     )
 
 
-DEFAULT_ILLUSTRATION_PCT = {k: round(v * 100) for k, v in DEFAULT_ILLUSTRATION.items()}
-
-
 FIXTURES_PER_PAGE = 10  # rendering every outcome at once is slow in the browser
 
 
-def fixture_list(service, snap, sels, filters: dict, local, is_locked: bool, page: int = 1):
+def fixture_list(
+    service, snap, sels, filters: dict, local, is_locked: bool, page: int = 1, personal=None
+):
     """(children for the fixture area, count text). Filters never touch the portfolio."""
     chosen = service.outcomes_for(snap, sels)
     assess = {o.key: assess_outcome(o, snap.snapshot_at, CFG) for o in snap.outcomes}
+    blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, CFG)
     league = set(filters.get("league") or [])
     day = filters.get("date")
     market = filters.get("market")
     bucket = filters.get("bucket")
+    avail_only = bool(filters.get("available"))
     q = (filters.get("search") or "").strip().lower()
     by_fx: dict = {}
     for o in snap.outcomes:
@@ -395,6 +394,7 @@ def fixture_list(service, snap, sels, filters: dict, local, is_locked: bool, pag
             for o in by_fx.get(fx.fixture_id, [])
             if (not market or str(o.market) == market)
             and (not bucket or (assess[o.key].eligible and assess[o.key].bucket == bucket))
+            and (not avail_only or blocks.get(o.key) in (None, SelectionBlock.SELECTED))
         ]
         if outs:
             matches.append((fx, outs))
@@ -408,8 +408,9 @@ def fixture_list(service, snap, sels, filters: dict, local, is_locked: bool, pag
     page = min(max(int(page or 1), 1), pages_n)
     start = (page - 1) * FIXTURES_PER_PAGE
     shown = matches[start : start + FIXTURES_PER_PAGE]
-    blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, CFG)
-    cards = [c.fixture_card(fx, outs, assess, blocks, local, is_locked) for fx, outs in shown]
+    cards = [
+        c.fixture_card(fx, outs, assess, blocks, local, is_locked, personal) for fx, outs in shown
+    ]
     pager = html.Div(
         [
             html.Button(
@@ -436,32 +437,37 @@ def fixture_list(service, snap, sels, filters: dict, local, is_locked: bool, pag
     return [*cards, pager], text
 
 
-def tracker_view(service, snap, sels, is_locked: bool) -> html.Div:
+def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None) -> html.Div:
+    source = (prefs or {}).get("source", "market")
+    prob = pa.probability_for(source, personal)
     chosen = service.outcomes_for(snap, sels)
     progress = portfolio_progress(chosen, snap.snapshot_at, CFG, pool=snap.outcomes)
-    picks = sorted(
-        ((CFG.classify(o.market_probability), o) for o in chosen),
-        key=lambda x: CFG.bucket_codes.index(x[0]) if x[0] else 9,
-    )
+    stats, nine = pa.bucket_stats(chosen, prob, CFG)
+    by_bucket: dict = {}
+    for o in chosen:
+        by_bucket.setdefault(CFG.classify(o.market_probability), []).append(o)
     if progress.is_complete:
-        msg = "Portfolio complete. Continue to see your chances."
+        msg = "Portfolio complete. Check the analysis, then review and submit."
     elif progress.issues_of(IssueCode.CANNOT_COMPLETE):
         msg = (
-            "These picks can't be completed from the remaining matches. Remove a pick to "
-            "free up a bucket or match."
+            "These picks can't be completed from the remaining matches. Remove a pick to free "
+            "up a bucket or match."
         )
     elif not progress.is_valid:
         msg = progress.issues[0].message
     else:
         need = [f"{CFG.bucket(k).name} {v}" for k, v in progress.remaining.items() if v]
         msg = "Still needed: " + ", ".join(need) if need else ""
-    can = progress.is_complete and service.evaluate(snap, sels) is not None
+    port = service.portfolio(snap, sels)
+    ev = pa.evaluate_with(port, prob) if port is not None else None
 
     def label(o):
         fx = snap.fixture(o.fixture_id)
         return f"{fx.home} v {fx.away}"
 
-    return c.tracker(progress, picks, label, msg, can, is_locked)
+    return c.tracker(
+        stats, nine, by_bucket, label, prob, msg, ev, port is not None and not is_locked, is_locked
+    )
 
 
 # --------------------------------------------------------------- analysis
@@ -560,7 +566,6 @@ def analysis(service, snap, sels, explore, local, source: str = "market") -> htm
                 className="ch-card",
             ),
             about_numbers(),
-            c.explorer(explore or DEFAULT_ILLUSTRATION_PCT),
             html.Div(
                 [
                     html.Button(

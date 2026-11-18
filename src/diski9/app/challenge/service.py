@@ -106,6 +106,16 @@ class ChallengeService:
                 out.append(o)
         return out
 
+    def portfolio(self, snap: RoundSnapshot, keys: list[str]):
+        """The validated StructuredPortfolio for these selections, or None."""
+        sels = self.outcomes_for(snap, list(keys))
+        if len(sels) != len(keys) or not keys:
+            return None
+        try:
+            return validate_portfolio(sels, snap.snapshot_at, DEFAULT_CONFIG, pool=snap.outcomes)
+        except PortfolioValidationError:
+            return None
+
     def evaluate(
         self, snap: RoundSnapshot, keys: list[str]
     ) -> tuple[PortfolioEvaluation, PortfolioEvaluation] | None:

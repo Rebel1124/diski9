@@ -7,7 +7,6 @@ from decimal import Decimal
 from dash import dcc, html
 
 from diski9.challenge.config import DEFAULT_CONFIG
-from diski9.challenge.education import Illustration
 from diski9.challenge.roundsheet import RoundAvailability, RoundSnapshot, RoundStatus
 from diski9.challenge.scoring import POINTS_150_75_V2, RoundClassification
 from diski9.challenge.structured import PortfolioEvaluation, SelectionBlock
@@ -18,6 +17,7 @@ CFG = DEFAULT_CONFIG
 BUCKET_CLASS = {"A": "found", "B": "bal", "C": "chal", "NINE": "nine"}
 BUCKET_NAME = {b.code: b.name for b in CFG.buckets} | {"NINE": CFG.nine_fold_name}
 MARKET_NAME = {"1X2": "Match result", "BTTS": "Both teams to score", "OU25": "Over/Under 2.5"}
+MARKET_SHORT = {"1X2": "Match result", "BTTS": "Both teams score", "OU25": "Total goals"}
 OUTCOME_NAME = {
     "HOME": "Home win",
     "DRAW": "Draw",
@@ -26,6 +26,15 @@ OUTCOME_NAME = {
     "BTTS_NO": "BTTS: No",
     "OVER_2_5": "Over 2.5 goals",
     "UNDER_2_5": "Under 2.5 goals",
+}
+OUTCOME_SHORT = {
+    "HOME": "Home",
+    "DRAW": "Draw",
+    "AWAY": "Away",
+    "BTTS_YES": "Yes",
+    "BTTS_NO": "No",
+    "OVER_2_5": "Over 2.5",
+    "UNDER_2_5": "Under 2.5",
 }
 BLOCK_TEXT = {
     SelectionBlock.FIXTURE_TAKEN: "Fixture already used",
@@ -39,6 +48,11 @@ BLOCK_HELP = {
     "swap it.",
     SelectionBlock.WOULD_BLOCK_COMPLETION: "With this pick, the remaining matches could not "
     "fill your other buckets.",
+}
+BLOCK_SHORT = {
+    SelectionBlock.FIXTURE_TAKEN: "Match used",
+    SelectionBlock.BUCKET_FULL: "Bucket full",
+    SelectionBlock.WOULD_BLOCK_COMPLETION: "Can't complete",
 }
 BAND_TEXT = {"A": "60%–95%", "B": "40% to under 60%", "C": "20% to under 40%"}
 
@@ -237,44 +251,76 @@ def objectives() -> html.Div:
     )
 
 
+def segment_bar(code: str, filled: int, total: int) -> html.Div:
+    return html.Div(
+        [html.Span(className="seg on" if i < filled else "seg") for i in range(total)],
+        className=f"ch-seg b-{BUCKET_CLASS[code]}",
+        role="img",
+        **{"aria-label": f"{filled} of {total}"},
+    )
+
+
 # ------------------------------------------------------------- builder
-def outcome_button(o, bucket, block, prob_model, locked: bool) -> html.Button:
+def pct_in_band(p: float, bucket: str | None) -> str:
+    """One-decimal percentage that never contradicts the bucket: when rounding would
+    put a value on the other side of a band boundary (e.g. 59.96% shown as 60.0% in
+    Balanced), more decimals are shown."""
+    for digits in (1, 2, 3, 4):
+        text = f"{p * 100:.{digits}f}%"
+        if bucket is None or CFG.classify(float(text[:-1]) / 100) == bucket:
+            return text
+    return f"{p * 100:.6f}%"
+
+
+def outcome_button(o, bucket, block, locked: bool, personal=None) -> html.Button:
+    """One outcome: name, market and Diski 9 chances, frozen odds, bucket label and
+    selection state; disabled outcomes say why (text and an icon, not only colour)."""
     k = key_str(o.key)
     selected = block is SelectionBlock.SELECTED
     disabled = locked or (block is not None and not selected)
-    reason = None
-    if block is SelectionBlock.INELIGIBLE:
-        reason = "Not eligible"
-    elif block in BLOCK_TEXT:
-        reason = BLOCK_TEXT[block]
     cls = "ch-out" + (f" b-{BUCKET_CLASS[bucket]}" if bucket else " b-none")
     cls += " is-selected" if selected else ""
     cls += " is-blocked" if disabled else ""
-    model = pct(prob_model, 0) if prob_model is not None else "—"
+    if selected:
+        tag = html.Span(
+            ["✓ ", BUCKET_NAME[bucket]], className=f"ch-tag b-{BUCKET_CLASS[bucket]} on"
+        )
+    elif block is SelectionBlock.INELIGIBLE or bucket is None:
+        tag = html.Span("⊘ Not eligible", className="ch-tag off")
+    elif block in BLOCK_TEXT:
+        tag = html.Span("⊘ " + BLOCK_SHORT[block], className="ch-tag off")
+    else:
+        tag = html.Span(BUCKET_NAME[bucket], className=f"ch-tag b-{BUCKET_CLASS[bucket]}")
+    model = pct_in_band(o.model_probability, None) if o.model_probability is not None else "—"
     title = BLOCK_HELP.get(block) or (
         "Outside the 20%–95% market range, or the odds don't qualify"
         if block is SelectionBlock.INELIGIBLE
-        else "Tap to add"
-        if not selected
         else "Tap to remove"
+        if selected
+        else "Tap to add"
     )
+    title = f"{outcome_text(o)}: {title}"
+    if personal is not None:
+        title += f" · Your View {pct(personal, 1)}"
     return html.Button(
         [
-            html.Span(outcome_text(o), className="ch-out-name"),
             html.Span(
                 [
-                    html.Span(f"Mkt {pct(o.market_probability, 0)}"),
-                    html.Span(f"D9 {model}", className="muted"),
+                    html.Span(
+                        OUTCOME_SHORT.get(str(o.outcome), outcome_text(o)), className="ch-out-name"
+                    ),
                     html.Span(f"{o.reference_odds:.2f}", className="ch-odds"),
+                ],
+                className="ch-out-top",
+            ),
+            html.Span(
+                [
+                    html.Span(f"Mkt {pct_in_band(o.market_probability, bucket)}"),
+                    html.Span(f"D9 {model}", className="muted"),
                 ],
                 className="ch-out-nums",
             ),
-            html.Span(
-                ("✓ " + BUCKET_NAME[bucket])
-                if selected
-                else (reason or BUCKET_NAME.get(bucket, "Not eligible")),
-                className="ch-out-tag",
-            ),
+            tag,
         ],
         id={"t": "pick", "k": k},
         n_clicks=0,
@@ -285,78 +331,136 @@ def outcome_button(o, bucket, block, prob_model, locked: bool) -> html.Button:
     )
 
 
-def fixture_card(fx, outs, assess, blocks, local, locked) -> html.Div:
+def fixture_card(fx, outs, assess, blocks, local, locked, personal=None) -> html.Div:
+    personal = personal or {}
     by_market: dict[str, list] = {}
     for o in outs:
         by_market.setdefault(str(o.market), []).append(o)
     groups = []
     for m in ("1X2", "BTTS", "OU25"):
-        if m not in by_market:
-            continue
+        items = by_market.get(m, [])
         groups.append(
             html.Div(
                 [
-                    html.Div(MARKET_NAME[m], className="ch-mkt"),
+                    html.Div(MARKET_SHORT[m], className="ch-mkt"),
                     html.Div(
                         [
                             outcome_button(
                                 o,
                                 assess[o.key].bucket if assess[o.key].eligible else None,
                                 blocks.get(o.key),
-                                o.model_probability,
                                 locked,
+                                personal.get(o.key),
                             )
-                            for o in by_market[m]
-                        ],
-                        className="ch-outs",
+                            for o in items
+                        ]
+                        or [html.Span("—", className="muted small")],
+                        className=f"ch-outs n{max(len(items), 1)}",
                     ),
                 ],
-                className="ch-mkt-group",
+                className=f"ch-mkt-group m-{m.lower()}",
             )
         )
     return html.Div(
         [
             html.Div(
                 [
-                    html.Span(fx.league, className="ch-league"),
-                    html.Span(local(fx.kickoff), className="muted small"),
+                    html.Div(
+                        [
+                            html.Span(fx.league, className="ch-league"),
+                            html.Span(local(fx.kickoff), className="muted small"),
+                        ],
+                        className="ch-fx-meta",
+                    ),
+                    html.Div(f"{fx.home} v {fx.away}", className="ch-fx-teams"),
+                    dcc.Link(
+                        "Match Lab ↗",
+                        href=f"/?fixture={fx.fixture_id}",
+                        className="ch-lab-link",
+                        title="Analyse this match in the Match Lab",
+                    ),
                 ],
-                className="ch-fx-meta",
+                className="ch-fx-head",
             ),
-            html.Div(f"{fx.home} v {fx.away}", className="ch-fx-teams"),
-            *groups,
+            html.Div(groups, className="ch-mkts"),
         ],
         className="ch-fx",
     )
 
 
-def segment_bar(code: str, filled: int, total: int) -> html.Div:
+def bucket_line(stat) -> html.Div:
+    """Combined chance and payout for a bucket's selections so far."""
+    if stat.combined_probability is None:
+        return html.Div("No picks yet", className="muted small ch-bstat")
+    scope = "" if stat.complete else f" (so far: {stat.selected} of {stat.required} picks)"
     return html.Div(
-        [html.Span(className="seg on" if i < filled else "seg") for i in range(total)],
-        className=f"ch-seg b-{BUCKET_CLASS[code]}",
-        role="img",
-        **{"aria-label": f"{filled} of {total}"},
+        [
+            html.Span(["All succeed ", html.Strong(pct(stat.combined_probability, 1))]),
+            html.Span(["pays ", html.Strong(credits(stat.payout)), " cr"]),
+            html.Span(scope, className="muted") if scope else None,
+        ],
+        className="ch-bstat small",
     )
 
 
-def tracker(progress, picks, local_fixture, message, can_continue: bool, locked: bool) -> html.Div:
+def tracker(
+    stats,
+    nine,
+    picks_by_bucket,
+    label,
+    prob,
+    message,
+    complete_ev,
+    can_continue,
+    locked,
+    review_enabled_label="Review & Submit →",
+) -> html.Div:
     rows = []
-    for b in CFG.buckets:
-        n, req = progress.selected[b.code], progress.required[b.code]
-        rows.append(
-            html.Div(
+    for st in stats:
+        picks = picks_by_bucket.get(st.code, [])
+        items = [
+            html.Li(
                 [
                     html.Div(
                         [
-                            chip(b.code),
-                            html.Span(f"{n}/{req}", className="ch-count"),
-                            html.Span(f"{b.credits} cr", className="muted small"),
+                            html.Span(label(o), className="ch-pick-fx"),
+                            html.Span(
+                                f"{outcome_text(o)} · {pct(prob(o), 1)} · {o.reference_odds:.2f}",
+                                className="muted",
+                            ),
+                        ],
+                        className="ch-pick-text",
+                    ),
+                    html.Button(
+                        "✕",
+                        id={"t": "remove", "k": key_str(o.key)},
+                        n_clicks=0,
+                        className="ch-x",
+                        title="Remove this prediction",
+                        disabled=locked,
+                        **{"aria-label": f"Remove {outcome_text(o)}"},
+                    ),
+                ]
+            )
+            for o in picks
+        ]
+        rows.append(
+            html.Details(
+                [
+                    html.Summary(
+                        [
+                            chip(st.code),
+                            html.Span(f"{st.selected}/{st.required}", className="ch-count"),
+                            html.Span(f"{st.credits} cr", className="muted small"),
                         ],
                         className="ch-trk-head",
                     ),
-                    segment_bar(b.code, min(n, req), req),
+                    segment_bar(st.code, min(st.selected, st.required), st.required),
+                    bucket_line(st),
+                    html.Ul(items, className="ch-picks") if items else None,
                 ],
-                className="ch-trk-row",
+                open=True,
+                className=f"ch-trk-row b-{BUCKET_CLASS[st.code]}",
             )
         )
     rows.append(
@@ -365,58 +469,49 @@ def tracker(progress, picks, local_fixture, message, can_continue: bool, locked:
                 html.Div(
                     [
                         chip("NINE"),
-                        html.Span("all nine", className="ch-count"),
-                        html.Span(f"{CFG.nine_fold_credits} cr", className="muted small"),
+                        html.Span(f"{nine.selected}/9", className="ch-count"),
+                        html.Span(f"{nine.credits} cr", className="muted small"),
                     ],
                     className="ch-trk-head",
-                )
+                ),
+                bucket_line(nine),
             ],
-            className="ch-trk-row",
+            className="ch-trk-row b-nine",
         )
     )
-    total = progress.total_selected
+    total = nine.selected
+    summary = None
+    if complete_ev is not None:
+        summary = html.Div(
+            [
+                html.Div(
+                    [
+                        html.Span("Get 100+ back", className="muted small"),
+                        html.Strong(pct(complete_ev.p_recover, 1), className="ch-big"),
+                    ]
+                ),
+                html.Div(
+                    [
+                        html.Span("Expected gross", className="muted small"),
+                        html.Strong(f"{complete_ev.expected_gross:,.2f} cr", className="ch-big"),
+                    ]
+                ),
+            ],
+            className="ch-trk-summary",
+        )
     mini = html.A(
         [
             html.Span(
-                f"{BUCKET_NAME[b.code][0]} {progress.selected[b.code]}/{b.selections}",
-                className=f"mini-{BUCKET_CLASS[b.code]}",
+                f"{BUCKET_NAME[s.code][0]} {s.selected}/{s.required}",
+                className=f"mini-{BUCKET_CLASS[s.code]}",
             )
-            for b in CFG.buckets
+            for s in stats
         ]
         + [html.Strong(f"{total}/9"), html.Span("View ▴", className="muted")],
         href="#ch-tracker-top",
         className="ch-mini",
         **{"aria-label": "Portfolio progress"},
     )
-    items = [
-        html.Li(
-            [
-                chip(code, code),
-                html.Div(
-                    [
-                        html.Span(local_fixture(o), className="small"),
-                        html.Span(
-                            f"{outcome_text(o)} · Mkt "
-                            f"{pct(o.market_probability, 0)} · "
-                            f"{o.reference_odds:.2f}",
-                            className="muted small",
-                        ),
-                    ],
-                    className="ch-pick-text",
-                ),
-                html.Button(
-                    "✕",
-                    id={"t": "remove", "k": key_str(o.key)},
-                    n_clicks=0,
-                    className="ch-x",
-                    title="Remove this prediction",
-                    disabled=locked,
-                    **{"aria-label": "Remove"},
-                ),
-            ]
-        )
-        for code, o in picks
-    ]
     return html.Div(
         [
             mini,
@@ -433,12 +528,8 @@ def tracker(progress, picks, local_fixture, message, can_continue: bool, locked:
                 children=html.Div(className="fill", style={"width": f"{min(total, 9) / 9:.0%}"}),
             ),
             *rows,
+            summary,
             html.Div(message, className="ch-trk-msg", role="status", **{"aria-live": "polite"}),
-            html.Ul(items, className="ch-picks")
-            if items
-            else html.P(
-                "No predictions yet. Pick outcomes from the matches.", className="muted small"
-            ),
             html.Div(
                 [
                     html.Button(
@@ -446,11 +537,11 @@ def tracker(progress, picks, local_fixture, message, can_continue: bool, locked:
                         id=T("clear"),
                         n_clicks=0,
                         className="ch-btn ghost",
-                        disabled=not items or locked,
+                        disabled=not total or locked,
                     ),
                     html.Button(
-                        "Continue to analysis →",
-                        id={"t": "nav", "to": "analyse", "i": "tracker"},
+                        review_enabled_label,
+                        id={"t": "nav", "to": "review", "i": "tracker"},
                         n_clicks=0,
                         className="ch-btn primary",
                         disabled=not can_continue,
@@ -463,114 +554,51 @@ def tracker(progress, picks, local_fixture, message, can_continue: bool, locked:
     )
 
 
-# ------------------------------------------------------------- explorer
-def explorer(values: dict) -> html.Details:
-    sliders = []
-    for b in CFG.buckets:
-        lo, hi = (
-            round(b.band.lower * 100),
-            round(b.band.upper * 100) - (0 if b.band.upper_inclusive else 1),
-        )
-        sliders.append(
-            html.Div(
-                [
-                    html.Label([chip(b.code), " each prediction: "], className="small"),
-                    dcc.Slider(
-                        id={"t": "edu", "b": b.code},
-                        min=lo,
-                        max=hi,
-                        step=1,
-                        value=values.get(b.code),
-                        marks={lo: f"{lo}%", hi: f"{hi}%"},
-                        tooltip={
-                            "always_visible": True,
-                            "placement": "top",
-                            "template": "{value}%",
-                        },
-                        className="slider",
-                    ),
-                ],
-                className="ch-edu-slider",
-            )
-        )
-    return html.Details(
-        [
-            html.Summary("Explore Your Bucket Risk"),
-            html.P(
-                [
-                    "An ",
-                    html.Strong("educational illustration"),
-                    " with made-up chances, "
-                    "independent outcomes and fair odds (no bookmaker margin). It never changes "
-                    "your portfolio, the real chances or the reference odds.",
-                ],
-                className="muted small",
-            ),
-            html.Div(sliders, className="ch-edu-sliders"),
-            html.Button(
-                "Reset to 70% / 50% / 30%",
-                id=T("edu-reset"),
-                n_clicks=0,
-                className="ch-btn ghost small",
-            ),
-            html.Div(id=T("edu-out")),
-        ],
-        className="ch-details ch-edu",
-        open=False,
-    )
-
-
-def explorer_output(ill: Illustration) -> html.Div:
-    cards = []
-    for b in ill.buckets:
-        dots = [html.Span(className="dot") for _ in range(b.legs)]
-        cards.append(
-            html.Div(
-                [
-                    html.Div(
-                        [
-                            chip(b.code),
-                            html.Span(
-                                f"{b.legs} × {pct(b.individual, 0)}", className="muted small"
-                            ),
-                        ],
-                        className="ch-edu-head",
-                    ),
-                    html.Div(dots, className=f"ch-dots b-{BUCKET_CLASS[b.code]}"),
-                    html.Div(
-                        [
-                            html.Span("All succeed", className="muted small"),
-                            html.Span(pct(b.combined, 2), className="ch-edu-big"),
-                        ]
-                    ),
-                    html.Div(
-                        className="ch-meter",
-                        children=html.Div(
-                            className=f"fill b-{BUCKET_CLASS[b.code]}",
-                            style={"width": f"{b.combined:.2%}"},
-                        ),
-                    ),
-                    html.Div(
-                        f"Fair odds {b.fair_odds:,.2f} · {b.credits} credits would pay "
-                        f"{b.fair_payout:,.2f}",
-                        className="muted small",
-                    ),
-                ],
-                className="ch-edu-card",
-            )
-        )
+def source_selector(value: str) -> html.Div:
     return html.Div(
         [
-            html.Div(cards, className="ch-edu-cards"),
-            html.P(
-                [
-                    "All nine succeed: ",
-                    html.Strong(pct(ill.all_nine, 3)),
-                    ". Each prediction can look likely while the combined chance is small.",
+            dcc.RadioItems(
+                id=T("source"),
+                value=value,
+                className="segmented ch-source",
+                options=[
+                    {"label": "Market", "value": "market"},
+                    {"label": "Diski 9", "value": "model"},
+                    {"label": "Your View", "value": "personal"},
                 ],
-                className="small",
+                inline=True,
+            ),
+            html.Details(
+                [
+                    html.Summary("What do these mean?"),
+                    html.Ul(
+                        [
+                            html.Li(
+                                [
+                                    html.Strong("Market: "),
+                                    "the bookmakers' consensus "
+                                    "chance with their margin removed. It sets the buckets.",
+                                ]
+                            ),
+                            html.Li([html.Strong("Diski 9: "), "Goal Model 1.0, unadjusted."]),
+                            html.Li(
+                                [
+                                    html.Strong("Your View: "),
+                                    "your own expected goals from "
+                                    "the Match Lab; matches you haven't adjusted use Diski 9.",
+                                ]
+                            ),
+                            html.Li(
+                                "Matches are treated as independent. Every chance is an "
+                                "estimate; payouts never change with the source."
+                            ),
+                        ]
+                    ),
+                ],
+                className="ch-details small",
             ),
         ],
+        className="ch-source-box",
     )
 
 

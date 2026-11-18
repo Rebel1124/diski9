@@ -425,14 +425,16 @@ def test_routes_and_existing_screener(data):  # noqa: F811
         assert any("on" in link.className for link in nav)
 
 
-def test_explorer_is_separate_from_portfolio_state(data):  # noqa: F811
+def test_source_preference_is_separate_from_portfolio_state(data):  # noqa: F811
+    """Phase 6B.1: the explorer was removed; the probability-source selector writes only
+    the display preference store, never the portfolio."""
     from diski9.app import create_app
 
     app = create_app(data)
-    edu = next(k for k in app.callback_map if "ch-explore.data" in k and "edu-out" in k)
-    assert "ch-session" not in edu  # the explorer never writes portfolio state
+    src = next(k for k in app.callback_map if k.startswith("ch-prefs.data"))
+    assert "ch-session" not in src
     reducer = next(k for k in app.callback_map if k.startswith("..ch-session.data"))
-    assert "edu" not in reducer
+    assert "source" not in reducer and "edu" not in reducer
 
 
 # ------------------------------------------------------------------- browser
@@ -466,11 +468,11 @@ def test_browser_journey_demo_round(data):  # noqa: F811
       await p.waitForSelector(sel({{k: KEYS[0], t: 'pick'}}));
       for (const k of KEYS) {{ await p.locator(sel({{k, t: 'pick'}})).tap(); await idle(); }}
       out.total = await p.locator('.ch-total').innerText();
-      await p.locator(sel({{i: 'tracker', t: 'nav', to: 'analyse'}})).tap();
-      await p.waitForSelector('.ch-metric.primary'); await idle();
-      const pays = await p.locator('.ch-acc-num.strong').allInnerTexts();
-      await p.locator('#ch-root').getByText('Diski 9 model', {{ exact: true }}).tap(); await idle();
-      out.payoutsSame = JSON.stringify(pays) === JSON.stringify(await p.locator('.ch-acc-num.strong').allInnerTexts());
+      const pays = await p.locator('.ch-bstat strong:nth-of-type(1)').allInnerTexts();
+      const payText = async () => (await p.locator('.ch-bstat').allInnerTexts()).map(s => s.split('pays')[1]);
+      const before = await payText();
+      await p.locator('.ch-source').getByText('Diski 9', {{ exact: true }}).tap(); await idle();
+      out.payoutsSame = JSON.stringify(before) === JSON.stringify(await payText()) && before.length === 4;
       out.overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       await p.goto('http://127.0.0.1:{port}/leaderboards'); await p.waitForSelector('.ch-table.lb');
       out.first = await p.locator('.ch-table.lb tbody tr').first().locator('td').first().innerText();

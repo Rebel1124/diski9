@@ -242,7 +242,7 @@ def build_shell(data: ScreenerData) -> html.Div:
             html.Div(build_layout(data), id="screener-root"),
             html.Div(id="ch-root"),
             dcc.Store(id="ch-session", storage_type="session"),
-            dcc.Store(id="ch-explore", storage_type="memory"),
+            dcc.Store(id="ch-prefs", storage_type="session", data={"source": "market"}),
             dcc.Store(id="ch-flash", storage_type="memory"),
             dcc.Store(id="ch-rendered", storage_type="memory"),
             dcc.Store(id="ch-fxpage", storage_type="memory", data=1),

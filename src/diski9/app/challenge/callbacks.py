@@ -14,7 +14,6 @@ from decimal import Decimal
 from dash import ALL, Input, Output, State, ctx, dcc, html, no_update
 
 from diski9.challenge.config import DEFAULT_CONFIG
-from diski9.challenge.education import illustrate
 from diski9.challenge.structured import SelectionBlock, selection_blocks, validate_portfolio
 
 from . import components as c
@@ -156,7 +155,7 @@ def register(app, data, service: ChallengeService) -> None:
         Output("ch-rendered", "data"),
         Input("url", "pathname"),
         State("ch-session", "data"),
-        State("ch-explore", "data"),
+        State("ch-prefs", "data"),
     )
     def route(path, state, explore):
         path = (path or "/").rstrip("/") or "/"
@@ -229,7 +228,7 @@ def register(app, data, service: ChallengeService) -> None:
         Input("ch-session", "data"),
         State({"t": "stage", "i": ALL}, "id"),
         State("ch-rendered", "data"),
-        State("ch-explore", "data"),
+        State("ch-prefs", "data"),
         prevent_initial_call=True,
     )
     def refresh_stage(state, ids, rendered, explore):
@@ -251,10 +250,12 @@ def register(app, data, service: ChallengeService) -> None:
         Input(c.T("f-market", ALL), "value"),
         Input(c.T("f-bucket", ALL), "value"),
         Input(c.T("f-search", ALL), "value"),
+        Input(c.T("f-avail", ALL), "value"),
         Input("ch-fxpage", "data"),
+        Input("ch-prefs", "data"),
         State({"t": "fixtures", "i": ALL}, "id"),
     )
-    def refresh_builder(state, league, date, market, bucket, search, page, ids):
+    def refresh_builder(state, league, date, market, bucket, search, avail_f, page, prefs, ids):
         if not ids:
             return [], [], []
         state = pages.normal_state(state)
@@ -271,11 +272,12 @@ def register(app, data, service: ChallengeService) -> None:
             "market": first(market),
             "bucket": first(bucket),
             "search": first(search),
+            "available": bool(first(avail_f)),
         }
         cards, count = pages.fixture_list(
             service, snap, sels, filters, local, pages.locked(avail), page or 1
         )
-        trk = pages.tracker_view(service, snap, sels, pages.locked(avail))
+        trk = pages.tracker_view(service, snap, sels, pages.locked(avail), prefs)
         return [cards] * len(ids), [count] * len(ids), [trk] * len(ids)
 
     @app.callback(
@@ -286,6 +288,7 @@ def register(app, data, service: ChallengeService) -> None:
         Input(c.T("f-market", ALL), "value"),
         Input(c.T("f-bucket", ALL), "value"),
         Input(c.T("f-search", ALL), "value"),
+        Input(c.T("f-avail", ALL), "value"),
         State("ch-fxpage", "data"),
         prevent_initial_call=True,
     )
@@ -336,32 +339,17 @@ def register(app, data, service: ChallengeService) -> None:
         )
 
     @app.callback(
-        Output({"t": "edu-out", "i": ALL}, "children"),
-        Output("ch-explore", "data"),
-        Output({"t": "edu", "b": ALL}, "value"),
-        Input({"t": "edu", "b": ALL}, "value"),
-        Input(c.T("edu-reset", ALL), "n_clicks"),
-        State({"t": "edu", "b": ALL}, "id"),
+        Output("ch-prefs", "data"),
+        Input(c.T("source", ALL), "value"),
+        State("ch-prefs", "data"),
+        prevent_initial_call=True,
     )
-    def explore(values, _reset, ids):
-        if not ids:
-            return [], no_update, []
-        codes = [i["b"] for i in ids]
-        trig = ctx.triggered_id
-        if isinstance(trig, dict) and trig.get("t") == "edu-reset":
-            vals = dict(pages.DEFAULT_ILLUSTRATION_PCT)
-        else:
-            vals = {
-                k: (v if v is not None else pages.DEFAULT_ILLUSTRATION_PCT[k])
-                for k, v in zip(codes, values, strict=True)
-            }
-        ill = illustrate({k: v / 100 for k, v in vals.items()})
-        out = c.explorer_output(ill)
-        return [out] * len(ids_out(ctx)), vals, [vals[k] for k in codes]
-
-    def ids_out(cx):
-        spec = cx.outputs_list[0]
-        return spec if isinstance(spec, list) else [spec]
+    def set_source(values, prefs):
+        prefs = dict(prefs or {})
+        if not values or values[0] is None or prefs.get("source") == values[0]:
+            return no_update
+        prefs["source"] = values[0]
+        return prefs
 
     @app.callback(
         Output({"t": "lb-body", "i": ALL}, "children"),
