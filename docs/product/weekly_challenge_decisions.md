@@ -31,7 +31,7 @@ listed at the end.
 | C-17 | Incomplete portfolios show only completed-bucket figures, clearly distinguished; portfolio analytics only at 9/9 |
 | C-18 | No championship or season explorer |
 | C-19 | **Championships:** exactly 10 completed rounds, then reset; join any time; every round counts; nothing carries forward |
-| C-20 | **Weekly points:** top ten 150/135/120/110/100/95/90/85/80/75 *if gross ≥ 100*; outside the top ten with gross ≥ 100: 50; gross < 100 or no entry: 0. "No recovery, no championship points." |
+| C-20 | **Recovery-gated weekly points:** gross ≥ 100.00 (inclusive) is required for any points; gross < 100 or no entry scores 0; points are non-additive; maximum 150 per round. "No recovery, no championship points." The schedule itself is D-31 |
 | C-21 | **Weekly ranking** by realised net (equivalently settled gross); **championship ranking** by cumulative championship points |
 | D-26 | **Weekly ties (approved Phase 6A.2.1): standard competition ranking.** Rank = 1 + the number of entrants with a strictly greater settled gross (exact, 0.01). Tied entrants share the rank and **each receives that rank's full points**; later ranks are skipped (350, 350, 290 → 1, 1, 3 → 150, 150, 125). More than ten entrants may receive top-ten points. No averaging; no timestamp, ID or other tie-breaks. Tied entrants below 100.00 get 0. Points are whole numbers |
 | D-27 | **Championship ties (approved):** total points → successful recoveries → qualifying top-ten finishes (rank ≤ 10, gross ≥ 100.00, championship-eligible round) → joint position under standard competition ranking (joint champions allowed). Cumulative gross or net credits are never a tie-break |
@@ -46,13 +46,16 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 
 | ID | Finding | Status |
 |---|---|---|
-| P-01 | With up to 25 entrants, the proposed points track **recoveries** (Spearman 0.93–0.96), not one big week. The champion's best round is about 20% of their total, against 96–114% under cumulative net | Provisional |
-| P-02 | With up to 25 entrants, recovery-focused selection wins 1.7–2.4× its share of championships, and lowest-in-band selection 0.4–0.7×. This matches the product goal | Provisional |
-| P-03 | Cumulative net (the old baseline) is close to a lottery, decided by a single round. F1-style rewards variance in larger fields; percentile rewards low-variance mid-table finishes without recovery | Provisional |
-| P-04 | **Large fields reward variance under the 50 floor:** at 100 entrants, lowest-in-band wins 1.94× its share. A 75 floor restores the intended incentive (recovery-focused 1.90×); a 25 floor worsens it. With 10 or fewer entrants the floor never applies; at 25 it matters little | Provisional; see D-31 |
-| P-05 | Exact weekly gross ties among recoverers grow with field size: about 0.03 groups per round at N = 10, 0.14 at 25 and 1.18 at 100 (herding on popular favourites). The top two are level on points in 2–4% of championships | Provisional |
-| P-06 | The real weekend pool (60 eligible fixtures, 6 leagues) passes every opening check. 15-fixture random sub-pools open 99.75% of the time; 10-fixture pools contain a portfolio 96.5% of the time but fail the minimum | Provisional |
-| P-07 | Points are never negative, so skipping a round can never help (the old D-09 perverse incentive is gone). Late joiners finish lower on average (relative position 0.64 vs 0.49), as intended by "all rounds count" | Provisional |
+| P-01 | Under the preferred schedule (D-31), championship points track **recoveries** (Spearman 0.94–0.99 from 5 to 1,000 entrants); the champion's best round is 14–21% of their total | Provisional (6A.2.1) |
+| P-02 | Recovery-focused selection is favoured at every field size (1.56–2.97× its share); lowest-in-band never exceeds proportional (max 1.04 ± 0.16 at 100 entrants) | Provisional (6A.2.1) |
+| P-03 | Cumulative net is close to a lottery; F1-style rewards variance in large fields; percentile rewards low-variance finishes without recovery (Phase 6A.2) | Provisional |
+| P-04 | The old 50-floor schedule rewarded high variance at 50–100 entrants (lowest-in-band 1.43–1.86×). The 75 floor removes this; the compressed top ten adds a further gain at 10–25 entrants. Paired (CRN) reductions are significant from 10 to 500 entrants | Provisional (6A.2.1) |
+| P-05 | The weekly tie rule has a negligible effect on incentives (paired differences within Monte Carlo error). Ties crossing the top-ten boundary occur in 4–11% of rounds at 50+ entrants; first-place ties in ~1% | Provisional (6A.2.1) |
+| P-06 | The real weekend pool passes every opening check; 15-fixture random sub-pools open 99.75% of the time (Phase 6A.2) | Provisional |
+| P-07 | Points are never negative, so skipping a round can never help; late joiners finish lower on average, as intended (Phase 6A.2) | Provisional |
+| P-08 | Full-points ties are **duplication-neutral**: a duplicated portfolio earns what it would earn if entered once; average-points ties penalised duplicates. Duplicated portfolios almost never win championships | Provisional (6A.2.1) |
+| P-09 | A trailing participant gains nothing significant by switching to high variance in rounds 8–10 under the preferred schedule (it did at 100 entrants under the old one) | Provisional (6A.2.1) |
+| P-10 | Joint champions become common in very large fields under the 75 floor (19% at 500, 27% at 1,000 entrants), driven by the floor, not the tie rule | Provisional (6A.2.1) |
 
 ## Proposed (technical) — adopted unless you object
 
@@ -90,7 +93,7 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | D-12 | PSL coverage (no qualifying odds) | Accept for the MVP and state it in the UI | Phase 6C |
 | D-29 | **Empirical validation (outstanding):** collect 6–8 complete real weekly pools with settled outcomes and re-run the 6A.2 / 6A.2.1 simulations before the first official championship. Runs in parallel; does not delay the engine or the Dash prototype | Yes; the odds trial supplies the pools | First official championship |
 | D-32 | **Mass voids short of cancellation:** should a round where most fixtures are void at settlement (for example more than half) be reclassified as void? Today only an operator cancellation voids a round (T-08) | Keep operator-only for the MVP; review after real data | Phase 6F |
-| D-31 | **Large-field safeguard.** The 50 floor rewards high-variance play once fields reach roughly 50–100 entrants (P-04) | Keep 50 for launch (small fields are expected). Revisit if a round exceeds about 50 entrants: raise the floor to 75 (simulated), or define "top ten" as a share of entrants (not simulated) | Before fields exceed ~50 |
+| D-31 | **Final points schedule (scoring safeguard), pending final approval:** `points-150-75-v2` = 150/135/125/120/115/110/105/100/95/90 for ranks 1–10, 75 for any other recovery, 0 without recovery, with D-26 ties (scenario D) | **Approve.** Removes the large-field variance incentive at every field size tested (P-02, P-04, P-09), keeps recovery worth half the maximum, treats identical results equally (P-08). Residual: frequent joint champions above ~500 entrants (P-10), allowed by D-27. Optional, not adopted: "most weekly first places" as a final tie-breaker | Phase 6G |
 
 ## Superseded Phase 5C items
 
@@ -109,4 +112,10 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | **D-09** | Season scoring: average net per round entered, with a qualification threshold | **C-19, C-20, D-27:** 10-round championships with recovery-gated points |
 | D-10 | Market-implied expected return omitted from the MVP | C-14 (market and model shown separately) |
 | D-13 | Season definition (Aug–May) | C-19 (championships of 10 completed rounds) |
+| C-20 (6A.2 schedule) | 150/135/120/110/100/95/90/85/80/75, 50 outside the top ten | D-31 (`points-150-75-v2`), pending final approval |
+| D-26 (6A.2 proposal) | Average-points weekly ties with exact fractions (e.g. 63.75) | D-26 approved: standard competition ranking, full points, integers |
+| T-03, T-04 (6A.2) | Proposed opening checks and 5-entrant minimum | D-28 approved |
+| T-05 (6A.2) | Points stored as exact fractions | T-05 revised: integers |
+| D-28 (6A.2) | "Confirm D-26, D-27, T-03 and T-04" | D-26, D-27, D-28 approved |
+| D-30 (6A.2) | Copy for a championship cut short | D-30 approved: pause, never shorten |
 | D-14 | Merge Phase 5B research | Not needed: 6A.1/6A.2 research is stdlib-only and self-contained |
