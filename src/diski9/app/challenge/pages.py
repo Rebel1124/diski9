@@ -60,13 +60,7 @@ def challenge_shell(service, state, explore, local, personal=None) -> html.Div:
     state = sync(service, state)
     return html.Div(
         [
-            html.Div(
-                [
-                    html.H1("Weekly Challenge", className="ch-h1"),
-                    html.Span("Virtual credits only · no real money", className="muted small"),
-                ],
-                className="ch-title",
-            ),
+            c.page_header("Weekly Challenge", "Virtual credits only · no real money"),
             html.Div(id=c.T("stepper"), children=stepper(service, state)),
             html.Div(id=c.T("flash")),
             html.Div(
@@ -1473,7 +1467,7 @@ def timeline(items) -> html.Div:
 def my_challenge(service, state, local) -> html.Div:
     return html.Div(
         [
-            html.H1("My Challenge", className="ch-h1"),
+            c.page_header("My Challenge"),
             html.Div(id=c.T("me"), children=my_challenge_body(service, state, local)),
         ],
         className="ch-page",
@@ -1650,7 +1644,7 @@ def leaderboards() -> html.Div:
     rounds = demo.demo_rounds()
     return html.Div(
         [
-            html.H1("Leaderboards", className="ch-h1"),
+            c.page_header("Leaderboards"),
             html.Div(
                 "Demonstration data: invented players and results, scored with the real "
                 "points rules. Live leaderboards arrive with accounts and stored entries.",

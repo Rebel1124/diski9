@@ -75,6 +75,18 @@ def outcome_text(o) -> str:
     return OUTCOME_NAME.get(str(o.outcome), str(o.outcome))
 
 
+def page_header(title: str, meta=None) -> html.Div:
+    """The one heading used by all four main pages (Match Lab, Weekly Challenge, My
+    Challenge, Leaderboards): same element, size, weight, colour and spacing."""
+    return html.Div(
+        [
+            html.H1(title, className="ch-h1"),
+            html.Span(meta, className="muted small page-meta") if meta else None,
+        ],
+        className="ch-title page-head",
+    )
+
+
 def chip(code: str, text: str | None = None) -> html.Span:
     return html.Span(text or BUCKET_NAME[code], className=f"bchip b-{BUCKET_CLASS[code]}")
 

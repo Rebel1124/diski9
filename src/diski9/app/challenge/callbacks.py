@@ -8,6 +8,7 @@ on the server). The educational explorer keeps its own memory store
 
 from __future__ import annotations
 
+import json
 from datetime import UTC
 from decimal import Decimal
 
@@ -23,7 +24,7 @@ from . import state as st
 from .service import ChallengeService, key_str, parse_key
 
 NAV = (
-    ("/", "Screener"),
+    ("/", "Match Lab"),
     ("/challenge", "Weekly Challenge"),
     ("/challenge/me", "My Challenge"),
     ("/leaderboards", "Leaderboards"),
@@ -300,6 +301,24 @@ def submit(service, s, snap, avail, personal=None):
     )
 
 
+def clicked_id(triggered) -> dict | None:
+    """The id of the one button actually clicked in a callback trigger list.
+
+    When buttons are (re)mounted, Dash can fire the callback with *every* input in
+    the trigger list (all with n_clicks 0); a tap made at that moment arrives in the
+    same batch. Looking only at the first entry swallowed that tap. The clicked
+    input is the one with a positive value; anything ambiguous is ignored."""
+    hits = [t for t in triggered or [] if t.get("value")]
+    if len(hits) != 1:
+        return None
+    prop = hits[0].get("prop_id", "")
+    raw = prop.rsplit(".", 1)[0]
+    try:
+        return json.loads(raw)
+    except ValueError:
+        return None
+
+
 def store_sync(service, state):
     """The reconciled state to write back, or ``no_update``. An empty store is never
     written: a value not yet hydrated from sessionStorage must not overwrite one that
@@ -349,7 +368,7 @@ def register(app, data, service: ChallengeService) -> None:
             html.Div(
                 [
                     html.H1("Page not found", className="ch-h1"),
-                    dcc.Link("Back to the Screener", href="/"),
+                    dcc.Link("Back to the Match Lab", href="/"),
                 ],
                 className="ch-page",
             ),
@@ -396,9 +415,9 @@ def register(app, data, service: ChallengeService) -> None:
     )
     def reduce(*args):
         state, lab_store = args[-2], args[-1]
-        trig = ctx.triggered_id
-        if not trig or not ctx.triggered or not ctx.triggered[0].get("value"):
-            return no_update, no_update  # a component was (re)rendered, not clicked
+        trig = clicked_id(ctx.triggered)
+        if trig is None:
+            return no_update, no_update  # components were (re)rendered, not clicked
         t = ACTION_OF.get(trig["t"], trig["t"])
         if t == "cancel":
             return no_update, {"text": ""}
@@ -464,6 +483,11 @@ def register(app, data, service: ChallengeService) -> None:
             return [], []
         first = lambda v: v[0] if v else None  # noqa: E731
         if ctx.triggered_id == "ch-session" and not first(avail_f):
+            return [no_update] * len(ids), [no_update] * len(ids)
+        filtered = any(first(v) for v in (league, date, market, bucket, search, avail_f))
+        if not ctx.triggered_id and (page or 1) == 1 and not filtered:
+            # the builder has just rendered this exact list: re-rendering it here would
+            # replace the outcome buttons and could swallow a tap made meanwhile
             return [no_update] * len(ids), [no_update] * len(ids)
         state = pages.sync(service, state)
         mode, snap, avail, sels = pages.current(service, state)

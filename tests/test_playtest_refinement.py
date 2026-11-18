@@ -13,6 +13,7 @@ from diski9.app.challenge.service import key_str, parse_key
 from diski9.challenge.config import DEFAULT_CONFIG as CFG
 from diski9.challenge.structured import SelectionBlock, assess_outcome, selection_blocks
 
+from .test_app import data, populated  # noqa: E402, F401  (fixtures)
 from .test_challenge_ui import (  # noqa: F401
     _DataWithResults,
     _lab_state,
@@ -43,13 +44,13 @@ def lab_cards(panel):
 
 # ------------------------------------------------------------- Match Lab cards
 def test_match_lab_cards_offer_only_valid_replacements(svc, snap):  # noqa: F811
-    data = _DataWithResults(snap)
+    fake = _DataWithResults(snap)
     keys = valid_keys(snap)
     s, _ = cb.apply_action(svc, None, "mode", "demo")
     for k in keys:
         s, _ = cb.apply_action(svc, s, "pick", k)
     fid = parse_key(keys[0])[0]
-    cards = lab_cards(integration.lab_panel(svc, data, s, fid, {}, None))
+    cards = lab_cards(integration.lab_panel(svc, fake, s, fid, {}, None))
     outs = {key_str(o.key): o for o in snap.outcomes if o.fixture_id == fid}
     assert {c.id["k"] for c in cards} == set(outs)  # all seven (or fewer) outcomes
     chosen = svc.outcomes_for(snap, keys)
@@ -73,14 +74,14 @@ def test_match_lab_cards_offer_only_valid_replacements(svc, snap):  # noqa: F811
 
 
 def test_match_lab_cards_show_three_probabilities(svc, snap):  # noqa: F811
-    data = _DataWithResults(snap)
+    fake = _DataWithResults(snap)
     s, _ = cb.apply_action(svc, None, "mode", "demo")
     fid = snap.fixtures[0].fixture_id
-    plain = jtext(integration.lab_panel(svc, data, s, fid, {}, None))
+    plain = jtext(integration.lab_panel(svc, fake, s, fid, {}, None))
     assert "Mkt " in plain and "D9 " in plain and "You = D9" in plain
     store = {str(fid): _lab_state(0.6)}
-    personal = integration.personal_probabilities(data, snap, store)
-    adj = jtext(integration.lab_panel(svc, data, s, fid, store, None))
+    personal = integration.personal_probabilities(fake, snap, store)
+    adj = jtext(integration.lab_panel(svc, fake, s, fid, store, None))
     assert "You = D9" not in adj
     for o in snap.outcomes:
         if o.fixture_id == fid:
@@ -284,3 +285,30 @@ def test_leaderboards_use_rank_icons_for_top_three_only():
     for text in (weekly, champ):
         assert "rank-ic" in text and "ic-trophy" in text
         assert re.search(r"\d cr\b", text) is None
+
+
+# ------------------------------------------------------------- Phase 6B.3 headings
+def test_navigation_and_page_headings_are_consistent(data):  # noqa: F811
+    from diski9.app import create_app
+    from diski9.app.challenge import callbacks
+    from diski9.app.challenge import pages as pg
+    from diski9.app.challenge.service import ChallengeService
+
+    assert [label for _, label in callbacks.NAV] == [
+        "Match Lab", "Weekly Challenge", "My Challenge", "Leaderboards"]  # fmt: skip
+    app = create_app(data)
+    layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
+    assert "Screener & Match Lab" not in layout
+    assert "We calculate the probabilities. You analyse the match. You make the call." in layout
+    service = ChallengeService(data)
+    heads = {
+        "Match Lab": layout,
+        "Weekly Challenge": jtext(pg.challenge_shell(service, None, None, data.local)),
+        "My Challenge": jtext(pg.my_challenge(service, None, data.local)),
+        "Leaderboards": jtext(pg.leaderboards()),
+    }
+    for title, text in heads.items():  # the same heading component everywhere
+        h1 = rf'"children":\s*"{title}"[^}}]*"className":\s*"ch-h1"'
+        alt = rf'"className":\s*"ch-h1"[^}}]*"children":\s*"{title}"'
+        assert re.search(h1, text) or re.search(alt, text), title
+        assert "ch-title page-head" in text, title

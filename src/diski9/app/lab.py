@@ -164,6 +164,49 @@ def baseline_rounded(r: dict) -> dict:
     return {s: round(eg[s], 2) for s in SIDES}
 
 
+CONTEXT_KEY = "_ctx"  # in the Match Lab store: {fixture id: model context stamp}
+
+
+def model_context(r: dict) -> str:
+    """What a fixture's adjustments are relative to: Goal Model version and the
+    rounded baseline estimated goals. Adjustments are deltas from this baseline, so
+    they are only reapplied while it is unchanged."""
+    b = baseline_rounded(r)
+    return f"{gm.GOAL_MODEL_VERSION}|{r['fixture']['id']}|{b['home']:.2f}|{b['away']:.2f}"
+
+
+def stored_adjustment(lab: dict | None, fid, r: dict | None) -> dict | None:
+    """The participant's stored state for a fixture, or None when there is none or it
+    was made against a different model context (never applied to the wrong baseline)."""
+    if not lab or fid is None:
+        return None
+    stored = lab.get(str(fid))
+    if stored is None or r is None or not (r.get("goal_model") or {}).get("available"):
+        return stored
+    stamp = (lab.get(CONTEXT_KEY) or {}).get(str(fid))
+    if stamp is not None and stamp != model_context(r):
+        return None
+    return stored
+
+
+def store_adjustment(lab: dict | None, fid, r: dict, state: dict | None) -> dict:
+    """A new Match Lab store with this fixture's state (or without it, when empty)
+    and its model context stamp."""
+    lab = dict(lab or {})
+    stamps = dict(lab.get(CONTEXT_KEY) or {})
+    if state is None:
+        lab.pop(str(fid), None)
+        stamps.pop(str(fid), None)
+    else:
+        lab[str(fid)] = state
+        stamps[str(fid)] = model_context(r)
+    if stamps:
+        lab[CONTEXT_KEY] = stamps
+    else:
+        lab.pop(CONTEXT_KEY, None)
+    return lab
+
+
 def normalise_state(stored: dict | None, base_r: dict | None = None) -> dict:
     """A complete, independent copy of a fixture's state (handles missing keys and the
     earlier {"home": final, "away": final} format)."""
@@ -1111,8 +1154,8 @@ ODDS_SOURCE = (
 )
 EDGE_VS_EV = (
     "A larger edge does not always mean a larger EV: EV also depends on the odds, so a longer-"
-    "priced outcome can have a smaller edge but a higher EV. That is why the Screener offers "
-    "both rankings."
+    "priced outcome can have a smaller edge but a higher EV. That is why the Match Lab "
+    "offers both rankings."
 )
 EV_SHORT = (
     "Expected Value measures the average theoretical return of a bet based on your estimated "
@@ -1243,7 +1286,7 @@ def model_comparison(market: str, ov: OddsView | None, base: dict) -> html.Div:
     notes.append(src)
     if dm.status == "stale":
         notes.append(
-            "These prices are stale and may no longer be available; the Screener "
+            "These prices are stale and may no longer be available; the Match Lab "
             "does not rank stale prices."
         )
     notes.append(
@@ -1454,7 +1497,7 @@ def render_detail(
     lab = html.Section(
         [
             card_head(
-                "The Match Lab",
+                "Match analysis",
                 "We calculate the probabilities. You analyse the match. You make the call.",
             ),
             baseline_section(r, market),

@@ -447,7 +447,7 @@ def test_detail_levels_and_form_breakdown(data):
     d = render_detail(r, ov, official, "1X2", data)
     text = _text(d)
     for phrase in (
-        "The Match Lab",
+        "Match analysis",  # 6B.3: the page is the Match Lab; this card analyses one match
         "A. Statistical baseline",
         "estimated goals",
         "B. Match context",

@@ -26,6 +26,7 @@ from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DI
 
 from .challenge.callbacks import nav_links
 from .challenge.callbacks import register as register_challenge
+from .challenge.components import page_header
 from .challenge.integration import (
     challenge_cell,
     challenge_cells,
@@ -64,6 +65,8 @@ from .lab import (
     signed_text,
     slider_max,
     slider_value,
+    store_adjustment,
+    stored_adjustment,
 )
 from .methodology import methodology_section
 from .views import pill
@@ -293,21 +296,10 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
         )
     return html.Div(
         [
-            html.Header(
-                [
-                    html.Div(
-                        [
-                            html.Span("Diski 9", className="brand"),
-                            html.Span("Screener & Match Lab", className="subtitle"),
-                        ]
-                    ),
-                    html.Div(
-                        f"Times in {data.tz_label} · statistics calculated "
-                        f"{data.local(snap.cache_calculated_at)}",
-                        className="muted small",
-                    ),
-                ],
-                className="topbar",
+            page_header(
+                "Match Lab",
+                f"Times in {data.tz_label} · statistics calculated "
+                f"{data.local(snap.cache_calculated_at)}",
             ),
             html.P(
                 "We calculate the probabilities. You analyse the match. You make the call.",
@@ -439,9 +431,11 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
             dcc.Store(id="page", data=1),
             dcc.Store(id="threshold-pref", data=0),
             dcc.Store(id="selected"),
-            # The user's estimated-goal adjustments, keyed by fixture id. Memory only:
-            # lives in this browser tab, never sent to storage, never shared.
-            dcc.Store(id="lab-store", storage_type="memory", data={}),
+            # The user's estimated-goal adjustments (Your View), keyed by fixture id with
+            # a model-context stamp per fixture. Session storage (Phase 6B.3): this
+            # browser tab only; survives navigation, refresh and a server restart, ends
+            # when the tab closes. Never sent to the server's storage or shared.
+            dcc.Store(id="lab-store", storage_type="session", data={}),
             # Match Lab journey: model analysis and Your View (detail), then the Weekly
             # Challenge selection cards, then the bookmaker market reference
             html.Div(id="detail", className="detail-holder"),
@@ -749,7 +743,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         if (path or "/").rstrip("/") not in ("", "/"):
             return (None, None) if ctx.triggered_id == "url" else (no_update, no_update)
         r, ov, official = data.detail(fid) if fid else (None, None, {})
-        adj = (lab or {}).get(str(fid)) if fid else None
+        adj = stored_adjustment(lab, fid, r) if fid else None
         return split_detail(render_detail(r, ov, official, market, data, adj))
 
     @app.callback(
@@ -798,14 +792,10 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         r, ov, _ = data.detail(fid)
         if r is None or not r["goal_model"].get("available"):
             raise PreventUpdate
-        lab = dict(lab or {})
         trig = ctx.triggered_id
         value = ctx.triggered[0].get("value")
-        state, messages = lab_update(r, trig, value, lab.get(str(fid)))
-        if is_empty(state):
-            lab.pop(str(fid), None)
-        else:
-            lab[str(fid)] = state
+        state, messages = lab_update(r, trig, value, stored_adjustment(lab, fid, r))
+        lab = store_adjustment(lab, fid, r, None if is_empty(state) else state)
         b = breakdown(baseline_rounded(r), state)
         h, a = b["home"]["final"], b["away"]["final"]
         cat_out = [

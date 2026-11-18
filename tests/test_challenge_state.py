@@ -230,8 +230,12 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
   const txt = async (css) => (await p.locator(css).first().innerText()).replace(/\\s+/g, ' ');
   // server A: build and confirm a live portfolio
   await p.goto(A + '/challenge'); await p.waitForSelector(sel({ k: KEYS[0], t: 'pick' }));
-  for (const k of KEYS) { await p.locator(sel({ k, t: 'pick' })).click(); await idle(); }
-  await p.waitForFunction(() => (document.querySelector('.ch-total') || {}).innerText === '9/9');
+  out.taps = [];
+  await idle(); await p.waitForTimeout(800);  // builder mounted (see clicked_id)
+  for (const k of KEYS) { await p.locator(sel({ k, t: 'pick' })).click(); await idle();
+    out.taps.push(await txt('.ch-total')); }
+  await p.waitForFunction(() => (document.querySelector('.ch-total') || {}).innerText === '9/9', null, { timeout: 8000 })
+    .catch(() => { console.log(JSON.stringify(out)); process.exit(2); });
   await p.locator(sel({ i: 'tracker', t: 'nav', to: 'review' })).click(); await idle();
   await p.locator(sel({ i: 0, t: 'submit' })).click(); await p.waitForSelector('.ch-modal');
   await p.locator(sel({ i: 0, t: 'modalclose' })).click(); await idle();
@@ -246,7 +250,7 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
   out.reviewConfirmed = (await txt(sel({ i: 0, t: 'submit' }))).includes('Confirmed');
   await p.locator(sel({ i: 'stepper', t: 'nav', to: 'build' })).click(); await p.waitForSelector('.ch-total'); await idle();
   out.builder = await txt('.ch-total');
-  await p.locator('.nav-link', { hasText: 'Screener' }).click(); await idle();
+  await p.locator('.nav-link', { hasText: 'Match Lab' }).click(); await idle();
   out.strip = (await txt('#ch-strip')).includes('9/9');
   out.fpRewritten = JSON.parse(await p.evaluate(() => sessionStorage.getItem('ch-session'))).fp !== JSON.parse(stored).fp;
   // a later interaction changes only what was clicked
@@ -306,7 +310,7 @@ def test_browser_server_restart_restores_and_never_resurrects(data, monkeypatch)
         time.sleep(0.3)
         script = SERVER_RESTART_SCRIPT % {"keys": json.dumps(keys), "a": a, "b": b}
         res = subprocess.run(["node", "-e", script], capture_output=True, text=True, timeout=240)
-        assert res.returncode == 0, res.stderr
+        assert res.returncode == 0, res.stderr + res.stdout
         out = json.loads(res.stdout.strip().splitlines()[-1])
         assert out["errors"] == []
         assert out["me"] == "CONFIRMED" and out["meConfirmedCard"]
@@ -324,3 +328,17 @@ def test_browser_server_restart_restores_and_never_resurrects(data, monkeypatch)
     finally:
         sa.shutdown()
         sb.shutdown()
+
+
+def test_a_tap_inside_a_mount_batch_is_not_swallowed():
+    """Regression: on mount Dash may list every button as triggered (n_clicks 0); a
+    real tap in the same batch must still be found."""
+    batch = [
+        {"prop_id": '{"k":"1|1X2|HOME","t":"pick"}.n_clicks', "value": 0},
+        {"prop_id": '{"k":"2|1X2|DRAW","t":"pick"}.n_clicks', "value": 1},
+        {"prop_id": '{"i":0,"t":"clear"}.n_clicks', "value": 0},
+    ]
+    assert cb.clicked_id(batch) == {"k": "2|1X2|DRAW", "t": "pick"}
+    assert cb.clicked_id([dict(b, value=0) for b in batch]) is None  # re-render only
+    assert cb.clicked_id([dict(b, value=1) for b in batch]) is None  # ambiguous
+    assert cb.clicked_id([]) is None

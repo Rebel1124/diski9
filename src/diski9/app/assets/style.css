@@ -1160,3 +1160,10 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-out.st-replace.b-found .ch-tag-s::after { content: "Replace · Foundation"; }
 .ch-out.st-replace.b-bal .ch-tag-s::after { content: "Replace · Balanced"; }
 .ch-out.st-replace.b-chal .ch-tag-s::after { content: "Replace · Challenger"; }
+
+/* ===================== Phase 6B.3: one page header for all four pages ===================== */
+.page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; margin: 0 0 6px; }
+.page-head .ch-h1 { margin: 4px 0 2px; }
+.page-head .page-meta { margin-left: auto; }
+.page .tagline { margin: 0 2px 12px; }
+@media (max-width: 720px) { .page-head .page-meta { margin-left: 0; flex-basis: 100%; } }

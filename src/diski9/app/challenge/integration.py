@@ -45,15 +45,18 @@ def personal_probabilities(data, snap, lab_store) -> dict[tuple, float]:
         return out
     results = data.snapshot().results.get("overall", {})
     wanted = {f.fixture_id for f in snap.fixtures}
-    for fid_text, stored in lab_store.items():
+    for fid_text in lab_store:
         try:
             fid = int(fid_text)
         except (TypeError, ValueError):
-            continue
+            continue  # e.g. the model-context stamps
         if fid not in wanted:
             continue
         r = results.get(fid)
         if not r or not (r.get("goal_model") or {}).get("available"):
+            continue
+        stored = lab.stored_adjustment(lab_store, fid, r)  # None if made on another baseline
+        if not stored:
             continue
         state = lab.normalise_state(stored, lab.baseline_rounded(r))
         probs = lab.adjusted_probabilities(lab.user_estimates(r, state))
