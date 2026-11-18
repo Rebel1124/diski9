@@ -1,17 +1,87 @@
-# Weekly Challenge prototype UI (Phase 6B.2)
+# Weekly Challenge prototype UI (Phase 6B.3)
 
-**Status:** interactive prototype on branch `feature/weekly-challenge-playtest-refinement`.
-* Phase 6B.2 refines Phase 6B.1 (`680127d`) after a second round of product-owner
-  playtesting.
+**Status:** interactive prototype on branch `feature/weekly-challenge-final-polish`.
+* Phase 6B.3 is the final polish of Phase 6B.2 (`8260849`); section 0 lists its
+  changes. Sections 1–9 describe Phase 6B.2 and remain valid except where section 0
+  supersedes them (the former "Screener" page is now called **Match Lab**).
 * It has no accounts, stored entries, settlement or live competition. A
   confirmed portfolio is **browser-scoped and non-authoritative** until Phase 6C.
 * Leaderboards and history are labelled demonstration data.
+
+## 0. Phase 6B.3 changes
+
+**Naming and headings.** The navigation reads Diski 9 · Match Lab · Weekly
+Challenge · My Challenge · Leaderboards. The page at `/` is the **Match Lab**
+(route, modules and ids unchanged); its heading is "Match Lab" alone, rendered by
+the same `components.page_header` as the other three pages (same element, size,
+weight, colour, spacing and alignment). The tagline stays. The per-match card is
+titled "Match analysis".
+
+**Filters.** Columns are sized for the longest values ("Both Teams to Score
+(BTTS)", "Highest model vs market edge", "7 leagues selected", custom date ranges).
+Desktop (≥ 1180 px) uses two balanced rows with Minimum probability spanning both
+rows on the right; 900–1179 px uses three columns, 721–899 px two, phones one.
+Dropdowns and dates carry full-value tooltips (the league tooltip lists the
+selected leagues). Tested at 1366, 1180, 1024, 800 px and iPhone 13: no value
+truncated, no overflow.
+
+**My Challenge.** "This round" and "Confirmed portfolio" are equal in width and
+height on desktop and stack naturally on phones. "This round" lists the round,
+predictions (draft or submitted), deadline (or "None" for the demonstration),
+credits (100: 40 / 30 / 20 / 10), confirmation (confirmed, withdrawn or not) and
+whether replacing or withdrawing is still possible, all from the stored state,
+with the browser-tab disclaimer. The three source cards sit in one compact row.
+
+**How to play.** Three build steps (Choose nine different matches; Compare
+probabilities and assess your risk; Review and submit) with Lucide icons, a
+balanced two-column layout and the points schedule beneath. The note now says
+championship points are awarded for recoveries in competitive rounds only, never
+in demonstration or practice rounds. Rules and scoring are unchanged.
+
+**Frozen Weekly Challenge universe.** With Weekly Challenge selected, the list is
+built from the round snapshot itself (`integration.frozen_universe`): every
+snapshot fixture passing the league and date filters, with the snapshot's Goal
+Model 1.0 probabilities, estimated goals (now frozen on `RoundFixture`), market
+probabilities and reference odds. Probability, edge and EV rankings and the
+minimum-probability filter all use these same frozen values
+(`integration.frozen_order`, reusing the Screener ranking rules), so what is shown
+and what is sorted or filtered always agree. The live model cache is not
+consulted. A market the snapshot lacks for a fixture shows "Not in snapshot", is
+ranked last, and is removed by a minimum probability; nothing is filled from live
+data. All upcoming matches keeps the latest model and market data. Opening a match
+still shows the live Match Lab analysis for that fixture.
+
+**Your View persistence.** `lab-store` now uses session storage: adjustments
+survive navigation, a refresh and a server restart in the same tab, and end when
+the tab closes. Each fixture's adjustments carry a model-context stamp (Goal
+Model version, fixture and rounded baseline estimated goals) in the store's
+`_ctx` entry; if the baseline changes they are not reapplied
+(`lab.stored_adjustment`). Reset removes the adjustment and its stamp. Your View
+never changes frozen probabilities, odds, eligibility, buckets or payouts; a
+confirmed portfolio keeps the values captured at confirmation, and a replacement
+captures the view current at that time. Demo and live never share fixtures, so
+adjustments can't leak between rounds. Entries saved before Phase 6B.3 have no
+stamp and are applied as before.
+
+**Lost-tap fix.** When the builder mounts, Dash can fire the action callback with
+every button listed as triggered; a tap in the same batch was ignored because only
+the first trigger was inspected. The reducer now acts on the single input with a
+click (`callbacks.clicked_id`), and the builder's redundant first list re-render
+is skipped. A tap made in the very instant of mounting can still be merged by
+Dash before its click count is updated; it then has no effect and can simply be
+repeated (no wrong state is stored).
+
+**Performance (vs Phase 6B.2, same machine).** Builder render block 2.4–3.3 s on
+both; builder taps 0.17–0.36 s vs 0.19–0.32 s; taps after the Match Lab 0.26–0.50 s
+vs 0.38–0.56 s. No material regression.
+
+Screenshots: `docs/screenshots/weekly_challenge_final_polish/`.
 
 ## 1. Routes and journey
 
 | Route | Page |
 |---|---|
-| `/` | Screener and Match Lab: Matches (Weekly Challenge / All upcoming matches), a portfolio progress strip, and the Weekly Challenge selection cards for the selected match. |
+| `/` | Match Lab (formerly the Screener): Matches (Weekly Challenge / All upcoming matches), a portfolio progress strip, match analysis and the Weekly Challenge selection cards for the selected match. |
 | `/challenge` | Two steps: **1 Build portfolio → 2 Review & Submit**. |
 | `/challenge/me` | My Challenge. |
 | `/leaderboards` | This week and Championship (demonstration data). |
@@ -176,8 +246,9 @@ order-free, and actions are applied after reconciliation.
 | Replace | — | replaced only after every check passes |
 | Withdraw (confirmed) | cleared | removed; stays removed after refresh, restart and later actions |
 
-Your View (`lab-store`) stays in browser memory as before: it survives navigation,
-not a refresh. A submission stores the Your View values used at confirmation.
+Your View (`lab-store`) uses session storage since Phase 6B.3 (section 0): it follows
+the same lifecycle as the draft. A submission stores the Your View values used at
+confirmation.
 No `localStorage` or database persistence is used (both need approval and belong to
 Phase 6C).
 

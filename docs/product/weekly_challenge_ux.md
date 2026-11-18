@@ -1,4 +1,11 @@
-# Diski 9 Weekly Challenge — UX Specification (revised, Phase 6A.2; prototype Phase 6B.2)
+# Diski 9 Weekly Challenge — UX Specification (revised, Phase 6A.2; prototype Phase 6B.3)
+
+> **Phase 6B.3 final polish.** The Screener is renamed **Match Lab** with the same
+> heading component as the other pages; filters are sized for their longest values
+> (two desktop rows, slider on the right); My Challenge cards are symmetrical with
+> round details; How to play has three steps; the Weekly Challenge universe shows,
+> ranks and filters with frozen snapshot values only; Your View persists in session
+> storage with a model-context check. Details in `docs/weekly_challenge_ui.md` §0.
 
 > **Phase 6B.2 playtest refinement (supersedes the notes below where they differ).**
 > Full description in `docs/weekly_challenge_ui.md`.

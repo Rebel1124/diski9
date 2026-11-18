@@ -47,6 +47,12 @@ outcome cards, How to play guidance, calculation explanations, a combined
 correct-predictions chart, submission withdrawal, the My Challenge layout, rank
 icons and no emojis. See `docs/weekly_challenge_ui.md`.
 
+**Phase 6B.3 (done, `feature/weekly-challenge-final-polish`):** final polish: Match
+Lab naming and standard headings, readable filters, symmetrical My Challenge cards,
+compact How to play, frozen probability ranking and filtering for the Weekly
+Challenge universe, Your View in session storage with model-context stamps, and a
+fix for taps swallowed during the builder's mount. See `docs/weekly_challenge_ui.md`.
+
 **Phase 6C must still add:**
 * server-side published round records with deadlines;
 * persistent submissions;
