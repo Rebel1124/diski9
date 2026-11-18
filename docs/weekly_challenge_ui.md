@@ -14,7 +14,9 @@
 Challenge · My Challenge · Leaderboards. The page at `/` is the **Match Lab**
 (route, modules and ids unchanged); its heading is "Match Lab" alone, rendered by
 the same `components.page_header` as the other three pages (same element, size,
-weight, colour, spacing and alignment). The tagline stays. The per-match card is
+weight, colour, spacing and alignment). The former slogan ("We calculate the
+probabilities…") was removed from the page and from the match-analysis card, with
+its spacing, at the product owner's request. The per-match card is
 titled "Match analysis".
 
 **Filters.** Columns are sized for the longest values ("Both Teams to Score

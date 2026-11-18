@@ -1,7 +1,5 @@
 """The Match Lab and the statistical baseline (Engine 3.0, Goal Model 1.0).
 
-"We calculate the probabilities. You analyse the match. You make the call."
-
 Detail panel for a selected fixture:
 
   Heading          fixture, competition, kickoff, market
@@ -1496,10 +1494,7 @@ def render_detail(
             state["cats"][k]["home"] = state["cats"][k]["away"] = 0.0
     lab = html.Section(
         [
-            card_head(
-                "Match analysis",
-                "We calculate the probabilities. You analyse the match. You make the call.",
-            ),
+            card_head("Match analysis"),
             baseline_section(r, market),
             context_section(r, market, official, state),
             factors_section(r, state),

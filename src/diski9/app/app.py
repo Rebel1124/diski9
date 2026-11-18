@@ -2,8 +2,6 @@
 
 Run: ``uv run diski9 serve`` (defaults to http://127.0.0.1:8050).
 
-"We calculate the probabilities. You analyse the match. You make the call."
-
 The results list is a plain HTML table (desktop) / card list (phones) rendered
 server-side, ten fixtures per page, ranked by the Goal Model 1.0 probability of
 the chosen outcome. Selecting a fixture opens The Match Lab: the statistical
@@ -300,10 +298,6 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                 "Match Lab",
                 f"Times in {data.tz_label} · statistics calculated "
                 f"{data.local(snap.cache_calculated_at)}",
-            ),
-            html.P(
-                "We calculate the probabilities. You analyse the match. You make the call.",
-                className="tagline",
             ),
             *banner,
             methodology_section(),

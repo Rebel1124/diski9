@@ -43,9 +43,9 @@ def test_match_lab_then_bookmaker_card_in_every_market(data, market):
     r, ov, official = data.detail(EPL_FIX, "overall")
     d = render_detail(r, ov, official, market, data)
     lab, market_card = cards(d)
-    assert _text(lab).startswith(
-        "Match analysis We calculate the probabilities. You analyse the match. You make the call."
-    )
+    assert " ".join(_text(lab).split()).startswith(
+        "Match analysis A. Statistical baseline"
+    )  # no slogan
     assert [_text(s).split(" ", 2)[:2] for s in sections(lab)] == [
         ["A.", "Statistical"],
         ["B.", "Match"],

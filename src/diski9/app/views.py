@@ -125,9 +125,12 @@ def signed_class(value: float | None) -> str:
 
 
 # ------------------------------------------------------------- card helpers
-def card_head(title: str, subtitle: str) -> html.Div:
+def card_head(title: str, subtitle: str | None = None) -> html.Div:
     return html.Div(
-        [html.H3(title), html.Div(subtitle, className="card-sub muted small")],
+        [
+            html.H3(title),
+            html.Div(subtitle, className="card-sub muted small") if subtitle else None,
+        ],
         className="card-head",
     )
 

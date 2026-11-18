@@ -304,7 +304,8 @@ def test_navigation_and_page_headings_are_consistent(data):  # noqa: F811
     app = create_app(data)
     layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
     assert "Screener & Match Lab" not in layout
-    assert "We calculate the probabilities. You analyse the match. You make the call." in layout
+    assert "We calculate the probabilities" not in layout  # slogan removed (final amendment)
+    assert "tagline" not in layout
     service = ChallengeService(data)
     heads = {
         "Match Lab": layout,

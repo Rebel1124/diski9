@@ -339,7 +339,6 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .venue-context .venue-team { font-weight: 600; }
 
 /* ------------------------------------------------ Engine 3.0: Match Lab */
-.tagline { margin: -4px 2px 14px; color: var(--muted); font-size: 14px; font-style: italic; }
 .methodology { padding: 0; margin-bottom: 14px; }
 .methodology > summary { cursor: pointer; padding: 12px 18px; font-weight: 650; color: var(--accent); list-style: none; }
 .methodology > summary::-webkit-details-marker { display: none; }
@@ -1165,7 +1164,6 @@ table.results td.value-cell { white-space: nowrap; }
 .page-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px 14px; flex-wrap: wrap; margin: 0 0 6px; }
 .page-head .ch-h1 { margin: 4px 0 2px; }
 .page-head .page-meta { margin-left: auto; }
-.page .tagline { margin: 0 2px 12px; }
 @media (max-width: 720px) { .page-head .page-meta { margin-left: 0; flex-basis: 100%; } }
 
 /* ===================== Phase 6B.3: readable Match Lab filters =====================
