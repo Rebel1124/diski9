@@ -2,9 +2,9 @@
 
 **Branch:** `feature/phase-6c3-competition-persistence` (from `597ed70`, the
 approved `feature/match-lab-guidance` baseline: 1,158 tests, CI green).
-**Authorised so far:** Stages A–D (assessment, rounds and snapshots, drafts, Your
-View). Stages E–G (confirmation lifecycle, page integration, final acceptance)
-wait for the owner's checkpoint approval. The handover for the checkpoint is
+**Status:** Stages A–G and the post-G refinements implemented; **Phase 6C.3
+formally accepted by the product owner on 19 Nov 2026** and released as v4.1.0
+(see §12 and [`../releases/v4.1.0.md`](../releases/v4.1.0.md)). The handover for the checkpoint is
 [`phase6c3_implementation_handover.md`](phase6c3_implementation_handover.md).
 
 Precedence: the decision register (D- and T-series) over this document; this
@@ -602,3 +602,18 @@ branch with accounts on, guest, published round `dev-mirror-e2e` (20 fixtures);
 * Owner's local acceptance and the closure state, deferred backlog, independent
   processes, the approved settlement policy for 6C.4 and the open 6C.4
   implementation questions: [`phase6c3_closure_handover.md`](phase6c3_closure_handover.md).
+
+## 12. Formal acceptance and release (19 Nov 2026)
+
+The product owner formally accepted Phase 6C.3 on the evidence in §10–§11 and the
+closure handover: 1,304 automated tests passing with one skipped hosted Supabase
+compatibility test, browser journeys A–H, CI runs 24 and 25, lint and formatting
+clean, quantitative engine outputs unchanged, migration and restart checks, and the
+owner's own local portfolio confirmation, replacement and persistence testing with
+the approved My Challenge layout. The owner did **not** run the optional local lock
+check (it is covered by automated tests and the browser journeys).
+
+The deferred limitations listed in the closure handover §5 are accepted as deferred
+work; D-29 and D-36 remain outstanding requirements; the hosted Supabase
+compatibility test remains deferred. The branch was merged into `main` and released
+as the v4.1.0 development milestone. Phase 6C.4 has not started.

@@ -1,10 +1,12 @@
 # Phase 6C.3 — Closure handover and Phase 6C.4 starting point
 
-**Status (19 Nov 2026):** Phase 6C.3 (competition persistence) is implemented and
-tested; the product owner tested it locally and is satisfied, subject to the
-closure checks recorded here. **Formal acceptance, the merge into `main` and any
-release tag are still pending the owner's decision.** Phase 6C.4 has **not**
-started.
+**Status (19 Nov 2026):** Phase 6C.3 (competition persistence) is **formally
+accepted** by the product owner (19 Nov 2026) on the evidence recorded here, and
+released as the **v4.1.0** development milestone (merged into `main`; release notes
+[`../releases/v4.1.0.md`](../releases/v4.1.0.md)). The limitations in §5 are accepted
+as deferred work; D-29 and D-36 remain outstanding requirements; the hosted Supabase
+compatibility test remains deferred. Phase 6C.4 has **not** started: it begins from
+the v4.1.0 baseline after a separate owner discussion and authorisation.
 
 This document is the durable starting point after context compaction. Read it with:
 
@@ -62,12 +64,12 @@ record).
 
 ## 4. Outstanding Phase 6C.3 closure items
 
-1. Owner's **formal acceptance** of Phase 6C.3.
-2. Owner's decision on **where 6C.4 starts**: merge 6C.3 into `main` (and tag,
-   as for v4.0.0) and branch from `main`, or branch from the 6C.3 branch.
-   Nothing is merged without explicit approval.
-3. Optional: the owner's own check of lock and the locked-entry card (Mac guide
-   §7 E and H).
+1. ~~Owner's formal acceptance of Phase 6C.3.~~ **Done (19 Nov 2026).**
+2. ~~Where 6C.4 starts.~~ **Decided:** 6C.3 merged into `main` and released as
+   v4.1.0; 6C.4 starts from the v4.1.0 baseline when authorised.
+3. Optional and **not performed by the owner**: their own check of lock and the
+   locked-entry card (Mac guide §7 E and H). Covered by automated tests and
+   browser journeys only.
 
 No known open defects. Unverified only as listed in §3.
 
@@ -86,8 +88,8 @@ No known open defects. Unverified only as listed in §3.
 ## 6. Roadmap (approved; unchanged)
 
 6C.0 research and release preparation ✓ · 6C.1 PostgreSQL foundation ✓ · 6C.2
-authentication and accounts ✓ · **6C.3 competition persistence (implemented;
-awaiting formal acceptance)** · 6C.4 settlement, voids and corrections · 6C.5
+authentication and accounts ✓ · **6C.3 competition persistence ✓ (accepted;
+v4.1.0)** · 6C.4 settlement, voids and corrections · 6C.5
 leaderboards and championships · 6C.6 administration, scheduling and monitoring ·
 6D integration, optimisation and comprehensive testing · 7 Lucy and LiveKit ·
 8 European competition expansion · 9 badges and achievements · 10 deployment
@@ -252,6 +254,7 @@ documents beyond item 11.
 
 Environment commands (cloud container) are in
 [`phase6c3_implementation_handover.md`](phase6c3_implementation_handover.md) §8.
-Do not start 6C.4 until the owner has formally accepted 6C.3, chosen the
-starting point (§4) and answered or deferred the questions in §9; begin 6C.4 with
+6C.3 is accepted and released as v4.1.0. Do not start 6C.4 until the owner has
+authorised it after a separate discussion and answered or deferred the questions
+in §9; begin 6C.4 with
 an assessment document, as in earlier phases.
