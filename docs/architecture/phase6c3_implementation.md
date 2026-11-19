@@ -581,3 +581,24 @@ branch with accounts on, guest, published round `dev-mirror-e2e` (20 fixtures);
 * Limitations: one container, local PostgreSQL and local auth on the same host;
   no network latency; small data; no baseline exists for signed-in behaviour
   (persistence did not exist), so D is compared with C.
+
+## 11. After the Stage G report — final changes and closure (19 Nov 2026)
+
+* `d6d6cb4` development tooling: `round dev-open --mirror-upcoming --fixtures N`
+  (`0` = every fixture within seven days of the first allowed kickoff); tests in
+  `tests/test_dev_mirror.py`.
+* `a92705c` `current_round` tie-break: equal deadlines → most recently published
+  (test `test_current_round_tie_on_deadline_shows_the_most_recently_published`).
+* `9189a71`, `ee42e75`, `71fef65` **Your View on My Challenge (T-21, Option A)**:
+  `pages.your_view_now` loads the frozen-context Your View saved for the round
+  (`lab_persist.load_round`), applies it to the confirmed nine
+  (`integration.personal_probabilities`, `analysis.evaluate_sources`) and shows a
+  third estimate card, the same size as Market and Diski 9, tagged "NOW", with one
+  line stating it is private, not part of the entry and never scored; a note
+  appears when no confirmed match has a frozen adjustment. Nothing is stored; the
+  submission is unchanged (asserted in `test_app_persistence`). "This round" and
+  "Confirmed portfolio" are compact and of even height (screenshots
+  `your_view_now_{desktop,tablet,mobile}.png`).
+* Owner's local acceptance and the closure state, deferred backlog, independent
+  processes, the approved settlement policy for 6C.4 and the open 6C.4
+  implementation questions: [`phase6c3_closure_handover.md`](phase6c3_closure_handover.md).

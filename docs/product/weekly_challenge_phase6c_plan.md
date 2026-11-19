@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G) and awaiting the owner's local acceptance; 6C.4 onwards not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), tested locally by the owner and awaiting formal acceptance (closure: `docs/architecture/phase6c3_closure_handover.md`); 6C.4 onwards not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -315,3 +315,21 @@ ordering, migration `app_0005`) and Stage G (real-browser journeys A–G,
 regression, performance, documentation). Record:
 [`phase6c3_implementation.md`](../architecture/phase6c3_implementation.md);
 handover: [`phase6c3_implementation_handover.md`](../architecture/phase6c3_implementation_handover.md).
+
+## Deferred backlog accepted at the 6C.3 closure (19 Nov 2026)
+
+| Item | Target |
+|---|---|
+| Full historical entry browsing (My Challenge shows the current round and the most recent locked entry only) | 6C.5 |
+| Periodic Screener reload latency (one slower request per `--ttl`, unchanged since before 6C.3) | 6D |
+| Direct fixture URL selection (`/?fixture=<id>` typed in the address bar) | 6D |
+| CLI tracebacks for expected operational errors | 6C.6 |
+| Hosted Supabase compatibility testing (one skipped test) | Phase 10 |
+| Freezing Your View at confirmation (T-21 Option B; needs a D-41 decision) | later decision |
+
+Outstanding requirements, not blocking 6C.4: D-29 (validation on 6–8 real pools,
+before Official Championship 1) and D-36 (retention policy, before launch).
+
+Roadmap after 6C: 6D integration, optimisation and comprehensive testing; 7 Lucy
+and LiveKit; 8 European competition expansion; 9 badges and achievements;
+10 deployment and private beta; 11 public launch and YouTube.

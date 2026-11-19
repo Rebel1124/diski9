@@ -1,5 +1,7 @@
 # Phase 6C.3 — Handover (Stage G complete; awaiting owner acceptance)
 
+> **Superseded as the starting point by [`phase6c3_closure_handover.md`](phase6c3_closure_handover.md)** (final state, changes after Stage G, owner's local acceptance, deferred backlog, 6C.4 settlement policy and open questions). This file remains the reference for the Stage F/G environment, commands and journeys.
+
 This document lets Phase 6C.3 resume after context compaction without the
 conversation history. Read it with:
 
