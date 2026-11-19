@@ -36,9 +36,9 @@ Unknown or new codes are treated as **pending** and raise an operator alert.
 * It does not depend on entries, so every participant's predictions face the
   same cutoff.
 * For a weekend round whose last match kicks off on Monday at 19:00 UTC, the
-  cutoff is Wednesday 19:00 UTC: settlement completes before the next Thursday
-  publication, and finalisation (24-hour correction window, R-14) follows on
-  Thursday evening.
+  cutoff is Wednesday 19:00 UTC: settlement completes before the next Friday
+  08:00 SAST publication (D-11, revised 19 Nov 2026), and finalisation (24-hour
+  correction window, R-14) follows on Thursday evening.
 * The 48 hours, like the deadline buffer, is a value of the round schedule
   configuration (D-11), so midweek and European rounds can use their own values.
 

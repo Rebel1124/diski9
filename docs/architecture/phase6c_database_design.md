@@ -185,7 +185,7 @@ erDiagram
   European rounds later.
 * **Key fields:** `id`, `code` (`weekend`), `version`, `timezone`
   (`Africa/Johannesburg`), `eligible_competitions int[]`, `window_rule` (start and
-  end weekday and time), `publish_rule` (Thursday 08:00 SAST),
+  end weekday and time), `publish_rule` (Friday 08:00 SAST in the current version 2; version 1, Thursday, is kept for rounds published under it — D-11 revised),
   `deadline_buffer_minutes` (15, D-06), `settle_cutoff_hours` (48, D-08),
   `correction_window_hours` (24, R-14), `config_version` (`broad60-432-v1`),
   `series` (`beta` or `official`, D-38), `active_from`, `active_to`.

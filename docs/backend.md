@@ -129,10 +129,11 @@ Revision `app_0001` creates 37 tables in schema `app` (revision `app_0002`, Phas
 
 Seed data: the features `lucy.research`, `lucy.voice` and `lucy.presenter`
 (granted to nobody yet); the `beta` and `official` championship series
-(`points-150-75-v2`, ten rounds); and the `weekend` round schedule version 1
-(eight leagues, Thursday 08:00 SAST publication, 15-minute deadline buffer, 48-hour
-settlement cutoff, 24-hour correction window, `broad60-432-v1`, `settle/v1`, beta
-series).
+(`points-150-75-v2`, ten rounds); and the `weekend` round schedule (eight leagues,
+15-minute deadline buffer, 48-hour settlement cutoff, 24-hour correction window,
+`broad60-432-v1`, `settle/v1`, beta series). Version 2 (`app_0004`, the current
+standard) publishes on **Friday 08:00 SAST** (D-11, revised 19 Nov 2026); version 1
+(Thursday 08:00 SAST) is kept for rounds published under it.
 
 **Numbers:** credits and payouts are `numeric(14,2)` and odds `numeric(8,2)`
 (exact, matching D-15 rounding); probabilities and expected values are `double

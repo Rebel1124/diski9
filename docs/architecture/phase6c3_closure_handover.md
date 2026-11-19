@@ -252,6 +252,11 @@ documents beyond item 11.
 
 ## 10. Resuming
 
+**Phase 6C.4 has started** with Stage A (assessment only):
+[`phase6c4_implementation.md`](phase6c4_implementation.md) on branch
+`feature/phase-6c4-settlement`. It addresses the questions in §9 (item 3 resolved,
+item 10 fixed in Stage A; the rest carried into its §19 decisions).
+
 Environment commands (cloud container) are in
 [`phase6c3_implementation_handover.md`](phase6c3_implementation_handover.md) §8.
 6C.3 is accepted and released as v4.1.0. Do not start 6C.4 until the owner has

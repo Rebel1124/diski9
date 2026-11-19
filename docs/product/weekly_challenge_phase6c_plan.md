@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 onwards not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A (architecture and policy assessment) written for owner review on branch `feature/phase-6c4-settlement` (`docs/architecture/phase6c4_implementation.md`); 6C.4 Stages B–G and later phases not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -153,7 +153,10 @@ References: [technical architecture](../architecture/phase6c_architecture_consid
 * **Modules and files:** `services/settlement.py` (pure verdict and payout
   functions in `challenge/settle.py`, a new pure module reusing D-15 rounding),
   `jobs/results.py`, `jobs/settle.py`, `services/admin.py`.
-* **Database changes:** none structural.
+* **Database changes:** none structural. *Stage A assessment (19 Nov 2026): a small
+  additive migration is proposed (`app_0006`, §10 of
+  `docs/architecture/phase6c4_implementation.md`) for evidence, synthetic-data
+  isolation and frozen windows; awaiting owner approval.*
 * **Acceptance criteria:** settlement payouts equal the engine's eight-state
   values for every verdict combination; void codes follow `settle/v1` exactly;
   reruns with no new information insert only a run record; D-32b examples
