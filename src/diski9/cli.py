@@ -353,6 +353,39 @@ def cmd_serve(args, engine) -> None:
     app.run(host=args.host, port=args.port, debug=args.debug)
 
 
+def cmd_app_db(args) -> int:
+    """Competition database (PostgreSQL) commands. Never touches the SQLite store."""
+    from diski9.backend.db import BackendDatabaseSettings, check_health, make_app_engine, migrate
+
+    settings = BackendDatabaseSettings()
+    url = settings.url()
+    if args.action == "upgrade":
+        migrate.upgrade(url, args.revision or "head")
+        print(f"competition schema at {migrate.current(url)} ({settings.safe_url()})")
+    elif args.action == "downgrade":
+        if not args.revision:
+            print("error: downgrade needs --revision (for example: base)", file=sys.stderr)
+            return 2
+        if settings.environment == "production":
+            print("error: downgrade is disabled in production", file=sys.stderr)
+            return 2
+        migrate.downgrade(url, args.revision)
+        print(f"competition schema at {migrate.current(url)} ({settings.safe_url()})")
+    elif args.action == "current":
+        print(f"current {migrate.current(url)}; head {migrate.head()}")
+    elif args.action == "check":
+        engine = make_app_engine(settings)
+        try:
+            health = check_health(engine)
+        finally:
+            engine.dispose()
+        health["head"] = migrate.head()
+        health["up_to_date"] = health["schema_revision"] == health["head"]
+        print(_json(health))
+        return 0 if health["up_to_date"] else 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="diski9")
     p.add_argument("--database-url", default=None)
@@ -471,12 +504,18 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out-dir", default=None)
     s.add_argument("--out", default=None)
     s.set_defaults(func=cmd_analyse_odds_trial)
+
+    s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
+    s.add_argument("action", choices=["upgrade", "downgrade", "current", "check"])
+    s.add_argument("--revision", default=None, help="target revision (default head)")
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
+    if args.command == "app-db":
+        return cmd_app_db(args)
     engine = make_engine(args.database_url)
     from diski9.ingestion.common import MissingReferenceData
     from diski9.workflow import SetupIncomplete
