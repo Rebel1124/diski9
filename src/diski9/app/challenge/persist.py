@@ -223,11 +223,19 @@ def _meta_for(snap, keys) -> dict:
     return out
 
 
+def has_guest_work(state: dict | None) -> bool:
+    """Predictions made as a guest in this tab (no account marker yet): never
+    replaced by account data until the person has chosen to keep or discard them."""
+    s = state or {}
+    return bool(s.get("selections")) and not (s.get("acct") or {}).get("owner")
+
+
 def hydrate(service, state: dict | None, *, force: bool = False) -> dict | None:
     """The working copy refreshed from the account (see module notes). Returns
-    None when nothing applies (guest, no backend, no round)."""
+    None when nothing applies (guest, no backend, no round, or guest work waiting
+    for the keep/discard choice)."""
     p = participant(service)
-    if p is None:
+    if p is None or (has_guest_work(state) and not force):
         return None
     found = backend_of(service).published()
     s = dict(state or {})

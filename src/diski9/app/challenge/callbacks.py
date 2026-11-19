@@ -354,7 +354,17 @@ def account_action(service, state, action, arg=None, personal=None):
         if action in ("reload", "retry"):
             return pages.sync(service, state), None
         return apply_action(service, state, action, arg, personal)
-    base = persist.hydrate(service, state) or pages.normal_state(state)
+    # Actions work on the page's own copy and version, so another device's newer save
+    # is reported as a conflict instead of being silently pulled in; only a page that
+    # has never been hydrated is filled from the account first.
+    base = pages.normal_state(state)
+    if persist.has_guest_work(state):  # until the keep/discard choice: tab only
+        return apply_action(service, state, action, arg, personal)
+    if (
+        not (base.get("acct") or {}).get("round")
+        or (base.get("acct") or {}).get("owner") != persist._owner()
+    ):
+        base = persist.hydrate(service, state) or base
     if action == "reload":
         return persist.hydrate(service, base, force=True) or base, _flash(
             "Loaded your latest saved portfolio.", "ok"
