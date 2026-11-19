@@ -356,7 +356,7 @@ operational rules below supersede the Phase 6A.2 text.
 8. Existing Diski 9 functionality and Goal Model 1.0 are unchanged.
 9. Settlement follows D-32 (partial voids) and D-33 (fully void entries), with
    D-15 rounding, for every void code.
-10. **D-32b:** with the locked entry set fixed, the round is void exactly when
+10. **D-32b** (practice rounds: majority-played test only, D-32b-Q1): with the locked entry set fixed, the round is void exactly when
     `2 × played predictions ≤ total predictions` or fewer than five entries remain
     ranked; exactly 50% played voids the round; pending predictions never trigger
     it; a correction that crosses the threshold in either direction produces an

@@ -156,12 +156,10 @@ Simulated results must never be presented as observed frequencies.
 | Per-entry thresholds | Treats participants in the same round differently and complicates the ranking; D-33 already handles fully void entries |
 | A lower bar such as one third void | Would void rounds whose results are still close to normal (the 25–40% rows) |
 
-## 8. Open sub-question (not part of the approval)
+## 8. Practice rounds (D-32b-Q1, approved at the Phase 6C architecture finalisation)
 
-**D-32b-Q1 — practice rounds.** The approved rule decides whether a round is
-*competitive*. A practice round (fewer than five valid entries, D-28) awards no
-points in any case. Recommendation: apply the same test to practice rounds, so
-that heavily voided practice results are also shown as refunded and the
-settlement code has one path. This is a recommendation only and needs owner
-confirmation; it does not block Phase 6C because the default (practice rounds
-settle normally) is safe.
+The **majority-played requirement applies to practice rounds**, but the
+five-ranked-entry minimum does not (a practice round has fewer than five valid
+entries by definition). A practice round with 50% or fewer played predictions
+becomes void: stakes returned, results shown as refunded. Practice and void
+rounds earn no championship points and do not advance the championship.

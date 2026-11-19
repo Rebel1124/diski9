@@ -59,7 +59,13 @@ The original 6C–6H lettering below describes the full build-out and is kept fo
 reference. The owner has confirmed the next two phases and their backlog:
 
 **Phase 6C — production foundations (requirements and acceptance criteria
-updated at the Phase 6C preparation review):**
+updated at the Phase 6C preparation review).** The staged delivery (6C.1
+PostgreSQL foundation to 6C.6 administration and integration testing), with
+deliverables, dependencies, files, tests, risks and review points per stage, is
+in the [Phase 6C staged plan](weekly_challenge_phase6c_plan.md). Direction
+confirmed at the architecture finalisation: modular monolith, PostgreSQL with
+Docker Compose locally, SQLAlchemy 2, Alembic, pytest on real PostgreSQL, managed
+OIDC, scheduled CLI jobs.
 
 *Dependencies (must be decided before implementation starts):* D-01 identity,
 D-03 database, D-05 display names, D-06 deadline buffer, D-11 calendar defaults
@@ -137,10 +143,11 @@ result overrides. D-02 constraints (host-agnostic code) apply throughout. See th
   the Weekly Challenge universe);
 * end-to-end integration testing.
 
-**Open decisions:** D-32b is approved (Phase 6C preparation). D-29 (championship
-validation, now including D-32b) before the first official public championship;
-D-01 to D-06, D-08, D-11, D-12, D-32b-Q1 and the new D-34 to D-38 as listed in the
-decision register and reviewed in the outstanding decision review.
+**Open decisions (after the architecture finalisation):** D-01 provider, D-08
+exact definitions, D-29 validation and D-29b collection activation, D-36 final
+retention policy, D-39 football-store migration timing, D-40 merge and tag of
+Phase 6B, T-12 session lifetimes and T-13 continuous integration. See the decision
+register.
 
 **Phase 6C must still add:**
 * server-side published round records with deadlines;

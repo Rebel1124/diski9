@@ -195,6 +195,9 @@ def at_least(dist: list[PayoutOutcome], x: Decimal) -> float              # P(R 
 
 ## 4. Data model and schema proposal
 
+> Superseded for Phase 6C by the [proposed database design](phase6c_database_design.md)
+> (PostgreSQL, roles and entitlements, designations and score sets). Kept for history.
+
 Conventions:
 * `*_at` columns are UTC.
 * IDs are integers, or UUID text where client-facing.

@@ -1,192 +1,177 @@
-# Phase 6C — Architecture Considerations (for discussion)
+# Phase 6C — Technical architecture (finalised direction)
 
-**Status:** discussion paper, not an instruction to implement. It lists the
-architectural decisions needed before Phase 6C, with a recommended default for
-each. Product decisions referenced here (D-xx) are in the
-[decision register](../product/weekly_challenge_decisions.md) and the
-[outstanding decision review](../product/weekly_challenge_phase6c_decision_review.md).
-Nothing here is approved until you say so. The detailed schema proposal remains
-in the [technical design](weekly_challenge_design.md) §4.
+**Status:** architecture direction confirmed by the owner at the Phase 6C
+architecture finalisation (modular monolith, PostgreSQL, SQLAlchemy 2, Alembic,
+pytest, managed OIDC, scheduled CLI jobs). Items still needing approval are
+listed in §9. Nothing here is implemented. Companion documents:
+* [Proposed database design](phase6c_database_design.md) (schema, diagram,
+  constraints, corrections);
+* [Authentication provider comparison](auth_provider_comparison.md) (D-01);
+* [Phase 6C staged implementation plan](../product/weekly_challenge_phase6c_plan.md);
+* [`settle/v1` definitions](../product/weekly_challenge_settle_v1.md) (D-08);
+* [D-29 weekly research collection proposal](../research/weekly_pool_collection_proposal.md).
 
-## 1. Guiding approach
+This document supersedes the Phase 6C discussion paper previously at this path.
 
-* **One application, one database, scheduled CLI jobs.** A modular monolith: the
-  existing Python package and Dash app, a service layer for every write, and the
-  existing CLI for jobs. No microservices, message queues or separate API service
-  at launch.
-* **The database is the authority.** Browser stores hold drafts and preferences
-  only; every rule (deadline, 4/3/2, eligibility, settlement) is enforced on the
-  server.
-* **Insert-only history, derived standings.** Facts are appended; points,
-  counters and standings are computed from current facts. Corrections and
-  reassessments then never double-count.
-* **Pure engines stay pure.** `challenge.structured`, `challenge.analysis` and
-  `challenge.scoring` are reused unchanged; the new code wraps them with
-  persistence.
+## 1. Shape of the system
 
 ```
- browser ──▶ Gunicorn ─▶ Flask + Dash app ──▶ service layer ──▶ pure engines
-                         (sign-in routes,      (accounts, rounds,   (portfolio, analysis,
-                          pages, callbacks)     submissions,         scoring; unchanged)
-                                                settlement, audit)
-                                                     │
-                                                     ▼
-                                            PostgreSQL (production) / SQLite (local)
-                                                     ▲
- platform scheduler ──▶ diski9 CLI jobs ─────────────┘
-   refresh-data · challenge publish · lock · settle · finalise
+ browser ──HTTPS──▶ Gunicorn (N workers)
+                     └─ Flask app
+                         ├─ auth blueprint: /auth/login, /auth/callback, /auth/logout (OIDC, PKCE)
+                         ├─ session middleware: cookie → app_sessions → current user, roles, entitlements
+                         └─ Dash app (accepted Phase 6B pages, unchanged layouts)
+                              └─ callbacks ──▶ service layer (diski9.backend.services)
+                                                 ├─ pure engines (unchanged): challenge.structured,
+                                                 │   analysis, scoring, roundsheet maths
+                                                 └─ repositories (SQLAlchemy 2 Core) ──▶ PostgreSQL "app"
+
+ scheduler (platform cron; locally: manual or cron) ──▶ diski9 CLI jobs
+     publish · lock · results · settle · finalise · purge-sessions
+         ├─ read football store (SQLite during 6C) ── copy into snapshots / result observations
+         └─ write PostgreSQL "app" through the same service layer
+
+ research collection (D-29) ──▶ its own SQLite file and git files only (no competition access)
 ```
 
-## 2. Decisions to make
+* **Modular monolith:** one Python package, one deployable container, one
+  competition database. No microservices, message queues or separate frontend.
+* **New package `diski9.backend`:**
+  * `db/` (engine, metadata, migrations helpers), `repositories/` (one module per
+    aggregate: accounts, rounds, portfolios, results, settlement, championships,
+    audit, jobs);
+  * `services/` (transactions and rules: accounts, rounds, portfolios,
+    settlement, championships, admin);
+  * `auth/` (OIDC client, session store, permission checks);
+  * `jobs/` (CLI job implementations).
+* **Existing packages stay as they are:** `diski9.challenge` engines, `diski9.app`
+  layouts, `diski9.odds`, `diski9.ingestion`, `diski9.screener`, the Goal Model.
 
-### AD-01 Database and persistent storage (D-03)
+## 2. Database and storage
 
-* **Recommendation:** PostgreSQL in production; SQLite for local development, the
-  research tooling and fast tests; SQLAlchemy Core and Alembic for both. One
-  database holds the existing football data and the new challenge tables, so
-  settlement reads results and writes settlements in one transaction.
-* **Decide:** PostgreSQL target (yes or no); whether immutability is enforced by
-  database triggers on both engines or by the service layer plus tests (triggers
-  recommended where cheap, as in the existing `forecast_snapshots`).
-* **Implications:** a PostgreSQL test job for locking and trigger tests; backups
-  and point-in-time recovery from the managed database.
+* **PostgreSQL** for the competition backend, locally through **Docker Compose**
+  (one `postgres` service with a named volume, plus an optional throw-away test
+  database) and in production on a managed host chosen in Phase 10 (D-02).
+* **SQLAlchemy 2 Core** (tables and typed queries, no ORM session magic) and
+  **Alembic** with a **separate migration environment** for the competition
+  schema (`migrations_app/`), so the football store's migrations 0001–0004 are
+  untouched.
+* **Football store:** stays SQLite during Phase 6C and is migrated to PostgreSQL
+  (schema `football`) before hosted deployment; see the database design §12.
+* **Testing:** the competition test suite runs against **real PostgreSQL**
+  (Docker Compose locally; a PostgreSQL service in continuous integration). Each
+  test runs in a transaction or a fresh schema. Concurrency tests open several
+  real connections. SQLite is not used for competition tests. Existing tests keep
+  their current setup.
 
-### AD-02 Authentication and user accounts (D-01, D-05, D-36, D-37)
+## 3. Authentication and sessions (D-01)
 
-* **Recommendation:** in-app OpenID Connect with a managed provider, signed
-  session cookies from Flask, no passwords stored.
-* **Data model:** `users` (internal ID, display name, role, terms version,
-  created, deleted or pseudonymised), `user_identities` (provider, subject), a
-  display-name history table. Results reference the internal user ID only, so
-  pseudonymisation (D-36) never breaks history.
-* **Decide:** approach and first provider; session lifetime; whether the Match Lab
-  and leaderboards stay readable without sign-in (recommended: yes).
+* Managed OpenID Connect provider; **recommended: Supabase Auth** (comparison
+  document). Authorization code flow with PKCE, ID-token validation, then
+  Diski 9's own server-side session (`app_sessions`) in a `__Host-` cookie.
+* Session lifetime (proposed): 14 days idle, 30 days absolute; operator and owner
+  actions require a sign-in within the last 12 hours.
+* CSRF: SameSite=Lax cookie plus an Origin check on every POST (Dash callbacks
+  are POST requests).
+* No provider tokens are stored after sign-in. Logout revokes the session row and
+  calls the provider's logout endpoint.
+* Local development and tests use an OIDC test double; end-to-end sign-in tests
+  can use the provider's local stack.
 
-### AD-03 Roles and permissions (D-34)
+## 4. Roles, permissions and entitlements (D-34)
 
-* **Recommendation:** three roles (`participant`, `operator`, `owner`) mapped to
-  named capabilities in code, checked in the service layer. Every operator action
-  (publish, postpone, void round, result override, reopen, rename) requires a
-  reason and writes an audit record.
-* **Separate from roles:** an `entitlements` table (user, feature, source, valid
-  from and to) for owner-only and future premium features. Lucy is gated by an
-  entitlement initially granted only to the owner; premium plans later grant
-  entitlements without touching roles.
-* **Decide:** role set and capability list; owner assignment by server CLI only.
+* **Identity** (`users`, `user_identities`), **roles** (`user_roles`:
+  participant implicit, operator, owner) and **entitlements**
+  (`features`, `entitlement_grants`) are separate tables.
+* **Capabilities** are a fixed map in code:
 
-### AD-04 Server-authoritative round management (D-06, D-11, T-07)
+| Capability | Participant | Operator | Owner |
+|---|---|---|---|
+| Submit, replace, withdraw own entry; edit own profile and Your View | yes | yes | yes |
+| Publish or postpone a round; run jobs manually | | yes | yes |
+| Correct a result (D-35); void a round (D-32b exceptional) | | yes | yes |
+| Rename a user; view audit log | | yes | yes |
+| Reopen a finalised round or frozen championship | | | yes |
+| Grant or revoke roles and entitlements | | | yes (server CLI for owner) |
 
-* **Recommendation:** rounds are database records with status
-  (`draft → open → locked → settling → final`, or `postponed`), a frozen round
-  sheet (fixtures and offers, insert-only after publish), the deadline and
-  configuration version stored at publish, and the opening checks recorded.
-  Deadlines are enforced by the server clock inside each write transaction, so no
-  job is needed for correctness.
-* **Replaces:** the prototype's in-memory pinned snapshot; a restart no longer
-  changes anything.
-* **Decide:** publish schedule and window (D-11); how the operator corrects a
-  publish mistake before the deadline (recommended: cancel and republish with a
-  new round version only while no entries exist; otherwise void).
+* **Entitlements** gate features independently of roles: `lucy.research`,
+  `lucy.voice`, `lucy.presenter` are defined, granted initially only to the
+  owner. A future premium participant could hold `lucy.research` without any
+  operator or owner capability.
+* **Enforcement:** one service-layer function per check (`require(user,
+  capability)`, `require_feature(user, feature)`), called by every service method
+  and by every callback that returns restricted data. Hiding a button is never the
+  control; tests call the callbacks and services directly as an unauthorised user.
 
-### AD-05 Scheduled jobs and automated settlement (D-08, D-32, D-33, D-32b, D-35)
+## 5. Server-authoritative rounds and the portfolio lifecycle
 
-* **Recommendation:** the platform scheduler runs CLI commands; each command is
-  idempotent and takes a database lock (an advisory lock or a lock row) so two
-  runs never overlap. A `job_runs` table records start, finish, outcome and
-  counts. Jobs: odds and data refresh; publish (Thursday); lock stamp (after the
-  deadline); settle (hourly in match windows); finalise (after the 24-hour
-  correction window).
-* **Settlement pipeline per run:** new result observations → selection verdicts
-  (V1–V5) → entry settlements (D-32 payouts with D-15 rounding; D-33 refunds) →
-  D-32b evaluation once nothing is pending → weekly ranking and points via
-  `challenge.scoring` → championship aggregation. Each step writes only changed
-  rows.
-* **Decide:** scheduler (platform cron recommended over an in-process scheduler,
-  which would run once per web worker); alerting on failed or late jobs.
+* Rounds come from versioned **round schedules** (D-11): weekend rounds,
+  Thursday 08:00 SAST publication, 15-minute deadline buffer (D-06), 48-hour
+  cutoff (D-08), 24-hour correction window (R-14), eligible leagues and series
+  (beta or official, D-38). Midweek and European schedules are new schedule
+  versions, not code changes.
+* **Publish** builds the snapshot with the existing round-sheet code (copying
+  model probabilities, strict consensus and buckets), runs the opening checks,
+  and writes the snapshot and the round in one transaction.
+* **Portfolio lifecycle:** draft (optional, server-side convenience) → confirm →
+  replace (new version) → withdraw (T-09) → lock at the deadline. Every step is
+  one transaction with the protections in the database design §9.
+* **Your View** is stored per user (T-10), private, never used in competition
+  calculations.
+* The prototype's in-memory pinned snapshot, `sessionStorage` submissions and
+  `state.reconcile` authority are replaced by server reads; browser storage keeps
+  only preferences and unsaved drafts.
 
-### AD-06 Portfolio lifecycle and historical records (T-09, T-10)
+## 6. Scheduled jobs and settlement
 
-* **Recommendation:** an entry per user and round; every submission version
-  insert-only with the nine selections, copied offer values, eight-state summary
-  and an inputs hash; withdrawal as an insert-only event (T-09); the locked set
-  stamped at the deadline. Your View estimates stored per user and fixture with
-  the model-context stamp, private, never used in scoring (T-10).
-* **Decide:** whether to keep a full submission history visible to the
-  participant (recommended: yes, read-only) and the retention period for
-  superseded drafts (recommended: keep; they are small).
+* Jobs are idempotent `diski9` CLI commands run by the platform scheduler
+  (locally by hand or cron). Each takes an advisory lock on `(job, scope)` and
+  records a `job_runs` row.
 
-### AD-07 Championship progression and leaderboards (D-26 to D-31, D-38, T-11)
+| Job | Default timing (SAST) | Effect |
+|---|---|---|
+| `refresh-data --with-odds` (existing) | Thursday 07:15 | Football store refreshed before publish |
+| `challenge publish` | Thursday 08:00 | Snapshot, opening checks, round opened or postponed |
+| `challenge lock` | Every 5 minutes; acts after a deadline | Round locked, locked set stamped, base designation written |
+| `challenge results` | Hourly during match windows; daily until the cutoff | Result observations copied in |
+| `challenge settle` | After each results run | Verdicts, settlements, D-32b, scores |
+| `challenge finalise` | Hourly; acts 24 hours after the last change once nothing is pending | Round final; championship freeze when the tenth round is final |
+| `purge-sessions` | Daily | Expired sessions removed |
 
-* **Recommendation:** designations as insert-only records (T-11); weekly scores
-  stored per settlement run, latest current; championship membership, round
-  numbers, the counter and standings derived by query from current designations
-  and scores; a frozen snapshot written when a championship completes. Leaderboard
-  queries cached per process for a few minutes and invalidated after settlement.
-* **Decide:** whether championships carry an `official` flag (D-38); public
-  visibility rules (D-04).
+* Deadlines are enforced inside write transactions by the database clock; the
+  lock job only records what has already become true.
+* Settlement uses the approved rules: `settle/v1` verdicts (D-08, pending final
+  approval of the exact definitions), D-32 payouts with D-15 rounding, D-33
+  refunds, D-32b round evaluation (competitive rounds: majority played and five
+  ranked entries; practice rounds: majority played only, D-32b-Q1), scoring with
+  `challenge.scoring` (`points-150-75-v2`, D-26).
 
-### AD-08 Idempotency, concurrency and transaction integrity
+## 7. Championships, history, audit and corrections
 
-* **Recommendation:**
-  * submissions: one transaction with a row lock on the entry, an optimistic
-    `version`, a client idempotency key per Submit click, and unique constraints
-    (one entry per user and round; one fixture per submission);
-  * jobs: database lock per job and round; reruns insert nothing new when nothing
-    changed;
-  * derived values never stored as running totals.
-* **Tests:** deadline race, duplicate click, simultaneous edits from two tabs,
-  overlapping settlement runs, rerun with no new information.
+* Designations (T-07, T-11) and score sets are insert-only; championship
+  membership, numbering, the counter and standings are derived; a freeze is
+  written when a championship completes (database design §7, §10).
+* Every operator action writes an `audit_log` record with actor, reason, before
+  and after. Result corrections (D-35) store the original and corrected values.
+* Corrections re-run settlement for the whole round (T-06), including D-32b; a
+  frozen championship needs the audited reopen path.
 
-### AD-09 Auditability and result corrections (R-14, T-06, D-35, D-32b)
+## 8. Extensibility boundaries (not implemented in Phase 6C)
 
-* **Recommendation:** an `audit_log` (actor, action, target, reason, before and
-  after, time) for every operator action; result observations insert-only with a
-  source (`api-football` or `operator`); settlement runs recorded; a correction
-  re-runs the whole round, including D-32b reassessment; after a championship is
-  frozen, changes need the audited reopen path.
-* **Decide:** operator override policy (D-35); who may reopen (recommended:
-  owner only).
-
-### AD-10 Integration with the existing Python and Dash application
-
-* **Recommendation:**
-  * keep Dash on Flask; add sign-in and sign-out routes and a session check;
-    callbacks obtain the current user from the server session, never from a
-    store;
-  * every write callback calls the service layer; callbacks never write SQL
-    directly;
-  * replace the prototype's `sessionStorage` authority (`ch-session`, `state.reconcile`)
-    with server reads; keep browser storage for drafts and preferences only;
-  * run under Gunicorn with several workers; no shared in-process state that
-    matters (caches are per process and safe to lose);
-  * the accepted Phase 6B UI is kept; only its data source changes.
-* **Decide:** whether drafts are server-side as well (recommended: no for 6C;
-  the confirmed submission is what matters).
-
-### AD-11 Future deployment requirements (D-02, Phase 10)
-
-* **Recommendation:** a container image; configuration and secrets from the
-  environment (the API-Football key stays server-side, as today); health check
-  endpoint; structured logs; managed database backups; separate staging and
-  production databases; database migrations run as a release step.
-* **Decide:** the hosting provider and region (can wait until Phase 10 if 6C stays
-  host-agnostic).
-
-## 3. Accommodating later phases without rework
-
-| Future need | What Phase 6C provides |
+| Future phase | Integration boundary prepared in 6C |
 |---|---|
-| **Lucy, AI portfolio assistant (Phase 7), owner-only at first** | An entitlement checked server-side on every Lucy route and callback; Lucy as its own module calling the language-model API from the server (keys in the environment); read access to rounds, portfolios and analysis through the service layer, never direct writes to competition data; a usage and audit log. Voice (LiveKit) and YouTube co-presenting are separate services added in Phase 7 behind the same entitlement |
-| **Private owner-only functionality** | The `owner` role and owner entitlements; owner assignment only by server CLI |
-| **Achievements and badges (Phase 9)** | Insert-only domain events (submission confirmed, round settled, recovery, top-ten finish, championship completed) written by the service layer; achievements can later be derived from events and history without changing the competition tables |
-| **Premium subscriptions** | Entitlements with validity periods and a source (for example `manual` now, a payment provider later); no payment integration in 6C |
-| **European expansion (Phase 8)** | Leagues are already data; round sheets record competition IDs; configuration versions allow a new structure without editing old rounds |
+| **Phase 7 — Lucy** (qualitative research, private workspace, validated tools, LiveKit voice, YouTube presenter mode) | A future `diski9.lucy` module behind `require_feature('lucy.*')`; its own tables (workspace, notes, tool-call audit) in a separate schema; read-only access to rounds, snapshots and analysis through service-layer query functions ("validated tools"), never direct writes to competition tables; model-provider and LiveKit credentials server-side only; voice and presenter mode as separate entitlements and, if needed, a separate process using the same database and auth |
+| **Phase 8 — Champions League, optional Europa League** | New competitions in the league registry, a midweek round schedule version, and a configuration version if the structure changes; snapshots already store competition IDs |
+| **Phase 9 — badges and achievements** | `domain_events` written in Phase 6C; achievements derived later from events and history without changing competition tables |
+| **Premium features** | `entitlement_grants.source = 'subscription'` and validity periods; a future billing integration writes grants only; no payment code in 6C |
 
-## 4. Suggested order of discussion
+## 9. Decisions still needed for the architecture
 
-1. AD-01 and AD-02 (database and sign-in), since everything else depends on them.
-2. AD-03 (roles and entitlements), needed for operator actions and Lucy.
-3. AD-04, AD-05 and AD-09 (rounds, jobs, settlement, audit), which carry the
-   approved D-32, D-33 and D-32b rules.
-4. AD-06 to AD-08 and AD-10 (lifecycle, championships, integrity, Dash).
-5. AD-11 (deployment), which can wait if 6C stays host-agnostic.
+| Item | Recommendation | Needed by |
+|---|---|---|
+| D-01 provider | Supabase Auth | Start of 6C.2 |
+| D-08 exact definitions | Approve `settle/v1` as written (cutoff from the latest scheduled kickoff at publish + 48 h) | Start of 6C.4 |
+| Session lifetimes | 14 days idle, 30 days absolute, 12-hour re-authentication for operator actions | 6C.2 |
+| Continuous integration | Add a CI workflow with a PostgreSQL service (the repository has none today) | 6C.1 |
+| Football-store migration timing | Before hosted deployment (late 6D or Phase 10), separately approved | Before Phase 10 |
+| D-29 collection activation | Branch, schedules and the collector task (proposal §11) | Before 26 November |

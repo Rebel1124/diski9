@@ -1,5 +1,13 @@
 # Diski 9 Weekly Challenge — Outstanding Decision Review (Phase 6C preparation)
 
+> **Update (Phase 6C architecture finalisation):** the owner has since decided
+> most items reviewed here (D-02 deferred; D-03, D-04, D-05, D-06, D-11, D-12,
+> D-32b-Q1, D-34, D-35, D-37, D-38, T-09–T-11 approved; D-36 in principle; D-29
+> collection approved). The [decision register](weekly_challenge_decisions.md) is
+> authoritative; this review is kept as the record of options and trade-offs.
+> D-01 is now covered by the [auth comparison](../architecture/auth_provider_comparison.md)
+> and D-08 by [`settle/v1`](weekly_challenge_settle_v1.md).
+
 **Status:** review for the product owner. Every item below is still **outstanding**
 unless the register says otherwise. A recommendation is not an approval. Approved
 items stay in the [decision register](weekly_challenge_decisions.md), which remains
