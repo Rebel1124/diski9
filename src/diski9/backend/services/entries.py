@@ -392,3 +392,52 @@ def withdraw_entry(
             conn, e.id, "withdrawn", previous_submission_id=e.current_submission_id, actor=uid
         )
         return _entry_view(conn, round_id, uid)
+
+
+# ------------------------------------------------------------------ most recent locked entry
+def latest_locked_entry(
+    engine: Engine,
+    principal: Principal,
+    *,
+    exclude_round_id: UUID | None = None,
+    include_development: bool = False,
+):
+    """The participant's most recent **confirmed** entry in a round whose
+    submission deadline has passed (database clock): ``(RoundView, EntryView)`` or
+    None. Read-only and owner-scoped (the signed-in principal's own row only).
+
+    * The values come from the stored immutable submission the entry points to,
+      never from a working draft.
+    * Withdrawn entries (no current submission) are not returned.
+    * ``exclude_round_id`` leaves out the round the page already shows, so the
+      same entry is never displayed twice.
+    * A round past its deadline whose lock job has not run yet (status still
+      ``open``) is included; ``RoundView.status`` tells the caller which it is.
+    """
+    authorize(principal, Capability.PERSIST_OWN_ANALYSIS)
+    from ..db import db_now
+    from . import rounds as rounds_svc
+
+    with read_only(engine) as conn:
+        now = db_now(conn)
+        q = (
+            select(rounds.c.id)
+            .select_from(entries.join(rounds, rounds.c.id == entries.c.round_id))
+            .where(
+                entries.c.user_id == principal.user_id,
+                entries.c.state == "confirmed",
+                entries.c.current_submission_id.is_not(None),
+                rounds.c.deadline_at <= now,
+                rounds.c.status.in_(("open", "locked", "settling", "final")),
+            )
+            .order_by(rounds.c.deadline_at.desc())
+            .limit(1)
+        )
+        if exclude_round_id is not None:
+            q = q.where(rounds.c.id != exclude_round_id)
+        if not include_development:
+            q = q.where(rounds.c.is_development.is_(False))
+        rid = conn.execute(q).scalar_one_or_none()
+        if rid is None:
+            return None
+        return rounds_svc._view(conn, rid), _entry_view(conn, rid, principal.user_id)

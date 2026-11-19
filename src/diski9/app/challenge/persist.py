@@ -410,3 +410,39 @@ def withdraw(service, state: dict) -> tuple[dict, dict]:
         "again before the deadline.",
         "kind": "ok",
     }
+
+
+# ------------------------------------------------------------------ most recent locked entry
+def most_recent_locked(service, exclude_round_id: UUID | None = None) -> dict | None:
+    """The signed-in participant's most recent confirmed entry in a round whose
+    deadline has passed, other than the round the page shows (read-only; from the
+    stored immutable submission and the round's frozen snapshot). None for
+    guests, accounts without such an entry, or when the database is unavailable
+    (nothing is fabricated)."""
+    p = participant(service)
+    b = backend_of(service)
+    if p is None or b is None:
+        return None
+    from diski9.backend.services import entries
+    from diski9.backend.services import rounds as rsvc
+
+    try:
+        found = entries.latest_locked_entry(
+            b.engine, p, exclude_round_id=exclude_round_id, include_development=b.show_development
+        )
+        if found is None:
+            return None
+        view, e = found
+        rec = submitted_record(service, view, rsvc.published_snapshot(b.engine, view.id), e)
+    except Exception:  # noqa: BLE001 - the card is simply not shown
+        return None
+    if rec is None:
+        return None
+    rec.update(
+        round_status=view.status,
+        entry_locked=e.locked,
+        deadline=view.deadline_at.astimezone(UTC).isoformat() if view.deadline_at else None,
+        classification=view.classification,
+        development=view.is_development,
+    )
+    return rec

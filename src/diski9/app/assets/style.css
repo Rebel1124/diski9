@@ -1264,3 +1264,11 @@ table.results td.value-cell { white-space: nowrap; }
 .adopt-panel { max-width: 560px; text-align: left; }
 .adopt-panel ul { margin: 4px 0 10px; padding-left: 18px; }
 .adopt-choice label { display: block; margin: 4px 0; }
+
+/* Phase 6C.3 Stage G: most recent locked entry (read-only) */
+.ch-locked-entry { margin-top: 14px; border-left: 3px solid var(--warn, #d9a441); }
+.ch-locked-entry .ch-src-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.ch-locked-entry .ch-src-card { padding: 8px 10px; }
+.ch-locked-entry .ch-src-card .ch-big, .ch-locked-entry .ch-src-card strong { font-size: 15px; }
+.ch-locked-entry .ch-locked-preds { margin: 10px 0 0; box-shadow: none; }
+@media (max-width: 600px) { .ch-locked-entry .ch-src-cards { grid-template-columns: minmax(0, 1fr); } }

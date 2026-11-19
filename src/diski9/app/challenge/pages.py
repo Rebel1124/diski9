@@ -38,7 +38,13 @@ def effective_mode(service: ChallengeService, state: dict) -> str | None:
     """The participant's chosen mode, or live when nothing was chosen and it is playable."""
     if state.get("mode"):
         return state["mode"]
-    return "live" if service.availability("live").playable else None
+    if service.availability("live").playable:
+        return "live"
+    # A published round past its deadline (lock pending, or locked) is still the
+    # participant's round: show it read-only rather than "unavailable".
+    if getattr(service, "backend", None) is not None and service.live() is not None:
+        return "live"
+    return None
 
 
 def current(service: ChallengeService, state: dict):
@@ -1428,6 +1434,25 @@ def round_state(state, snap, avail, sels, kind="prototype", rv=None) -> tuple[st
     """(label, css class, one-line explanation) for the participant's round status."""
     sub = st.submission_for(state, snap)
     account = kind == "account"
+    if locked(avail) and snap is not None and getattr(rv, "status", None) == "open":
+        # Deadline passed, lock job not run yet: no changes possible, not "locked".
+        if sub:
+            return (
+                "Deadline passed",
+                "warn",
+                (
+                    "The submission deadline has passed. Your confirmed entry can no longer "
+                    "change; the round is waiting to be locked."
+                ),
+            )
+        return (
+            "Deadline passed",
+            "warn",
+            (
+                "The submission deadline has passed without a confirmed entry. The round is "
+                "waiting to be locked."
+            ),
+        )
     if locked(avail) and snap is not None:
         cls_text = CLASSIFICATION_TEXT.get(getattr(rv, "classification", None) or "")
         tail = f" This is a {cls_text}." if cls_text else ""
@@ -1484,7 +1509,7 @@ def round_state(state, snap, avail, sels, kind="prototype", rv=None) -> tuple[st
 def round_facts(state, snap, avail, sels, sub, label, local, rv=None) -> list[tuple[str, str]]:
     """Round details for the "This round" card, all from the stored prototype state
     and the round snapshot (nothing hard-coded beyond the approved allocation)."""
-    if snap is None or not avail.playable:
+    if snap is None or not (avail.playable or locked(avail)):
         facts = [("Status", label)]
         if snap is not None:
             facts.insert(0, ("Round", snap.round_id))
@@ -1518,7 +1543,9 @@ def round_facts(state, snap, avail, sels, sub, label, local, rv=None) -> list[tu
         facts.append(("Confirmation", f"Withdrawn {local(wd['at'])} SAST"))
     else:
         facts.append(("Confirmation", "Not confirmed"))
-    if locked(avail):
+    if locked(avail) and getattr(rv, "status", None) == "open":
+        facts.append(("Changes", "None possible: the deadline has passed (lock pending)"))
+    elif locked(avail):
         facts.append(("Changes", "Locked: the deadline has passed"))
     elif sub:
         facts.append(("Changes", "You can replace or withdraw until the round locks"))
@@ -1611,7 +1638,9 @@ def confirmed_summary(sub, local, can_withdraw: bool) -> html.Div:
     )
 
 
-def confirmed_predictions(sub) -> html.Details:
+def confirmed_predictions(
+    sub, summary: str = "Show my nine predictions", cls: str = ""
+) -> html.Details:
     """Full-width expandable card: the nine frozen predictions in three bucket
     columns (stacked on narrow screens) and a one-line Diski 9 summary."""
     groups = []
@@ -1655,7 +1684,7 @@ def confirmed_predictions(sub) -> html.Details:
         )
     return html.Details(
         [
-            html.Summary("Show my nine predictions"),
+            html.Summary(summary),
             html.Div(groups, className="ch-conf-grid"),
             html.P(
                 [
@@ -1666,7 +1695,59 @@ def confirmed_predictions(sub) -> html.Details:
                 className="small ch-conf-nine",
             ),
         ],
-        className="ch-details ch-card ch-conf-card",
+        className=("ch-details ch-card ch-conf-card " + cls).strip(),
+    )
+
+
+def locked_entry_card(rec, local) -> html.Div:
+    """Most recent locked entry (read-only): the participant's confirmed entry in a
+    round whose deadline has passed, shown beside another current round. All values
+    are the stored submission's; no results or payouts (settlement is not available
+    yet) and no actions."""
+    pending = rec.get("round_status") == "open"
+    label, line = (
+        ("Deadline passed", "The submission deadline has passed, so this entry can no "
+         "longer change. The round is waiting to be locked.")
+        if pending
+        else ("Locked", "This entry is locked. It cannot be edited, replaced or withdrawn.")
+    )  # fmt: skip
+    alloc = " / ".join(str(b.credits) for b in CFG.buckets) + f" / {CFG.nine_fold_credits}"
+    ver = f" (version {rec['version']})" if rec.get("version", 1) > 1 else ""
+    facts = [
+        ("Round", ("Development · " if rec.get("development") else "") + rec["round_id"]),
+        ("Status", label),
+    ]
+    if rec.get("deadline"):
+        facts.append(("Deadline", f"{local(rec['deadline'])} SAST"))
+    facts.append(("Frozen odds", f"{local(rec['snapshot_at'])} SAST"))
+    facts.append(("Confirmed", f"{local(rec['at'])} SAST{ver}"))
+    if rec.get("classification"):
+        facts.append(("Classification", CLASSIFICATION_TEXT[rec["classification"]].capitalize()))
+    facts += [
+        ("Credits", f"{CFG.total_credits} virtual ({alloc})"),
+        ("Maximum payout", c.credits(rec.get("max_gross", "0"))),
+        ("Results", "Not available yet (settlement comes in a later phase)"),
+    ]
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.H2("Most recent locked entry", className="ch-h2"),
+                    html.Span(label, className="ch-pill warn"),
+                ],
+                className="ch-row-between",
+            ),
+            html.P(line, className="small ch-round-line"),
+            html.Dl(
+                [item for k, v in facts if k != "Status" for item in (html.Dt(k), html.Dd(v))],
+                className="ch-facts small",
+            ),
+            estimate_cards(rec.get("estimates") or {}),
+            confirmed_predictions(
+                rec, f"Show the nine predictions in {rec['round_id']}", "ch-locked-preds"
+            ),
+        ],
+        className="ch-card ch-compact ch-locked-entry",
     )
 
 
@@ -1727,7 +1808,7 @@ def my_challenge_body(service, state, local) -> list:
     submission, a restored session), so the page never shows a stale state."""
     state = sync(service, state)
     mode, snap, avail, sels = current(service, state)
-    kind = access(service, snap)
+    kind = access_kind = access(service, snap)
     rv = service.round_view() if kind != "prototype" or (snap and not snap.is_demo) else None
     label, cls, line = round_state(state, snap, avail, sels, kind, rv)
     sub = st.submission_for(state, snap)
@@ -1838,9 +1919,16 @@ def my_challenge_body(service, state, local) -> list:
         ],
         className="ch-details ch-card",
     )
+    previous = None
+    if access_kind == "account":
+        from . import persist
+
+        rec = persist.most_recent_locked(service, getattr(rv, "id", None))
+        previous = locked_entry_card(rec, local) if rec else None
     return [
         html.Div([status, confirmed], className="ch-grid-me"),
         confirmed_predictions(sub) if sub else None,
+        previous,
         perf,
         hist,
         withdraw_modal(sub, local) if state.get("confirm") == "withdraw" and sub else None,
