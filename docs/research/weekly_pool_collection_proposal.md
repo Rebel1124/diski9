@@ -1,6 +1,8 @@
 # D-29 — Weekly research pool collection: implementation and scheduling proposal
 
-**Status:** proposal for owner confirmation. The approach is approved (D-29,
+**Status:** approved (D-29b) and implemented in Phase 6C.0 on the
+`research/weekly-pools` branch; see §12 for what was built and how it differs from
+the proposal. Original status line: proposal for owner confirmation. The approach is approved (D-29,
 Phase 6C architecture finalisation). **Nothing is implemented or scheduled.** The
 existing odds trial (EPL and PSL, every three hours until 2026-11-21T15:00Z) is
 not changed, interrupted or terminated by this proposal; the first weekly capture
@@ -157,3 +159,34 @@ Run once six qualifying pools exist, and again at eight:
 2. Approve the two schedules above (or adjust the times).
 3. Approve building the collector commands (a small Phase 6C.0 task, separate
    from the backend, touching no engine, model, odds or UI code).
+
+## 12. Implementation notes (Phase 6C.0)
+
+* **Code:** `src/diski9/research/weekly_pool.py`, CLI `diski9 research-pool
+  capture|results|replay|report`, tests `tests/test_weekly_pool.py` (43 offline
+  tests, including replay of a real capture kept as a fixture).
+* **One builder for capture and replay:** the normalised pool is always built from
+  the stored raw files by the production round-sheet code in a scratch SQLite file,
+  so a replay reproduces the fingerprint and content exactly (verified on a live
+  capture made during validation).
+* **Validated request budget (live dry run on 19 November, not part of the
+  dataset):** a capture in a fresh container rebuilds the working database: 77
+  requests in 35 seconds (reference data, four-season backfill, standings, the
+  current season and 14 odds pages). Results use `fixtures?ids=` with up to 20
+  fixtures per request: 4 requests for the 68 fixtures of that window. Weekly
+  total with daily results checks Tuesday to Thursday: about 90 requests (0.2% of
+  the weekly allowance). The client keeps its 500-request daily reserve.
+* **Every scheduled run starts in a fresh session,** so the capture always
+  rebuilds its working database (the "occasional rebuild" in §5 happens every
+  week). This is still within budget and makes every capture independent.
+* **Partial captures:** a later complete capture replaces an accepted partial one
+  until the round deadline (flagged `late` after 12:00 SAST Thursday); after the
+  deadline no capture is accepted (`after_deadline`), and a complete capture is
+  never repeated.
+* **Results** are fetched from the start of the round window, only for fixtures
+  without a final verdict; a pool closes when every round-sheet fixture is final.
+  Repeated deliveries add nothing (content hash). A fixture whose provider status
+  is unknown, or final without a score, stays pending with an alert.
+* **Storage size:** about 350 KB per week (raw files plus the normalised pool).
+* **Missing weeks** are listed by the report as gaps; no record is created for
+  them.
