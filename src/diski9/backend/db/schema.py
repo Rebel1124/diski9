@@ -45,6 +45,22 @@ app_sessions = Table(
     Column("revoked_at", DateTime(timezone=True), nullable=True),
     Column("rotated_from", Text, nullable=True),
     Column("user_agent_hash", Text, nullable=True),
+    Column("provider_session_id", UUID(as_uuid=True), nullable=True),
+    Column("provider_refresh_token_enc", Text, nullable=True),
+    Column("provider_access_token_enc", Text, nullable=True),
+    Column("provider_access_expires_at", DateTime(timezone=True), nullable=True),
+    Column("provider_checked_at", DateTime(timezone=True), nullable=True),
+    Column("reauthenticated_at", DateTime(timezone=True), nullable=True),
+    Column("revoked_reason", Text, nullable=True),
+)
+
+auth_rate_events = Table(
+    "auth_rate_events",
+    metadata,
+    Column("id", BigInteger, primary_key=True),
+    Column("bucket", Text, nullable=False),
+    Column("key_hash", Text, nullable=False),
+    Column("at", DateTime(timezone=True), nullable=False),
 )
 
 audit_log = Table(
@@ -576,4 +592,6 @@ HISTORY = frozenset(
     ]
 )
 GUARDED = frozenset(["entitlement_grants", "job_runs", "settlement_runs", "username_history"])
-PROJECTION = frozenset(t.name for t in metadata.sorted_tables) - HISTORY - GUARDED
+# appended and purged (never updated): authentication rate-limit events
+APPEND_PURGE = frozenset({"auth_rate_events"})
+PROJECTION = frozenset(t.name for t in metadata.sorted_tables) - HISTORY - GUARDED - APPEND_PURGE

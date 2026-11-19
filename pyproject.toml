@@ -9,7 +9,9 @@ dependencies = [
     "httpx>=0.28.1",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.16.3",
+    "pyjwt[crypto]>=2.9",
     "sqlalchemy>=2.1.8",
+    "supabase-auth>=2.20",
 ]
 
 [project.scripts]

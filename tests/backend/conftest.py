@@ -49,6 +49,14 @@ def reset_schema(url: str) -> None:
                 "THEN CREATE ROLE diski9_app NOLOGIN; END IF; END $$;"
             )
         )
+        # the browser-facing roles a Supabase database has (Data API, GraphQL, Realtime)
+        for role in ("anon", "authenticated"):
+            conn.execute(
+                text(
+                    f"DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{role}') "
+                    f"THEN CREATE ROLE {role} NOLOGIN; END IF; END $$;"
+                )
+            )
     eng.dispose()
 
 
