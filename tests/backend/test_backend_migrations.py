@@ -13,16 +13,18 @@ def _engine(url):
     return create_engine(url, poolclass=pool.NullPool)
 
 
-def test_downgrade_removes_everything_and_upgrade_recreates_it(pg_url):
+def test_downgrade_removes_everything_and_upgrade_recreates_it(fresh_url):
+    pg_url = fresh_url  # a separate database: the session database may hold settlement data
+    migrate.upgrade(pg_url)
     migrate.downgrade(pg_url, "base")
     eng = _engine(pg_url)
     with eng.connect() as conn:
         assert conn.execute(text("SELECT to_regnamespace('app')")).scalar() is None
     assert migrate.current(pg_url) is None
     migrate.upgrade(pg_url)
-    assert migrate.current(pg_url) == migrate.head() == "app_0005"
+    assert migrate.current(pg_url) == migrate.head() == "app_0006"
     migrate.upgrade(pg_url)  # repeat: no-op, no error
-    assert migrate.current(pg_url) == "app_0005"
+    assert migrate.current(pg_url) == "app_0006"
     eng.dispose()
 
 

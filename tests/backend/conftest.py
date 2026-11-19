@@ -16,6 +16,8 @@ from collections.abc import Iterator
 import pytest
 from pg_helpers import make_round, make_user
 from sqlalchemy import Engine, create_engine, pool, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import DBAPIError
 
 from diski9.backend.db import (
     BackendDatabaseSettings,
@@ -84,3 +86,23 @@ def world(engine):
         uid = make_user(conn)
         rid, snap, fids = make_round(conn)
     return {"user": uid, "round": rid, "snapshot": snap, "fixtures": fids}
+
+
+@pytest.fixture
+def fresh_url(pg_url):
+    url = make_url(pg_url)
+    name = "diski9_upgrade_test"
+    admin = create_engine(url.set(database="postgres"), poolclass=pool.NullPool,
+                          isolation_level="AUTOCOMMIT")  # fmt: skip
+    try:
+        with admin.connect() as conn:
+            conn.execute(text(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
+            conn.execute(text(f"CREATE DATABASE {name}"))
+    except DBAPIError as exc:  # e.g. no CREATEDB privilege on this server
+        admin.dispose()
+        pytest.skip(f"cannot create the separate upgrade-test database: {exc.orig}")
+    target = url.set(database=name).render_as_string(hide_password=False)
+    yield target
+    with admin.connect() as conn:
+        conn.execute(text(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
+    admin.dispose()
