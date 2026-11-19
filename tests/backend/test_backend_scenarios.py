@@ -9,7 +9,7 @@ from decimal import Decimal
 import pytest
 import sqlalchemy as sa
 from settle_helpers import DEFAULT_ENTRY, provider_item, settlement_worlds
-from svc_helpers import principal
+from svc_helpers import principal, wait_until
 
 from diski9.backend import settlement_scenarios as sc
 from diski9.backend.db import transaction
@@ -167,6 +167,7 @@ def test_repeat_stores_identical_deliveries_once(engine, op, worlds):
 
 # ------------------------------------------------------------------ mode isolation
 def _real_final(engine, fid, w):
+    wait_until(engine, w["deadline"] + timedelta(seconds=2))  # receipt never after recording
     item = provider_item(fid, "FT", ko=w["deadline"] + timedelta(seconds=1), h=1, a=0)
     with transaction(engine) as conn:
         repo.record_evidence(
