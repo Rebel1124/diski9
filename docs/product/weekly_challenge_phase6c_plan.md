@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** plan for owner review; nothing has started. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 onwards not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -113,7 +113,9 @@ References: [technical architecture](../architecture/phase6c_architecture_consid
 * **Objectives:** versioned round schedules; publish job writing immutable
   snapshots with opening checks; server-side deadlines; drafts; confirm,
   replace, withdraw (T-09) with history; lock job and base designation; Your View
-  persistence (T-10); connect the accepted Weekly Challenge, My Challenge and
+  persistence (T-10: the current numerical adjustments only, per user and fixture,
+  across devices; no notes or reasons and no adjustment history, D-41); connect the
+  accepted Weekly Challenge, My Challenge and
   Match Lab pages to the backend.
 * **Dependencies:** 6C.1, 6C.2; D-06 and D-11 (approved).
 * **Modules and files:** `services/rounds.py`, `services/portfolios.py`,
@@ -217,3 +219,117 @@ The Phase 6C acceptance criteria in the
 [implementation plan](weekly_challenge_implementation_plan.md) (persistent
 lifecycle, settlement, D-32b, corrections, permissions, unchanged engines and UI)
 are met, and every new rule is tested against real PostgreSQL.
+
+## Implementation notes (6C.0 and 6C.1)
+
+**6C.0 — weekly research collector (done, branch `research/weekly-pools`).**
+See the collection proposal §12 on that branch
+(`docs/research/weekly_pool_collection_proposal.md`).
+The schedules (Thursday 08:00 SAST capture from 26 November 2026; daily 09:15 SAST
+results) fire into one dedicated collector session that has the repository
+attached; a pre-activation check showed that sessions started fresh for each run
+could not push to the repository.
+
+**6C.1 — PostgreSQL foundation (done, branch `feature/phase-6c1-postgres-foundation`).**
+* **Infrastructure:** `docker-compose.yml` (PostgreSQL 17, localhost-only port,
+  named volume, health check), `docker/postgres/init/` (test database and the
+  `diski9_app` role), `.env.example` entries, `diski9 app-db upgrade|downgrade|
+  current|check`.
+* **Access layer:** `diski9.backend.db` (`settings`, `engine` with `transaction`,
+  `read_only`, `db_now`, `check_health`; `migrate`; `schema` mirror) and
+  `diski9.backend.repositories` (`accounts`, `rounds`, `portfolios`, `ops`), using
+  SQLAlchemy 2 Core and psycopg 3 (new production dependency `psycopg[binary]`).
+* **Schema:** revision `app_0001` in a separate Alembic environment
+  (`migrations_app/`, version table `public.app_alembic_version`), written as
+  explicit SQL: 37 tables, history and guarded-table triggers, set-once columns,
+  the submission deadline trigger, composite ownership keys, deferred keys,
+  approved-rule CHECKs, runtime-role grants and seed configuration.
+* **Tests:** `tests/backend/` (settings guards, migrations, integrity and
+  privileges, multi-connection concurrency) against real PostgreSQL; CI workflow
+  `.github/workflows/ci.yml`.
+* **Deviations from the stage description:** the database role is created by the
+  Docker init script (local) or by the operator (deployments), not by migrations,
+  because roles are cluster-wide; repositories cover the foundation tables only
+  (settlement, scoring and championship queries come with their stages).
+* Details and commands: [`docs/backend.md`](../backend.md).
+
+## Implementation notes (6C.2)
+
+**6C.2 — authentication, accounts and permissions (done, branch
+`feature/phase-6c2-authentication`).** Details: [`docs/authentication.md`](../authentication.md).
+* **Flow:** Supabase Auth through the official Python client server-side; email and
+  password; token_hash email links verified with `verify_otp` behind a confirm
+  button; Diski 9's own server-side sessions; provider tokens encrypted and
+  refreshed under a row lock.
+* **Database:** migration `app_0002` (session provider columns, authentication
+  rate-limit events, beta terms version, row-level security on every `app` table
+  with access only for `diski9_app`; nothing for Supabase's browser roles).
+* **Modules:** `diski9.backend.auth` (`settings`, `crypto`, `provider`, `sessions`,
+  `accounts`, `usernames`, `permissions`, `privileged`, `ratelimit`, `web`,
+  templates); account menu in `diski9.app.app`; `assets/account.css`,
+  `assets/account.js`; CLI `diski9 account ...`; `tools/local_auth/` (local
+  Supabase Auth harness); `supabase/config.toml` and email templates.
+* **Deviations:** none from the brief. Google sign-in deferred as allowed. Sign-out
+  from the Dash menu goes through a confirmation page (a POST with a CSRF token).
+* **Tests:** unit, mocked-provider (real PostgreSQL), Supabase PostgreSQL
+  compatibility, and genuine Supabase Auth integration (local server; CI uses the
+  official image). Hosted Supabase not tested (needs an owner-created project).
+* **Owner decisions (19 November 2026):** T-14 to T-17 approved (register). T-15
+  in 6C.2: keep/discard choice for guest work in the tab at sign-in, clearing at
+  sign-out and account switching. **Carried into 6C.3:** saving kept work to the
+  account, no silent overwrite of a stored portfolio, revalidation against the
+  current round and frozen snapshot, no automatic submission, server-side Your
+  View storage. Local acceptance guide:
+  [`phase6c2_local_acceptance_mac.md`](../phase6c2_local_acceptance_mac.md).
+
+## Implementation notes (6C.3, Stages A–D)
+
+**6C.3 checkpoint (branch `feature/phase-6c3-competition-persistence`).** Record:
+[`phase6c3_implementation.md`](../architecture/phase6c3_implementation.md); handover:
+[`phase6c3_implementation_handover.md`](../architecture/phase6c3_implementation_handover.md);
+local acceptance: [`phase6c3_local_acceptance_mac.md`](../phase6c3_local_acceptance_mac.md).
+* **Done:** services for rounds (create, publish with opening checks and a frozen,
+  fingerprint-checked snapshot, lock with the `deadline` designation), drafts and
+  Your View (private, versioned, validated server-side); development rounds from
+  deterministic synthetic fixtures; `diski9 round ...`.
+* **Database:** migration `app_0003` (additive: version columns, development flag,
+  snapshot and draft guards). The stage description expected "none structural";
+  the version columns are needed for the approved "two tabs produce a conflict"
+  criterion, which the 6C.1 schema covered only for entries.
+* **Module layout:** publish and lock live in `services/rounds.py` (run by the CLI or
+  a scheduler) rather than separate `jobs/` modules; drafts and Your View have their
+  own service modules.
+* **Waiting for approval:** Stages E (confirm, replace, withdraw), F (pages) and G
+  (acceptance); owner questions Owner-1, Owner-2 and ID-5.
+
+## Implementation notes (6C.3, checkpoint refinements and Stages E–G)
+
+Approved at the checkpoint (19 November 2026): Your View per analytical context
+(live and each published snapshot), guest Your View adoption, the one-hour
+snapshot construction age (separate from odds freshness), D-11 revised to Friday
+08:00 SAST, frozen-versus-latest information in the pages, and competitive
+classification kept separate from official championship membership. Then:
+Stage E (confirm, replace, withdraw, re-entry with authoritative validation and
+deadline checks after every lock), Stage F (pages connected; per-tab save
+ordering, migration `app_0005`) and Stage G (real-browser journeys A–G,
+regression, performance, documentation). Record:
+[`phase6c3_implementation.md`](../architecture/phase6c3_implementation.md);
+handover: [`phase6c3_implementation_handover.md`](../architecture/phase6c3_implementation_handover.md).
+
+## Deferred backlog accepted at the 6C.3 closure (19 Nov 2026)
+
+| Item | Target |
+|---|---|
+| Full historical entry browsing (My Challenge shows the current round and the most recent locked entry only) | 6C.5 |
+| Periodic Screener reload latency (one slower request per `--ttl`, unchanged since before 6C.3) | 6D |
+| Direct fixture URL selection (`/?fixture=<id>` typed in the address bar) | 6D |
+| CLI tracebacks for expected operational errors | 6C.6 |
+| Hosted Supabase compatibility testing (one skipped test) | Phase 10 |
+| Freezing Your View at confirmation (T-21 Option B; needs a D-41 decision) | later decision |
+
+Outstanding requirements, not blocking 6C.4: D-29 (validation on 6–8 real pools,
+before Official Championship 1) and D-36 (retention policy, before launch).
+
+Roadmap after 6C: 6D integration, optimisation and comprehensive testing; 7 Lucy
+and LiveKit; 8 European competition expansion; 9 badges and achievements;
+10 deployment and private beta; 11 public launch and YouTube.

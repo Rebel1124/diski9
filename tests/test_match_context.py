@@ -55,15 +55,16 @@ def test_section_b_defaults_labels_and_education(data):
     assert len(acc) == 1 and not getattr(acc[0], "open", False)
     t = " ".join(_text(acc[0]).split())
     assert t.startswith("Your Match Context Adjustment Your assumptions")
-    assert CONTEXT_ADJUST_NOTE in t and "already reflected in the model" in t
-    assert "Why are you making this adjustment?" in t and "not a validated effect size" in t
+    assert CONTEXT_ADJUST_NOTE in t and "partly reflected in the model's estimated goals" in t
+    assert "not a validated effect size" in t and "leave them at 0.00" in t
+    # static guidance replaces the former free-text reason box
+    assert "Why are you making this adjustment?" not in t
+    assert not _find(acc[0], lambda c: getattr(c, "id", None) == "ctx-note")
     boxes = {
         c.id: c.value
-        for c in _find(
-            acc[0], lambda c: getattr(c, "id", None) in ("ctx-home", "ctx-away", "ctx-note")
-        )
+        for c in _find(acc[0], lambda c: getattr(c, "id", None) in ("ctx-home", "ctx-away"))
     }
-    assert boxes == {"ctx-home": "0.00", "ctx-away": "0.00", "ctx-note": ""}
+    assert boxes == {"ctx-home": "0.00", "ctx-away": "0.00"}
     assert _find(acc[0], lambda c: getattr(c, "id", None) == "ctx-clear")
     # it sits in Section B, which stays labelled as context
     ctx_section = [
@@ -118,25 +119,19 @@ def test_section_b_validation_explained(data):
     assert cleared["context"]["home"] == 0.0 and msg == []
 
 
-def test_clear_section_b_only_and_reset_keeps_notes(data):
+def test_clear_section_b_only_and_reset(data):
     r = _r(data)
     st = _ctx(r, home="0.25", away="-0.10")
-    st, _ = lab_update(r, "ctx-note", "  Away side in poor form  ", st)
     st, _ = lab_update(r, {"type": "cat-adj", "cat": "fitness", "side": "away"}, "0.10", st)
-    st, _ = lab_update(r, {"type": "cat-note", "cat": "fitness"}, "Rotation likely", st)
     st, _ = lab_update(r, "lab-home-input", "2.40", st)
-    assert st["context"]["note"] == "Away side in poor form"
     manual = st["manual"]["home"]
     cleared, _ = lab_update(r, "ctx-clear", 1, st)
     assert cleared["context"]["home"] == cleared["context"]["away"] == 0.0
-    assert cleared["context"]["note"] == "Away side in poor form"
     assert cleared["cats"]["fitness"]["away"] == 0.10 and cleared["manual"]["home"] == manual
     reset, _ = lab_update(r, "lab-reset", 1, st)
     assert not has_adjustment(reset)
-    assert reset["context"]["note"] == "Away side in poor form"
-    assert reset["cats"]["fitness"]["note"] == "Rotation likely"
     d = render_detail(r, *data.detail(EPL_FIX)[1:], "1X2", data, reset)
-    assert "Your notes in Sections B and C are kept" in _text(d)
+    assert "notes" not in _text(d).lower().split("clears every adjustment")[-1][:120]
 
 
 def test_boundaries_zero_to_ten(data):
@@ -178,14 +173,12 @@ def test_per_fixture_isolation_and_market_persistence(data):
     detail = next(v for k, v in app.callback_map.items() if "detail.children" in k)
     f = detail["callback"].__wrapped__
     st = _ctx(_r(data), home="0.35")
-    st, _ = lab_update(_r(data), "ctx-note", "Derby", st)
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = f(EPL_FIX, market, "/", lab)[0]  # 6B.2: route argument
+        d = f(EPL_FIX, market, "/", "all", lab)[0]  # 6B.2: route argument
         box = _find(d, lambda c: getattr(c, "id", None) == "ctx-home")[0]
-        note = _find(d, lambda c: getattr(c, "id", None) == "ctx-note")[0]
-        assert box.value == "+0.35" and note.value == "Derby"
-    other = f(PSL_FIX, "1X2", "/", lab)[0]
+        assert box.value == "+0.35"
+    other = f(PSL_FIX, "1X2", "/", "all", lab)[0]
     assert _find(other, lambda c: getattr(c, "id", None) == "ctx-home")[0].value == "0.00"
     layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
     assert '"storage_type":"memory"' in layout
@@ -336,14 +329,27 @@ def test_timedelta_import_used():
     assert timedelta(days=1) == DAY
 
 
-def test_section_b_note_comes_before_inputs_like_section_c(data):
+def test_section_b_guidance_comes_before_inputs_like_section_c(data):
     r, ov, off = data.detail(EPL_FIX)
     d = render_detail(r, ov, off, "1X2", data)
     for acc_cls in ("ctx-acc", "cat-acc"):
         acc = _find(d, lambda c, k=acc_cls: isinstance(c, html.Details) and k in c.className)[0]
-        body = acc.children[1].children
-        kinds = [getattr(c, "className", "") for c in body]
-        assert kinds.index("cat-field wide") < kinds.index("cat-inputs"), acc_cls
+        split = _find(acc, lambda c: getattr(c, "className", None) == "cat-split")[0]
+        left, right = split.children  # guidance column, then the stacked controls
+        assert left.className == "cat-guide-col" and _find(
+            left, lambda c: "cat-guide" in str(getattr(c, "className", ""))
+        ), acc_cls
+        assert right.className == "cat-inputs" and len(right.children) == 2, acc_cls
+        sides = [
+            c.id["side"] if isinstance(c.id, dict) else c.id
+            for c in _find(
+                right,
+                lambda c: (
+                    isinstance(getattr(c, "id", None), (str, dict)) and "slider" not in str(c.id)
+                ),
+            )
+        ]
+        assert [x.replace("ctx-", "") for x in sides] == ["home", "away"], acc_cls
 
 
 def test_recent_form_summary_two_columns(data):

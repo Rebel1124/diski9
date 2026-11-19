@@ -160,7 +160,7 @@ This document supersedes the Phase 6C discussion paper previously at this path.
 
 | Future phase | Integration boundary prepared in 6C |
 |---|---|
-| **Phase 7 — Lucy** (qualitative research, private workspace, validated tools, LiveKit voice, YouTube presenter mode) | A future `diski9.lucy` module behind `require_feature('lucy.*')`; its own tables (workspace, notes, tool-call audit) in a separate schema; read-only access to rounds, snapshots and analysis through service-layer query functions ("validated tools"), never direct writes to competition tables; model-provider and LiveKit credentials server-side only; voice and presenter mode as separate entitlements and, if needed, a separate process using the same database and auth |
+| **Phase 7 — Lucy** (qualitative research, private workspace, validated tools, LiveKit voice, YouTube presenter mode) | Research framed by Match Lab's factor guidance (D-41): Lucy presents verified findings with sources, explains their relevance and uncertainty, and may suggest estimated-goal adjustments within the existing limits that the user explicitly accepts or rejects (see `docs/product/match_lab_factor_guidance.md`). A future `diski9.lucy` module behind `require_feature('lucy.*')`; its own tables (workspace, notes, tool-call audit) in a separate schema; read-only access to rounds, snapshots and analysis through service-layer query functions ("validated tools"), never direct writes to competition tables; model-provider and LiveKit credentials server-side only; voice and presenter mode as separate entitlements and, if needed, a separate process using the same database and auth |
 | **Phase 8 — Champions League, optional Europa League** | New competitions in the league registry, a midweek round schedule version, and a configuration version if the structure changes; snapshots already store competition IDs |
 | **Phase 9 — badges and achievements** | `domain_events` written in Phase 6C; achievements derived later from events and history without changing competition tables |
 | **Premium features** | `entitlement_grants.source = 'subscription'` and validity periods; a future billing integration writes grants only; no payment code in 6C |
@@ -175,3 +175,31 @@ This document supersedes the Phase 6C discussion paper previously at this path.
 | Continuous integration | Add a CI workflow with a PostgreSQL service (the repository has none today) | 6C.1 |
 | Football-store migration timing | Before hosted deployment (late 6D or Phase 10), separately approved | Before Phase 10 |
 | D-29 collection activation | Branch, schedules and the collector task (proposal §11) | Before 26 November |
+
+## 10. Implementation decisions taken in Phase 6C.1
+
+| Topic | Decision |
+|---|---|
+| PostgreSQL version | 17 locally (Docker Compose) and in CI; schema compatible with 13+ (tested on 16 as well) |
+| Driver | psycopg 3 (`postgresql+psycopg://`); other URLs are rejected |
+| Migrations | Separate Alembic environment `migrations_app/`; version table `public.app_alembic_version` (survives a schema drop); revisions written as explicit SQL; the SQLAlchemy mirror `diski9.backend.db.schema` is checked against the migrated database by a test |
+| Package layout | `diski9.backend.db` (settings, engine, transactions, migrate, schema) and `diski9.backend.repositories` (plain functions over an open connection); services, auth and jobs packages are added in later stages |
+| Sessions | UTC, statement timeout 15 s, lock timeout 5 s, pre-ping, pool 5 + 5 per process |
+| Deadline foundation | Insert trigger on submissions (open status and `transaction_timestamp() < deadline_at`); `FOR SHARE` on the round for submissions, `FOR UPDATE` for status changes |
+| Job overlap | Transaction-scoped advisory locks on `(job, scope)` |
+| Privileges | Runtime role `diski9_app`: SELECT and INSERT on history, narrow UPDATE on guarded tables, full DML on projections, no TRUNCATE; created outside migrations |
+| Credentials | Environment or untracked `.env`; never logged (URLs rendered without passwords, validation errors hide input) |
+| Tests | `tests/backend` on real PostgreSQL; skipped locally without `DISKI9_APP_TEST_DATABASE_URL`, mandatory in CI (`DISKI9_REQUIRE_POSTGRES=1`) |
+
+## 11. Implementation decisions taken in Phase 6C.2
+
+| Topic | Decision |
+|---|---|
+| Identity provider integration | Supabase Auth via the official `supabase-auth` Python client, server-side only, behind the provider-neutral `AuthProvider` adapter |
+| Email links | token_hash links to `/auth/confirm` verified with `verify_otp` (works across devices), behind a confirm button |
+| Token verification | `get_claims` with a cached JWKS (ES256/RS256), plus issuer, audience, role, subject and algorithm checks |
+| Sessions | Diski 9 server-side sessions (hashed opaque tokens; 14-day idle; 30-day absolute; rotation; revocation); provider tokens encrypted at rest and refreshed under a row lock |
+| Authorisation | `Principal` loaded per request from the database; deny-by-default capabilities; independent entitlements; 12-hour operator recency; 15-minute re-authentication for sensitive operations (T-14, approved) |
+| Web protections | CSRF tokens on forms; Origin checks on every cookie-bearing state change including Dash callbacks; safe relative redirects; strict CSP and no-store on account pages |
+| Supabase database | Row-level security on every `app` table, access only for `diski9_app`; `app` not exposed to `anon`/`authenticated`; direct or session-pooler connections recommended; transaction-pooler mode supported (`DISKI9_APP_POOLER_MODE=transaction`) |
+| Local development | Supabase CLI stack on a Mac (`supabase/config.toml`), or the Docker-free harness `tools/local_auth` (real Supabase Auth server) |

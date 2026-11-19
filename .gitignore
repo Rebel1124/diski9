@@ -18,3 +18,10 @@ data/
 *.sqlite
 *.sqlite3
 *.db
+tmp/
+supabase/signing_keys.json
+supabase/.temp/
+supabase/.branches/
+
+# local browser-journey account (throw-away, local Supabase Auth only)
+tools/e2e_6c3/owner.json

@@ -349,8 +349,265 @@ def cmd_refresh_data(args, engine) -> None:
 def cmd_serve(args, engine) -> None:
     from diski9.app import ScreenerData, create_app
 
-    app = create_app(ScreenerData(engine, ttl_seconds=args.ttl, tz=args.tz))
+    auth = None
+    from diski9.backend.auth.settings import AuthSettings
+
+    auth_settings = AuthSettings()
+    if auth_settings.enabled:
+        from diski9.backend.auth.web import AuthRuntime
+        from diski9.backend.db import make_app_engine
+
+        auth = AuthRuntime.create(make_app_engine(), auth_settings)
+        print("Accounts enabled (Supabase Auth)")
+    else:
+        print("Accounts disabled: DISKI9_SUPABASE_AUTH_URL / _PUBLISHABLE_KEY not set (guest mode)")
+    app = create_app(ScreenerData(engine, ttl_seconds=args.ttl, tz=args.tz), auth=auth)
     app.run(host=args.host, port=args.port, debug=args.debug)
+
+
+def cmd_account(args) -> int:
+    """Server-side account administration. There is no web equivalent: these need
+    shell access to the server and its database credentials."""
+    from diski9.backend.auth import privileged as pv
+
+    if args.action == "generate-keys":
+        import secrets as _s
+
+        from diski9.backend.auth.crypto import generate_fernet_key
+
+        print(f"DISKI9_APP_SECRET_KEY={_s.token_urlsafe(48)}")
+        print(f"DISKI9_APP_TOKEN_ENCRYPTION_KEY={generate_fernet_key()}")
+        print("# put these in your untracked .env (or the host's secret store); never commit them")
+        return 0
+    from diski9.backend.auth.sessions import revoke_all_sessions
+    from diski9.backend.db import make_app_engine, transaction
+
+    engine = make_app_engine()
+    try:
+        with transaction(engine) as conn:
+            if args.action == "list-privileged":
+                from sqlalchemy import select
+
+                from diski9.backend.db.schema import profiles, user_roles
+
+                rows = conn.execute(
+                    select(user_roles.c.role, profiles.c.username, user_roles.c.granted_at)
+                    .join(profiles, profiles.c.user_id == user_roles.c.user_id)
+                    .order_by(user_roles.c.role, profiles.c.username)
+                ).all()
+                for r in rows:
+                    print(f"{r.role:8} {r.username} (since {r.granted_at:%Y-%m-%d})")
+                if not rows:
+                    print("no operators or owners")
+                return 0
+            if not args.email:
+                print("error: --email is required", file=sys.stderr)
+                return 2
+            target = pv.find_user_by_email(conn, args.email)
+            if args.action == "bootstrap-owner":
+                if not args.confirm:
+                    print("error: add --confirm to grant the first owner role", file=sys.stderr)
+                    return 2
+                pv.bootstrap_owner(conn, target, args.reason or "initial owner bootstrap")
+                print("owner role granted (first owner); lucy.* entitlements granted")
+                return 0
+            if not (args.by_email and args.reason):
+                print(
+                    "error: --by-email (an owner, or operator for status changes) and "
+                    "--reason are required",
+                    file=sys.stderr,
+                )
+                return 2
+            actor = pv.find_user_by_email(conn, args.by_email)
+            if args.action == "grant-role":
+                pv.grant_role(conn, actor, target, args.role, args.reason)
+            elif args.action == "revoke-role":
+                pv.revoke_role(conn, actor, target, args.role, args.reason)
+            elif args.action == "grant-feature":
+                pv.grant_feature(conn, actor, target, args.feature, args.reason)
+            elif args.action == "revoke-feature":
+                pv.revoke_feature(conn, actor, target, args.feature, args.reason)
+            elif args.action in ("suspend", "reinstate"):
+                pv.set_status(
+                    conn,
+                    actor,
+                    target,
+                    "suspended" if args.action == "suspend" else "active",
+                    args.reason,
+                    revoke_all_sessions,
+                )
+            print(f"{args.action}: done (audited)")
+            return 0
+    except pv.PrivilegeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    finally:
+        engine.dispose()
+
+
+def cmd_round(args) -> int:
+    """Weekly round administration through the server CLI (Phase 6C.3). Publication
+    and lock run the same services and checks as any other caller; nothing here can
+    change a published snapshot or deadline."""
+    from datetime import timedelta
+
+    from diski9.backend.auth import privileged as pv
+    from diski9.backend.db import BackendDatabaseSettings, db_now, make_app_engine, transaction
+    from diski9.backend.services import rounds as svc
+    from diski9.backend.services.common import ServiceError, cli_principal
+
+    settings = BackendDatabaseSettings()
+    engine = make_app_engine(settings)
+
+    def actor():
+        if not args.by_email:
+            raise ServiceError("--by-email (an operator or owner) is required", code="usage")
+        with transaction(engine) as conn:
+            uid = pv.find_user_by_email(conn, args.by_email)
+            return cli_principal(conn, uid, db_now(conn))
+
+    def show(v) -> None:
+        print(
+            f"{v.code}  status={v.status}  development={v.is_development}  "
+            f"deadline={v.deadline_at:%Y-%m-%d %H:%M UTC}  "
+            if v.deadline_at
+            else f"{v.code}  status={v.status}  development={v.is_development}  ",
+            end="",
+        )
+        print(
+            f"designation={v.designation or '-'}  valid_entries="
+            f"{'-' if v.valid_entries is None else v.valid_entries}  "
+            f"fingerprint={v.fingerprint or '-'}"
+        )
+
+    try:
+        if args.action == "list":
+            for v in svc.list_rounds(engine):
+                show(v)
+            return 0
+        if args.action == "show":
+            show(svc.get_round(engine, svc.round_id_for_code(engine, args.code)))
+            return 0
+        if args.action == "create":
+            year, week = (int(x) for x in args.week.split("-W"))
+            start, end = svc.schedule_window(engine, year, week)
+            v = svc.create_round(
+                engine,
+                actor(),
+                code=f"{year}-W{week:02d}-weekend",
+                window_start=start,
+                window_end=end,
+            )
+            show(v)
+            return 0
+        if args.action == "publish":
+            from diski9.app.data import LEAGUE_SHORT
+            from diski9.challenge.roundsheet import build_live_snapshot
+
+            p = actor()
+            rid = svc.round_id_for_code(engine, args.code)
+            r = svc.get_round(engine, rid)
+            football = make_engine(args.database_url)
+            with transaction(engine) as conn:
+                now = db_now(conn)
+            snap = build_live_snapshot(
+                football, now, r.window_start_at, r.window_end_at, r.code, LEAGUE_SHORT
+            )
+            show(svc.publish_round(engine, p, rid, snap, source="football-db"))
+            return 0
+        if args.action == "dev-open":
+            from diski9.backend.devdata import dev_snapshot
+
+            if settings.environment == "production":
+                raise ServiceError("development rounds are refused in production", code="usage")
+            p = actor()
+            with transaction(engine) as conn:
+                now = db_now(conn)
+            first = now + timedelta(minutes=args.deadline_minutes + 15)
+            code = args.code or f"dev-{now:%Y%m%d-%H%M%S}"
+            if args.fixtures < 0:
+                raise ServiceError("--fixtures must be 0 (no cap) or more", code="usage")
+            if args.mirror_upcoming:
+                from diski9.app.data import LEAGUE_SHORT
+                from diski9.backend.devdata import mirror_snapshot
+
+                snap = mirror_snapshot(
+                    code,
+                    now,
+                    make_engine(args.database_url),
+                    earliest_kickoff=first,
+                    fixtures=args.fixtures,
+                    seed=args.seed,
+                    league_names=LEAGUE_SHORT,
+                )
+            else:
+                snap = dev_snapshot(code, now, first, seed=args.seed)
+            v = svc.create_round(
+                engine,
+                p,
+                code=code,
+                window_start=snap.window[0],
+                window_end=snap.window[1],
+                development=True,
+            )
+            show(svc.publish_round(engine, p, v.id, snap, source="development"))
+            print(
+                "Development round: synthetic odds"
+                + (" on real upcoming fixtures." if args.mirror_upcoming else " and fixtures.")
+            )
+            return 0
+        if args.action == "lock":
+            who = actor() if args.by_email else svc.SYSTEM
+            res = svc.lock_round(engine, who, svc.round_id_for_code(engine, args.code))
+            show(res.round)
+            print(
+                "already locked; nothing changed"
+                if res.already_locked
+                else f"locked {res.locked_entries} entries"
+            )
+            return 0
+    except (ServiceError, pv.PrivilegeError) as exc:
+        print(f"error: {getattr(exc, 'message', exc)}", file=sys.stderr)
+        details = getattr(exc, "details", None)
+        if details:
+            print(json.dumps(details, indent=2, default=str), file=sys.stderr)
+        return 2
+    finally:
+        engine.dispose()
+    return 2
+
+
+def cmd_app_db(args) -> int:
+    """Competition database (PostgreSQL) commands. Never touches the SQLite store."""
+    from diski9.backend.db import BackendDatabaseSettings, check_health, make_app_engine, migrate
+
+    settings = BackendDatabaseSettings()
+    url = settings.url()
+    if args.action == "upgrade":
+        migrate.upgrade(url, args.revision or "head")
+        print(f"competition schema at {migrate.current(url)} ({settings.safe_url()})")
+    elif args.action == "downgrade":
+        if not args.revision:
+            print("error: downgrade needs --revision (for example: base)", file=sys.stderr)
+            return 2
+        if settings.environment == "production":
+            print("error: downgrade is disabled in production", file=sys.stderr)
+            return 2
+        migrate.downgrade(url, args.revision)
+        print(f"competition schema at {migrate.current(url)} ({settings.safe_url()})")
+    elif args.action == "current":
+        print(f"current {migrate.current(url)}; head {migrate.head()}")
+    elif args.action == "check":
+        engine = make_app_engine(settings)
+        try:
+            health = check_health(engine)
+        finally:
+            engine.dispose()
+        health["head"] = migrate.head()
+        health["up_to_date"] = health["schema_revision"] == health["head"]
+        print(_json(health))
+        return 0 if health["up_to_date"] else 1
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -471,12 +728,71 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out-dir", default=None)
     s.add_argument("--out", default=None)
     s.set_defaults(func=cmd_analyse_odds_trial)
+
+    s = sub.add_parser(
+        "account", help="server-side account administration (owner bootstrap, roles)"
+    )
+    s.add_argument(
+        "action",
+        choices=[
+            "generate-keys",
+            "list-privileged",
+            "bootstrap-owner",
+            "grant-role",
+            "revoke-role",
+            "grant-feature",
+            "revoke-feature",
+            "suspend",
+            "reinstate",
+        ],
+    )
+    s.add_argument("--email", help="the account to change (its verified email address)")
+    s.add_argument("--by-email", help="the acting owner or operator (verified email address)")
+    s.add_argument("--role", choices=["operator", "owner"])
+    s.add_argument("--feature", help="for example lucy.research")
+    s.add_argument("--reason", help="recorded in the audit log")
+    s.add_argument("--confirm", action="store_true", help="required for bootstrap-owner")
+
+    s = sub.add_parser("round", help="weekly rounds: create, publish, lock (competition DB)")
+    s.add_argument("action", choices=["list", "show", "create", "publish", "lock", "dev-open"])
+    s.add_argument("--code", help="round code, for example 2026-W48-weekend")
+    s.add_argument("--week", help="ISO week for create, for example 2026-W48")
+    s.add_argument("--by-email", help="the acting operator or owner (verified email address)")
+    s.add_argument("--seed", type=int, default=2026, help="dev-open: fixture seed")
+    s.add_argument(
+        "--deadline-minutes",
+        type=int,
+        default=120,
+        help="dev-open: minutes from now until the submission deadline (at the earliest)",
+    )
+    s.add_argument(
+        "--mirror-upcoming",
+        action="store_true",
+        help="dev-open: real upcoming fixtures from the football store, synthetic odds",
+    )
+    s.add_argument(
+        "--fixtures",
+        type=int,
+        default=20,
+        help="dev-open --mirror-upcoming: number of fixtures, earliest kickoffs first "
+        "(0 = every upcoming fixture within seven days of the first allowed kickoff)",
+    )
+
+    s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
+    s.add_argument("action", choices=["upgrade", "downgrade", "current", "check"])
+    s.add_argument("--revision", default=None, help="target revision (default head)")
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
+    if args.command == "app-db":
+        return cmd_app_db(args)
+    if args.command == "account":
+        return cmd_account(args)
+    if args.command == "round":
+        return cmd_round(args)
     engine = make_engine(args.database_url)
     from diski9.ingestion.common import MissingReferenceData
     from diski9.workflow import SetupIncomplete

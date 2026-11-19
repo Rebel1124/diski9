@@ -247,14 +247,13 @@ def test_category_slider_counts_once_and_reconciles_with_manual(data, adjust):
     assert out[7][idx] == "0.00" and out[14][idx] == 0.0
 
 
-def test_reset_clears_sliders_keeps_notes(data, adjust):
+def test_reset_clears_sliders(data, adjust):
     lab = _cb(data, "ctx-away-slider.value", -0.6, {})[0]
     lab = _cb(data, {"type": "cat-slider", "cat": "squad", "side": "home"}, 1.0, lab)[0]
-    lab = _cb(data, "ctx-note.value", "Derby day", lab)[0]
     out = _cb(data, "lab-reset.n_clicks", 1, lab)
     _, box_a, _, sl_a, cats = _slider_out(out)
     assert (box_a, sl_a) == ("0.00", 0.0) and all(v == 0.0 for v in cats)
-    assert out[0][str(EPL_FIX)]["context"]["note"] == "Derby day"
+    assert str(EPL_FIX) not in out[0]  # nothing left to keep: the fixture's entry is removed
 
 
 FITNESS_AWAY = {"type": "cat-slider", "cat": "fitness", "side": "away"}

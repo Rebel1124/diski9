@@ -1,0 +1,170 @@
+"""Phase 6C.3 Stage G: database upgrade paths on a separate PostgreSQL database.
+
+* fresh installation to the head revision;
+* upgrade from Phase 6C.2 (``app_0002``) with accounts and Your View rows;
+* upgrade from the Stage D checkpoint (``app_0003``) with a published round, a
+  versioned draft, a confirmed entry and Your View rows;
+* downgrade to each earlier revision and re-upgrade, data kept;
+* a new engine (application restart) reconstructs everything from PostgreSQL.
+
+The session test database is left untouched: this module creates and drops its
+own ``*_upgrade_test`` database on the same server.
+"""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+from pg_helpers import confirm, make_round, make_user
+from sqlalchemy import create_engine, pool, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import DBAPIError
+
+from diski9.backend.db import migrate
+
+
+@pytest.fixture
+def fresh_url(pg_url):
+    url = make_url(pg_url)
+    name = "diski9_upgrade_test"
+    admin = create_engine(url.set(database="postgres"), poolclass=pool.NullPool,
+                          isolation_level="AUTOCOMMIT")  # fmt: skip
+    try:
+        with admin.connect() as conn:
+            conn.execute(text(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
+            conn.execute(text(f"CREATE DATABASE {name}"))
+    except DBAPIError as exc:  # e.g. no CREATEDB privilege on this server
+        admin.dispose()
+        pytest.skip(f"cannot create the separate upgrade-test database: {exc.orig}")
+    target = url.set(database=name).render_as_string(hide_password=False)
+    yield target
+    with admin.connect() as conn:
+        conn.execute(text(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
+    admin.dispose()
+
+
+def _eng(url):
+    return create_engine(url, poolclass=pool.NullPool)
+
+
+STATE = {"context": {"home": 0.2, "away": -0.1}, "cats": {}, "manual": {"home": 0, "away": 0}}
+
+
+def _counts(url):
+    with _eng(url).connect() as conn:
+        return {
+            t: conn.execute(text(f"SELECT count(*) FROM app.{t}")).scalar_one()
+            for t in ("users", "profiles", "user_identities", "your_view_adjustments",
+                      "rounds", "portfolio_drafts", "entries", "submissions")
+        }  # fmt: skip
+
+
+def test_fresh_installation_reaches_head(fresh_url):
+    migrate.upgrade(fresh_url)
+    assert migrate.current(fresh_url) == migrate.head() == "app_0005"
+    with _eng(fresh_url).connect() as conn:
+        rule = conn.execute(
+            text(
+                "SELECT publish_rule FROM app.round_schedules WHERE code='weekend' "
+                "ORDER BY version DESC LIMIT 1"
+            )  # fmt: skip
+        ).scalar_one()
+    assert rule == {"weekday": "friday", "time": "08:00", "tz": "Africa/Johannesburg"}
+
+
+def test_upgrade_from_phase_6c2_keeps_accounts_and_your_view(fresh_url):
+    migrate.upgrade(fresh_url, "app_0002")
+    eng = _eng(fresh_url)
+    with eng.begin() as conn:
+        uid = make_user(conn)
+        conn.execute(
+            text("INSERT INTO app.your_view_adjustments (user_id, fixture_id, model_context, "
+                 "state) VALUES (:u, 4242, '1.0|4242|1.31|1.02', CAST(:s AS jsonb))"),
+            {"u": uid, "s": json.dumps(STATE)},
+        )  # fmt: skip
+    migrate.upgrade(fresh_url)
+    assert migrate.current(fresh_url) == "app_0005"
+    with eng.connect() as conn:
+        row = conn.execute(
+            text("SELECT context_kind, snapshot_id, version, model_context, state "
+                 "FROM app.your_view_adjustments WHERE user_id = :u"), {"u": uid}
+        ).one()  # fmt: skip
+        assert conn.execute(text("SELECT count(*) FROM app.profiles WHERE user_id=:u"),
+                            {"u": uid}).scalar_one() == 1  # fmt: skip
+    assert row.context_kind == "unassigned" and row.snapshot_id is None
+    assert row.model_context == "1.0|4242|1.31|1.02" and row.state == STATE  # exact numbers
+    # downgrade to 6C.2 and back: still there
+    migrate.downgrade(fresh_url, "app_0002")
+    migrate.upgrade(fresh_url)
+    with eng.connect() as conn:
+        state = conn.execute(
+            text("SELECT state FROM app.your_view_adjustments WHERE user_id=:u"), {"u": uid}
+        ).scalar_one()
+    assert state == STATE
+    eng.dispose()
+
+
+def test_upgrade_from_stage_d_checkpoint_keeps_rounds_drafts_and_entries(fresh_url):
+    migrate.upgrade(fresh_url, "app_0003")
+    eng = _eng(fresh_url)
+    with eng.begin() as conn:
+        uid = make_user(conn)
+        rid, snap_id, fids = make_round(conn)
+        sels = [{"fixture_id": f, "market": "1X2", "outcome": "HOME"} for f in fids]
+        conn.execute(
+            text("INSERT INTO app.portfolio_drafts (user_id, round_id, selections, version, "
+                 "updated_at) VALUES (:u, :r, CAST(:s AS jsonb), 4, now())"),
+            {"u": uid, "r": rid, "s": json.dumps(sels)},
+        )  # fmt: skip
+        other = make_user(conn)
+        confirm(conn, rid, snap_id, fids, other)
+        conn.execute(
+            text("INSERT INTO app.your_view_adjustments (user_id, fixture_id, model_context, "
+                 "state, version) VALUES (:u, :f, '1.0|x|1.10|0.90', CAST(:s AS jsonb), 3)"),
+            {"u": uid, "f": fids[0], "s": json.dumps(STATE)},
+        )  # fmt: skip
+    before = _counts(fresh_url)
+    migrate.upgrade(fresh_url)
+    assert _counts(fresh_url) == before  # nothing lost or duplicated
+    with eng.connect() as conn:
+        d = conn.execute(
+            text("SELECT selections, version, writer_tab FROM app.portfolio_drafts "
+                 "WHERE user_id=:u"), {"u": uid}
+        ).one()  # fmt: skip
+        sub = conn.execute(
+            text("SELECT s.version, s.max_gross FROM app.entries e JOIN app.submissions s "
+                 "ON s.id = e.current_submission_id WHERE e.user_id=:u"), {"u": other}
+        ).one()  # fmt: skip
+        yv = conn.execute(
+            text("SELECT context_kind, version, state FROM app.your_view_adjustments "
+                 "WHERE user_id=:u"), {"u": uid}
+        ).one()  # fmt: skip
+        dev = conn.execute(
+            text("SELECT is_development FROM app.rounds WHERE id=:r"), {"r": rid}
+        ).scalar_one()
+    assert d.selections == sels and d.version == 4 and d.writer_tab is None
+    assert sub.version == 1
+    assert (yv.context_kind, yv.version, yv.state) == ("unassigned", 3, STATE)
+    assert dev is False
+    # Submissions stay immutable after the upgrade.
+    with (
+        pytest.raises(Exception, match="(?i)immutable|not allowed|cannot|denied|forbid"),
+        eng.begin() as conn,
+    ):
+        conn.execute(text("UPDATE app.submissions SET max_gross = max_gross + 1"))
+    # downgrade to the checkpoint and re-upgrade: same data
+    migrate.downgrade(fresh_url, "app_0003")
+    migrate.upgrade(fresh_url)
+    assert _counts(fresh_url) == before
+    eng.dispose()
+    # "Restart": a brand-new engine reads the same state.
+    eng2 = _eng(fresh_url)
+    with eng2.connect() as conn:
+        assert (
+            conn.execute(
+                text("SELECT version FROM app.portfolio_drafts WHERE user_id=:u"), {"u": uid}
+            ).scalar_one()
+            == 4
+        )
+    eng2.dispose()

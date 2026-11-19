@@ -1,5 +1,10 @@
 # Engine 3.0 UI/UX refinement
 
+> **Superseded in part (D-41, November 2026):** the research notes and the
+> "Why are you making this adjustment?" field described below were replaced by
+> static guidance per factor. See
+> [`product/match_lab_factor_guidance.md`](product/match_lab_factor_guidance.md).
+
 *November 2026. Presentation and interaction only: Goal Model 1.0, its frozen
 parameters (k_s 12, k_t 96, m0 30), the database schema, the forecast snapshots
 and monitoring are unchanged.*

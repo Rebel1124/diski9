@@ -1,0 +1,103 @@
+# Automated repository checks (T-13): lint, formatting and the full test suite,
+# including the competition-backend tests against a real PostgreSQL service.
+# No football-API credentials are provided or needed: tests use recorded fixtures
+# and mock transports, so CI never spends the API allowance.
+name: CI
+
+on:
+  push:
+    branches: [main, "feature/**", "research/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: diski9
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: diski9_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U diski9 -d diski9_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DISKI9_APP_ENVIRONMENT: test
+      DISKI9_APP_TEST_DATABASE_URL: postgresql+psycopg://diski9:ci-only-password@localhost:5432/diski9_test
+      DISKI9_REQUIRE_POSTGRES: "1"
+      # Point any accidental football-API call at a closed port: tests must stay offline.
+      DISKI9_API_FOOTBALL_BASE_URL: http://127.0.0.1:9/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.11.32"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Formatting
+        run: uv run ruff format --check .
+
+      - name: Competition schema migrates cleanly from an empty database
+        env:
+          DISKI9_APP_DATABASE_URL: postgresql+psycopg://diski9:ci-only-password@localhost:5432/diski9_test
+        run: |
+          uv run diski9 app-db upgrade
+          uv run diski9 app-db upgrade
+          uv run diski9 app-db check
+          uv run diski9 app-db downgrade --revision base
+          uv run diski9 app-db upgrade
+
+      - name: Start a real Supabase Auth server (official image) for integration tests
+        env:
+          SUPABASE_AUTH_IMAGE: supabase/gotrue:v2.198.0
+        run: |
+          docker pull -q "$SUPABASE_AUTH_IMAGE"
+          bin=$(docker run --rm --entrypoint sh "$SUPABASE_AUTH_IMAGE" -c 'command -v auth || command -v gotrue')
+          docker create --name supabase-auth "$SUPABASE_AUTH_IMAGE" >/dev/null
+          docker cp "supabase-auth:$bin" ./supabase-auth-bin
+          docker rm supabase-auth >/dev/null
+          uv run python tools/local_auth/local_auth.py prepare \
+            --admin-url postgresql://diski9:ci-only-password@localhost:5432/postgres
+          # the project interpreter directly (not `uv run`), so the long-running server
+          # does not hold uv's cache lock when the job's cache clean-up runs
+          nohup .venv/bin/python tools/local_auth/local_auth.py run --gotrue ./supabase-auth-bin \
+            --auth-db-url postgres://supabase_auth_admin:local-auth-only@localhost:5432/diski9_auth_local \
+            > supabase-auth.log 2>&1 &
+          for i in $(seq 1 90); do
+            if [ -f tmp/local_auth/env ] && curl -sf http://127.0.0.1:9999/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:9999/health || (cat supabase-auth.log; exit 1)
+          cat tmp/local_auth/env >> "$GITHUB_ENV"
+          echo "DISKI9_TEST_SUPABASE_DB_URL=postgresql+psycopg://diski9:ci-only-password@localhost:5432/diski9_auth_local" >> "$GITHUB_ENV"
+          echo "DISKI9_REQUIRE_SUPABASE_AUTH=1" >> "$GITHUB_ENV"
+
+      - name: Test suite (PostgreSQL and real Supabase Auth integration tests)
+        run: uv run pytest -q -p no:cacheprovider -rs
+
+      - name: Stop the Supabase Auth server
+        if: always()
+        run: |
+          pkill -f tools/local_auth/local_auth.py || true
+          pkill -f supabase-auth-bin || true

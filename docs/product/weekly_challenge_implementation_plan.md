@@ -58,8 +58,9 @@ fix for taps swallowed during the builder's mount. See `docs/weekly_challenge_ui
 The original 6C–6H lettering below describes the full build-out and is kept for
 reference. The owner has confirmed the next two phases and their backlog:
 
-**Phase 6C — production foundations (requirements and acceptance criteria
-updated at the Phase 6C preparation review).** The staged delivery (6C.1
+**Phase 6C — production foundations.** Status: 6C.0 (research collector) and
+6C.1 (PostgreSQL foundation) implemented; 6C.2 onwards not started. Requirements
+and acceptance criteria were updated at the Phase 6C preparation review. The staged delivery (6C.1
 PostgreSQL foundation to 6C.6 administration and integration testing), with
 deliverables, dependencies, files, tests, risks and review points per stage, is
 in the [Phase 6C staged plan](weekly_challenge_phase6c_plan.md). Direction

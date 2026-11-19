@@ -22,6 +22,8 @@ from dash.exceptions import PreventUpdate
 
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DIRECTIONS
 
+from . import lab_context
+from .challenge import lab_persist
 from .challenge.callbacks import nav_links
 from .challenge.callbacks import register as register_challenge
 from .challenge.components import page_header
@@ -47,7 +49,6 @@ from .lab import (
     ADJUST_MAX,
     CATEGORY_MAX,
     CONTEXT_MAX,
-    NOTE_MAX,
     SIDES,
     adjustment_text,
     baseline_rounded,
@@ -209,7 +210,10 @@ def threshold_config(market: str, direction: str, preferred: float | None = 0) -
     }
 
 
-def create_app(data: ScreenerData) -> Dash:
+def create_app(data: ScreenerData, auth=None) -> Dash:
+    """The Dash app. With ``auth`` (an ``AuthRuntime``), sign-in, accounts and the
+    account menu are enabled; without it the app runs exactly as before (guests
+    only, browser-session prototype)."""
     app = Dash(
         __name__,
         assets_folder=str(ASSETS),
@@ -219,12 +223,35 @@ def create_app(data: ScreenerData) -> Dash:
         suppress_callback_exceptions=True,
     )
     app.server.config["DISKI9_DATA"] = data
-    service = ChallengeService(data)
+    service = ChallengeService(data, backend=competition_backend(auth))
     app.server.config["DISKI9_CHALLENGE"] = service
     app.layout = lambda: build_shell(data, service)
     register_callbacks(app, data, service)
     register_challenge(app, data, service)
+    if auth is not None:
+        from diski9.backend.auth.web import init_auth
+
+        init_auth(app.server, auth)
     return app
+
+
+def competition_backend(auth):
+    """The persistent competition (Phase 6C.3) when accounts are configured: the
+    published round, drafts, entries and Your View come from the competition
+    database. Development rounds are shown only when explicitly enabled outside
+    production (``DISKI9_SHOW_DEVELOPMENT_ROUNDS=1``)."""
+    if auth is None:
+        return None
+    import os
+
+    from diski9.backend.db.settings import BackendDatabaseSettings
+
+    from .challenge.persist import Backend
+
+    show_dev = os.environ.get("DISKI9_SHOW_DEVELOPMENT_ROUNDS") == "1"
+    if show_dev and BackendDatabaseSettings().environment == "production":
+        raise RuntimeError("DISKI9_SHOW_DEVELOPMENT_ROUNDS is refused in production")
+    return Backend(auth.engine, show_development=show_dev)
 
 
 def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> html.Div:
@@ -243,6 +270,7 @@ def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> 
                     [
                         html.Span("Diski 9", className="nav-brand"),
                         html.Div(nav_links("/"), id="site-nav-links", className="nav-links"),
+                        *account_menu(),
                     ],
                     className="nav-inner",
                 ),
@@ -259,8 +287,54 @@ def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> 
             dcc.Store(id="ch-flash", storage_type="memory"),
             dcc.Store(id="ch-rendered", storage_type="memory"),
             dcc.Store(id="ch-fxpage", storage_type="memory", data=1),
+            dcc.Store(id="d9-adopt", storage_type="session"),
+            html.Div(id="adopt-root"),
         ]
     )
+
+
+def account_menu() -> list:
+    """Sign-in links or the signed-in account menu, rendered on the server for this
+    request (empty when authentication is not configured). Shows only the username;
+    never an email address or internal identifier."""
+    from flask import current_app, has_request_context
+
+    if not has_request_context() or "DISKI9_AUTH" not in current_app.config:
+        return []
+    from diski9.backend.auth.web import current_principal, owner_tag
+
+    p = current_principal()
+    marker = html.Div(id="d9-owner", hidden=True, **{"data-owner": owner_tag()})
+    if not p.is_authenticated:
+        links = [
+            html.A("Sign in", href="/auth/sign-in", className="acct-link"),
+            html.A("Create account", href="/auth/sign-up", className="acct-link primary"),
+        ]
+        return [html.Div([*links, marker], className="nav-account")]
+    label = p.username if p.onboarded else "Finish set-up"
+    items = [
+        html.Div("Signed in" if p.onboarded else "Account set-up incomplete", className="acct-who"),
+        html.A(
+            "Account settings" if p.onboarded else "Finish setting up",
+            href="/account" if p.onboarded else "/account/welcome",
+        ),
+        html.A("Sign out", href="/auth/sign-out"),
+    ]
+    summary = [icon("circle-user", "acct-ic"), html.Span(label, className="acct-name")] + (
+        [] if p.onboarded else [html.Span("Action needed", className="acct-badge")]
+    )
+    return [
+        html.Div(
+            [
+                html.Details(
+                    [html.Summary(summary), html.Div(items, className="acct-panel")],
+                    className="acct-menu",
+                ),
+                marker,
+            ],
+            className="nav-account",
+        )
+    ]
 
 
 def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
@@ -401,6 +475,7 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                 ],
                 className="filters",
             ),
+            html.Div(id="data-context"),
             html.Div(id="ch-strip"),
             html.Div(id="legend", className="legend"),
             html.Div(
@@ -490,14 +565,14 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
     """Pure logic behind the Match Lab callback: the fixture's new user state and any
     messages about input that could not be used.
 
-    * a match-context adjustment or note (Section B) updates Section B only;
-      "Clear Section B adjustments" clears its numbers (the note is kept)
-    * a category adjustment or note (Section C) updates that category only
+    * a match-context adjustment (Section B) updates Section B only;
+      "Clear Section B adjustments" clears its numbers
+    * a category adjustment (Section C) updates that category only
     * the compact B / C sliders and their number boxes are two views of ONE value:
       either trigger sets it, and the callback writes it back to both
     * a slider or box (Section D) sets the *final* estimate: the manual adjustment
       becomes final - baseline - Section B - Section C, so nothing is counted twice
-    * Reset clears all adjustments in B, C and D (notes are kept)
+    * Reset clears all adjustments in B, C and D
     """
     base_r = baseline_rounded(r)
     state = normalise_state(stored, base_r)
@@ -511,9 +586,6 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
         return state, messages
     if trigger == "ctx-clear":
         state["context"]["home"] = state["context"]["away"] = 0.0
-        return state, messages
-    if trigger == "ctx-note":
-        state["context"]["note"] = str(value or "").strip()[:NOTE_MAX]
         return state, messages
     if trigger in ("ctx-home", "ctx-away", "ctx-home-slider", "ctx-away-slider"):
         side = trigger.split("-")[1]  # slider and box share one Section B value
@@ -537,11 +609,6 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
                 )
             else:
                 state["cats"][key][side] = v
-        return state, messages
-    if isinstance(trigger, dict) and trigger.get("type") == "cat-note":
-        key = trigger.get("cat")
-        if key in state["cats"]:
-            state["cats"][key]["note"] = str(value or "").strip()[:NOTE_MAX]
         return state, messages
     for side in ("home", "away"):
         if trigger in (f"lab-{side}-slider", f"lab-{side}-input"):
@@ -725,20 +792,36 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
     @app.callback(
         Output("detail", "children"),
         Output("detail-reference", "children"),
+        Output("lab-store", "data", allow_duplicate=True),
         Input("selected", "data"),
         Input("market", "value"),
         Input("url", "pathname"),
+        Input("universe", "value"),
         State("lab-store", "data"),
+        prevent_initial_call="initial_duplicate",
     )
-    def update_detail(fid, market, path, lab):
+    def update_detail(fid, market, path, universe, lab):
         """The Match Lab is unmounted while another page shows (its large tree inside
         the hidden Screener slowed every Weekly Challenge tap) and rebuilt from the
-        selection and the Match Lab store on return, so nothing is lost."""
+        selection and the Match Lab store on return, so nothing is lost. The context
+        (frozen Weekly Challenge snapshot or latest data) decides the baseline and
+        which Your View is shown; a signed-in participant's saved Your View for that
+        context is loaded from the account (Phase 6C.3)."""
         if (path or "/").rstrip("/") not in ("", "/"):
-            return (None, None) if ctx.triggered_id == "url" else (no_update, no_update)
-        r, ov, official = data.detail(fid) if fid else (None, None, {})
-        adj = stored_adjustment(lab, fid, r) if fid else None
-        return split_detail(render_detail(r, ov, official, market, data, adj))
+            if ctx.triggered_id == "url":
+                return None, None, no_update
+            return no_update, no_update, no_update
+        lc = lab_context.resolve(service, data, fid, universe) if fid else None
+        new_lab = no_update
+        if lc is not None and lc.r is not None:
+            hydrated = lab_persist.load(service, lab, lc)
+            if hydrated is not None:
+                lab, new_lab = hydrated, hydrated
+        r = lc.r if lc else None
+        _, ov, official = data.detail(fid) if fid else (None, None, {})
+        adj = stored_adjustment(lab, lc.key, r) if lc else None
+        body, ref = split_detail(render_detail(r, ov, official, market, data, adj))
+        return body, ref, new_lab
 
     @app.callback(
         Output("lab-store", "data"),
@@ -764,32 +847,38 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Input("lab-away-input", "value"),
         Input("lab-reset", "n_clicks"),
         Input({"type": "cat-adj", "cat": ALL, "side": ALL}, "value"),
-        Input({"type": "cat-note", "cat": ALL}, "value"),
         Input("ctx-home", "value"),
         Input("ctx-away", "value"),
-        Input("ctx-note", "value"),
         Input("ctx-clear", "n_clicks"),
         Input({"type": "cat-slider", "cat": ALL, "side": ALL}, "value"),
         Input("ctx-home-slider", "value"),
         Input("ctx-away-slider", "value"),
         State("selected", "data"),
         State("market", "value"),
+        State("universe", "value"),
         State("lab-store", "data"),
         prevent_initial_call=True,
     )
     def adjust(*args):
-        """Sections B, C and D: update this fixture's state in the browser store and
-        recalculate all seven probabilities. The model baseline is never modified."""
-        fid, market, lab = args[-3:]
+        """Sections B, C and D: update this fixture's state for the context shown
+        (frozen Weekly Challenge snapshot or latest data) and recalculate all seven
+        probabilities. The model baseline is never modified. A signed-in
+        participant's numbers are saved to that context only (Phase 6C.3)."""
+        fid, market, universe, lab = args[-4:]
         if not fid or not ctx.triggered:
             raise PreventUpdate
-        r, ov, _ = data.detail(fid)
+        lc = lab_context.resolve(service, data, fid, universe)
+        r = lc.r if lc else None
+        _, ov, _ = data.detail(fid)
         if r is None or not r["goal_model"].get("available"):
             raise PreventUpdate
         trig = ctx.triggered_id
         value = ctx.triggered[0].get("value")
-        state, messages = lab_update(r, trig, value, stored_adjustment(lab, fid, r))
-        lab = store_adjustment(lab, fid, r, None if is_empty(state) else state)
+        state, messages = lab_update(r, trig, value, stored_adjustment(lab, lc.key, r))
+        lab = store_adjustment(lab, lc.key, r, None if is_empty(state) else state)
+        lab, problem = lab_persist.save(service, lab, lc, state)
+        if problem:
+            messages = [*messages, problem]
         b = breakdown(baseline_rounded(r), state)
         h, a = b["home"]["final"], b["away"]["final"]
         cat_out = [

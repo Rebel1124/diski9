@@ -38,7 +38,13 @@ def effective_mode(service: ChallengeService, state: dict) -> str | None:
     """The participant's chosen mode, or live when nothing was chosen and it is playable."""
     if state.get("mode"):
         return state["mode"]
-    return "live" if service.availability("live").playable else None
+    if service.availability("live").playable:
+        return "live"
+    # A published round past its deadline (lock pending, or locked) is still the
+    # participant's round: show it read-only rather than "unavailable".
+    if getattr(service, "backend", None) is not None and service.live() is not None:
+        return "live"
+    return None
 
 
 def current(service: ChallengeService, state: dict):
@@ -53,6 +59,67 @@ def current(service: ChallengeService, state: dict):
 
 def locked(avail) -> bool:
     return avail.status is RoundStatus.LOCKED
+
+
+FROZEN_NOTE = (
+    "All participants use the same frozen odds and baseline estimates for this round. "
+    "These may differ from the latest information shown under All Upcoming Fixtures."
+)
+
+
+def access(service, snap) -> str:
+    """How this page treats the person (Phase 6C.3): ``account`` (signed-in
+    participant, persistent round), ``guest`` / ``setup`` (persistent round, cannot
+    save), ``prototype`` (no competition database, or the demonstration round)."""
+    from . import persist
+
+    if snap is None or snap.is_demo or persist.backend_of(service) is None:
+        return "prototype"
+    return "account" if persist.participant(service) else (persist.signed_in_label(service))
+
+
+def save_status(service, state) -> html.Div | None:
+    """A compact line under the tracker: saved to the account, not saved, or kept in
+    this tab only. 'Saved' only after the database confirmed the write."""
+    state = normal_state(state)
+    _, snap, _, _ = current(service, state)
+    kind = access(service, snap)
+    if kind == "prototype":
+        return None
+    if kind in ("guest", "setup"):
+        return html.P(
+            [c.icon("info", "ic-sm"), " Kept in this browser tab only. ",
+             html.A("Sign in", href="/auth/sign-in") if kind == "guest"
+             else html.A("Finish setting up", href="/account/welcome"),
+             " to save your portfolio and confirm an entry."],
+            className="muted small ch-save-state",
+        )  # fmt: skip
+    acct = state.get("acct") or {}
+    status = acct.get("status")
+    if acct.get("dirty"):
+        return html.P(
+            [c.icon("alert", "ic-sm"), " Not saved: see the message above."],
+            className="small ch-save-state warn",
+        )
+    if status == "saved":
+        return html.P(
+            [c.icon("check", "ic-sm"), " Saved to your account"],
+            className="muted small ch-save-state ok",
+        )
+    return html.P("Your portfolio is saved to your account as you build it.",
+                  className="muted small ch-save-state")  # fmt: skip
+
+
+def round_times(rv, local) -> list[tuple[str, str]]:
+    """Frozen (snapshot) time and deadline from the stored round record."""
+    out = []
+    if rv is None:
+        return out
+    if rv.snapshot_at is not None:
+        out.append(("Frozen", f"{local(rv.snapshot_at)} SAST"))
+    if rv.deadline_at is not None:
+        out.append(("Deadline", f"{local(rv.deadline_at)} SAST"))
+    return out
 
 
 # ------------------------------------------------------------------ shell
@@ -186,14 +253,17 @@ def how_to_play(open_: bool) -> html.Details:
     )
 
 
-def status_strip(snap, avail, local) -> html.Div:
+def status_strip(snap, avail, local, rv=None) -> html.Div:
     rep = avail.report
     items = [("Round", snap.round_id), ("Status", avail.title)]
-    if not snap.is_demo and snap.deadline:
-        items.append(("Deadline", f"{local(snap.deadline)} SAST"))
+    if rv is not None and not snap.is_demo:
+        items += round_times(rv, local)
+    else:
+        if not snap.is_demo and snap.deadline:
+            items.append(("Deadline", f"{local(snap.deadline)} SAST"))
+        items.append(("Snapshot", f"{local(snap.snapshot_at)} SAST"))
     if rep is not None:
         items.append(("Fixtures", f"{rep.eligible_fixtures} in {rep.eligible_leagues} leagues"))
-    items.append(("Snapshot", f"{local(snap.snapshot_at)} SAST"))
     leave = (
         html.Button(
             "Leave demo", id={"t": "mode", "m": "live"}, n_clicks=0, className="ch-btn small ghost"
@@ -207,7 +277,14 @@ def status_strip(snap, avail, local) -> html.Div:
             leave,
         ],
         className="ch-statusbar small",
+        title=FROZEN_NOTE if rv is not None and not snap.is_demo else None,
     )
+
+
+def frozen_note(snap, rv) -> html.P | None:
+    if rv is None or snap is None or snap.is_demo:
+        return None
+    return html.P(FROZEN_NOTE, className="muted small ch-frozen-note")
 
 
 def unavailable(service, state, mode, snap, avail, local) -> html.Div:
@@ -366,7 +443,8 @@ def builder(service, snap, sels, avail, prefs, local, personal=None, state=None)
     return html.Div(
         [
             c.demo_ribbon(snap),
-            status_strip(snap, avail, local),
+            status_strip(snap, avail, local, service.round_view()),
+            frozen_note(snap, service.round_view()),
             how_to_play(new_user),
             notes_box,
             lock_note,
@@ -1043,8 +1121,10 @@ def k_detail(cc, k: int) -> html.Div:
 
 
 # ----------------------------------------------------------------- review
-def estimate_cards(estimates: dict) -> html.Div:
-    """Market / Diski 9 / Your View summary cards (recovery first)."""
+def estimate_cards(estimates: dict, tags: dict | None = None) -> html.Div:
+    """Market / Diski 9 / Your View summary cards (recovery first). ``tags`` adds a
+    small label beside a source's name (for example Your View "now")."""
+    tags = tags or {}
     cards = []
     for src in pa.SOURCES:
         e = estimates.get(src)
@@ -1053,7 +1133,13 @@ def estimate_cards(estimates: dict) -> html.Div:
         cards.append(
             html.Div(
                 [
-                    html.Span(pa.SOURCE_LABEL[src], className="ch-src-name"),
+                    html.Span(
+                        [
+                            pa.SOURCE_LABEL[src],
+                            html.Span(tags[src], className="ch-src-tag") if src in tags else None,
+                        ],
+                        className="ch-src-name",
+                    ),
                     html.Div(
                         [
                             html.Span("Get 100+ back", className="muted small"),
@@ -1119,15 +1205,50 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
     same = st.same_portfolio(sub, sels)
     other = bool(sub) and not same
     can_submit = avail.playable and not locked(avail)
+    kind = access(service, snap)
     label = (
         "Confirmed"
         if same
-        else "Replace my confirmed portfolio"
+        else ("Replace my confirmed entry" if kind == "account" else
+              "Replace my confirmed portfolio")
         if other
         else "Confirm demonstration portfolio"
         if snap.is_demo
+        else "Confirm entry"
+        if kind == "account"
         else "Confirm portfolio"
-    )
+    )  # fmt: skip
+    if kind == "account" and (state.get("acct") or {}).get("dirty"):
+        can_submit = False  # unsaved changes must be saved (or reloaded) first
+    footer = {
+        "account": "Confirming re-checks your saved portfolio against the frozen round and "
+        "records it as your entry. You can replace or withdraw it until the deadline.",
+        "guest": "Sign in to confirm an entry. Until then your portfolio is kept in this "
+        "browser tab only.",
+        "setup": "Finish setting up your account to confirm an entry. Until then your "
+        "portfolio is kept in this browser tab only.",
+    }.get(kind, "Prototype: confirming re-checks your portfolio and records it in this "
+               "browser tab only. It is not a competition entry.")  # fmt: skip
+    if kind == "guest":
+        submit_button = html.A(
+            [c.icon("send", "ic-sm"), " Sign in to confirm"],
+            href="/auth/sign-in?next=/challenge",
+            className="ch-btn primary big",
+        )
+    elif kind == "setup":
+        submit_button = html.A(
+            [c.icon("send", "ic-sm"), " Finish set-up to confirm"],
+            href="/account/welcome",
+            className="ch-btn primary big",
+        )
+    else:
+        submit_button = html.Button(
+            [c.icon("circle-check" if same else "send", "ic-sm"), " ", label],
+            id=c.T("submit"),
+            n_clicks=0,
+            disabled=same or not can_submit,
+            className="ch-btn primary big",
+        )
     estimates = {
         s: {"p_recover": ev.p_recover, "p_zero": ev.p_zero, "expected": ev.expected_gross}
         for s, ev in evs.items()
@@ -1163,7 +1284,7 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
                     picks_table(rows),
                     html.P(
                         f"Allocation: Foundation 40, Balanced 30, Challenger 20, The Diski 9 "
-                        f"10 credits. Snapshot {local(snap.snapshot_at)} SAST · configuration "
+                        f"10 credits. Frozen {local(snap.snapshot_at)} SAST · configuration "
                         f"{snap.config_version}.",
                         className="muted small",
                     ),
@@ -1172,7 +1293,10 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
             ),
             html.Div(
                 [
-                    html.Strong("You already have a confirmed portfolio "),
+                    html.Strong(
+                        "You already have a confirmed "
+                        + ("entry " if kind == "account" else "portfolio ")
+                    ),
                     f"(round {sub['round_id']}, confirmed {local(sub['at'])}). It stays recorded "
                     "unless this one passes every check and you replace it.",
                 ],
@@ -1189,21 +1313,11 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
                         className="ch-btn ghost",
                     ),
                     withdraw_button("rv") if sub and can_submit else None,
-                    html.Button(
-                        [c.icon("circle-check" if same else "send", "ic-sm"), " ", label],
-                        id=c.T("submit"),
-                        n_clicks=0,
-                        disabled=same or not can_submit,
-                        className="ch-btn primary big",
-                    ),
+                    submit_button,
                 ],
                 className="ch-actions end",
             ),
-            html.P(
-                "Prototype: confirming re-checks your portfolio and records it in this browser "
-                "tab only. It is not a competition entry.",
-                className="muted small",
-            ),
+            html.P(footer, className="muted small"),
             confirmation_modal(state, local) if state.get("modal") and sub else None,
             withdraw_modal(sub, local) if state.get("confirm") == "withdraw" and sub else None,
         ]
@@ -1229,10 +1343,21 @@ def withdraw_modal(sub, local) -> html.Div:
                 html.Div(c.icon("alert", "ic-lg"), className="ch-modal-icon warn"),
                 html.H2("Withdraw your submission?", className="ch-modal-title plain"),
                 html.P(
-                    f"This removes your confirmed entry for round {sub['round_id']} "
-                    f"(confirmed {local(sub['at'])} SAST) and clears your working portfolio."
+                    f"This withdraws your confirmed entry for round {sub['round_id']} "
+                    f"(confirmed {local(sub['at'])} SAST)"
+                    + (
+                        ". Your saved portfolio stays in your account."
+                        if sub.get("persistent")
+                        else " and clears your working portfolio."
+                    )
                 ),
                 html.P(
+                    "You can confirm again before the deadline. Nothing is resubmitted "
+                    "automatically, and the withdrawal is recorded in your entry history.",
+                    className="muted small",
+                )
+                if sub.get("persistent")
+                else html.P(
                     "You can build and submit a new portfolio before the deadline. Your old "
                     "selections are not resubmitted automatically.",
                     className="muted small",
@@ -1271,7 +1396,11 @@ def confirmation_modal(state, local) -> html.Div:
             [
                 html.Div(c.icon("circle-check", "ic-lg"), className="ch-modal-icon"),
                 html.H2("You're in!", className="ch-modal-title"),
-                html.P(f"Your {demo_word}portfolio has been confirmed."),
+                html.P(
+                    "Your entry has been confirmed."
+                    if sub.get("persistent")
+                    else f"Your {demo_word}portfolio has been confirmed."
+                ),
                 html.P(html.Strong("9 predictions. 100 virtual credits.")),
                 html.P("Good luck with your Diski 9 predictions!"),
                 html.P(
@@ -1303,20 +1432,63 @@ def confirmation_modal(state, local) -> html.Div:
 
 
 # ------------------------------------------------------------- my challenge
-def round_state(state, snap, avail, sels) -> tuple[str, str, str]:
+CLASSIFICATION_TEXT = {
+    "competitive": "competitive round (unofficial beta: no official championship yet)",
+    "practice": "practice round (fewer than five valid entries)",
+}
+
+
+def round_state(state, snap, avail, sels, kind="prototype", rv=None) -> tuple[str, str, str]:
     """(label, css class, one-line explanation) for the participant's round status."""
     sub = st.submission_for(state, snap)
+    account = kind == "account"
+    if locked(avail) and snap is not None and getattr(rv, "status", None) == "open":
+        # Deadline passed, lock job not run yet: no changes possible, not "locked".
+        if sub:
+            return (
+                "Deadline passed",
+                "warn",
+                (
+                    "The submission deadline has passed. Your confirmed entry can no longer "
+                    "change; the round is waiting to be locked."
+                ),
+            )
+        return (
+            "Deadline passed",
+            "warn",
+            (
+                "The submission deadline has passed without a confirmed entry. The round is "
+                "waiting to be locked."
+            ),
+        )
+    if locked(avail) and snap is not None:
+        cls_text = CLASSIFICATION_TEXT.get(getattr(rv, "classification", None) or "")
+        tail = f" This is a {cls_text}." if cls_text else ""
+        if sub:
+            return "Locked", "warn", ("Your entry is locked." if account else
+                                      "The deadline has passed; predictions can no longer "
+                                      "change.") + tail  # fmt: skip
+        return "Locked", "warn", "The deadline has passed without a confirmed entry." + tail
     if snap is None or not avail.playable:
         return "Unavailable", "off", avail.message
-    if locked(avail):
-        return "Locked", "warn", "The deadline has passed; predictions can no longer change."
     if sub and st.same_portfolio(sub, sels):
-        return "Confirmed", "ok", "Your portfolio is confirmed for this round."
+        return (
+            "Confirmed",
+            "ok",
+            (
+                "Your entry is confirmed for this round."
+                if account
+                else "Your portfolio is confirmed for this round."
+            ),
+        )
     if sub:
         return (
             "Confirmed",
             "ok",
-            "Your portfolio is confirmed. Your working draft differs and has not been submitted.",
+            "Your entry is confirmed. Your saved portfolio has changes that are not confirmed."
+            if account
+            else "Your portfolio is confirmed. Your working draft differs and has not been "
+            "submitted.",
         )
     wd = state.get("withdrawn") or {}
     if wd.get("round_id") == snap.round_id and wd.get("mode") == st.mode_key(snap):
@@ -1327,15 +1499,25 @@ def round_state(state, snap, avail, sels) -> tuple[str, str, str]:
             + (f"{len(sels)} of 9 predictions in a new draft." if sels else "")
             + " You can submit a new portfolio before the deadline.",
         )
+    if account and len(sels) == CFG.required_selections:
+        return "Ready to confirm", "demo", "Your saved portfolio is complete but not confirmed."
     if sels:
-        return "Draft in progress", "demo", f"{len(sels)} of 9 predictions chosen."
+        return (
+            "Draft in progress",
+            "demo",
+            (
+                f"{len(sels)} of 9 predictions saved to your account."
+                if account
+                else f"{len(sels)} of 9 predictions chosen."
+            ),
+        )
     return "Not started", "off", "Build a portfolio of nine predictions."
 
 
-def round_facts(state, snap, avail, sels, sub, label, local) -> list[tuple[str, str]]:
+def round_facts(state, snap, avail, sels, sub, label, local, rv=None) -> list[tuple[str, str]]:
     """Round details for the "This round" card, all from the stored prototype state
     and the round snapshot (nothing hard-coded beyond the approved allocation)."""
-    if snap is None or not avail.playable:
+    if snap is None or not (avail.playable or locked(avail)):
         facts = [("Status", label)]
         if snap is not None:
             facts.insert(0, ("Round", snap.round_id))
@@ -1351,18 +1533,27 @@ def round_facts(state, snap, avail, sels, sub, label, local) -> list[tuple[str, 
         facts.append(("Predictions", f"{len(sels)} of {CFG.required_selections} in your draft"))
     if snap.is_demo:
         facts.append(("Deadline", "None: demonstration round, practice only"))
+    elif rv is not None:
+        if rv.published_at is not None:
+            facts.append(("Published", f"{local(rv.published_at)} SAST"))
+        facts += round_times(rv, local)
+        if rv.classification:
+            facts.append(("Classification", CLASSIFICATION_TEXT[rv.classification].capitalize()))
     elif snap.deadline:
         facts.append(("Deadline", f"{local(snap.deadline)} SAST"))
     alloc = " / ".join(str(b.credits) for b in CFG.buckets) + f" / {CFG.nine_fold_credits}"
     facts.append(("Credits", f"{CFG.total_credits} virtual ({alloc})"))
     wd = state.get("withdrawn") or {}
     if sub:
-        facts.append(("Confirmation", f"Confirmed {local(sub['at'])} SAST"))
+        ver = f" (version {sub['version']})" if sub.get("version", 1) > 1 else ""
+        facts.append(("Confirmation", f"Confirmed {local(sub['at'])} SAST{ver}"))
     elif wd.get("round_id") == snap.round_id and wd.get("mode") == st.mode_key(snap):
         facts.append(("Confirmation", f"Withdrawn {local(wd['at'])} SAST"))
     else:
         facts.append(("Confirmation", "Not confirmed"))
-    if locked(avail):
+    if locked(avail) and getattr(rv, "status", None) == "open":
+        facts.append(("Changes", "None possible: the deadline has passed (lock pending)"))
+    elif locked(avail):
         facts.append(("Changes", "Locked: the deadline has passed"))
     elif sub:
         facts.append(("Changes", "You can replace or withdraw until the round locks"))
@@ -1371,8 +1562,19 @@ def round_facts(state, snap, avail, sels, sub, label, local) -> list[tuple[str, 
     return facts
 
 
-def round_card(state, snap, avail, sels, sub, label, cls, line, local) -> html.Div:
-    facts = round_facts(state, snap, avail, sels, sub, label, local)
+def round_card(
+    state, snap, avail, sels, sub, label, cls, line, local, kind="prototype", rv=None
+) -> html.Div:
+    facts = round_facts(state, snap, avail, sels, sub, label, local, rv)
+    note = {
+        "account": "Saved to your account. Results come with settlement, which is not "
+        "available yet.",
+        "guest": "Kept in this browser tab only. Sign in to save your portfolio and confirm "
+        "an entry.",
+        "setup": "Kept in this browser tab only. Finish setting up your account to save "
+        "and confirm.",
+    }.get(kind, "Prototype: this entry is kept only in this browser tab. It is not an "
+               "official competition entry.")  # fmt: skip
     return html.Div(
         [
             html.Div(
@@ -1403,11 +1605,7 @@ def round_card(state, snap, avail, sels, sub, label, cls, line, local) -> html.D
                         href="/challenge",
                         className="ch-lab-link",
                     ),  # fmt: skip
-                    html.P(
-                        "Prototype: this entry is kept only in this browser tab. It is not an "
-                        "official competition entry.",
-                        className="muted small ch-proto-note",
-                    ),
+                    html.P(note, className="muted small ch-proto-note"),
                 ],
                 className="ch-card-foot",
             ),
@@ -1416,8 +1614,55 @@ def round_card(state, snap, avail, sels, sub, label, cls, line, local) -> html.D
     )
 
 
-def confirmed_summary(sub, local, can_withdraw: bool) -> html.Div:
-    """Compact card: the frozen submission's Market / Diski 9 / Your View estimates."""
+def your_view_now(service, snap, sub) -> dict | None:
+    """Your View for the confirmed nine predictions **now** (signed-in participant):
+    the frozen-context Your View saved in the account for this round, applied to the
+    confirmed predictions. Shown privately on My Challenge only; never stored with
+    the entry and never used for scoring. ``None`` when nothing applies."""
+    from . import integration, lab_persist
+
+    if not sub or not sub.get("persistent") or snap is None:
+        return None
+    try:
+        lab = lab_persist.load_round(service, {})
+        personal = integration.personal_probabilities(None, snap, lab)
+    except Exception:  # noqa: BLE001 - the card is simply not shown
+        return None
+    keys = sub.get("selections") or []
+    chosen = {o.key for o in service.outcomes_for(snap, keys)}
+    personal = {k: v for k, v in personal.items() if k in chosen}
+    port = service.portfolio(snap, keys)
+    if port is None:
+        return None
+    if not personal:
+        return {"adjusted": 0}
+    ev = pa.evaluate_sources(port, personal)["personal"]
+    return {
+        "adjusted": len({k[0] for k in personal}),
+        "estimate": {"p_recover": ev.p_recover, "p_zero": ev.p_zero, "expected": ev.expected_gross},
+    }
+
+
+def confirmed_summary(sub, local, can_withdraw: bool, your_view=None) -> html.Div:
+    """Compact card: the frozen submission's Market / Diski 9 estimates, and (for a
+    signed-in participant) Your View calculated now, as a third card of the same size,
+    labelled private and not part of the entry."""
+    estimates = dict(sub.get("estimates") or {})
+    tags: dict = {}
+    yv_note = None
+    if your_view is not None and your_view.get("estimate"):
+        estimates["personal"] = your_view["estimate"]
+        tags["personal"] = "now"
+        n = your_view["adjusted"]
+        yv_note = (
+            f"Your View is calculated now from your Weekly Challenge adjustments ({n} of 9 "
+            "matches; the rest use Diski 9). Private, not part of your entry, never scored."
+        )
+    elif your_view is not None:
+        yv_note = (
+            "Your View: adjust one of these matches in the Match Lab from the Weekly "
+            "Challenge to see your own estimate here."
+        )
     return html.Div(
         [
             html.Div(
@@ -1431,11 +1676,12 @@ def confirmed_summary(sub, local, can_withdraw: bool) -> html.Div:
                 ],
                 className="ch-row-between",
             ),
-            estimate_cards(sub.get("estimates") or {}),
+            estimate_cards(estimates, tags),
+            html.P(yv_note, className="muted small ch-yv-now-note") if yv_note else None,
             html.Div(
                 [
                     html.Span(
-                        "Values frozen when you confirmed. Maximum payout "
+                        "Market and Diski 9 values frozen when you confirmed. Maximum payout "
                         f"{c.credits(sub.get('max_gross', '0'))}.",
                         className="muted small",
                     ),
@@ -1448,7 +1694,9 @@ def confirmed_summary(sub, local, can_withdraw: bool) -> html.Div:
     )
 
 
-def confirmed_predictions(sub) -> html.Details:
+def confirmed_predictions(
+    sub, summary: str = "Show my nine predictions", cls: str = ""
+) -> html.Details:
     """Full-width expandable card: the nine frozen predictions in three bucket
     columns (stacked on narrow screens) and a one-line Diski 9 summary."""
     groups = []
@@ -1492,7 +1740,7 @@ def confirmed_predictions(sub) -> html.Details:
         )
     return html.Details(
         [
-            html.Summary("Show my nine predictions"),
+            html.Summary(summary),
             html.Div(groups, className="ch-conf-grid"),
             html.P(
                 [
@@ -1503,7 +1751,59 @@ def confirmed_predictions(sub) -> html.Details:
                 className="small ch-conf-nine",
             ),
         ],
-        className="ch-details ch-card ch-conf-card",
+        className=("ch-details ch-card ch-conf-card " + cls).strip(),
+    )
+
+
+def locked_entry_card(rec, local) -> html.Div:
+    """Most recent locked entry (read-only): the participant's confirmed entry in a
+    round whose deadline has passed, shown beside another current round. All values
+    are the stored submission's; no results or payouts (settlement is not available
+    yet) and no actions."""
+    pending = rec.get("round_status") == "open"
+    label, line = (
+        ("Deadline passed", "The submission deadline has passed, so this entry can no "
+         "longer change. The round is waiting to be locked.")
+        if pending
+        else ("Locked", "This entry is locked. It cannot be edited, replaced or withdrawn.")
+    )  # fmt: skip
+    alloc = " / ".join(str(b.credits) for b in CFG.buckets) + f" / {CFG.nine_fold_credits}"
+    ver = f" (version {rec['version']})" if rec.get("version", 1) > 1 else ""
+    facts = [
+        ("Round", ("Development · " if rec.get("development") else "") + rec["round_id"]),
+        ("Status", label),
+    ]
+    if rec.get("deadline"):
+        facts.append(("Deadline", f"{local(rec['deadline'])} SAST"))
+    facts.append(("Frozen odds", f"{local(rec['snapshot_at'])} SAST"))
+    facts.append(("Confirmed", f"{local(rec['at'])} SAST{ver}"))
+    if rec.get("classification"):
+        facts.append(("Classification", CLASSIFICATION_TEXT[rec["classification"]].capitalize()))
+    facts += [
+        ("Credits", f"{CFG.total_credits} virtual ({alloc})"),
+        ("Maximum payout", c.credits(rec.get("max_gross", "0"))),
+        ("Results", "Not available yet (settlement comes in a later phase)"),
+    ]
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.H2("Most recent locked entry", className="ch-h2"),
+                    html.Span(label, className="ch-pill warn"),
+                ],
+                className="ch-row-between",
+            ),
+            html.P(line, className="small ch-round-line"),
+            html.Dl(
+                [item for k, v in facts if k != "Status" for item in (html.Dt(k), html.Dd(v))],
+                className="ch-facts small",
+            ),
+            estimate_cards(rec.get("estimates") or {}),
+            confirmed_predictions(
+                rec, f"Show the nine predictions in {rec['round_id']}", "ch-locked-preds"
+            ),
+        ],
+        className="ch-card ch-compact ch-locked-entry",
     )
 
 
@@ -1564,12 +1864,15 @@ def my_challenge_body(service, state, local) -> list:
     submission, a restored session), so the page never shows a stale state."""
     state = sync(service, state)
     mode, snap, avail, sels = current(service, state)
-    label, cls, line = round_state(state, snap, avail, sels)
+    kind = access_kind = access(service, snap)
+    rv = service.round_view() if kind != "prototype" or (snap and not snap.is_demo) else None
+    label, cls, line = round_state(state, snap, avail, sels, kind, rv)
     sub = st.submission_for(state, snap)
     can_withdraw = bool(sub) and avail.playable and not locked(avail)
-    status = round_card(state, snap, avail, sels, sub, label, cls, line, local)
+    status = round_card(state, snap, avail, sels, sub, label, cls, line, local, kind, rv)
     if sub:
-        confirmed = confirmed_summary(sub, local, can_withdraw)
+        yv_now = your_view_now(service, snap, sub) if access_kind == "account" else None
+        confirmed = confirmed_summary(sub, local, can_withdraw, yv_now)
     else:
         confirmed = html.Div(
             [
@@ -1673,9 +1976,16 @@ def my_challenge_body(service, state, local) -> list:
         ],
         className="ch-details ch-card",
     )
+    previous = None
+    if access_kind == "account":
+        from . import persist
+
+        rec = persist.most_recent_locked(service, getattr(rv, "id", None))
+        previous = locked_entry_card(rec, local) if rec else None
     return [
         html.Div([status, confirmed], className="ch-grid-me"),
         confirmed_predictions(sub) if sub else None,
+        previous,
         perf,
         hist,
         withdraw_modal(sub, local) if state.get("confirm") == "withdraw" and sub else None,
@@ -1690,7 +2000,8 @@ def leaderboards() -> html.Div:
             c.page_header("Leaderboards"),
             html.Div(
                 "Demonstration data: invented players and results, scored with the real "
-                "points rules. Live leaderboards arrive with accounts and stored entries.",
+                "points rules. Leaderboards from real entries arrive with settlement in a "
+                "later phase.",
                 className="ch-ribbon",
             ),
             html.Div(

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="auth-card" method="post" action="/auth/sign-up" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <div class="auth-field"><label for="email">Email address</label>
+    <input id="email" name="email" type="email" autocomplete="email" required maxlength="320" value="{{ email or '' }}">
+    <div class="hint">Used only to sign in and recover your account. Never shown publicly.</div></div>
+  <div class="auth-field"><label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="72">
+    <div class="hint">At least 10 characters.</div></div>
+  <div class="auth-actions"><button class="ch-btn primary" type="submit">Create account</button></div>
+  <div class="auth-links">Already registered? <a href="/auth/sign-in">Sign in</a></div>
+</form>
+<p class="muted small">You choose a username, confirm you are 18 or older and accept the beta terms after confirming your email address. Diski 9 uses virtual credits only.</p>
+{% endblock %}

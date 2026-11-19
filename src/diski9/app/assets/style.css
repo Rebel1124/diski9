@@ -417,17 +417,14 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .cat-sum-wrap { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; font-weight: 500;
   font-variant-numeric: tabular-nums; margin-right: 18px; }
 .cat-sum.active { color: var(--warn); }
-.cat-note-flag { font-size: 11px; border-radius: 999px; padding: 0 7px; background: var(--surface-2); color: var(--muted);
-  border: 1px solid var(--border); }
-.cat-items { display: flex; flex-wrap: wrap; gap: 4px 14px; padding-left: 18px; margin: 2px 0 10px; color: var(--muted);
+.cat-items { display: flex; flex-wrap: wrap; gap: 4px 14px; padding-left: 18px; margin: 2px 0 6px; color: var(--muted);
   font-size: 13.5px; }
+/* static guidance in place of the former note boxes: subtle, readable line length */
+.cat-guide { margin: 0 0 10px; max-width: 78ch; line-height: 1.5; }
 .cat-items li { margin-right: 6px; }
 .cat-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.cat-field.wide { margin-bottom: 10px; }
 .cat-input-label { font-size: 12px; color: var(--muted); }
-.cat-note { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
-  padding: 8px 10px; font-size: 14px; }
-.cat-note:focus, .cat-input:focus { border-color: var(--accent); outline: none; }
+.cat-input:focus { border-color: var(--accent); outline: none; }
 .cat-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .caution { color: var(--warn); }
 
@@ -458,8 +455,7 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
   .match-meta { font-size: 13px; }
 }
 .cat-inputs { grid-template-columns: repeat(2, minmax(0, 240px)); }
-.cat-field.wide { max-width: 640px; }
-@media (max-width: 720px) { .cat-inputs { grid-template-columns: 1fr 1fr; } .cat-field.wide { max-width: none; } }
+@media (max-width: 720px) { .cat-inputs { grid-template-columns: 1fr 1fr; } }
 .cat-inputs .cat-field { justify-content: flex-end; }
 .cat-input-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 720px) {
@@ -624,6 +620,23 @@ table.results td.value-cell { white-space: nowrap; }
 .cat-inputs { grid-template-columns: repeat(2, minmax(0, 300px)); }
 @media (max-width: 720px) {
   .cat-inputs { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+}
+
+/* Sections B and C: guidance (left, about 60%) beside the stacked home and away
+   controls (right, about 40%), with a subtle divider; one column on small screens */
+.cat-split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 0 22px;
+  align-items: start; }
+.cat-split.single { grid-template-columns: minmax(0, 1fr); }
+.cat-guide-col { min-width: 0; }
+.cat-guide-col .cat-guide { max-width: none; margin-bottom: 0; }
+.cat-split .cat-inputs { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-left: 22px;
+  border-left: 1px solid var(--border); }
+.cat-split .cat-inputs .cat-field { justify-content: flex-start; }
+.cat-split .cat-input-label { overflow-wrap: anywhere; }
+.ctx-acc .cat-split + .adj-actions { margin-top: 12px; }
+@media (max-width: 760px) {
+  .cat-split { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .cat-split .cat-inputs { padding-left: 0; border-left: 0; gap: 8px; }
 }
 
 /* ===================== Site navigation (Phase 6B) ===================== */
@@ -854,6 +867,17 @@ table.results td.value-cell { white-space: nowrap; }
   .nav-inner { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .nav-links { flex-wrap: nowrap; }
   .nav-link { white-space: nowrap; }
+}
+/* small screens: brand and the account control share the first row (the account
+   control always visible); the page links take their own row and scroll sideways */
+@media (max-width: 600px) {
+  .nav-inner { flex-wrap: wrap; overflow-x: visible; row-gap: 4px; }
+  .nav-brand { white-space: nowrap; order: 1; }
+  .nav-inner > .nav-account { order: 2; margin-left: auto; min-width: 0; max-width: 62%; }
+  .nav-inner > .nav-links { order: 3; flex: 1 0 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .nav-inner > .nav-links::-webkit-scrollbar { display: none; }
+  .nav-account details.acct-menu { min-width: 0; max-width: 100%; }
+  .nav-account .acct-link { white-space: nowrap; }
 }
 
 /* ===================== Phase 6B.1: compact builder ===================== */
@@ -1222,4 +1246,39 @@ table.results td.value-cell { white-space: nowrap; }
   .ch-conf-summary .ch-src-card { padding: 8px 10px; }
   .ch-conf-summary .ch-src-card .ch-big, .ch-conf-summary .ch-src-card strong { font-size: 15px; }
   .ch-howto .ch-htp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+}
+
+/* Phase 6C.3: frozen versus latest context, save state, guest-work review */
+.data-context { margin: 6px 0 10px; }
+.ctx-line, .lab-context { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.lab-context { margin-top: 4px; }
+.ctx-tag { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.ctx-tag.frozen { color: var(--accent); border-color: rgba(45, 212, 191, .4); }
+.ctx-tag.latest { color: var(--text); }
+.ctx-note, .ch-frozen-note { margin: 4px 0 0; }
+.ch-save-state { margin: 6px 0 0; display: flex; align-items: center; gap: 6px; }
+.ch-save-state.ok { color: var(--accent); }
+.ch-save-state.warn { color: var(--warn); }
+.ch-flash .ch-btn.small { margin-left: 6px; }
+.adopt-panel { max-width: 560px; text-align: left; }
+.adopt-panel ul { margin: 4px 0 10px; padding-left: 18px; }
+.adopt-choice label { display: block; margin: 4px 0; }
+
+/* Phase 6C.3 Stage G: most recent locked entry (read-only) */
+.ch-locked-entry { margin-top: 14px; border-left: 3px solid var(--warn, #d9a441); }
+.ch-locked-entry .ch-src-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.ch-locked-entry .ch-src-card { padding: 8px 10px; }
+.ch-locked-entry .ch-src-card .ch-big, .ch-locked-entry .ch-src-card strong { font-size: 15px; }
+.ch-locked-entry .ch-locked-preds { margin: 10px 0 0; box-shadow: none; }
+@media (max-width: 600px) { .ch-locked-entry .ch-src-cards { grid-template-columns: minmax(0, 1fr); } }
+
+/* My Challenge: Your View calculated now (third card, same size; private) */
+.ch-src-tag { margin-left: 6px; font-size: 10px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; white-space: nowrap; color: var(--warn, #d9a441); }
+.ch-yv-now-note { margin: 0 0 4px; }
+/* compact, even "This round" and "Confirmed portfolio" cards on desktop */
+@media (min-width: 961px) {
+  .ch-grid-me > .ch-card { padding-bottom: 12px; }
+  .ch-grid-me .ch-card-foot { padding-top: 6px; }
 }

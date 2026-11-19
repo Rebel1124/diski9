@@ -1,6 +1,6 @@
 # D-08 — Settlement rules `settle/v1`: exact definitions (for approval)
 
-**Status:** proposed for final approval. The owner has accepted the 48-hour
+**Status: approved (D-08, Phase 6C.0/6C.1 approval), with the additional requirements recorded in the decision register; implemented in Phase 6C.4.** Original status: proposed for final approval. The owner has accepted the 48-hour
 cutoff in principle and asked for the exact void definitions and the event the
 cutoff is measured from. The payout treatment of voids is already approved
 (D-32 partial voids, D-33 fully void entries, D-32b whole rounds); this note only

@@ -39,31 +39,34 @@ MARKET_OF_SCREENER = {"1X2": "1X2", "BTTS": "BTTS", "OU25": "OU25"}
 
 
 def personal_probabilities(data, snap, lab_store) -> dict[tuple, float]:
-    """{outcome key: Your View probability} for adjusted matches in the snapshot."""
+    """{outcome key: Your View probability} for the round's matches you adjusted **in
+    the frozen Weekly Challenge context** (approved at the 6C.3 checkpoint): the
+    adjustments made on the snapshot's frozen baseline, never live-context ones.
+    Matches without a frozen adjustment are left out (the baseline is used)."""
+    from diski9.app.lab_context import frozen_key
+
     out: dict[tuple, float] = {}
     if not lab_store or snap is None:
         return out
-    results = data.snapshot().results.get("overall", {})
-    wanted = {f.fixture_id for f in snap.fixtures}
-    for fid_text in lab_store:
-        try:
-            fid = int(fid_text)
-        except (TypeError, ValueError):
-            continue  # e.g. the model-context stamps
-        if fid not in wanted:
+    stamps = lab_store.get(lab.CONTEXT_KEY) or {}
+    for f in snap.fixtures:
+        if f.estimated_goals is None:
             continue
-        r = results.get(fid)
-        if not r or not (r.get("goal_model") or {}).get("available"):
-            continue
-        stored = lab.stored_adjustment(lab_store, fid, r)  # None if made on another baseline
+        key = frozen_key(snap.round_id, f.fixture_id)
+        stored = lab_store.get(key)
         if not stored:
             continue
-        state = lab.normalise_state(stored, lab.baseline_rounded(r))
-        probs = lab.adjusted_probabilities(lab.user_estimates(r, state))
-        if not probs:
+        base = {"home": round(f.estimated_goals[0], 2), "away": round(f.estimated_goals[1], 2)}
+        stamp = stamps.get(key) or ""
+        if stamp.split("|", 1)[-1] != f"{f.fixture_id}|{base['home']:.2f}|{base['away']:.2f}":
+            continue  # made against another baseline: never applied
+        state = lab.normalise_state(stored, base)
+        if not lab.has_adjustment(state):
             continue
+        b = lab.breakdown(base, state)
+        probs = lab.adjusted_probabilities({s: b[s]["final"] for s in lab.SIDES})
         for o in snap.outcomes:
-            if o.fixture_id == fid:
+            if o.fixture_id == f.fixture_id:
                 out[o.key] = float(probs[lab.OUTCOME_KEY[Outcome(str(o.outcome))]])
     return out
 
@@ -279,6 +282,47 @@ def challenge_rank(challenge: dict, results: list, mode: str, threshold) -> list
         return True, pick.ev if mode == "ev" else pick.edge
 
     return rank_by_value(results, value_of)
+
+
+def data_context(service, data, universe: str | None) -> html.Div | None:
+    """One compact line above the match list: the frozen Weekly Challenge snapshot
+    (stored frozen time and deadline) or the latest available data (the model's
+    stored update time). Times come from the data; nothing is called live."""
+    from . import pages
+
+    if universe == "challenge":
+        snap = service.snapshot("live")
+        if snap is None:
+            return None
+        rv = service.round_view()
+        frozen = rv.snapshot_at if rv else snap.snapshot_at
+        deadline = rv.deadline_at if rv else snap.deadline
+        parts = [
+            html.Span("Weekly Challenge snapshot", className="ctx-tag frozen"),
+            html.Span(f"Frozen: {data.local(frozen)} SAST", className="muted"),
+        ]
+        if deadline is not None:
+            parts.append(html.Span(f"Deadline: {data.local(deadline)} SAST", className="muted"))
+        return html.Div(
+            [html.Div(parts, className="ctx-line"),
+             html.P(pages.FROZEN_NOTE, className="muted small ctx-note")],
+            className="data-context small",
+        )  # fmt: skip
+    updated = data.snapshot().cache_calculated_at
+    return html.Div(
+        html.Div(
+            [
+                html.Span("Latest available data", className="ctx-tag latest"),
+                html.Span(
+                    f"Model updated: {data.local(updated)} SAST" if updated else "",
+                    className="muted",
+                ),
+                html.Span("Bookmaker prices carry their own collection times.", className="muted"),
+            ],
+            className="ctx-line",
+        ),
+        className="data-context small",
+    )
 
 
 def progress_strip(service, state) -> html.Div | None:

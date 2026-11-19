@@ -79,7 +79,9 @@ def test_match_lab_cards_show_three_probabilities(svc, snap):  # noqa: F811
     fid = snap.fixtures[0].fixture_id
     plain = jtext(integration.lab_panel(svc, fake, s, fid, {}, None))
     assert "Mkt " in plain and "D9 " in plain and "You = D9" in plain
-    store = {str(fid): _lab_state(0.6)}
+    from tests.test_your_view_persistence import _frozen
+
+    store = _frozen(snap, fid, _lab_state(0.6))  # Phase 6C.3: the frozen context
     personal = integration.personal_probabilities(fake, snap, store)
     adj = jtext(integration.lab_panel(svc, fake, s, fid, store, None))
     assert "You = D9" not in adj

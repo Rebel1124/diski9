@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block content %}
+{% if body %}<div class="auth-card"><p class="m0">{{ body }}</p></div>{% endif %}
+<div class="auth-actions">
+  {% if primary_href %}<a class="ch-btn primary" href="{{ primary_href }}">{{ primary_label }}</a>{% endif %}
+  <a class="ch-btn ghost" href="/">Back to Diski 9</a>
+</div>
+{% endblock %}

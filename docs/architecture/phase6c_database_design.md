@@ -1,6 +1,6 @@
 # Phase 6C — Proposed database design (competition backend)
 
-**Status:** proposal for owner review. Nothing is implemented. It refines the
+**Status:** implemented as revision `app_0001` in Phase 6C.1 (see §14 for the differences from this proposal). Original status: proposal for owner review. It refines the
 Phase 6A.2 schema sketch in the [technical design](weekly_challenge_design.md) §4
 for the approved direction: PostgreSQL (D-03), SQLAlchemy 2 Core, Alembic, managed
 OIDC sign-in (D-01, provider pending), roles and entitlements (D-34), and the
@@ -203,6 +203,8 @@ erDiagram
 * **Constraints:** `UNIQUE (code)`; `deadline_at < settle_cutoff_at`;
   `published_at`, `deadline_at`, `settle_cutoff_at` set once (trigger).
 * **Index:** `(status)`, `(series, deadline_at)`.
+* **6C.3 (`app_0003`):** `is_development boolean` (set once): development rounds
+  (codes `dev-…`, synthetic fixtures) are never confused with real rounds.
 * **Note:** `status` is a projection of `round_status_history`; whether the round
   is competitive, practice or void is **not** stored here but in `designations`.
 
@@ -212,7 +214,11 @@ erDiagram
 
 ### 4.4 `round_snapshots` [H]
 * **Purpose:** the immutable round sheet (replaces the prototype's in-memory
-  pinned snapshot).
+  pinned snapshot). Since 6C.3 `feasibility` also keeps the opening report, the
+  data source, the fixture and outcome order and league names, so the engine's
+  `RoundSnapshot` is rebuilt exactly and its fingerprint re-checked on load;
+  `snapshot_fixtures` and `snapshot_offers` accept rows only while the round is
+  `draft` (trigger).
 * **Key fields:** `id`, `round_id UNIQUE`, `as_of`, `fingerprint` (SHA-256 of the
   canonical content), `model_version`, `params_hash`, `forecast_cutoff_at`,
   `feasibility jsonb` (eligible fixtures, leagues, matching result),
@@ -236,17 +242,33 @@ erDiagram
 
 ### 5.1 `your_view_adjustments` [P][private] (T-10)
 * `user_id`, `fixture_id`, `model_context` (the Phase 6B.3 stamp: model version,
-  fixture, estimated goals), `state jsonb`, `updated_at`.
+  fixture, estimated goals), `state jsonb` (numbers only: Section B, Section C and
+  manual adjustments per team; no free text since D-41), `updated_at`.
   `PRIMARY KEY (user_id, fixture_id)`.
 * Never read by submission, settlement or scoring. Deleted with the account.
   A stored adjustment whose context no longer matches is ignored, as in the
   prototype.
+* **6C.3 (`app_0003`):** `version int` for optimistic concurrency (an older tab
+  cannot overwrite newer numbers).
+* **6C.3 checkpoint (`app_0004`):** one current state **per analytical context**:
+  surrogate `id`; `context_kind` (`live`, `round`, `unassigned` for rows saved
+  before the change, kept but never applied); `snapshot_id` set exactly for
+  `round`, foreign key `(snapshot_id, fixture_id)` → `snapshot_fixtures`;
+  `UNIQUE NULLS NOT DISTINCT (user_id, fixture_id, context_kind, snapshot_id)`;
+  index `(user_id, snapshot_id)`. Not a history (D-41).
+* **6C.3 (`app_0005`):** `writer_tab`, `writer_seq` (also on `portfolio_drafts`):
+  the browser tab that wrote last and its request sequence, so a superseded
+  request from the same tab never replaces newer work.
 
 ### 5.2 `portfolio_drafts` [P]
 * `user_id`, `round_id`, `selections jsonb`, `snapshot_fingerprint`,
   `updated_at`. `PRIMARY KEY (user_id, round_id)`.
 * Convenience only: lets a draft follow the participant between devices. It is
   never authoritative; confirmation re-validates everything from the snapshot.
+* **6C.3 (`app_0003`):** `version int` (optimistic concurrency; a reset keeps the
+  row so versions are never reused); writes only while the round is `open` and
+  before `deadline_at` (trigger, database clock). Selections hold outcome keys
+  only.
 
 ### 5.3 `entries` [P with set-once columns]
 * **Purpose:** one participant's place in one round; the lock point for
@@ -511,3 +533,32 @@ datasets (`data/research_crossleague.sqlite`, `docs/research/`) and the odds tri
 | audit_log | (target_type, target_id, at); (actor_user_id, at) |
 | job_runs | (job, scope, started_at) |
 | domain_events | (user_id, at); (kind, at) |
+
+## 14. Implementation notes (revision `app_0001`)
+
+The schema was implemented as proposed, with these refinements:
+* `submissions` also stores `round_id` and `snapshot_id`, so composite foreign
+  keys enforce that a submission belongs to its owner's entry **and** uses its
+  round's snapshot; `submission_selections` stores `snapshot_id`, so every
+  selection must be an offer on that snapshot.
+* `entries` has `UNIQUE (id, round_id, user_id)` (target of the ownership key)
+  and both submission pointers are `DEFERRABLE INITIALLY DEFERRED`.
+* `result_observations` distinguishes `observed_at` (provider receipt time),
+  `recorded_at` (database time) and `actual_kickoff_at`, keeps the raw payload and
+  hash, and requires operator corrections to carry the original values, actor and
+  reason (D-08, D-35).
+* `round_scores` repeats its score set's `kind` so that a composite foreign key
+  and CHECKs can enforce "no points outside championship rounds" and the
+  void-refund shape.
+* `round_evaluations` CHECKs encode D-32b: pending predictions force
+  `not_evaluated`, `pass` requires `2 × played > total`, and the five-ranked-entry
+  failure exists only for competitive rounds (D-32b-Q1).
+* `designations` allows one `deadline` designation per round (partial unique
+  index); operator designations require actor and reason.
+* `app_sessions` adds `authenticated_at` (operator recency, T-12) and
+  `rotated_from` (session rotation).
+* `rounds` set-once columns include `finalised_at` and the configuration, rules,
+  scoring and model versions, so the published cutoff and settlement policy cannot
+  change silently.
+* The runtime role and its privileges are applied by the migration only if the
+  role exists; roles are created by the Docker init script or the operator.

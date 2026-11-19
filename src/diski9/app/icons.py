@@ -64,6 +64,8 @@ ICONS: dict[str, str] = {
     "trash": '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/>'
     '<path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>',
     "user": '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+    "circle-user": '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/>'
+    '<path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/>',
     "calculator": '<rect width="16" height="20" x="4" y="2" rx="2"/>'
     '<line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/>'
     '<path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/>'

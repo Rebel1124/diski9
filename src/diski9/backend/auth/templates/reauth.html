@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="auth-card" method="post" action="/auth/reauthenticate" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <dl class="auth-kv"><dt>Signed in as</dt><dd>{{ email }}</dd></dl>
+  <div class="auth-field mt12"><label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="72"></div>
+  <div class="auth-actions"><button class="ch-btn primary" type="submit">Confirm</button>
+    <a class="inline" href="/account">Cancel</a></div>
+</form>
+{% endblock %}

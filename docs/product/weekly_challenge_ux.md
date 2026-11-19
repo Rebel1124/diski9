@@ -304,3 +304,31 @@ can't lose.
 * Every chart has a table alternative.
 * Toggles are segmented buttons with `aria-pressed`.
 * At 390 px there is no horizontal page scroll. Tap targets are at least 40 px.
+
+## 10. Persistent competition (Phase 6C.3)
+
+* **Frozen versus latest (T-19).** Weekly Challenge views show the round's stored
+  frozen time, the deadline and the actual status, with one short note: "All
+  participants use the same frozen odds and baseline estimates for this round.
+  These may differ from the latest information shown under All Upcoming
+  Fixtures." All Upcoming Fixtures shows "Latest available data" with the model's
+  stored update time (never "live" or "real-time"). The Match Lab shows "Weekly
+  Challenge snapshot · Frozen: …" or "Latest available data · Model updated: …",
+  and uses the matching baseline and Your View.
+* **Saving.** For signed-in participants a compact line under the tracker reads
+  "Saved to your account" only after the database confirmed the write; a failed
+  or conflicting save shows a short message with **Try again** or **Load latest
+  saved portfolio**. Guests see "Kept in this browser tab only. Sign in to save
+  your portfolio and confirm an entry."
+* **Entries.** "Confirm entry", "Replace my confirmed entry" (explicit), and
+  withdrawal with a confirmation dialog; the draft and the confirmed entry are
+  shown separately ("Your saved portfolio has changes that are not confirmed").
+  Guests see "Sign in to confirm".
+* **My Challenge** states: not started, draft in progress, ready to confirm,
+  confirmed, confirmed with unconfirmed changes, withdrawn, deadline passed, locked
+  (with classification: competitive (unofficial beta) or practice). No results or
+  standings are invented; the championship panel and Leaderboards stay labelled
+  as demonstration data.
+* **Guest work after sign-in:** Keep → a review listing what can be saved, what
+  differs from the account (one choice) and what cannot be saved and why; Save to
+  my account / Discard guest work.
