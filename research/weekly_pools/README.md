@@ -29,6 +29,8 @@ research/weekly_pools/
 * `uv run diski9 research-pool results`: daily 09:15 SAST; no requests when no pool is open.
 * `uv run diski9 research-pool replay [--round 2026-W48]`: rebuild pools offline and
   compare fingerprints, content and raw hashes (exit code 1 on any mismatch).
+* `uv run diski9 research-pool mark-incomplete --round <code> --reason "..."`: only at the
+  collection's hard end, for a pool whose results could not be completed.
 * `uv run diski9 research-pool report`: qualifying and non-qualifying pools, coverage gaps,
   observed voids, missing weeks and recorded API use.
 

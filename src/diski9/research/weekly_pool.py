@@ -55,6 +55,7 @@ DEADLINE_BUFFER = timedelta(minutes=15)  # D-06
 SETTLE_CUTOFF = timedelta(hours=48)  # D-08
 ON_TIME_BEFORE = time(12, 0)  # capture counts as on time before 12:00 SAST Thursday
 IDS_PER_REQUEST = 20  # API-Football ``fixtures?ids=`` limit
+TARGET_QUALIFYING = 8  # capture stops here (D-29 needs six to eight qualifying pools)
 
 Log = Callable[[str], None]
 
@@ -850,6 +851,7 @@ def report(store: Path = STORE_DIR, now: datetime | None = None) -> dict[str, An
                 "observed_void_codes": verdicts.get("void_codes", {}),
                 "pending_fixtures": verdicts.get("pending_fixtures", []),
                 "capture_errors": pool["capture"]["errors"],
+                "incomplete_reason": m.get("incomplete_reason"),
             }
         )
     captured = {r["round"] for r in rounds}
@@ -871,10 +873,22 @@ def report(store: Path = STORE_DIR, now: datetime | None = None) -> dict[str, An
         if (store / "runs.jsonl").exists()
         else 0
     )
+    qualifying = sum(r.get("qualifying", False) for r in rounds)
+    still_open = [r["round"] for r in rounds if r.get("state") == "open"]
     return {
         "generated_at": _iso(now),
-        "qualifying_pools": sum(r.get("qualifying", False) for r in rounds),
+        "qualifying_pools": qualifying,
         "target": "6 to 8 qualifying pools",
+        # capture stops at the target; results continue until no pool is open, so the
+        # final qualifying pool is always fully evaluated (or marked incomplete)
+        "capture_target_reached": qualifying >= TARGET_QUALIFYING,
+        "open_rounds": still_open,
+        "incomplete_rounds": [
+            {"round": r["round"], "reason": r.get("incomplete_reason")}
+            for r in rounds
+            if r.get("state") == "incomplete"
+        ],
+        "collection_finished": qualifying >= TARGET_QUALIFYING and not still_open,
         "rounds": rounds,
         "missing_weeks": gaps,
         "api_requests_recorded": requests,
@@ -884,6 +898,28 @@ def report(store: Path = STORE_DIR, now: datetime | None = None) -> dict[str, An
             "never mixed into these figures."
         ),
     }
+
+
+def mark_incomplete(
+    store: Path, round_code: str, reason: str, now: datetime | None = None
+) -> dict[str, Any]:
+    """Record that an open pool's results could not be completed (used only when the
+    collection reaches its hard end date). All data is kept; pending fixtures stay
+    listed as pending; the pool never counts as qualifying."""
+    if not reason.strip():
+        raise ValueError("a reason is required")
+    now = (now or datetime.now(UTC)).astimezone(UTC)
+    path = store / round_code / "manifest.json"
+    manifest = _read_json(path)
+    if not manifest or manifest.get("state") != "open":
+        raise ValueError(f"{round_code} is not an open pool")
+    manifest.update(
+        {"state": "incomplete", "incomplete_reason": reason, "incomplete_at": _iso(now)}
+    )
+    _write_json(path, manifest)
+    row = {"run_at": _iso(now), "step": "mark_incomplete", "round": round_code, "reason": reason}
+    _append_run(store, row)
+    return row
 
 
 def summarise(results: Iterable[dict[str, Any]]) -> str:

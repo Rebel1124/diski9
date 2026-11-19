@@ -379,6 +379,11 @@ def cmd_research_pool(args) -> int:
             )
             print(_json(res))
         return 1 if bad else 0
+    elif args.action == "mark-incomplete":
+        if not (args.round and args.reason):
+            print("error: mark-incomplete needs --round and --reason", file=sys.stderr)
+            return 2
+        print(_json(wp.mark_incomplete(store, args.round, args.reason, now=now)))
     elif args.action == "report":
         rep = wp.report(store, now=now)
         text = _json(rep)
@@ -502,7 +507,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_monitor_odds)
 
     s = sub.add_parser("research-pool", help="D-29 weekly research pool collection")
-    s.add_argument("action", choices=["capture", "results", "replay", "report"])
+    s.add_argument("action", choices=["capture", "results", "replay", "report", "mark-incomplete"])
+    s.add_argument("--reason", default=None, help="reason for mark-incomplete")
     s.add_argument("--store-dir", default=None)
     s.add_argument("--research-db-url", default=None, help="SQLite research file only")
     s.add_argument("--round", default=None, help="round code for replay, e.g. 2026-W48")

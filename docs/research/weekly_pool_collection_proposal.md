@@ -190,3 +190,22 @@ Run once six qualifying pools exist, and again at eight:
 * **Storage size:** about 350 KB per week (raw files plus the normalised pool).
 * **Missing weeks** are listed by the report as gaps; no record is created for
   them.
+
+### Stopping safely (Phase 6C.2 review)
+
+* **Capture stops** when eight qualifying pools exist (a qualifying pool is
+  already closed, so its results are complete) or after 31 March 2027. Only the
+  capture schedule is disabled at that point.
+* **Results continue** for every pool still open, so a pool captured before the
+  stop (including a ninth) is fully evaluated. The results schedule disables
+  itself only when the capture schedule has stopped and `report` shows no open
+  rounds (`collection_finished`).
+* **Hard end:** if a pool is still open on 21 April 2027 (three weeks after the
+  last possible capture), it is marked with `research-pool mark-incomplete --round
+  <code> --reason "..."`. All its data is kept, its pending fixtures stay listed,
+  it never counts as qualifying, and the report lists it under
+  `incomplete_rounds`.
+* **Observability and recovery:** every run appends to `runs.jsonl` and replies
+  with a one-line report; a failed or missed run can be repeated by hand with the
+  same commands (`capture` is refused once a complete capture exists; `results`
+  only adds changed observations).

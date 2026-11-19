@@ -373,3 +373,39 @@ def test_missing_weeks_are_reported_not_filled(store):
     rep = wp.report(store, now=_dt("2026-12-11T08:00:00+00:00"))
     assert rep["missing_weeks"] == ["2026-W48", "2026-W49", "2026-W50"]
     assert not (store / "2026-W48").exists()
+
+
+# ---------------------------------------------------------------- stopping safely
+def test_target_reached_does_not_abandon_open_pools(store):
+    rep = wp.report(store, now=_dt("2026-11-23T08:00:00+00:00"))
+    assert rep["open_rounds"] == ["2026-W47"]
+    assert rep["collection_finished"] is False  # an open pool keeps results running
+
+
+def test_incomplete_pool_is_recorded_explicitly_and_never_qualifies(store):
+    with pytest.raises(ValueError):
+        wp.mark_incomplete(store, "2026-W47", "   ")
+    wp.mark_incomplete(
+        store,
+        "2026-W47",
+        "results unresolved at collection end",
+        now=_dt("2027-04-21T08:00:00+00:00"),
+    )
+    rep = wp.report(store, now=_dt("2027-04-21T09:00:00+00:00"))
+    assert rep["open_rounds"] == []
+    assert rep["incomplete_rounds"] == [
+        {"round": "2026-W47", "reason": "results unresolved at collection end"}
+    ]
+    assert rep["qualifying_pools"] == 0
+    assert wp.open_rounds(store) == []  # results collection no longer touches it
+    with pytest.raises(ValueError):
+        wp.mark_incomplete(store, "2026-W47", "again")
+
+
+def test_closed_pool_cannot_be_marked_incomplete(store, monkeypatch):
+    m = store / "2026-W47" / "manifest.json"
+    data = json.loads(m.read_text())
+    data["state"] = "closed"
+    m.write_text(json.dumps(data))
+    with pytest.raises(ValueError):
+        wp.mark_incomplete(store, "2026-W47", "no")
