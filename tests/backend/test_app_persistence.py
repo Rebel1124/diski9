@@ -302,19 +302,19 @@ def test_my_challenge_shows_your_view_now_without_touching_the_entry(engine, op,
     stored = es.get_entry(engine, p, view.id).current
     as_user(p)
     out, _, _ = body_text(engine, view.id)
-    assert "Your View — now" not in out and "none of these nine matches" in out
+    assert "Your View is calculated now" not in out and "adjust one of these matches" in out
     # a frozen-context adjustment on one confirmed match
     fid = valid_keys(snap, 9)[0]["fixture_id"]
     state = yv.zero_state()
     state["manual"] = {"home": 0.4, "away": 0.0}
     yv.save_your_view(engine, p, yv.RoundContext(view.id, fid), state, expected_version=0)
     out, _, _ = body_text(engine, view.id)
-    assert "Your View — now" in out and "1 of 9 matches adjusted" in out
-    assert "Private · not part of your entry" in out
+    assert "Your View is calculated now" in out and "(1 of 9 matches" in out
+    assert "Private, not part of your entry, never scored" in out
     after = es.get_entry(engine, p, view.id).current
     assert (after.id, after.version, after.p_recover_market, after.expected_gross_market) == (
         stored.id, stored.version, stored.p_recover_market, stored.expected_gross_market)  # fmt: skip
     # another account sees nothing of it
     as_user(other)
     out, _, _ = body_text(engine, view.id)
-    assert "Your View — now" not in out
+    assert "Your View is calculated now" not in out

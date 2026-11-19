@@ -1273,9 +1273,12 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-locked-entry .ch-locked-preds { margin: 10px 0 0; box-shadow: none; }
 @media (max-width: 600px) { .ch-locked-entry .ch-src-cards { grid-template-columns: minmax(0, 1fr); } }
 
-/* My Challenge: Your View calculated now (private, not part of the entry) */
-.ch-yv-now { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line, #2a3340); }
-.ch-yv-now .ch-src-cards { grid-template-columns: minmax(0, 1fr); margin: 8px 0 4px; }
-.ch-yv-now .ch-src-card { padding: 8px 10px; max-width: 340px; }
-.ch-yv-now .ch-src-card .ch-big, .ch-yv-now .ch-src-card strong { font-size: 15px; }
-.ch-yv-now-note { margin: 8px 0 0; }
+/* My Challenge: Your View calculated now (third card, same size; private) */
+.ch-src-tag { margin-left: 6px; font-size: 10px; font-weight: 600; letter-spacing: .04em;
+  text-transform: uppercase; white-space: nowrap; color: var(--warn, #d9a441); }
+.ch-yv-now-note { margin: 0 0 4px; }
+/* compact, even "This round" and "Confirmed portfolio" cards on desktop */
+@media (min-width: 961px) {
+  .ch-grid-me > .ch-card { padding-bottom: 12px; }
+  .ch-grid-me .ch-card-foot { padding-top: 6px; }
+}

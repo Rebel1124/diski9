@@ -1121,8 +1121,10 @@ def k_detail(cc, k: int) -> html.Div:
 
 
 # ----------------------------------------------------------------- review
-def estimate_cards(estimates: dict) -> html.Div:
-    """Market / Diski 9 / Your View summary cards (recovery first)."""
+def estimate_cards(estimates: dict, tags: dict | None = None) -> html.Div:
+    """Market / Diski 9 / Your View summary cards (recovery first). ``tags`` adds a
+    small label beside a source's name (for example Your View "now")."""
+    tags = tags or {}
     cards = []
     for src in pa.SOURCES:
         e = estimates.get(src)
@@ -1131,7 +1133,13 @@ def estimate_cards(estimates: dict) -> html.Div:
         cards.append(
             html.Div(
                 [
-                    html.Span(pa.SOURCE_LABEL[src], className="ch-src-name"),
+                    html.Span(
+                        [
+                            pa.SOURCE_LABEL[src],
+                            html.Span(tags[src], className="ch-src-tag") if src in tags else None,
+                        ],
+                        className="ch-src-name",
+                    ),
                     html.Div(
                         [
                             html.Span("Get 100+ back", className="muted small"),
@@ -1635,41 +1643,26 @@ def your_view_now(service, snap, sub) -> dict | None:
     }
 
 
-def your_view_block(yv) -> html.Div | None:
-    if yv is None:
-        return None
-    if not yv["adjusted"]:
-        return html.P(
-            "Your View: none of these nine matches has a Weekly Challenge (frozen) "
-            "adjustment. Adjust a match in the Match Lab from the Weekly Challenge to "
-            "see your own estimate here.",
-            className="muted small ch-yv-now-note",
-        )
-    n = yv["adjusted"]
-    return html.Div(
-        [
-            html.Div(
-                [
-                    html.Span("Your View — now", className="ch-h3"),
-                    html.Span("Private · not part of your entry", className="ch-pill off"),
-                ],
-                className="ch-row-between",
-            ),
-            estimate_cards({"personal": yv["estimate"]}),
-            html.P(
-                f"Calculated now from your current Weekly Challenge adjustments "
-                f"({n} of 9 matches adjusted; the others use the Diski 9 baseline). "
-                "It changes if you change your view and is never used for scoring.",
-                className="muted small",
-            ),
-        ],
-        className="ch-yv-now",
-    )
-
-
 def confirmed_summary(sub, local, can_withdraw: bool, your_view=None) -> html.Div:
     """Compact card: the frozen submission's Market / Diski 9 estimates, and (for a
-    signed-in participant) Your View calculated now, clearly separated."""
+    signed-in participant) Your View calculated now, as a third card of the same size,
+    labelled private and not part of the entry."""
+    estimates = dict(sub.get("estimates") or {})
+    tags: dict = {}
+    yv_note = None
+    if your_view is not None and your_view.get("estimate"):
+        estimates["personal"] = your_view["estimate"]
+        tags["personal"] = "now"
+        n = your_view["adjusted"]
+        yv_note = (
+            f"Your View is calculated now from your Weekly Challenge adjustments ({n} of 9 "
+            "matches; the rest use Diski 9). Private, not part of your entry, never scored."
+        )
+    elif your_view is not None:
+        yv_note = (
+            "Your View: adjust one of these matches in the Match Lab from the Weekly "
+            "Challenge to see your own estimate here."
+        )
     return html.Div(
         [
             html.Div(
@@ -1683,8 +1676,8 @@ def confirmed_summary(sub, local, can_withdraw: bool, your_view=None) -> html.Di
                 ],
                 className="ch-row-between",
             ),
-            estimate_cards(sub.get("estimates") or {}),
-            your_view_block(your_view),
+            estimate_cards(estimates, tags),
+            html.P(yv_note, className="muted small ch-yv-now-note") if yv_note else None,
             html.Div(
                 [
                     html.Span(
