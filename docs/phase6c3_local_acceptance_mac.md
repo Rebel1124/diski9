@@ -95,6 +95,14 @@ This takes real upcoming fixtures and their current estimated goals from your fo
 - the deadline is at least 24 hours away, which gives you time for manual testing;
 - it needs at least 15 upcoming fixtures in 3 leagues after that time in your football database (run your usual `refresh-data` first if needed; no new API request is made by this command).
 
+By default the mirrored round takes the first **20** fixtures (earliest kickoffs first), so on a busy weekend later matches (for example most EPL games) are left out. To include **every** upcoming fixture within seven days of the first allowed kickoff, add `--fixtures 0` (or a number such as `--fixtures 60`):
+
+```bash
+uv run diski9 round dev-open --by-email alpha@example.test --mirror-upcoming --deadline-minutes 1440 --fixtures 0 --code dev-accept-2
+```
+
+Use a new code each time; a published round never changes. If several development rounds are open, the one whose deadline comes first is shown.
+
 If it reports that the rules are not met, try a smaller `--deadline-minutes` value. You can also use the fully synthetic option:
 
 ```bash

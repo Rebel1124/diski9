@@ -118,13 +118,18 @@ def mirror_snapshot(
     fixtures: int = 20,
     seed: int = 2026,
     league_names: dict[int, str] | None = None,
+    span: timedelta = timedelta(days=7),
 ) -> RoundSnapshot:
     """A development snapshot of **real upcoming fixtures** from the local football
     store (teams, kickoffs, the current Goal Model estimated goals and model
     probabilities, frozen at ``as_of``) with **synthetic odds** derived
     deterministically from those probabilities. Lets the same match be opened in
     the frozen Weekly Challenge context and in All Upcoming Fixtures. Read-only:
-    nothing is written to the football store; no API request is made."""
+    nothing is written to the football store; no API request is made.
+
+    ``fixtures`` caps the number of fixtures (earliest kickoffs first); ``0`` means
+    no cap: every upcoming fixture with model estimates that kicks off within
+    ``span`` (default seven days) of ``earliest_kickoff``."""
     from diski9.api_football.markets import Market
     from diski9.odds.value import MARKET_ORDER, OUTCOME_KEY
     from diski9.screener import cache
@@ -148,6 +153,8 @@ def mirror_snapshot(
             kickoff = kickoff.replace(tzinfo=UTC)
         if kickoff < earliest_kickoff:
             continue
+        if kickoff >= earliest_kickoff + span:
+            break
         g = r["goal_model"]
         eg = g["estimated_goals"]
         league = f["competition_id"]
@@ -169,7 +176,7 @@ def mirror_snapshot(
             for o in MARKET_ORDER[m]:
                 p = raw[o] / total
                 outs.append(make_outcome(f["id"], m, o, p, _odds(p), model[o], 5, observed, league))
-        if len(fx) == fixtures:
+        if fixtures and len(fx) == fixtures:
             break
     if not fx:
         raise ValueError("no upcoming fixtures with model estimates after that time")

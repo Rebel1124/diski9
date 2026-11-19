@@ -525,6 +525,8 @@ def cmd_round(args) -> int:
                 now = db_now(conn)
             first = now + timedelta(minutes=args.deadline_minutes + 15)
             code = args.code or f"dev-{now:%Y%m%d-%H%M%S}"
+            if args.fixtures < 0:
+                raise ServiceError("--fixtures must be 0 (no cap) or more", code="usage")
             if args.mirror_upcoming:
                 from diski9.app.data import LEAGUE_SHORT
                 from diski9.backend.devdata import mirror_snapshot
@@ -534,6 +536,7 @@ def cmd_round(args) -> int:
                     now,
                     make_engine(args.database_url),
                     earliest_kickoff=first,
+                    fixtures=args.fixtures,
                     seed=args.seed,
                     league_names=LEAGUE_SHORT,
                 )
@@ -766,6 +769,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--mirror-upcoming",
         action="store_true",
         help="dev-open: real upcoming fixtures from the football store, synthetic odds",
+    )
+    s.add_argument(
+        "--fixtures",
+        type=int,
+        default=20,
+        help="dev-open --mirror-upcoming: number of fixtures, earliest kickoffs first "
+        "(0 = every upcoming fixture within seven days of the first allowed kickoff)",
     )
 
     s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
