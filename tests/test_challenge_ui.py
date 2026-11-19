@@ -627,13 +627,20 @@ def test_your_view_uses_match_lab_maths_and_never_changes_official_values(snap):
     data = _DataWithResults(snap)  # noqa: F811
     fid = snap.fixtures[0].fixture_id
     assert integration.personal_probabilities(data, snap, {}) == {}
-    store = {str(fid): _lab_state(0.8)}
+    from tests.test_your_view_persistence import _frozen
+
+    store = _frozen(snap, fid, _lab_state(0.8))
+    assert integration.personal_probabilities(data, snap, {str(fid): _lab_state(0.8)}) == {}
     personal = integration.personal_probabilities(data, snap, store)
     outs = [o for o in snap.outcomes if o.fixture_id == fid]
     assert {k[0] for k in personal} == {fid} and len(personal) == len(outs)
     r = data.snapshot().results["overall"][fid]
-    expect = lab.adjusted_probabilities(lab.user_estimates(r, lab.normalise_state(store[str(fid)],
-                                                                                  lab.baseline_rounded(r))))  # fmt: skip
+    fx = snap.fixture(fid)  # Phase 6C.3: the frozen baseline of the round, not the live one
+    frozen_r = {"goal_model": {"estimated_goals": dict(zip(("home", "away"), fx.estimated_goals,
+                                                            strict=True))}}  # fmt: skip
+    key = next(k for k in store if k.startswith("r:"))
+    expect = lab.adjusted_probabilities(lab.user_estimates(frozen_r, lab.normalise_state(
+        store[key], lab.baseline_rounded(frozen_r))))  # fmt: skip
     for o in outs:
         assert personal[o.key] == expect[lab.OUTCOME_KEY[o.outcome]]
     home = next(o for o in outs if str(o.outcome) == "HOME")
@@ -708,7 +715,11 @@ def test_match_lab_panel_states(svc, snap):
     assert "isn't in this week's Challenge" in outside
     nolive = jtext(integration.lab_panel(ChallengeService(_Data()), data, None, fid, {}, None))
     assert "demonstration round" in nolive
-    adjusted = jtext(integration.lab_panel(svc, data, s, fid, {str(fid): _lab_state(0.5)}, None))
+    from tests.test_your_view_persistence import _frozen
+
+    adjusted = jtext(  # Phase 6C.3: the round's frozen-context Your View
+        integration.lab_panel(svc, data, s, fid, _frozen(snap, fid, _lab_state(0.5)), None)
+    )
     assert "uses your adjusted expected goals" in adjusted
 
 

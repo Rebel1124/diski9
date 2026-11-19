@@ -386,3 +386,39 @@ def test_waiting_for_another_device_cannot_extend_the_draft_window(engine, op, p
     patient.dispose()
     assert isinstance(out[0], RoundClosed)
     assert drafts.get_draft(engine, p, view.id).version == d.version
+
+
+def test_saves_from_one_tab_are_ordered_and_other_devices_still_conflict(engine, rnd):
+    """The front end can send a newer save from the same tab before an older one
+    finishes. The newer one wins whatever the arrival order; another device with
+    an old version still gets a conflict."""
+    from diski9.backend.services.common import Writer
+
+    view, snap = rnd
+    p = principal(engine)
+    keys = valid_keys(snap)
+    tab = Writer("tab-" + "a" * 20, 0)
+    d = drafts.save_draft(engine, p, view.id, keys[:1], expected_version=0, writer=tab)
+    newer = drafts.save_draft(
+        engine, p, view.id, keys[:3], expected_version=d.version, writer=Writer(tab.tab, 2)
+    )
+    late_old = drafts.save_draft(
+        engine, p, view.id, keys[:2], expected_version=d.version, writer=Writer(tab.tab, 1)
+    )
+    assert late_old == newer  # the older request is ignored, not a conflict
+    assert drafts.get_draft(engine, p, view.id).selections == newer.selections
+    again = drafts.save_draft(
+        engine, p, view.id, keys[:4], expected_version=d.version, writer=Writer(tab.tab, 3)
+    )  # its own newer request
+    assert len(again.selections) == 4
+    with pytest.raises(VersionConflict):
+        drafts.save_draft(
+            engine,
+            p,
+            view.id,
+            keys[:5],
+            expected_version=d.version,
+            writer=Writer("tab-" + "b" * 20, 9),
+        )
+    with pytest.raises(ValidationFailed):
+        Writer("short", 1)

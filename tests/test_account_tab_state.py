@@ -64,7 +64,7 @@ const { chromium } = require('playwright');
   const draft = JSON.stringify({ picks: { "1": "HOME" } });
   const state = p => p.evaluate(() => ({
     ch: sessionStorage.getItem('ch-session'), lab: sessionStorage.getItem('lab-store'),
-    owner: sessionStorage.getItem('d9-owner') }));
+    owner: sessionStorage.getItem('d9-owner'), adopt: sessionStorage.getItem('d9-adopt') }));
   const dialog = async p => { await p.waitForTimeout(400); return await p.locator('#d9-guest-choice').count(); };
 
   // 1. guest with work signs in, chooses Keep
@@ -76,7 +76,7 @@ const { chromium } = require('playwright');
   out.keepText = await p.locator('#d9-guest-choice').innerText();
   await p.reload();
   out.keepAskedAgainAfterRefresh = await dialog(p);
-  await p.click('#d9-guest-keep');
+  await Promise.all([p.waitForNavigation(), p.click('#d9-guest-keep')]);
   out.keepAfter = await state(p);
   out.keepDialogGone = await p.locator('#d9-guest-choice').count();
   await p.reload();
@@ -149,13 +149,14 @@ def test_browser_tab_state_at_sign_in_switch_and_sign_out():
     assert out["errors"] == []
     # 1. keep: asked (again after a refresh), work stays in the tab, then not asked
     assert out["keepAsked"] == 1 and out["keepAskedAgainAfterRefresh"] == 1
-    assert "not saved to your account" in out["keepText"]
-    assert "nothing is submitted" in out["keepText"]
+    assert "nothing is saved until you confirm" in out["keepText"]
+    assert "nothing is ever submitted automatically" in out["keepText"]
     assert out["keepAfter"]["ch"] == draft and out["keepAfter"]["owner"] == "acctA"
+    assert out["keepAfter"]["adopt"] == '"pending"'  # the page then shows the review (6C.3)
     assert out["keepDialogGone"] == 0 and out["keepAskedAfterChoice"] == 0
     # 2. discard: asked, then all prototype state removed
     assert out["discardAsked"] == 1
-    assert out["discardAfter"] == {"ch": None, "lab": None, "owner": "acctA"}
+    assert out["discardAfter"] == {"ch": None, "lab": None, "owner": "acctA", "adopt": None}
     assert out["discardAskedAfter"] == 0
     # 3. nothing to keep: not asked
     assert out["emptyAsked"] == 0 and out["emptyOwner"] == "acctA"
@@ -163,4 +164,4 @@ def test_browser_tab_state_at_sign_in_switch_and_sign_out():
     assert out["switchAfter"]["ch"] is None and out["switchAfter"]["owner"] == "acctB"
     assert out["switchAsked"] == 0
     # 5. sign-out clears
-    assert out["signoutAfter"] == {"ch": None, "lab": None, "owner": None}
+    assert out["signoutAfter"] == {"ch": None, "lab": None, "owner": None, "adopt": None}

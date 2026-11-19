@@ -2,13 +2,14 @@
    Prototype analysis (Weekly Challenge draft and submission, preferences, Your View)
    lives only in this browser tab's sessionStorage and is never sent to the server.
    * Guest signs in or registers with work in the tab: an explicit choice is offered
-     to keep it in this tab or discard it. Nothing is saved to the account and
-     nothing is submitted (saving a draft to an account is Phase 6C.3).
+     to keep it or discard it. Keeping opens a review (Phase 6C.3) that saves the
+     compatible work to the account only when the person confirms; nothing is ever
+     submitted automatically.
    * A different account signs in in this tab: the previous account's state is
      removed before the page reloads.
    * Sign-out pages clear everything. */
 (function () {
-  var KEYS = ["ch-session", "ch-prefs", "lab-store"];
+  var KEYS = ["ch-session", "ch-prefs", "lab-store", "d9-adopt"];
   var WORK_KEYS = ["ch-session", "lab-store"];
   function clearState() {
     try {
@@ -45,15 +46,24 @@
     box.appendChild(title);
     box.appendChild(el("p", null,
       "Your draft and Your View adjustments from before you signed in are still in this browser tab. " +
-      "Keeping them leaves them in this tab only: they are not saved to your account and nothing is submitted."));
+      "Keep them to review what can be saved to your account: nothing is saved until you confirm, " +
+      "and nothing is ever submitted automatically."));
     var row = el("div", "guest-choice-actions");
-    var keep = el("button", "keep", "Keep in this tab");
+    var keep = el("button", "keep", "Keep");
     keep.type = "button";
     keep.id = "d9-guest-keep";
     var discard = el("button", "discard", "Discard");
     discard.type = "button";
     discard.id = "d9-guest-discard";
-    keep.addEventListener("click", function () { setOwner(current); box.remove(); });
+    keep.addEventListener("click", function () {
+      /* the review (Phase 6C.3) is shown by the page after a reload */
+      try {
+        sessionStorage.setItem("d9-adopt", JSON.stringify("pending"));
+        sessionStorage.setItem("d9-adopt-timestamp", String(Date.now()));
+      } catch (e) {}
+      setOwner(current);
+      window.location.reload();
+    });
     discard.addEventListener("click", function () {
       clearState();
       setOwner(current);

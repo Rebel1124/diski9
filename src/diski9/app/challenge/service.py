@@ -51,8 +51,14 @@ def parse_key(s: str) -> tuple:
 
 
 class ChallengeService:
-    def __init__(self, data, live_ttl: float = 900, demo_pool: Path = DEMO_POOL):
+    """With ``backend`` (Phase 6C.3), the live round is the **published** round from
+    the competition database: its frozen snapshot is what everyone sees, and there
+    is never a fallback to a snapshot built on the fly. Without it the Phase 6B
+    prototype behaviour is unchanged (used when accounts are not configured)."""
+
+    def __init__(self, data, live_ttl: float = 900, demo_pool: Path = DEMO_POOL, backend=None):
         self.data = data
+        self.backend = backend
         self.live_ttl = live_ttl
         self.demo_pool = demo_pool
         self._live: RoundSnapshot | None = None
@@ -71,6 +77,9 @@ class ChallengeService:
         it is **pinned** for that round (one official frozen snapshot per round), so it
         is never rebuilt during the round; an unplayable snapshot (for example stale
         odds at publication) is retried every ``live_ttl`` seconds."""
+        if self.backend is not None:
+            found = self.backend.published()
+            return found[1] if found else None
         with self._lock:
             now = self.now()
             iso = now.isocalendar()
@@ -106,7 +115,16 @@ class ChallengeService:
         return self.demo() if mode == "demo" else self.live()
 
     def availability(self, mode: str | None) -> RoundAvailability:
+        if mode != "demo" and self.backend is not None:
+            return self.backend.availability(self.now())
         return assess_round(self.snapshot(mode), self.now(), DEFAULT_CONFIG)
+
+    def round_view(self):
+        """The published round's record (status, deadline, frozen time) or None."""
+        if self.backend is None:
+            return None
+        found = self.backend.published()
+        return found[0] if found else None
 
     # ------------------------------------------------------------ portfolio
     def outcomes_for(self, snap: RoundSnapshot, keys: list[str]):

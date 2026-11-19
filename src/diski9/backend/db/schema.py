@@ -223,6 +223,8 @@ portfolio_drafts = Table(
     Column("snapshot_fingerprint", Text, nullable=True),
     Column("updated_at", DateTime(timezone=True), nullable=False),
     Column("version", Integer, nullable=False, server_default=text("0")),
+    Column("writer_tab", Text, nullable=True),
+    Column("writer_seq", BigInteger, nullable=True),
 )
 
 privacy_history = Table(
@@ -572,6 +574,8 @@ your_view_adjustments = Table(
     Column("state", JSONB, nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
     Column("version", Integer, nullable=False, server_default=text("0")),
+    Column("writer_tab", Text, nullable=True),
+    Column("writer_seq", BigInteger, nullable=True),
 )
 
 HISTORY = frozenset(

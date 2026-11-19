@@ -1247,3 +1247,20 @@ table.results td.value-cell { white-space: nowrap; }
   .ch-conf-summary .ch-src-card .ch-big, .ch-conf-summary .ch-src-card strong { font-size: 15px; }
   .ch-howto .ch-htp { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
+
+/* Phase 6C.3: frozen versus latest context, save state, guest-work review */
+.data-context { margin: 6px 0 10px; }
+.ctx-line, .lab-context { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.lab-context { margin-top: 4px; }
+.ctx-tag { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.ctx-tag.frozen { color: var(--accent); border-color: rgba(45, 212, 191, .4); }
+.ctx-tag.latest { color: var(--text); }
+.ctx-note, .ch-frozen-note { margin: 4px 0 0; }
+.ch-save-state { margin: 6px 0 0; display: flex; align-items: center; gap: 6px; }
+.ch-save-state.ok { color: var(--accent); }
+.ch-save-state.warn { color: var(--warn); }
+.ch-flash .ch-btn.small { margin-left: 6px; }
+.adopt-panel { max-width: 560px; text-align: left; }
+.adopt-panel ul { margin: 4px 0 10px; padding-left: 18px; }
+.adopt-choice label { display: block; margin: 4px 0; }

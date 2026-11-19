@@ -45,8 +45,10 @@ from .common import (
     RoundClosed,
     ValidationFailed,
     VersionConflict,
+    Writer,
     map_db_errors,
     require_active,
+    save_decision,
 )
 
 MAX_SELECTIONS = sum(DEFAULT_CONFIG.sizes)  # 4 + 3 + 2
@@ -201,9 +203,11 @@ def save_draft(
     selections: Iterable[Any],
     *,
     expected_version: int,
+    writer: Writer | None = None,
 ) -> DraftView:
     """Save the participant's draft (0–9 selections) if it is valid and still
-    based on the latest saved version."""
+    based on the latest saved version (or is a newer save from the tab that wrote
+    it last; see :func:`~.common.save_decision`)."""
     authorize(principal, Capability.PERSIST_OWN_ANALYSIS)
     sels = parse_selections(selections)
     if isinstance(expected_version, bool) or not isinstance(expected_version, int):
@@ -227,8 +231,10 @@ def save_draft(
         ensure_before_deadline(conn, r)  # re-checked after every lock is held
         if row is not None and list(row.selections) == sels:
             return _view(row, round_id, True)  # nothing changed: no write
-        current = row.version if row is not None else 0
-        if expected_version != current:
+        decision = save_decision(row, expected_version, writer)
+        if decision == "superseded":
+            return _view(row, round_id, True)  # an older request from this tab: ignored
+        if decision == "conflict":
             raise VersionConflict(
                 "This draft was changed in another tab or on another device. "
                 "Load the latest saved draft to continue.",
@@ -243,6 +249,8 @@ def save_draft(
                     selections=sels,
                     snapshot_fingerprint=snap.fingerprint,
                     version=1,
+                    writer_tab=writer.tab if writer else None,
+                    writer_seq=writer.seq if writer else None,
                 )
                 .on_conflict_do_nothing()
                 .returning(portfolio_drafts)
@@ -264,12 +272,14 @@ def save_draft(
             .where(
                 portfolio_drafts.c.user_id == uid,
                 portfolio_drafts.c.round_id == round_id,
-                portfolio_drafts.c.version == expected_version,
+                portfolio_drafts.c.version == row.version,
             )
             .values(
                 selections=sels,
                 snapshot_fingerprint=snap.fingerprint,
                 version=portfolio_drafts.c.version + 1,
+                writer_tab=writer.tab if writer else None,
+                writer_seq=writer.seq if writer else None,
             )
             .returning(portfolio_drafts)
         ).one()
@@ -277,8 +287,15 @@ def save_draft(
 
 
 def clear_draft(
-    engine: Engine, principal: Principal, round_id: UUID, *, expected_version: int
+    engine: Engine,
+    principal: Principal,
+    round_id: UUID,
+    *,
+    expected_version: int,
+    writer: Writer | None = None,
 ) -> DraftView:
     """Empty the draft. The row and its version remain, so a version number is never
     reused by a later save (no lost update after a reset)."""
-    return save_draft(engine, principal, round_id, [], expected_version=expected_version)
+    return save_draft(
+        engine, principal, round_id, [], expected_version=expected_version, writer=writer
+    )

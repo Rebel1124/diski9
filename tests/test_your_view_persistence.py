@@ -68,13 +68,31 @@ def test_reset_removes_adjustment_and_stamp(data):  # noqa: F811
     assert cleared == {}  # back to the original Diski 9 estimates
 
 
+def _frozen(snapshot, fid, state) -> dict:
+    """A Match Lab store holding a frozen Weekly Challenge adjustment (6C.3)."""
+    from diski9.app.lab_context import frozen_key
+
+    fx = snapshot.fixture(fid)
+    h, a = (round(x, 2) for x in fx.estimated_goals)
+    key = frozen_key(snapshot.round_id, fid)
+    return {key: state, lab.CONTEXT_KEY: {key: f"1.0|{fid}|{h:.2f}|{a:.2f}"}}
+
+
 def test_personal_probabilities_skip_stale_context(svc, snap):  # noqa: F811
     fake = _DataWithResults(snap)
     fid = snap.fixtures[0].fixture_id
-    store = {str(fid): _lab_state(0.6)}
-    assert integration.personal_probabilities(fake, snap, store)  # legacy entry: applied
-    store[lab.CONTEXT_KEY] = {str(fid): "1.0|other|9.99|9.99"}
+    store = _frozen(snap, fid, _lab_state(0.6))
+    assert integration.personal_probabilities(fake, snap, store)  # frozen context: applied
+    key = next(k for k in store if k.startswith("r:"))
+    store[lab.CONTEXT_KEY] = {key: "1.0|other|9.99|9.99"}
     assert integration.personal_probabilities(fake, snap, store) == {}
+
+
+def test_live_context_adjustments_never_apply_to_the_weekly_challenge(svc, snap):  # noqa: F811
+    """Approved at the 6C.3 checkpoint: the live and frozen contexts are separate."""
+    fake = _DataWithResults(snap)
+    fid = snap.fixtures[0].fixture_id
+    assert integration.personal_probabilities(fake, snap, {str(fid): _lab_state(0.6)}) == {}
 
 
 def test_confirmed_portfolio_is_immutable_when_your_view_changes(svc, snap):  # noqa: F811
@@ -84,10 +102,10 @@ def test_confirmed_portfolio_is_immutable_when_your_view_changes(svc, snap):  # 
     s, _ = cb.apply_action(svc, None, "mode", "demo")
     for k in keys:
         s, _ = cb.apply_action(svc, s, "pick", k)
-    first = integration.personal_probabilities(fake, snap, {str(fid): _lab_state(0.5)})
+    first = integration.personal_probabilities(fake, snap, _frozen(snap, fid, _lab_state(0.5)))
     s, _ = cb.apply_action(svc, s, "submit", None, first)
     frozen = json.loads(json.dumps(s["submitted"]))
-    later = integration.personal_probabilities(fake, snap, {str(fid): _lab_state(-0.5)})
+    later = integration.personal_probabilities(fake, snap, _frozen(snap, fid, _lab_state(-0.5)))
     assert later != first
     for action in ("close_modal", "clear", "dismiss_notes"):
         s2, _ = cb.apply_action(svc, s, action, None, later)

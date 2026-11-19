@@ -39,7 +39,15 @@ from diski9.challenge.roundsheet import RoundSnapshot
 from ..auth.permissions import Capability, Principal, authorize
 from ..db import read_only, transaction
 from ..db.schema import round_snapshots, rounds, snapshot_fixtures, your_view_adjustments
-from .common import NotFound, ValidationFailed, VersionConflict, map_db_errors, require_active
+from .common import (
+    NotFound,
+    ValidationFailed,
+    VersionConflict,
+    Writer,
+    map_db_errors,
+    require_active,
+    save_decision,
+)
 
 # The Match Lab's limits (diski9.app.lab; a test keeps them identical).
 SIDES = ("home", "away")
@@ -306,7 +314,12 @@ def get_many(engine: Engine, principal: Principal, contexts) -> dict:
 
 
 def write_in(
-    conn: Connection, uid: UUID, ctx: Context, state: Any, expected_version: int
+    conn: Connection,
+    uid: UUID,
+    ctx: Context,
+    state: Any,
+    expected_version: int,
+    writer: Writer | None = None,
 ) -> YourView:
     """Save inside an open transaction (also used by guest adoption)."""
     r = _resolve(conn, ctx)
@@ -316,8 +329,10 @@ def write_in(
     row = _row(conn, uid, r, for_update=True)
     if row is not None and row.model_context == r.model_context and row.state == clean:
         return _view(row, r)  # nothing changed: no write
-    current = row.version if row is not None else 0
-    if expected_version != current:
+    decision = save_decision(row, expected_version, writer)
+    if decision == "superseded":
+        return _view(row, r)  # an older request from this tab: ignored
+    if decision == "conflict":
         raise VersionConflict(
             "Your View for this match was changed in another tab or on another device. "
             "Reload it to continue.",
@@ -334,6 +349,8 @@ def write_in(
                 model_context=r.model_context,
                 state=clean,
                 version=1,
+                writer_tab=writer.tab if writer else None,
+                writer_seq=writer.seq if writer else None,
             )
             .on_conflict_do_nothing(constraint="uq_your_view_context")
             .returning(your_view_adjustments)
@@ -348,13 +365,15 @@ def write_in(
         update(your_view_adjustments)
         .where(
             your_view_adjustments.c.id == row.id,
-            your_view_adjustments.c.version == expected_version,
+            your_view_adjustments.c.version == row.version,
         )
         .values(
             model_context=r.model_context,
             state=clean,
             version=your_view_adjustments.c.version + 1,
             updated_at=func.transaction_timestamp(),
+            writer_tab=writer.tab if writer else None,
+            writer_seq=writer.seq if writer else None,
         )
         .returning(your_view_adjustments)
     ).one()
@@ -362,7 +381,13 @@ def write_in(
 
 
 def save_your_view(
-    engine: Engine, principal: Principal, ctx: Context, state: Any, *, expected_version: int
+    engine: Engine,
+    principal: Principal,
+    ctx: Context,
+    state: Any,
+    *,
+    expected_version: int,
+    writer: Writer | None = None,
 ) -> YourView:
     """Store the current numbers for this context only. A reset stores zeros (the
     row and its version remain). The other context of the same match is never
@@ -371,10 +396,17 @@ def save_your_view(
     clean_state(state)  # validate before opening a transaction
     with map_db_errors(), transaction(engine) as conn:
         require_active(conn, principal.user_id)
-        return write_in(conn, principal.user_id, ctx, state, expected_version)
+        return write_in(conn, principal.user_id, ctx, state, expected_version, writer)
 
 
 def reset_your_view(
-    engine: Engine, principal: Principal, ctx: Context, *, expected_version: int
+    engine: Engine,
+    principal: Principal,
+    ctx: Context,
+    *,
+    expected_version: int,
+    writer: Writer | None = None,
 ) -> YourView:
-    return save_your_view(engine, principal, ctx, zero_state(), expected_version=expected_version)
+    return save_your_view(
+        engine, principal, ctx, zero_state(), expected_version=expected_version, writer=writer
+    )

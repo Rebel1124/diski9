@@ -122,7 +122,7 @@ def test_pp_and_slider_range():
 
 def _adjust_callback(data):
     app = create_app(data)
-    return next(v for k, v in app.callback_map.items() if "lab-store.data" in k)[
+    return next(v for k, v in app.callback_map.items() if "lab-home-slider.value" in k)[
         "callback"
     ].__wrapped__
 
@@ -167,7 +167,7 @@ def test_market_switch_keeps_adjustment(data):
     st, _ = lab_update(r, "lab-home-input", 2.5, st)
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = func(EPL_FIX, market, "/", lab)[0]  # 6B.2: route argument
+        d = func(EPL_FIX, market, "/", "all", lab)[0]  # 6B.2: route argument
         sliders = _find(d, lambda c: getattr(c, "id", None) == "lab-home-slider")
         assert sliders[0].value == 2.5
         cat = _find(
@@ -180,7 +180,7 @@ def test_market_switch_keeps_adjustment(data):
         assert box[0].value == "2.50"  # two decimals, not 2.5
         assert "Adjusted by you" in _text(d)
     # another fixture has its own (empty) state
-    d = func(PSL_FIX, "1X2", "/", lab)[0]
+    d = func(PSL_FIX, "1X2", "/", "all", lab)[0]
     assert "Adjusted by you" not in _text(d)
 
 
@@ -517,7 +517,7 @@ def _call(func, data, lab, value):
     ]
     ctxv["triggered_inputs"][0]["value"] = value
     args = (None, None, None, None, 0, [], [], None, None, None, 0, [], None, None)
-    return func(*args, EPL_FIX, "BTTS", lab)
+    return func(*args, EPL_FIX, "BTTS", "all", lab)
 
 
 def test_section_c_structure_and_education(data):

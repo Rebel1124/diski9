@@ -39,8 +39,8 @@ class LiveService(ChallengeService):
 
     generation = 0
 
-    def __init__(self, source=None):
-        super().__init__(source or _Data())
+    def __init__(self, source=None, **kw):
+        super().__init__(source or _Data(), **kw)
 
     def now(self):
         return NOW

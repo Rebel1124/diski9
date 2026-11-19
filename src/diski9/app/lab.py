@@ -206,6 +206,8 @@ def model_context(r: dict) -> str:
     """What a fixture's adjustments are relative to: Goal Model version and the
     rounded baseline estimated goals. Adjustments are deltas from this baseline, so
     they are only reapplied while it is unchanged."""
+    if r.get("_model_context"):  # a frozen Weekly Challenge baseline (lab_context)
+        return r["_model_context"]
     b = baseline_rounded(r)
     return f"{gm.GOAL_MODEL_VERSION}|{r['fixture']['id']}|{b['home']:.2f}|{b['away']:.2f}"
 
@@ -450,7 +452,13 @@ def baseline_section(r: dict, market: str) -> html.Div:
                 "news.",
                 className="muted small",
             ),
-            html.Div([model_calculation(r)], className="acc-group"),
+            html.Div([model_calculation(r)], className="acc-group")
+            if (r.get("_context") or {}).get("kind") != "round"
+            else html.P(
+                "These estimated goals were frozen with the Weekly Challenge snapshot. The "
+                "latest estimate and its calculation are under All Upcoming Fixtures.",
+                className="muted small",
+            ),
         ],
         className="lab-section lab-baseline",
     )
@@ -1474,6 +1482,39 @@ def bookmaker_card(
     return card
 
 
+def context_line(r: dict, data) -> html.Div | None:
+    """Which analytical context is shown: the Weekly Challenge snapshot (frozen, with
+    its stored time) or the latest available data (with the model's update time when
+    known). Never called live or real-time."""
+    c = r.get("_context") or {}
+    if c.get("kind") == "round":
+        return html.Div(
+            [
+                html.Span("Weekly Challenge snapshot", className="ctx-tag frozen"),
+                html.Span(
+                    f"Frozen: {data.local(c.get('frozen_at'))} {data.tz_label}",
+                    className="muted small",
+                ),
+            ],
+            className="lab-context",
+            title="All participants use the same frozen odds and baseline estimates for this "
+            "round. These may differ from the latest information under All Upcoming Fixtures.",
+        )
+    if c.get("kind") == "live":
+        when = c.get("updated_at")
+        return html.Div(
+            [
+                html.Span("Latest available data", className="ctx-tag latest"),
+                html.Span(
+                    f"Model updated: {data.local(when)} {data.tz_label}" if when else "",
+                    className="muted small",
+                ),
+            ],
+            className="lab-context",
+        )
+    return None
+
+
 # ----------------------------------------------------------------- panel
 def render_detail(
     r: dict | None,
@@ -1518,11 +1559,23 @@ def render_detail(
                     pill("Adjusted by you", "accent")
                     if available and has_adjustment(state)
                     else None,
+                    context_line(r, data),
                 ],
                 className="detail-header",
             ),
             lab,
             bookmaker_card(r, ov, market, data, league, state if available else None),
+            *(
+                [
+                    html.P(
+                        "Bookmaker prices above are the latest collected, not the round's "
+                        "frozen odds.",
+                        className="muted small",
+                    )
+                ]
+                if (r.get("_context") or {}).get("kind") == "round"
+                else []
+            ),
             html.P(
                 f"Statistics use only results before {data.local(r['cutoff'])} {data.tz_label}. "
                 f"Goal Model {gm.GOAL_MODEL_VERSION}.",

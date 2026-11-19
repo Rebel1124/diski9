@@ -22,6 +22,8 @@ from dash.exceptions import PreventUpdate
 
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DIRECTIONS
 
+from . import lab_context
+from .challenge import lab_persist
 from .challenge.callbacks import nav_links
 from .challenge.callbacks import register as register_challenge
 from .challenge.components import page_header
@@ -221,7 +223,7 @@ def create_app(data: ScreenerData, auth=None) -> Dash:
         suppress_callback_exceptions=True,
     )
     app.server.config["DISKI9_DATA"] = data
-    service = ChallengeService(data)
+    service = ChallengeService(data, backend=competition_backend(auth))
     app.server.config["DISKI9_CHALLENGE"] = service
     app.layout = lambda: build_shell(data, service)
     register_callbacks(app, data, service)
@@ -231,6 +233,25 @@ def create_app(data: ScreenerData, auth=None) -> Dash:
 
         init_auth(app.server, auth)
     return app
+
+
+def competition_backend(auth):
+    """The persistent competition (Phase 6C.3) when accounts are configured: the
+    published round, drafts, entries and Your View come from the competition
+    database. Development rounds are shown only when explicitly enabled outside
+    production (``DISKI9_SHOW_DEVELOPMENT_ROUNDS=1``)."""
+    if auth is None:
+        return None
+    import os
+
+    from diski9.backend.db.settings import BackendDatabaseSettings
+
+    from .challenge.persist import Backend
+
+    show_dev = os.environ.get("DISKI9_SHOW_DEVELOPMENT_ROUNDS") == "1"
+    if show_dev and BackendDatabaseSettings().environment == "production":
+        raise RuntimeError("DISKI9_SHOW_DEVELOPMENT_ROUNDS is refused in production")
+    return Backend(auth.engine, show_development=show_dev)
 
 
 def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> html.Div:
@@ -266,6 +287,8 @@ def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> 
             dcc.Store(id="ch-flash", storage_type="memory"),
             dcc.Store(id="ch-rendered", storage_type="memory"),
             dcc.Store(id="ch-fxpage", storage_type="memory", data=1),
+            dcc.Store(id="d9-adopt", storage_type="session"),
+            html.Div(id="adopt-root"),
         ]
     )
 
@@ -452,6 +475,7 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                 ],
                 className="filters",
             ),
+            html.Div(id="data-context"),
             html.Div(id="ch-strip"),
             html.Div(id="legend", className="legend"),
             html.Div(
@@ -768,20 +792,36 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
     @app.callback(
         Output("detail", "children"),
         Output("detail-reference", "children"),
+        Output("lab-store", "data", allow_duplicate=True),
         Input("selected", "data"),
         Input("market", "value"),
         Input("url", "pathname"),
+        Input("universe", "value"),
         State("lab-store", "data"),
+        prevent_initial_call="initial_duplicate",
     )
-    def update_detail(fid, market, path, lab):
+    def update_detail(fid, market, path, universe, lab):
         """The Match Lab is unmounted while another page shows (its large tree inside
         the hidden Screener slowed every Weekly Challenge tap) and rebuilt from the
-        selection and the Match Lab store on return, so nothing is lost."""
+        selection and the Match Lab store on return, so nothing is lost. The context
+        (frozen Weekly Challenge snapshot or latest data) decides the baseline and
+        which Your View is shown; a signed-in participant's saved Your View for that
+        context is loaded from the account (Phase 6C.3)."""
         if (path or "/").rstrip("/") not in ("", "/"):
-            return (None, None) if ctx.triggered_id == "url" else (no_update, no_update)
-        r, ov, official = data.detail(fid) if fid else (None, None, {})
-        adj = stored_adjustment(lab, fid, r) if fid else None
-        return split_detail(render_detail(r, ov, official, market, data, adj))
+            if ctx.triggered_id == "url":
+                return None, None, no_update
+            return no_update, no_update, no_update
+        lc = lab_context.resolve(service, data, fid, universe) if fid else None
+        new_lab = no_update
+        if lc is not None and lc.r is not None:
+            hydrated = lab_persist.load(service, lab, lc)
+            if hydrated is not None:
+                lab, new_lab = hydrated, hydrated
+        r = lc.r if lc else None
+        _, ov, official = data.detail(fid) if fid else (None, None, {})
+        adj = stored_adjustment(lab, lc.key, r) if lc else None
+        body, ref = split_detail(render_detail(r, ov, official, market, data, adj))
+        return body, ref, new_lab
 
     @app.callback(
         Output("lab-store", "data"),
@@ -815,22 +855,30 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Input("ctx-away-slider", "value"),
         State("selected", "data"),
         State("market", "value"),
+        State("universe", "value"),
         State("lab-store", "data"),
         prevent_initial_call=True,
     )
     def adjust(*args):
-        """Sections B, C and D: update this fixture's state in the browser store and
-        recalculate all seven probabilities. The model baseline is never modified."""
-        fid, market, lab = args[-3:]
+        """Sections B, C and D: update this fixture's state for the context shown
+        (frozen Weekly Challenge snapshot or latest data) and recalculate all seven
+        probabilities. The model baseline is never modified. A signed-in
+        participant's numbers are saved to that context only (Phase 6C.3)."""
+        fid, market, universe, lab = args[-4:]
         if not fid or not ctx.triggered:
             raise PreventUpdate
-        r, ov, _ = data.detail(fid)
+        lc = lab_context.resolve(service, data, fid, universe)
+        r = lc.r if lc else None
+        _, ov, _ = data.detail(fid)
         if r is None or not r["goal_model"].get("available"):
             raise PreventUpdate
         trig = ctx.triggered_id
         value = ctx.triggered[0].get("value")
-        state, messages = lab_update(r, trig, value, stored_adjustment(lab, fid, r))
-        lab = store_adjustment(lab, fid, r, None if is_empty(state) else state)
+        state, messages = lab_update(r, trig, value, stored_adjustment(lab, lc.key, r))
+        lab = store_adjustment(lab, lc.key, r, None if is_empty(state) else state)
+        lab, problem = lab_persist.save(service, lab, lc, state)
+        if problem:
+            messages = [*messages, problem]
         b = breakdown(baseline_rounded(r), state)
         h, a = b["home"]["final"], b["away"]["final"]
         cat_out = [

@@ -18,7 +18,7 @@ from diski9.challenge import analysis as pa
 from diski9.challenge.config import DEFAULT_CONFIG
 from diski9.challenge.structured import SelectionBlock, selection_blocks, validate_portfolio
 
-from . import charts, integration, pages
+from . import adopt_ui, charts, integration, lab_persist, pages, persist
 from . import components as c
 from . import state as st
 from .service import ChallengeService, key_str, parse_key
@@ -43,7 +43,10 @@ ACTION_OF = {
     "askwithdraw": "ask_withdraw",
     "confirmwithdraw": "withdraw",
     "cancelwithdraw": "cancel_withdraw",
+    "reload": "reload",
+    "retry": "retry",
 }
+SELECTION_ACTIONS = frozenset({"pick", "remove", "clear", "replace"})
 
 
 def nav_links(path: str) -> list:
@@ -329,9 +332,62 @@ def store_sync(service, state):
     return no_update if new == state else new
 
 
+# ------------------------------------------------------------- accounts (6C.3)
+def account_action(service, state, action, arg=None, personal=None):
+    """The reducer with persistence for signed-in participants in the published
+    round (Phase 6C.3): selection changes are saved in the same request; confirm,
+    replace and withdraw go to the entry service. Guests keep the browser-tab
+    prototype, but cannot confirm an entry in a real round."""
+    p = persist.participant(service)
+    live = (pages.normal_state(state).get("mode") or None) != "demo"
+    if persist.backend_of(service) is None or not live:
+        return apply_action(service, state, action, arg, personal)
+    if p is None:
+        if action == "submit":
+            who = persist.signed_in_label(service)
+            return pages.sync(service, state), _flash(
+                "Sign in to confirm an entry in this round. Your portfolio stays in this tab."
+                if who == "guest"
+                else "Finish setting up your account to confirm an entry.",
+                "warn",
+            )
+        if action in ("reload", "retry"):
+            return pages.sync(service, state), None
+        return apply_action(service, state, action, arg, personal)
+    base = persist.hydrate(service, state) or pages.normal_state(state)
+    if action == "reload":
+        return persist.hydrate(service, base, force=True) or base, _flash(
+            "Loaded your latest saved portfolio.", "ok"
+        )
+    if action == "retry":
+        new, problem = persist.save_selections(service, base)
+        return new, problem or _flash("Saved.", "ok")
+    if action == "submit":
+        avail = service.availability("live")
+        if pages.locked(avail) or not avail.playable:
+            return base, _flash("Entries aren't open for this round.", "warn")
+        return persist.confirm(service, base)
+    if action == "withdraw":
+        if pages.locked(service.availability("live")):
+            base["confirm"] = None
+            return base, _flash(
+                "The deadline has passed: a confirmed entry can no longer be withdrawn.", "warn"
+            )
+        return persist.withdraw(service, base)
+    new, flash = apply_action(service, base, action, arg, personal)
+    new["acct"] = base.get("acct")
+    new["tab"] = base.get("tab")
+    if action in SELECTION_ACTIONS and new.get("selections") != base.get("selections"):
+        new, problem = persist.save_selections(service, new)
+        if problem is not None:
+            return new, problem
+    return new, flash
+
+
 # ------------------------------------------------------------- registration
 def register(app, data, service: ChallengeService) -> None:
     local = data.local
+    adopt_ui.register(app, data, service)
 
     def your_view(state, lab_store):
         _, snap, _, _ = pages.current(service, state)
@@ -380,15 +436,49 @@ def register(app, data, service: ChallengeService) -> None:
         Output("ch-session", "data", allow_duplicate=True),
         Input("url", "pathname"),
         State("ch-session", "data"),
+        State("d9-adopt", "data"),
         prevent_initial_call="initial_duplicate",
     )
-    def sync_store(_path, state):
+    def sync_store(_path, state, adopt):
         """Write the reconciled state back to the store when a page loads or the route
-        changes, so what is stored is exactly what every page shows. (Pages and actions
-        reconcile eagerly themselves, so correctness never depends on this write.) An
-        empty store is never written: a value that has not been hydrated from
+        changes, so what is stored is exactly what every page shows. For a signed-in
+        participant the working copy is first refreshed from the account (Phase
+        6C.3), except while a guest-work decision is pending. An empty store is
+        never written for guests: a value that has not been hydrated from
         sessionStorage yet must not overwrite one that has."""
+        if persist.participant(service) is not None and adopt != "pending":
+            fresh = persist.hydrate(service, state)
+            if fresh is not None:
+                fresh = st.reconcile(service, fresh)
+                return no_update if fresh == state else fresh
         return store_sync(service, state)
+
+    @app.callback(
+        Output("lab-store", "data", allow_duplicate=True),
+        Input("url", "pathname"),
+        State("lab-store", "data"),
+        State("d9-adopt", "data"),
+        prevent_initial_call="initial_duplicate",
+    )
+    def sync_round_views(path, lab, adopt):
+        """A participant's saved Your View for the published round's frozen context,
+        loaded into the tab when a Weekly Challenge page opens (any device)."""
+        if adopt == "pending" or (path or "/").rstrip("/") not in ("/challenge", "/challenge/me"):
+            return no_update
+        fresh = lab_persist.load_round(service, lab)
+        return no_update if fresh is None or fresh == lab else fresh
+
+    @app.callback(
+        Output("data-context", "children"),
+        Input("universe", "value"),
+        Input("url", "pathname"),
+    )
+    def data_context(universe, path):
+        """Frozen (Weekly Challenge) versus latest (All Upcoming Fixtures) information,
+        with the actual stored times."""
+        if (path or "/") != "/":
+            return no_update
+        return integration.data_context(service, data, universe)
 
     @app.callback(
         Output("ch-session", "data"),
@@ -409,6 +499,8 @@ def register(app, data, service: ChallengeService) -> None:
         Input({"t": "mode", "m": ALL}, "n_clicks"),
         Input(c.T("clear", ALL), "n_clicks"),
         Input(c.T("submit", ALL), "n_clicks"),
+        Input({"t": "reload", "i": ALL}, "n_clicks"),
+        Input({"t": "retry", "i": ALL}, "n_clicks"),
         State("ch-session", "data"),
         State("lab-store", "data"),
         prevent_initial_call=True,
@@ -423,7 +515,7 @@ def register(app, data, service: ChallengeService) -> None:
             return no_update, {"text": ""}
         arg = trig.get("k") or trig.get("to") or trig.get("m")
         personal = your_view(state, lab_store) if t == "submit" else None
-        new, flash = apply_action(service, state, t, arg, personal)
+        new, flash = account_action(service, state, t, arg, personal)
         return new, flash if flash is not None else no_update
 
     @app.callback(
@@ -434,11 +526,27 @@ def register(app, data, service: ChallengeService) -> None:
     def show_flash(flash, ids):
         if not flash or not flash.get("text"):
             return [None] * len(ids)
-        return [
-            html.Div(
-                flash["text"], className=f"ch-flash {flash.get('kind', 'info')}", role="status"
+        recover = {
+            "reload": ("Load latest saved portfolio", "reload"),
+            "retry": ("Try again", "retry"),
+        }.get(flash.get("recover"))
+        out = []
+        for ident in ids:
+            kids = [flash["text"]]
+            if recover:
+                kids += [
+                    " ",
+                    html.Button(
+                        recover[0],
+                        id={"t": recover[1], "i": ident["i"]},
+                        n_clicks=0,
+                        className="ch-btn small ghost",
+                    ),
+                ]
+            out.append(
+                html.Div(kids, className=f"ch-flash {flash.get('kind', 'info')}", role="status")
             )
-        ] * len(ids)
+        return out
 
     @app.callback(
         Output({"t": "stage", "i": ALL}, "children"),
@@ -552,7 +660,7 @@ def register(app, data, service: ChallengeService) -> None:
         trk = pages.tracker_view(
             service, snap, sels, pages.locked(avail), prefs, your_view(state, lab_store)
         )
-        return [trk] * len(ids)
+        return [html.Div([trk, pages.save_status(service, state)])] * len(ids)
 
     @app.callback(
         Output("ch-fxpage", "data"),

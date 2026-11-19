@@ -101,3 +101,90 @@ def dev_snapshot(
         DEV_NOTE,
         {"development": True, "seed": seed},
     )
+
+
+MIRROR_NOTE = (
+    "Development round: real upcoming fixtures and their current Goal Model estimates, "
+    "with synthetic odds (not real bookmaker prices)."
+)
+
+
+def mirror_snapshot(
+    code: str,
+    as_of: datetime,
+    football_engine,
+    *,
+    earliest_kickoff: datetime,
+    fixtures: int = 20,
+    seed: int = 2026,
+    league_names: dict[int, str] | None = None,
+) -> RoundSnapshot:
+    """A development snapshot of **real upcoming fixtures** from the local football
+    store (teams, kickoffs, the current Goal Model estimated goals and model
+    probabilities, frozen at ``as_of``) with **synthetic odds** derived
+    deterministically from those probabilities. Lets the same match be opened in
+    the frozen Weekly Challenge context and in All Upcoming Fixtures. Read-only:
+    nothing is written to the football store; no API request is made."""
+    from diski9.api_football.markets import Market
+    from diski9.odds.value import MARKET_ORDER, OUTCOME_KEY
+    from diski9.screener import cache
+
+    if not code.startswith("dev-"):
+        raise ValueError("development snapshots are only for 'dev-' rounds")
+    rng = random.Random(seed)
+    with football_engine.connect() as conn:
+        rows = [
+            r for r in cache.cached(conn, "overall") if (r.get("goal_model") or {}).get("available")
+        ]
+    rows.sort(key=lambda r: (r["fixture"]["kickoff"], r["fixture"]["id"]))
+    observed = as_of - timedelta(minutes=10)
+    fx, outs = [], []
+    for r in rows:
+        f = r["fixture"]
+        kickoff = datetime.fromisoformat(str(f["kickoff"]))
+        if kickoff.tzinfo is None:
+            from datetime import UTC
+
+            kickoff = kickoff.replace(tzinfo=UTC)
+        if kickoff < earliest_kickoff:
+            continue
+        g = r["goal_model"]
+        eg = g["estimated_goals"]
+        league = f["competition_id"]
+        fx.append(
+            RoundFixture(
+                f["id"],
+                league,
+                (league_names or {}).get(league, f.get("competition", str(league))),
+                f["home"],
+                f["away"],
+                kickoff,
+                (float(eg["home"]), float(eg["away"])),
+            )
+        )
+        for m in (Market.MATCH_RESULT, Market.BTTS, Market.OVER_UNDER_25):
+            model = {o: float(g["probabilities"][OUTCOME_KEY[o]]) for o in MARKET_ORDER[m]}
+            raw = {o: max(0.02, p + rng.uniform(-0.03, 0.03)) for o, p in model.items()}
+            total = sum(raw.values())
+            for o in MARKET_ORDER[m]:
+                p = raw[o] / total
+                outs.append(make_outcome(f["id"], m, o, p, _odds(p), model[o], 5, observed, league))
+        if len(fx) == fixtures:
+            break
+    if not fx:
+        raise ValueError("no upcoming fixtures with model estimates after that time")
+    window = (
+        min(f.kickoff for f in fx) - timedelta(days=1),
+        max(f.kickoff for f in fx) + timedelta(days=1),
+    )
+    return RoundSnapshot(
+        code,
+        SnapshotKind.LIVE,
+        as_of,
+        DEFAULT_CONFIG.version,
+        window,
+        tuple(fx),
+        tuple(outs),
+        MIRROR_NOTE,
+        {"development": True, "mirror": True, "seed": seed},
+    )

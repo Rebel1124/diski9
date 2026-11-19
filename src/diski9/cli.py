@@ -525,7 +525,20 @@ def cmd_round(args) -> int:
                 now = db_now(conn)
             first = now + timedelta(minutes=args.deadline_minutes + 15)
             code = args.code or f"dev-{now:%Y%m%d-%H%M%S}"
-            snap = dev_snapshot(code, now, first, seed=args.seed)
+            if args.mirror_upcoming:
+                from diski9.app.data import LEAGUE_SHORT
+                from diski9.backend.devdata import mirror_snapshot
+
+                snap = mirror_snapshot(
+                    code,
+                    now,
+                    make_engine(args.database_url),
+                    earliest_kickoff=first,
+                    seed=args.seed,
+                    league_names=LEAGUE_SHORT,
+                )
+            else:
+                snap = dev_snapshot(code, now, first, seed=args.seed)
             v = svc.create_round(
                 engine,
                 p,
@@ -535,7 +548,10 @@ def cmd_round(args) -> int:
                 development=True,
             )
             show(svc.publish_round(engine, p, v.id, snap, source="development"))
-            print("Development fixtures (synthetic): not real football data.")
+            print(
+                "Development round: synthetic odds"
+                + (" on real upcoming fixtures." if args.mirror_upcoming else " and fixtures.")
+            )
             return 0
         if args.action == "lock":
             who = actor() if args.by_email else svc.SYSTEM
@@ -744,7 +760,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--deadline-minutes",
         type=int,
         default=120,
-        help="dev-open: minutes from now until the submission deadline",
+        help="dev-open: minutes from now until the submission deadline (at the earliest)",
+    )
+    s.add_argument(
+        "--mirror-upcoming",
+        action="store_true",
+        help="dev-open: real upcoming fixtures from the football store, synthetic odds",
     )
 
     s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")

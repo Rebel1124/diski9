@@ -253,3 +253,27 @@ def test_frozen_context_and_no_effect_on_the_competition(engine):
     other = yv.RoundContext(view.id, snap.fixtures[1].fixture_id)
     many = yv.get_many(engine, p, [rc, other])
     assert many[rc].status == yv.ACTIVE and many[other].status == yv.NONE
+
+
+def test_your_view_saves_from_one_tab_are_ordered(engine):
+    from diski9.backend.services.common import Writer
+
+    p = principal(engine)
+    t = "tab-" + "c" * 20
+    yv.save_your_view(engine, p, LIVE, adjusted(), expected_version=0, writer=Writer(t, 0))
+    newer = adjusted()
+    newer["manual"]["home"] = 0.4
+    yv.save_your_view(engine, p, LIVE, newer, expected_version=0, writer=Writer(t, 5))
+    late = yv.save_your_view(
+        engine, p, LIVE, yv.zero_state(), expected_version=0, writer=Writer(t, 4)
+    )
+    assert late.state == newer
+    with pytest.raises(VersionConflict):
+        yv.save_your_view(
+            engine,
+            p,
+            LIVE,
+            yv.zero_state(),
+            expected_version=0,
+            writer=Writer("tab-" + "d" * 20, 6),
+        )

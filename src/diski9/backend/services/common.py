@@ -134,3 +134,37 @@ class map_db_errors:  # noqa: N801 - used as a context manager
         if code == "23514" and "not open" in str(exc.orig):
             raise RoundClosed("The deadline has passed; this round can no longer change.") from None
         raise PersistenceFailed(SAVE_FAILED) from None
+
+
+_TAB_CHARS = frozenset("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-")
+
+
+class Writer:
+    """Which browser tab sent a save, and that tab's request sequence (app_0005).
+    A random per-tab token, never linked to an identity."""
+
+    __slots__ = ("seq", "tab")
+
+    def __init__(self, tab: str, seq: int):
+        if (
+            not isinstance(tab, str)
+            or not 16 <= len(tab) <= 64
+            or not set(tab) <= _TAB_CHARS
+            or isinstance(seq, bool)
+            or not isinstance(seq, int)
+            or seq < 0
+        ):
+            raise ValidationFailed("Invalid page token.", [{"reason": "writer"}])
+        self.tab, self.seq = tab, seq
+
+
+def save_decision(row, expected_version: int, writer: Writer | None) -> str:
+    """``write`` (version matches, or a newer save from the tab that wrote last),
+    ``superseded`` (an older save from that same tab arriving late: ignore it) or
+    ``conflict`` (another tab or device saved in between)."""
+    current = row.version if row is not None else 0
+    if expected_version == current:
+        return "write"
+    if writer is not None and row is not None and row.writer_tab == writer.tab:
+        return "write" if writer.seq > (row.writer_seq or -1) else "superseded"
+    return "conflict"
