@@ -209,7 +209,10 @@ def threshold_config(market: str, direction: str, preferred: float | None = 0) -
     }
 
 
-def create_app(data: ScreenerData) -> Dash:
+def create_app(data: ScreenerData, auth=None) -> Dash:
+    """The Dash app. With ``auth`` (an ``AuthRuntime``), sign-in, accounts and the
+    account menu are enabled; without it the app runs exactly as before (guests
+    only, browser-session prototype)."""
     app = Dash(
         __name__,
         assets_folder=str(ASSETS),
@@ -224,6 +227,10 @@ def create_app(data: ScreenerData) -> Dash:
     app.layout = lambda: build_shell(data, service)
     register_callbacks(app, data, service)
     register_challenge(app, data, service)
+    if auth is not None:
+        from diski9.backend.auth.web import init_auth
+
+        init_auth(app.server, auth)
     return app
 
 
@@ -243,6 +250,7 @@ def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> 
                     [
                         html.Span("Diski 9", className="nav-brand"),
                         html.Div(nav_links("/"), id="site-nav-links", className="nav-links"),
+                        *account_menu(),
                     ],
                     className="nav-inner",
                 ),
@@ -261,6 +269,50 @@ def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> 
             dcc.Store(id="ch-fxpage", storage_type="memory", data=1),
         ]
     )
+
+
+def account_menu() -> list:
+    """Sign-in links or the signed-in account menu, rendered on the server for this
+    request (empty when authentication is not configured). Shows only the username;
+    never an email address or internal identifier."""
+    from flask import current_app, has_request_context
+
+    if not has_request_context() or "DISKI9_AUTH" not in current_app.config:
+        return []
+    from diski9.backend.auth.web import current_principal, owner_tag
+
+    p = current_principal()
+    marker = html.Div(id="d9-owner", hidden=True, **{"data-owner": owner_tag()})
+    if not p.is_authenticated:
+        links = [
+            html.A("Sign in", href="/auth/sign-in", className="acct-link"),
+            html.A("Create account", href="/auth/sign-up", className="acct-link primary"),
+        ]
+        return [html.Div([*links, marker], className="nav-account")]
+    label = p.username if p.onboarded else "Finish set-up"
+    items = [
+        html.Div("Signed in" if p.onboarded else "Account set-up incomplete", className="acct-who"),
+        html.A(
+            "Account settings" if p.onboarded else "Finish setting up",
+            href="/account" if p.onboarded else "/account/welcome",
+        ),
+        html.A("Sign out", href="/auth/sign-out"),
+    ]
+    summary = [label] + (
+        [] if p.onboarded else [html.Span("Action needed", className="acct-badge")]
+    )
+    return [
+        html.Div(
+            [
+                html.Details(
+                    [html.Summary(summary), html.Div(items, className="acct-panel")],
+                    className="acct-menu",
+                ),
+                marker,
+            ],
+            className="nav-account",
+        )
+    ]
 
 
 def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:

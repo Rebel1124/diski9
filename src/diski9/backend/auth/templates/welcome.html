@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="auth-card" method="post" action="/account/welcome" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="terms_version" value="{{ terms_version }}">
+  <div class="auth-field"><label for="username">Username</label>
+    <input id="username" name="username" type="text" required minlength="3" maxlength="24" autocomplete="nickname" value="{{ username or '' }}">
+    <div class="hint">3 to 24 characters: letters, digits, spaces, dots, underscores or hyphens. Shown on leaderboards unless you choose anonymity. You can change it once every 30 days.</div></div>
+  <label class="auth-check"><input type="checkbox" name="age_confirmed" value="yes" required> <span>I confirm that I am 18 or older.</span></label>
+  <label class="auth-check"><input type="checkbox" name="accept_terms" value="yes" required> <span>I accept the <a class="inline" href="/legal/terms" target="_blank" rel="noopener">Diski 9 beta terms</a> (version {{ terms_version }}).</span></label>
+  <div class="auth-actions"><button class="ch-btn primary" type="submit">Finish setting up</button></div>
+</form>
+{% endblock %}

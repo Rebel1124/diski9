@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="auth-card" method="post" action="/auth/sign-in" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="next" value="{{ next_url }}">
+  <div class="auth-field"><label for="email">Email address</label>
+    <input id="email" name="email" type="email" autocomplete="email" required maxlength="320" value="{{ email or '' }}"></div>
+  <div class="auth-field"><label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required maxlength="72"></div>
+  <div class="auth-actions"><button class="ch-btn primary" type="submit">Sign in</button>
+    <a class="inline" href="/auth/forgot">Forgotten your password?</a></div>
+  <div class="auth-links">New to Diski 9? <a href="/auth/sign-up">Create an account</a></div>
+</form>
+<p class="muted small">You can explore the Screener, Match Lab and Weekly Challenge without an account.</p>
+{% endblock %}

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="same-origin">
+  <title>{{ title }} · Diski 9</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <link rel="stylesheet" href="/assets/account.css">
+</head>
+<body{% if clear_browser_state %} data-clear-state="1"{% endif %}>
+  <header class="auth-header">
+    <div class="inner">
+      <a class="brand-link" href="/">Diski 9</a>
+      <a class="back" href="/">Back to Diski 9</a>
+    </div>
+  </header>
+  <main class="auth-page{% if wide %} wide{% endif %}">
+    <h1>{{ title }}</h1>
+    {% if lead %}<p class="lead">{{ lead }}</p>{% endif %}
+    {% for kind, text in messages %}<div class="auth-msg {{ kind }}" role="{{ 'alert' if kind == 'error' else 'status' }}">{{ text }}</div>{% endfor %}
+    {% block content %}{% endblock %}
+  </main>
+  <script src="/assets/account.js"></script>
+</body>
+</html>

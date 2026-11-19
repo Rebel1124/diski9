@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="auth-card" method="post" action="/auth/confirm">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <input type="hidden" name="token_hash" value="{{ token_hash }}">
+  <input type="hidden" name="type" value="{{ kind }}">
+  <p class="mt0">{{ body }}</p>
+  <div class="auth-actions"><button class="ch-btn primary" type="submit">{{ button }}</button></div>
+</form>
+<p class="muted small">This extra step stops email security scanners from using your link before you do.</p>
+{% endblock %}

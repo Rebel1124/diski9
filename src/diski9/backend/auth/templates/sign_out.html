@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+<form class="auth-card" method="post" action="/auth/sign-out">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <p class="mt0">Sign out of Diski 9 on this device?</p>
+  <div class="auth-actions"><button class="ch-btn primary" type="submit">Sign out</button>
+    <a class="inline" href="/">Cancel</a></div>
+</form>
+{% endblock %}

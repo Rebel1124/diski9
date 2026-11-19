@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="auth-card">
+  <h2>Account</h2>
+  <dl class="auth-kv">
+    <dt>Username</dt><dd>{{ acct.username }}</dd>
+    <dt>Email</dt><dd>{{ acct.email }} <span class="muted small">(private)</span></dd>
+    <dt>Email status</dt><dd>{{ "Confirmed" if acct.email_verified else "Not confirmed" }}</dd>
+    <dt>Terms</dt><dd>Accepted ({{ terms_version }})</dd>
+    {% if roles %}<dt>Roles</dt><dd>{{ roles }}</dd>{% endif %}
+  </dl>
+</section>
+<form class="auth-card" method="post" action="/account/username" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2>Change username</h2>
+  {% if next_rename %}<p class="muted small mt0">You can change your username again from {{ next_rename }}.</p>{% endif %}
+  <div class="auth-field"><label for="username">New username</label>
+    <input id="username" name="username" type="text" minlength="3" maxlength="24" required {% if next_rename %}disabled{% endif %}></div>
+  <div class="auth-actions"><button class="ch-btn" type="submit" {% if next_rename %}disabled{% endif %}>Save username</button></div>
+</form>
+<form class="auth-card" method="post" action="/account/privacy" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+  <h2>Leaderboard privacy</h2>
+  <label class="auth-radio"><input type="radio" name="mode" value="public" {% if acct.privacy_mode == 'public' %}checked{% endif %}> Show my username: <strong>{{ acct.username }}</strong></label>
+  <label class="auth-radio"><input type="radio" name="mode" value="anonymous" {% if acct.privacy_mode == 'anonymous' %}checked{% endif %}> Stay anonymous as <strong>{{ acct.anonymous_alias }}</strong></label>
+  <label class="auth-check"><input type="checkbox" name="retroactive" value="yes"> <span>Also hide my username on my past entries. This cannot be undone for those entries.</span></label>
+  <p class="muted small">Your email address is never shown. Switching back to public affects only later entries.</p>
+  <div class="auth-actions"><button class="ch-btn" type="submit">Save privacy setting</button></div>
+</form>
+<section class="auth-card">
+  <h2>Security</h2>
+  <div class="auth-actions mt0">
+    <a class="ch-btn" href="/auth/password">Change password</a>
+    <form class="inline-form" method="post" action="/auth/sign-out-everywhere">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="ch-btn ghost" type="submit">Sign out on all devices</button>
+    </form>
+  </div>
+  <p class="muted small">Account deletion will be available once the data-retention policy is approved.</p>
+</section>
+{% endblock %}
