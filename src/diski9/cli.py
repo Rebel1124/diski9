@@ -353,6 +353,40 @@ def cmd_serve(args, engine) -> None:
     app.run(host=args.host, port=args.port, debug=args.debug)
 
 
+def cmd_research_pool(args) -> int:
+    """D-29 weekly research collection. Runs without the football-store engine, so a
+    failure can never be recorded in (or otherwise touch) the production database."""
+    from diski9.research import weekly_pool as wp
+
+    store = Path(args.store_dir) if args.store_dir else wp.STORE_DIR
+    now = datetime.fromisoformat(args.now) if args.now else None
+    if args.action == "capture":
+        url = wp.guard_research_url(args.research_db_url or wp.DEFAULT_DB_URL)
+        with wp.RecordingClient.from_settings() as client:
+            print(wp.capture(client, db_url=url, store=store, now=now).line())
+    elif args.action == "results":
+        with ApiFootballClient.from_settings() as client:
+            print(wp.summarise(wp.collect_results(client, store=store, now=now)))
+    elif args.action == "replay":
+        rounds = (
+            [store / args.round] if args.round else sorted(d for d in store.iterdir() if d.is_dir())
+        )
+        bad = 0
+        for d in rounds:
+            res = wp.replay(d)
+            bad += not (
+                res["fingerprint_matches"] and res["pool_matches"] and res["raw_hashes_match"]
+            )
+            print(_json(res))
+        return 1 if bad else 0
+    elif args.action == "report":
+        rep = wp.report(store, now=now)
+        text = _json(rep)
+        (store / "report.json").write_text(text + "\n", encoding="utf-8")
+        print(text)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="diski9")
     p.add_argument("--database-url", default=None)
@@ -467,6 +501,13 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out-dir", default=None)
     s.set_defaults(func=cmd_monitor_odds)
 
+    s = sub.add_parser("research-pool", help="D-29 weekly research pool collection")
+    s.add_argument("action", choices=["capture", "results", "replay", "report"])
+    s.add_argument("--store-dir", default=None)
+    s.add_argument("--research-db-url", default=None, help="SQLite research file only")
+    s.add_argument("--round", default=None, help="round code for replay, e.g. 2026-W48")
+    s.add_argument("--now", default=None, help=argparse.SUPPRESS)
+
     s = sub.add_parser("analyse-odds-trial", help="replay and analyse captured odds")
     s.add_argument("--out-dir", default=None)
     s.add_argument("--out", default=None)
@@ -477,6 +518,8 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
+    if args.command == "research-pool":
+        return cmd_research_pool(args)
     engine = make_engine(args.database_url)
     from diski9.ingestion.common import MissingReferenceData
     from diski9.workflow import SetupIncomplete
