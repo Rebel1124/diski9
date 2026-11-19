@@ -3,8 +3,10 @@
 **Phase 6C.2 (owner brief):** architecture confirmed (Supabase Auth; Supabase-hosted
 PostgreSQL for future production; local PostgreSQL and local Supabase for
 development; hosting still undecided until Phase 10; no AWS). Implemented as
-described in [`docs/authentication.md`](../authentication.md). New proposals awaiting
-approval are listed under "Outstanding" (T-14 to T-17).
+described in [`docs/authentication.md`](../authentication.md). The owner approved
+T-14 to T-17 on 19 November 2026 (T-15 and T-16 with additional requirements, all
+implemented and tested in Phase 6C.2 except the parts of T-15 that need persistent
+portfolios, which belong to Phase 6C.3).
 
 **Phase 6C.0/6C.1 approval (owner review):** D-01 (Supabase Auth), D-08
 (`settle/v1`), D-29b (research collection activation), D-39 (football store stays
@@ -100,6 +102,10 @@ listed at the end.
 | D-40 | **Merge and release (approved, done):** `feature/weekly-challenge-final-polish` merged to `main` (`d12ddff`) and released as v4.0.0 (`0286fa8`), described as an accepted functional prototype with browser-session persistence |
 | T-12 | **Session lifetimes (approved):** participant idle expiry 14 days; absolute lifetime 30 days; operator authentication recency at most 12 hours; additional recent authentication for sensitive operations (changing roles or entitlements, overriding results, invalidating competitive rounds, reopening frozen championships); secure server-side sessions with rotation, revocation, CSRF protection and appropriate cookies. The exact sensitive-operation policy is proposed in Phase 6C.2 |
 | T-13 | **Automated testing (approved):** repository checks with a real PostgreSQL service (implemented in Phase 6C.1: `.github/workflows/ci.yml`) |
+| T-14 | **Sensitive-operation re-authentication (approved 19 Nov 2026):** the password must have been entered within 15 minutes for changing roles or entitlements, overriding results, invalidating rounds, reopening frozen championships, suspending accounts and changing the password. The approved participant session lifetimes and 12-hour operator recency (T-12) are unchanged. Implemented in Phase 6C.2 (`permissions.SENSITIVE`, `authorize()`, `/auth/reauthenticate`) |
+| T-15 | **Guest drafts at authentication transitions (approved 19 Nov 2026):** guests build and analyse temporary portfolios without registering; after sign-in or registration a person with guest work in the tab is offered an explicit choice to keep or discard it; an existing authenticated portfolio is never silently overwritten; an adopted draft is revalidated against the current eligible round and frozen snapshot and never submitted automatically; private browser-session data is cleared at sign-out and on account switching; a previous account's portfolio or private Your View adjustments are never exposed to another account or a guest. **Phase 6C.2 (done):** the keep/discard choice for the browser tab (keeping leaves the work in the tab only, nothing saved or submitted), clearing at sign-out (`Clear-Site-Data` plus script) and on account switching (opaque owner marker). **Phase 6C.3:** saving a kept draft to the account (adoption), the no-overwrite rule against a stored portfolio, revalidation against the current round and snapshot, and server-side Your View storage (T-10) |
+| T-16 | **Provider revocation delay (approved with safeguards, 19 Nov 2026):** a revocation made at Supabase (for example a ban or a sign-out elsewhere) reaches ordinary participant browsing at the next provider refresh, within about an hour. Safeguards, all implemented and tested: local sign-out invalidates the application session immediately; application-level suspension takes effect on the next request; role and entitlement revocations apply to the next protected operation (permissions are loaded from the database on every request); privileged operations check the provider first and fail closed, and sensitive ones also require T-14. The distinction between provider-side and application-side revocation is documented in `docs/authentication.md` §5 |
+| T-17 | **Email links with a confirm button (approved 19 Nov 2026):** confirmation and recovery links open a page with a button; loading or scanning the page consumes nothing, only the deliberate button press uses the single-use token. Implemented and tested in Phase 6C.2, including against a real Supabase Auth server |
 
 ## Provisional (empirical) — synthetic evidence, to confirm on real pools
 
@@ -151,10 +157,6 @@ documents linked below.
 
 | ID | Question | Recommendation | Needed |
 |---|---|---|---|
-| T-14 | **Sensitive-operation re-authentication (proposed, Phase 6C.2):** the password must have been entered within 15 minutes for changing roles or entitlements, overriding results, invalidating rounds, reopening frozen championships, suspending accounts and changing the password; operator capabilities otherwise need a sign-in within 12 hours (T-12) | Approve as implemented (15 minutes, the owner's suggested starting point) | Before 6C.4 operator actions |
-| T-15 | **Guest drafts at authentication transitions (proposed):** browser-tab prototype state is retained in the tab when a guest signs in (never adopted), cleared at sign-out, and cleared when a different account signs in in the same tab; Phase 6C.3 adds an explicit "save this draft to my account" action | Approve | Before 6C.3 |
-| T-16 | **Provider revalidation interval (proposed):** provider tokens are refreshed when the access token is within 5 minutes of expiry, so a revocation at Supabase ends ordinary browsing within about an hour; privileged operations check the provider immediately and fail closed | Approve | 6C.3 |
-| T-17 | **Email links with a confirm button (proposed):** confirmation and recovery links open a page with a button; only the button uses the single-use token (protects against email scanners) | Approve | 6C.3 |
 | D-29 | **Championship scoring validation (open validation requirement):** validate `points-150-75-v2` and D-32b on six to eight qualifying real weekly pools (observed voids separate from simulated scenarios). Retain D-31 unless the evidence is compelling | Run as pools accumulate | Before the first official championship |
 | D-36 | Final data-retention policy | Pseudonymisation as in the database design §11; log retention 30 days; backups per provider schedule; legal review | Before launch |
 

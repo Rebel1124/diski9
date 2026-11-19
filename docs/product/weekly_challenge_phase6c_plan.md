@@ -272,3 +272,10 @@ could not push to the repository.
 * **Tests:** unit, mocked-provider (real PostgreSQL), Supabase PostgreSQL
   compatibility, and genuine Supabase Auth integration (local server; CI uses the
   official image). Hosted Supabase not tested (needs an owner-created project).
+* **Owner decisions (19 November 2026):** T-14 to T-17 approved (register). T-15
+  in 6C.2: keep/discard choice for guest work in the tab at sign-in, clearing at
+  sign-out and account switching. **Carried into 6C.3:** saving kept work to the
+  account, no silent overwrite of a stored portfolio, revalidation against the
+  current round and frozen snapshot, no automatic submission, server-side Your
+  View storage. Local acceptance guide:
+  [`phase6c2_local_acceptance_mac.md`](../phase6c2_local_acceptance_mac.md).

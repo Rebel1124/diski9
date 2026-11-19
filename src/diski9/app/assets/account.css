@@ -66,3 +66,16 @@
 .auth-page .mt12 { margin-top: 12px; }
 .auth-page .inline-form { display: inline; }
 .auth-page .prewrap { white-space: pre-wrap; font-size: 14px; }
+
+/* T-15: choice offered when a guest signs in with analysis in the tab */
+.guest-choice { position: fixed; z-index: 60; left: 50%; bottom: 20px; transform: translateX(-50%);
+  width: min(520px, calc(100vw - 32px)); background: var(--surface); color: var(--text);
+  border: 1px solid var(--accent); border-radius: var(--radius); padding: 14px 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+.guest-choice strong { display: block; font-size: 15px; margin-bottom: 4px; }
+.guest-choice p { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; line-height: 1.45; }
+.guest-choice-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.guest-choice-actions button { font: inherit; font-size: 14px; font-weight: 600; border-radius: 8px;
+  padding: 8px 14px; cursor: pointer; border: 1px solid var(--border); background: var(--surface-2);
+  color: var(--text); }
+.guest-choice-actions button.keep { background: var(--accent); color: #062a24; border-color: var(--accent); }

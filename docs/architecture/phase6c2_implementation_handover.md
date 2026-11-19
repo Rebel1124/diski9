@@ -44,8 +44,8 @@ paid infrastructure, no Lucy/LiveKit/premium, no Phase 6C.3.
 | G — guest/authenticated access | **Done** | `docs/authentication.md` §7; `assets/account.js`; `app/app.py` `account_menu()` |
 | H — account interface | **Done**; screenshots in `docs/screenshots/phase6c2_accounts/` (17 images) | `backend/auth/templates/`, `assets/account.css` |
 | Tests | **Done**: 221 backend/auth tests passing locally (incl. 10 genuine Supabase Auth and 7 compatibility tests) | `tests/backend/` |
-| Full suite and CI | **In progress at checkpoint:** full local suite running; CI run 3 (`ec83559`) running; CI run 2 (`9f02d07`) failed, most likely on the app_0002 downgrade bug fixed in `ec83559` | see section 8 |
-| Completion report | **Outstanding** | section 10 |
+| Full suite and CI | **Done after the checkpoint:** see section 11 | see section 11 |
+| Completion report | **Delivered** to the owner after final validation | section 11 |
 
 ## 4. Key decisions (details in `docs/authentication.md`)
 
@@ -155,3 +155,19 @@ real capture and push.
    outstanding decisions; owner manual steps; readiness for 6C.3.
 6. Return the local checkout to `claude/gifted-newton-h6o5hk` at the end, and stop
    for owner review.
+
+## 11. Resolution after the checkpoint (19 November 2026)
+
+* Full local suite at the checkpoint: 1,152 passed (PostgreSQL and real Supabase
+  Auth). CI failures fixed: run 4 (the CI PostgreSQL image has no `postgres`
+  role, which a Supabase Auth migration grants to; the harness now creates it);
+  run 5 (all tests passed, but the background Auth server held uv's cache lock
+  during the cache clean-up; it now runs with the project interpreter and is
+  stopped at the end of the job).
+* Owner decisions: T-14 to T-17 approved (T-15 and T-16 with additional
+  requirements). Implemented: the T-15 keep/discard choice for guest work in the
+  tab (`assets/account.js`, `tests/test_account_tab_state.py`, screenshot 18);
+  explicit T-16 tests for role/entitlement revocation and suspension; T-17 check
+  against the real server. Register, `docs/authentication.md` and the Phase 6C
+  plan updated. The v4.0.0 tag was pushed by the owner.
+* Local acceptance guide for the owner's Mac: `docs/phase6c2_local_acceptance_mac.md`.

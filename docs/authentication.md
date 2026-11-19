@@ -14,7 +14,7 @@ documentation on 19 November 2026 and against a real Supabase Auth server
 | Client library | The official Supabase Python auth client (`supabase-auth`, part of supabase-py), server-side only, a fresh client per call (`persist_session=False`, `auto_refresh_token=False`) | A supported Supabase interface; no tokens kept in process memory between requests; the rest of Diski 9 depends only on a provider-neutral adapter (`diski9.backend.auth.provider`) |
 | Registration | Email and password `sign_up` from the server; Supabase sends a confirmation email | Passwords pass through the server to Supabase over HTTPS and are never stored or logged by Diski 9 |
 | Email verification and recovery links | Custom templates linking to `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email` (or `type=recovery`), verified server-side with `verify_otp` | Supabase's documented pattern for server-rendered apps. Unlike the PKCE `?code=` flow, it works when the link is opened on another device or browser (no code verifier to store). Links go to the Site URL, never to a caller-supplied address |
-| Link scanners | `GET /auth/confirm` shows a "Confirm" button; only the `POST` consumes the single-use token | Email security scanners that pre-fetch links cannot use the token first |
+| Link scanners (T-17, approved) | `GET /auth/confirm` shows a "Confirm" button; only the `POST` consumes the single-use token | Email security scanners that pre-fetch links cannot use the token first |
 | Sign-in | `sign_in_with_password` from the server; unverified addresses are refused (`email_not_confirmed`) | Only verified identities become Diski 9 accounts |
 | Access-token validation | `get_claims` with a cached JWKS (ES256/RS256 asymmetric signing keys; at most 10 minutes, refreshed on an unknown key ID for rotation), **plus** checks `get_claims` does not make: allowed algorithm, issuer, audience `authenticated`, role `authenticated`, not anonymous, subject is a UUID | `get_claims` verifies signature and expiry only. HS256 tokens (legacy secret) are verified by the Auth server itself, never with a local secret |
 | Key rotation | Standby keys appear in the JWKS before use; an unknown `kid` triggers one JWKS refresh (at most every 30 seconds) | Follows Supabase's rotation guidance (wait at least 20 minutes after creating a standby key or revoking a previous one) |
@@ -45,6 +45,14 @@ documentation on 19 November 2026 and against a real Supabase Auth server
   migrations are not used for `app`, and Alembic never touches `auth`.
 
 ### 2.2 Local development on a Mac (exact commands)
+
+For the full product-owner acceptance walkthrough (registration, emails,
+recovery, account settings, guest drafts, account switching, owner bootstrap,
+tests, stopping and restarting) see
+[`phase6c2_local_acceptance_mac.md`](phase6c2_local_acceptance_mac.md). That guide
+keeps Diski 9's data in the existing PostgreSQL container and uses the CLI stack
+only for Supabase Auth; the commands below instead use the stack's database for
+everything.
 
 Prerequisites: Homebrew, a Docker-compatible runtime (OrbStack is recommended by
 Supabase; Docker Desktop also works) and `uv`.
@@ -222,7 +230,7 @@ addresses rather than the server's.
 | Idle lifetime (participants) | 14 days | Database clock on every request; extended at most every 5 minutes |
 | Absolute lifetime | 30 days | Fixed at sign-in; rotation keeps it |
 | Operator recency | Sign-in (or re-authentication) within 12 hours | `authorize()` for every operator capability |
-| Sensitive operations (proposed) | Password re-entered within **15 minutes** | `authorize()` for: changing roles or entitlements, overriding results, invalidating rounds, reopening frozen championships, suspending accounts; also changing the password |
+| Sensitive operations (T-14, approved) | Password re-entered within **15 minutes** | `authorize()` for: changing roles or entitlements, overriding results, invalidating rounds, reopening frozen championships, suspending accounts; also changing the password |
 | Provider compatibility | Access tokens last 1 hour; the app refreshes them when within 5 minutes of expiry (so a provider-side revocation ends the app session within about an hour), and checks the provider directly before any privileged operation (fail closed) | `SessionManager.resolve`, `verify_with_provider` |
 | Rotation | New session token at sign-in, re-authentication and password change; the old token stops working immediately | tests |
 | Fixation | A cookie presented before sign-in is never promoted | tests |
@@ -231,6 +239,21 @@ addresses rather than the server's.
 The privileged recency requirement is deliberately separate from participant
 sessions: a participant can stay signed in for up to 30 days, but nothing
 privileged or sensitive works on an old sign-in.
+
+**Provider-side versus application-side revocation (T-16, approved with
+safeguards).** Diski 9 holds its own server-side session, so there are two
+places a session can be ended:
+
+| Revocation | Where it happens | When it takes effect | Tested in |
+|---|---|---|---|
+| Sign-out (this device) | Application session revoked, then the Supabase session signed out | Immediately: the cookie no longer resolves, even if replayed | `test_sign_out_revokes_session_clears_cookie_and_browser_state` |
+| Sign out everywhere; password change | All application sessions revoked; Supabase `global` / `others` sign-out | Immediately on every device | `test_sign_out_everywhere_ends_other_devices`, `test_password_change_requires_recent_reauthentication_and_rotates` |
+| Account suspension by an operator or owner | Application (`users.status`, sessions revoked) | Next request | `test_operator_suspension_ends_the_session_immediately`, `test_suspended_account_session_stops_working` |
+| Role or entitlement revoked | Application (`user_roles`, `entitlement_grants`) | Next protected operation, same session, no re-sign-in needed: permissions are loaded from the database on every request | `test_role_and_entitlement_revocations_apply_to_the_next_request` |
+| Revoked at Supabase (ban, deleted user, sign-out from another Supabase client) | Provider | Privileged operations: immediately (the provider is checked first and the check fails closed). Ordinary participant browsing: at the next provider refresh, within about an hour (accepted in T-16) | `test_operator_route_and_sensitive_reauth`, `test_privileged_check_fails_closed_when_provider_is_down`, `test_full_web_flow_against_real_supabase_auth` |
+
+Supabase's access tokens last an hour and cannot be recalled, which is why the
+application session, not the token, is what the browser holds.
 
 ## 6. Roles and entitlements (Stage F)
 
@@ -267,9 +290,13 @@ privileged or sensitive works on an old sign-in.
 **Guest drafts at sign-in and sign-out (shared-device safety):**
 * Prototype state (`ch-session`, `ch-prefs`, `lab-store`) lives only in the
   browser tab and is never sent to the server or attached to an account.
-* **Sign-in:** a guest's tab state is **retained** in that tab (it is not
-  adopted). Phase 6C.3 will offer an explicit "save this draft to my account"
-  action; nothing is attached silently.
+* **Sign-in or registration (T-15, approved):** if the tab holds guest work (a
+  Weekly Challenge draft or prototype entry, or Your View adjustments), the first
+  Diski 9 page after signing in asks **"Keep the analysis you did as a guest?"**
+  with **Keep in this tab** and **Discard**. Keeping leaves the work in this tab
+  only: it is not saved to the account and nothing is submitted. Discarding
+  clears it. Until a choice is made the question returns on every page load.
+  With no guest work, nothing is asked. Screenshot `18_guest_draft_choice.png`.
 * **Sign-out:** the tab state is **cleared**.
 * **Account switching:** each page carries an opaque owner marker (an HMAC of the
   user ID, never the ID itself). If a different account signs in in the same tab,
@@ -277,6 +304,14 @@ privileged or sensitive works on an old sign-in.
 * The prototype wording ("kept only in this browser tab", "not an official
   entry") is unchanged, so a signed-in user's prototype entry is never presented
   as a persistent competitive submission.
+
+**What Phase 6C.3 adds (not built in 6C.2):** a "save this draft to my account"
+action for kept work (adoption); never overwriting a portfolio the account
+already stores without an explicit choice; revalidating an adopted draft against
+the current eligible round and its frozen snapshot (dropping or flagging
+selections that are no longer eligible); no automatic submission; and private
+server-side Your View storage (T-10). Phase 6C.2 has no stored portfolios, so
+there is nothing that could be overwritten yet.
 
 ## 8. Account interface (Stage H)
 
@@ -298,6 +333,7 @@ scrolling).
 | `test_backend_auth_web.py` | real PostgreSQL | **mock** (`FakeProvider`) |
 | `test_backend_supabase_db.py` | real PostgreSQL, plus a database holding a real Supabase `auth` schema when configured | none |
 | `test_backend_supabase_local.py` | real PostgreSQL | **real Supabase Auth server** (local harness or CLI stack) |
+| `tests/test_account_tab_state.py` (browser tab state: guest choice, account switching, sign-out) | none | none (the real `account.js` in Chromium) |
 | Browser walkthrough (screenshots) | real PostgreSQL | **real Supabase Auth server** |
 | Hosted Supabase | not run (needs a project created by the product owner) | |
 

@@ -79,7 +79,9 @@ jobs:
           docker rm supabase-auth >/dev/null
           uv run python tools/local_auth/local_auth.py prepare \
             --admin-url postgresql://diski9:ci-only-password@localhost:5432/postgres
-          nohup uv run python tools/local_auth/local_auth.py run --gotrue ./supabase-auth-bin \
+          # the project interpreter directly (not `uv run`), so the long-running server
+          # does not hold uv's cache lock when the job's cache clean-up runs
+          nohup .venv/bin/python tools/local_auth/local_auth.py run --gotrue ./supabase-auth-bin \
             --auth-db-url postgres://supabase_auth_admin:local-auth-only@localhost:5432/diski9_auth_local \
             > supabase-auth.log 2>&1 &
           for i in $(seq 1 90); do
@@ -93,3 +95,9 @@ jobs:
 
       - name: Test suite (PostgreSQL and real Supabase Auth integration tests)
         run: uv run pytest -q -p no:cacheprovider -rs
+
+      - name: Stop the Supabase Auth server
+        if: always()
+        run: |
+          pkill -f tools/local_auth/local_auth.py || true
+          pkill -f supabase-auth-bin || true

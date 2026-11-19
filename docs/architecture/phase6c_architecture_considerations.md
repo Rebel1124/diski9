@@ -199,7 +199,7 @@ This document supersedes the Phase 6C discussion paper previously at this path.
 | Email links | token_hash links to `/auth/confirm` verified with `verify_otp` (works across devices), behind a confirm button |
 | Token verification | `get_claims` with a cached JWKS (ES256/RS256), plus issuer, audience, role, subject and algorithm checks |
 | Sessions | Diski 9 server-side sessions (hashed opaque tokens; 14-day idle; 30-day absolute; rotation; revocation); provider tokens encrypted at rest and refreshed under a row lock |
-| Authorisation | `Principal` loaded per request from the database; deny-by-default capabilities; independent entitlements; 12-hour operator recency; 15-minute re-authentication for sensitive operations (T-14, proposed) |
+| Authorisation | `Principal` loaded per request from the database; deny-by-default capabilities; independent entitlements; 12-hour operator recency; 15-minute re-authentication for sensitive operations (T-14, approved) |
 | Web protections | CSRF tokens on forms; Origin checks on every cookie-bearing state change including Dash callbacks; safe relative redirects; strict CSP and no-store on account pages |
 | Supabase database | Row-level security on every `app` table, access only for `diski9_app`; `app` not exposed to `anon`/`authenticated`; direct or session-pooler connections recommended; transaction-pooler mode supported (`DISKI9_APP_POOLER_MODE=transaction`) |
 | Local development | Supabase CLI stack on a Mac (`supabase/config.toml`), or the Docker-free harness `tools/local_auth` (real Supabase Auth server) |

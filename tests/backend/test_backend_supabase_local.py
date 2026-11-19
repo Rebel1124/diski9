@@ -237,6 +237,9 @@ def test_full_web_flow_against_real_supabase_auth(engine, settings, provider):
     n = _mail_count()
     assert post("/auth/sign-up", {"email": addr, "password": PASSWORD}).status_code == 303
     th = _wait_link(n, "email")
+    # T-17: an email scanner (or the person) loading the link consumes nothing
+    for _ in range(2):
+        assert c.get(f"/auth/confirm?token_hash={th}&type=email").status_code == 200
     r = post(
         "/auth/confirm",
         {"token_hash": th, "type": "email"},

@@ -17,6 +17,7 @@ from sqlalchemy import select, text, update
 from diski9.backend.auth import accounts as acct
 from diski9.backend.auth import privileged as pv
 from diski9.backend.auth.permissions import Capability
+from diski9.backend.auth.sessions import revoke_all_sessions
 from diski9.backend.auth.web import (
     AuthRuntime,
     authorize_callback,
@@ -61,6 +62,16 @@ def app(engine, provider):
     @require(Capability.PUBLISH_ROUND)
     def publish():
         return "published"
+
+    @server.route("/test/feature")
+    def feature():
+        from diski9.backend.auth.permissions import Forbidden, require_feature
+
+        try:
+            require_feature(current_principal(), "lucy.research")
+        except Forbidden:
+            return "forbidden", 403
+        return "feature"
 
     @server.route("/test/echo", methods=["POST"])
     def echo():
@@ -400,6 +411,48 @@ def test_operator_route_and_sensitive_reauth(client, provider, engine):
     assert client.get("/test/void-round").get_data(as_text=True) == "voided"
     provider.end_all_sessions(email)  # revoked at the provider: privileged checks fail closed
     assert client.get("/test/void-round").status_code == 303
+
+
+# ---------------------------------------------------------------- T-16 application-side revocation
+def test_role_and_entitlement_revocations_apply_to_the_next_request(app, provider, engine):
+    """Application-side changes need no provider round trip and no new sign-in: the
+    Principal is rebuilt from the database on every request."""
+    owner_c, member_c = app.test_client(), app.test_client()
+    register(owner_c, provider)
+    owner = uuid.UUID(owner_c.get("/test/whoami").json["user"])
+    register(member_c, provider)
+    member = uuid.UUID(member_c.get("/test/whoami").json["user"])
+    with transaction(engine) as conn:
+        conn.execute(text("DELETE FROM app.user_roles WHERE role = 'owner'"))
+        pv.bootstrap_owner(conn, owner, "test owner")
+        pv.grant_role(conn, owner, member, "operator", "trial operator")
+        pv.grant_feature(conn, owner, member, "lucy.research", "trial")
+    assert member_c.get("/test/publish").get_data(as_text=True) == "published"
+    assert member_c.get("/test/feature").get_data(as_text=True) == "feature"
+    with transaction(engine) as conn:
+        pv.revoke_role(conn, owner, member, "operator", "trial over")
+        pv.revoke_feature(conn, owner, member, "lucy.research", "trial over")
+    # same session, very next request: both are gone
+    assert member_c.get("/test/publish").status_code == 403
+    assert member_c.get("/test/feature").status_code == 403
+    assert member_c.get("/test/whoami").json["roles"] == []
+    # ordinary participant access in that session continues
+    assert member_c.get("/account").status_code == 200
+
+
+def test_operator_suspension_ends_the_session_immediately(app, provider, engine):
+    owner_c, member_c = app.test_client(), app.test_client()
+    register(owner_c, provider)
+    owner = uuid.UUID(owner_c.get("/test/whoami").json["user"])
+    register(member_c, provider)
+    member = uuid.UUID(member_c.get("/test/whoami").json["user"])
+    with transaction(engine) as conn:
+        conn.execute(text("DELETE FROM app.user_roles WHERE role = 'owner'"))
+        pv.bootstrap_owner(conn, owner, "test owner")
+        pv.set_status(conn, owner, member, "suspended", "abuse report", revoke_all_sessions)
+    # the provider session is untouched (FakeProvider still valid); the app session is not
+    assert member_c.get("/test/whoami").json["user"] is None
+    assert member_c.get("/account").status_code == 303
 
 
 def test_accounts_are_isolated(app, provider):
