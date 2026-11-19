@@ -1,7 +1,5 @@
 """The Match Lab and the statistical baseline (Engine 3.0, Goal Model 1.0).
 
-"We calculate the probabilities. You analyse the match. You make the call."
-
 Detail panel for a selected fixture:
 
   Heading          fixture, competition, kickoff, market
@@ -162,6 +160,49 @@ def new_state() -> dict:
 def baseline_rounded(r: dict) -> dict:
     eg = r["goal_model"]["estimated_goals"]
     return {s: round(eg[s], 2) for s in SIDES}
+
+
+CONTEXT_KEY = "_ctx"  # in the Match Lab store: {fixture id: model context stamp}
+
+
+def model_context(r: dict) -> str:
+    """What a fixture's adjustments are relative to: Goal Model version and the
+    rounded baseline estimated goals. Adjustments are deltas from this baseline, so
+    they are only reapplied while it is unchanged."""
+    b = baseline_rounded(r)
+    return f"{gm.GOAL_MODEL_VERSION}|{r['fixture']['id']}|{b['home']:.2f}|{b['away']:.2f}"
+
+
+def stored_adjustment(lab: dict | None, fid, r: dict | None) -> dict | None:
+    """The participant's stored state for a fixture, or None when there is none or it
+    was made against a different model context (never applied to the wrong baseline)."""
+    if not lab or fid is None:
+        return None
+    stored = lab.get(str(fid))
+    if stored is None or r is None or not (r.get("goal_model") or {}).get("available"):
+        return stored
+    stamp = (lab.get(CONTEXT_KEY) or {}).get(str(fid))
+    if stamp is not None and stamp != model_context(r):
+        return None
+    return stored
+
+
+def store_adjustment(lab: dict | None, fid, r: dict, state: dict | None) -> dict:
+    """A new Match Lab store with this fixture's state (or without it, when empty)
+    and its model context stamp."""
+    lab = dict(lab or {})
+    stamps = dict(lab.get(CONTEXT_KEY) or {})
+    if state is None:
+        lab.pop(str(fid), None)
+        stamps.pop(str(fid), None)
+    else:
+        lab[str(fid)] = state
+        stamps[str(fid)] = model_context(r)
+    if stamps:
+        lab[CONTEXT_KEY] = stamps
+    else:
+        lab.pop(CONTEXT_KEY, None)
+    return lab
 
 
 def normalise_state(stored: dict | None, base_r: dict | None = None) -> dict:
@@ -602,7 +643,7 @@ def _mini_adjust(
                         inputMode="decimal",
                         value=text,
                         debounce=0.4,
-                        pattern=r"[-+]?[0-9]*([.,][0-9]{0,2})?",
+                        pattern=r"[+\-]?[0-9]*([.,][0-9]{0,2})?",
                         className="adj-input cat-input goal-input step-005 allow-negative",
                         placeholder="0.00",
                     ),
@@ -1111,8 +1152,8 @@ ODDS_SOURCE = (
 )
 EDGE_VS_EV = (
     "A larger edge does not always mean a larger EV: EV also depends on the odds, so a longer-"
-    "priced outcome can have a smaller edge but a higher EV. That is why the Screener offers "
-    "both rankings."
+    "priced outcome can have a smaller edge but a higher EV. That is why the Match Lab "
+    "offers both rankings."
 )
 EV_SHORT = (
     "Expected Value measures the average theoretical return of a bet based on your estimated "
@@ -1243,7 +1284,7 @@ def model_comparison(market: str, ov: OddsView | None, base: dict) -> html.Div:
     notes.append(src)
     if dm.status == "stale":
         notes.append(
-            "These prices are stale and may no longer be available; the Screener "
+            "These prices are stale and may no longer be available; the Match Lab "
             "does not rank stale prices."
         )
     notes.append(
@@ -1453,10 +1494,7 @@ def render_detail(
             state["cats"][k]["home"] = state["cats"][k]["away"] = 0.0
     lab = html.Section(
         [
-            card_head(
-                "The Match Lab",
-                "We calculate the probabilities. You analyse the match. You make the call.",
-            ),
+            card_head("Match analysis"),
             baseline_section(r, market),
             context_section(r, market, official, state),
             factors_section(r, state),

@@ -33,6 +33,7 @@ from .data import (
     OddsView,
     ScreenerData,
 )
+from .icons import icon
 
 FORM_TOOLTIP = (
     "Diski Form Score (0–5) measures recent performance using points earned and goal "
@@ -124,9 +125,12 @@ def signed_class(value: float | None) -> str:
 
 
 # ------------------------------------------------------------- card helpers
-def card_head(title: str, subtitle: str) -> html.Div:
+def card_head(title: str, subtitle: str | None = None) -> html.Div:
     return html.Div(
-        [html.H3(title), html.Div(subtitle, className="card-sub muted small")],
+        [
+            html.H3(title),
+            html.Div(subtitle, className="card-sub muted small") if subtitle else None,
+        ],
         className="card-head",
     )
 
@@ -400,18 +404,18 @@ def league_comparison(rate: dict | None, lb: dict | None, key: str) -> str | Non
 
 
 COMPARISON_TEXT = {
-    "above": ("✓", "Above league average"),
-    "below": ("↓", "Below league average"),
-    "equal": ("=", "Equal to league average"),
+    "above": ("arrow-up", "Above league average"),
+    "below": ("arrow-down", "Below league average"),
+    "equal": ("equal", "Equal to league average"),
 }
 
 
 def comparison_indicator(state: str | None) -> html.Div | None:
     if state is None:
         return None
-    icon, text = COMPARISON_TEXT[state]
+    name, text = COMPARISON_TEXT[state]
     return html.Div(
-        [html.Span(icon, className="cmp-icon", **{"aria-hidden": "true"}), html.Span(text)],
+        [icon(name, "cmp-icon"), html.Span(text)],
         className=f"league-cmp {state} small",
     )
 

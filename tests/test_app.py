@@ -285,7 +285,19 @@ def test_page_and_selection_transitions(data):
     )
     orig, appmod.results_payload = appmod.results_payload, fake
     try:
-        args = ("1X2", [39], None, None, "kickoff_earliest", 0, [], 1, 1, [], [])
+        args = (
+            "1X2",
+            [39],
+            None,
+            None,
+            "kickoff_earliest",
+            0,
+            1,
+            1,
+            [],
+            [],
+            "all",
+        )  # no odds toggle
         for prop, page, expected_page in (
             ("next.n_clicks", 1, 2),
             ("prev.n_clicks", 2, 1),
@@ -435,7 +447,7 @@ def test_detail_levels_and_form_breakdown(data):
     d = render_detail(r, ov, official, "1X2", data)
     text = _text(d)
     for phrase in (
-        "The Match Lab",
+        "Match analysis",  # 6B.3: the page is the Match Lab; this card analyses one match
         "A. Statistical baseline",
         "estimated goals",
         "B. Match context",

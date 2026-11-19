@@ -43,9 +43,9 @@ def test_match_lab_then_bookmaker_card_in_every_market(data, market):
     r, ov, official = data.detail(EPL_FIX, "overall")
     d = render_detail(r, ov, official, market, data)
     lab, market_card = cards(d)
-    assert _text(lab).startswith(
-        "The Match Lab We calculate the probabilities. You analyse the match. You make the call."
-    )
+    assert " ".join(_text(lab).split()).startswith(
+        "Match analysis A. Statistical baseline"
+    )  # no slogan
     assert [_text(s).split(" ", 2)[:2] for s in sections(lab)] == [
         ["A.", "Statistical"],
         ["B.", "Match"],
@@ -205,7 +205,7 @@ def test_browser_lab_accordions_and_mobile(data):
         out = json.loads(res.stdout.strip().splitlines()[-1])
         for name in ("desktop", "phone"):
             r = out[name]
-            assert r["titles"] == ["The Match Lab", "Bookmaker Market Reference"]
+            assert r["titles"] == ["Match analysis", "Bookmaker Market Reference"]  # 6B.3 rename
             assert [s.split(".")[0] for s in r["steps"]] == ["A", "B", "C", "D"]
             assert r["closed"] and r["firstOpen"] and r["keyboardOpen"]
             assert r["summaryHeight"] >= 44  # comfortable touch target

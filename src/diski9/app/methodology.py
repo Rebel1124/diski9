@@ -234,17 +234,17 @@ def market_value_block() -> html.Div:
         _p(
             "A larger edge does not always give a larger EV, because EV also depends on the "
             "price: a long-priced outcome with a small edge can have a higher EV than a short-"
-            "priced outcome with a big edge. That is why the Screener can rank by either."
+            "priced outcome with a big edge. That is why the Match Lab can rank by either."
         ),
         _p(
             "The odds are Diski 9 consensus reference odds: for each outcome, the median price "
             "across independent bookmakers that each quote the whole market (brands under common "
             "ownership count once). They are the prices shown in the app, but not an offer from "
-            "any single bookmaker, so EV is a reference figure. The Screener ranks fresh prices "
-            "only and uses the model's own probabilities; The Match Lab's value check uses your "
-            "adjusted probabilities. Odds are collected for all eight leagues; where the "
-            "provider has no qualifying prices (currently the PSL and PSL 1st Division), "
-            "no odds are shown.",
+            "any single bookmaker, so EV is a reference figure. The match list ranks fresh "
+            "prices only and uses the model's own probabilities; the match analysis value "
+            "check uses your adjusted probabilities. Odds are collected for all eight "
+            "leagues; where the provider has no qualifying prices (currently the PSL and "
+            "PSL 1st Division), no odds are shown.",
             "muted small",
         ),
         cls="wide",

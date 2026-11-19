@@ -2,8 +2,6 @@
 
 Run: ``uv run diski9 serve`` (defaults to http://127.0.0.1:8050).
 
-"We calculate the probabilities. You analyse the match. You make the call."
-
 The results list is a plain HTML table (desktop) / card list (phones) rendered
 server-side, ten fixtures per page, ranked by the Goal Model 1.0 probability of
 the chosen outcome. Selecting a fixture opens The Match Lab: the statistical
@@ -24,6 +22,17 @@ from dash.exceptions import PreventUpdate
 
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DIRECTIONS
 
+from .challenge.callbacks import nav_links
+from .challenge.callbacks import register as register_challenge
+from .challenge.components import page_header
+from .challenge.integration import (
+    challenge_cell,
+    challenge_cells,
+    frozen_order,
+    frozen_row,
+    frozen_universe,
+)
+from .challenge.service import ChallengeService
 from .data import (
     DIRECTIONS,
     MARKET_KEYS,
@@ -33,6 +42,7 @@ from .data import (
     paginate,
     valid_direction,
 )
+from .icons import icon
 from .lab import (
     ADJUST_MAX,
     CATEGORY_MAX,
@@ -53,6 +63,8 @@ from .lab import (
     signed_text,
     slider_max,
     slider_value,
+    store_adjustment,
+    stored_adjustment,
 )
 from .methodology import methodology_section
 from .views import pill
@@ -201,18 +213,57 @@ def create_app(data: ScreenerData) -> Dash:
     app = Dash(
         __name__,
         assets_folder=str(ASSETS),
-        title="Diski 9 Screener",
+        title="Diski 9",
         update_title=None,
         meta_tags=[{"name": "viewport", "content": "width=device-width, initial-scale=1"}],
         suppress_callback_exceptions=True,
     )
     app.server.config["DISKI9_DATA"] = data
-    app.layout = lambda: build_layout(data)
-    register_callbacks(app, data)
+    service = ChallengeService(data)
+    app.server.config["DISKI9_CHALLENGE"] = service
+    app.layout = lambda: build_shell(data, service)
+    register_callbacks(app, data, service)
+    register_challenge(app, data, service)
     return app
 
 
-def build_layout(data: ScreenerData) -> html.Div:
+def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> html.Div:
+    """Site shell: navigation, the Screener page (unchanged, shown at ``/``) and the
+    Weekly Challenge pages (``/challenge``, ``/challenge/me``, ``/leaderboards``).
+
+    The Screener stays mounted and is only hidden on other routes, so its filters,
+    selection and Match Lab state survive navigation. Weekly Challenge state lives
+    in the browser-session store ``ch-session`` (this tab only, kept on refresh)."""
+    service = service or ChallengeService(data)
+    return html.Div(
+        [
+            dcc.Location(id="url", refresh=False),
+            html.Nav(
+                html.Div(
+                    [
+                        html.Span("Diski 9", className="nav-brand"),
+                        html.Div(nav_links("/"), id="site-nav-links", className="nav-links"),
+                    ],
+                    className="nav-inner",
+                ),
+                className="site-nav",
+                **{"aria-label": "Main"},
+            ),
+            html.Div(
+                build_layout(data, "challenge" if service.availability("live").playable else "all"),
+                id="screener-root",
+            ),
+            html.Div(id="ch-root"),
+            dcc.Store(id="ch-session", storage_type="session"),
+            dcc.Store(id="ch-prefs", storage_type="session", data={"source": "market"}),
+            dcc.Store(id="ch-flash", storage_type="memory"),
+            dcc.Store(id="ch-rendered", storage_type="memory"),
+            dcc.Store(id="ch-fxpage", storage_type="memory", data=1),
+        ]
+    )
+
+
+def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
     snap = data.snapshot()
     leagues = data.available_leagues()
     today = data.clock().astimezone(data.tz).date()
@@ -243,30 +294,30 @@ def build_layout(data: ScreenerData) -> html.Div:
         )
     return html.Div(
         [
-            html.Header(
-                [
-                    html.Div(
-                        [
-                            html.Span("Diski 9", className="brand"),
-                            html.Span("Screener & Match Lab", className="subtitle"),
-                        ]
-                    ),
-                    html.Div(
-                        f"Times in {data.tz_label} · statistics calculated "
-                        f"{data.local(snap.cache_calculated_at)}",
-                        className="muted small",
-                    ),
-                ],
-                className="topbar",
-            ),
-            html.P(
-                "We calculate the probabilities. You analyse the match. You make the call.",
-                className="tagline",
+            page_header(
+                "Match Lab",
+                f"Times in {data.tz_label} · statistics calculated "
+                f"{data.local(snap.cache_calculated_at)}",
             ),
             *banner,
             methodology_section(),
             html.Div(
                 [
+                    html.Div(
+                        [
+                            html.Label("Matches"),
+                            dcc.RadioItems(
+                                id="universe",
+                                options=[
+                                    {"label": "Weekly Challenge", "value": "challenge"},
+                                    {"label": "All upcoming matches", "value": "all"},
+                                ],
+                                value=universe,
+                                className="segmented universe",
+                            ),
+                        ],
+                        className="filter f-matches",
+                    ),
                     html.Div(
                         [
                             html.Label("Market", htmlFor="market"),
@@ -279,7 +330,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                                 className="dropdown",
                             ),
                         ],
-                        className="filter",
+                        className="filter f-market",
                     ),
                     html.Div(
                         [
@@ -297,7 +348,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                                 className="dropdown leagues",
                             ),
                         ],
-                        className="filter",
+                        className="filter f-leagues",
                     ),
                     html.Div(
                         [
@@ -311,7 +362,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                                 className="dates",
                             ),
                         ],
-                        className="filter",
+                        className="filter f-dates",
                     ),
                     html.Div(
                         [
@@ -327,7 +378,7 @@ def build_layout(data: ScreenerData) -> html.Div:
                                 value=DEFAULT_DIRECTION,
                             ),
                         ],
-                        className="filter",
+                        className="filter f-rank",
                     ),
                     html.Div(
                         [
@@ -347,18 +398,10 @@ def build_layout(data: ScreenerData) -> html.Div:
                         ],
                         className="filter threshold-filter",
                     ),
-                    html.Div(
-                        dcc.Checklist(
-                            id="odds-only",
-                            options=[{"label": "Only show matches with odds", "value": ODDS_ONLY}],
-                            value=[],
-                            className="chips odds-only",
-                        ),
-                        className="filter-row",
-                    ),
                 ],
                 className="filters",
             ),
+            html.Div(id="ch-strip"),
             html.Div(id="legend", className="legend"),
             html.Div(
                 [
@@ -382,10 +425,16 @@ def build_layout(data: ScreenerData) -> html.Div:
             dcc.Store(id="page", data=1),
             dcc.Store(id="threshold-pref", data=0),
             dcc.Store(id="selected"),
-            # The user's estimated-goal adjustments, keyed by fixture id. Memory only:
-            # lives in this browser tab, never sent to storage, never shared.
-            dcc.Store(id="lab-store", storage_type="memory", data={}),
+            # The user's estimated-goal adjustments (Your View), keyed by fixture id with
+            # a model-context stamp per fixture. Session storage (Phase 6B.3): this
+            # browser tab only; survives navigation, refresh and a server restart, ends
+            # when the tab closes. Never sent to the server's storage or shared.
+            dcc.Store(id="lab-store", storage_type="session", data={}),
+            # Match Lab journey: model analysis and Your View (detail), then the Weekly
+            # Challenge selection cards, then the bookmaker market reference
             html.Div(id="detail", className="detail-holder"),
+            html.Div(id="lab-challenge"),
+            html.Div(id="detail-reference", className="detail-holder"),
             html.Footer(
                 "Diski 9 is an educational football analytics tool. Probabilities are "
                 "statistical estimates from Goal Model 1.0, not guarantees. Bookmaker odds are "
@@ -509,7 +558,9 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
     return state, messages
 
 
-def register_callbacks(app: Dash, data: ScreenerData) -> None:
+def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
+    service = service or ChallengeService(data)
+
     @app.callback(
         Output("direction", "options"),
         Output("direction", "value"),
@@ -599,13 +650,14 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         Input("dates", "end_date"),
         Input("direction", "value"),
         Input("threshold", "value"),
-        Input("odds-only", "value"),
         Input("prev", "n_clicks"),
         Input("next", "n_clicks"),
         Input({"type": "row", "index": ALL}, "n_clicks"),
         Input({"type": "fx", "index": ALL}, "n_clicks"),
+        Input("universe", "value"),
         State("page", "data"),
         State("selected", "data"),
+        State("ch-session", "data"),
     )
     def update_results(
         market,
@@ -614,13 +666,14 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         end,
         direction,
         threshold,
-        odds_only,
         _p,
         _n,
         _rows,
         _cards,
+        universe,
         page,
         selected,
+        ch_state=None,
     ):
         """Single source of truth for the list, the page and the selected fixture id.
 
@@ -651,19 +704,41 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
             threshold,
             page,
             selected,
-            odds_only=ODDS_ONLY in (odds_only or []),
+            challenge=challenge_cells(service, ch_state, market)
+            if universe == "challenge"
+            else None,
         )
 
     @app.callback(
+        Output("dates", "start_date"),
+        Output("dates", "end_date"),
+        Input("universe", "value"),
+        State("ch-session", "data"),
+        prevent_initial_call=True,
+    )
+    def universe_changed(universe, ch_state):
+        """Switching match universe sets a compatible date range: the round snapshot's
+        kickoff dates for the Weekly Challenge, the default fortnight otherwise."""
+        rng = universe_dates(data, service, ch_state, universe)
+        return rng if rng else (no_update, no_update)
+
+    @app.callback(
         Output("detail", "children"),
+        Output("detail-reference", "children"),
         Input("selected", "data"),
         Input("market", "value"),
+        Input("url", "pathname"),
         State("lab-store", "data"),
     )
-    def update_detail(fid, market, lab):
+    def update_detail(fid, market, path, lab):
+        """The Match Lab is unmounted while another page shows (its large tree inside
+        the hidden Screener slowed every Weekly Challenge tap) and rebuilt from the
+        selection and the Match Lab store on return, so nothing is lost."""
+        if (path or "/").rstrip("/") not in ("", "/"):
+            return (None, None) if ctx.triggered_id == "url" else (no_update, no_update)
         r, ov, official = data.detail(fid) if fid else (None, None, {})
-        adj = (lab or {}).get(str(fid)) if fid else None
-        return render_detail(r, ov, official, market, data, adj)
+        adj = stored_adjustment(lab, fid, r) if fid else None
+        return split_detail(render_detail(r, ov, official, market, data, adj))
 
     @app.callback(
         Output("lab-store", "data"),
@@ -711,14 +786,10 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
         r, ov, _ = data.detail(fid)
         if r is None or not r["goal_model"].get("available"):
             raise PreventUpdate
-        lab = dict(lab or {})
         trig = ctx.triggered_id
         value = ctx.triggered[0].get("value")
-        state, messages = lab_update(r, trig, value, lab.get(str(fid)))
-        if is_empty(state):
-            lab.pop(str(fid), None)
-        else:
-            lab[str(fid)] = state
+        state, messages = lab_update(r, trig, value, stored_adjustment(lab, fid, r))
+        lab = store_adjustment(lab, fid, r, None if is_empty(state) else state)
         b = breakdown(baseline_rounded(r), state)
         h, a = b["home"]["final"], b["away"]["final"]
         cat_out = [
@@ -764,6 +835,30 @@ def register_callbacks(app: Dash, data: ScreenerData) -> None:
     )
 
 
+def split_detail(detail):
+    """(header + Match Lab, bookmaker reference + footnote): the Weekly Challenge
+    selection panel sits between them, after the participant has formed Your View."""
+    kids = getattr(detail, "children", None)
+    if not isinstance(kids, list) or len(kids) < 3:
+        return detail, None
+    return (
+        html.Div(kids[:2], className=detail.className),
+        html.Div(kids[2:], className=f"{detail.className} detail-ref"),
+    )
+
+
+def universe_dates(data, service, ch_state, universe: str):
+    """(start, end) dates in local time for a match universe, or None to keep."""
+    today = data.clock().astimezone(data.tz).date()
+    if universe != "challenge":
+        return today, today + timedelta(days=14)
+    snap = (challenge_cells(service, ch_state, "1X2") or {}).get("snapshot")
+    if snap is None or not snap.fixtures:
+        return None
+    days = [f.kickoff.astimezone(data.tz).date() for f in snap.fixtures]
+    return min(days), max(days)
+
+
 def header_sort(market: str, key: str, current: str | None) -> str:
     """Clicking 'Kickoff' toggles earliest/latest; clicking the first probability
     header toggles the market's two main outcomes."""
@@ -784,10 +879,6 @@ def _date(value: str | None) -> date | None:
     return date.fromisoformat(value[:10]) if value else None
 
 
-ODDS_ONLY = "odds"
-NO_ODDS_MESSAGE = "No matches with bookmaker odds available for these filters."
-
-
 def results_payload(
     data,
     market,
@@ -799,41 +890,66 @@ def results_payload(
     threshold,
     page,
     selected=None,
-    odds_only=False,
+    challenge: dict | None = None,
 ):
-    """Pure function behind the results callback (also used by tests). All filters,
-    including "only matches with odds", apply before ranking and pagination."""
+    """Pure function behind the results callback (also used by tests). All filters
+    apply before ranking and pagination. "All upcoming matches" includes fixtures
+    without bookmaker odds (shown as "No odds"); odds are never an eligibility test.
+
+    ``challenge`` (the Weekly Challenge view) restricts the list to the frozen
+    Challenge pool and shows its frozen reference odds and portfolio markers."""
     direction = valid_direction(market, direction)
     thr = _threshold_value(market, direction, threshold)
-    results = (
-        data.filtered(
-            market,
-            leagues,
-            _date(start),
-            _date(end),
-            "overall",
-            direction,
-            thr,
-            odds_only=bool(odds_only),
+    if challenge is not None:
+        # The Weekly Challenge universe is exactly the round snapshot's fixtures. Its
+        # probabilities, estimated goals, market probabilities, odds, edge and EV, and
+        # every ranking and minimum-probability filter, come from the frozen snapshot
+        # - never from the live model cache or live odds.
+        results = (
+            frozen_order(
+                challenge,
+                frozen_universe(data, challenge, market, leagues, _date(start), _date(end)),
+                market,
+                direction,
+                thr,
+            )
+            if leagues
+            else []
         )
-        if leagues
-        else []
-    )
+    else:
+        results = (
+            data.filtered(market, leagues, _date(start), _date(end), "overall", direction, thr)
+            if leagues
+            else []
+        )
     # selection is the fixture id; cleared when filters remove it from the list
     if selected is not None and selected not in {r["fixture"]["id"] for r in results}:
         selected = None
     pg = paginate(results, page)
-    rows = [
-        data.row(market, r) | {"value": data.value_cell(market, r, direction, thr)}
-        for r in pg.results
-    ]
+    if challenge is not None:
+        mode = "ev" if direction == "ev" else "edge"
+        rows = [
+            frozen_row(challenge, market, data.row(market, r), r)
+            | {"value": challenge_cell(challenge, market, r["fixture"]["id"], mode, thr)}
+            for r in pg.results
+        ]
+    else:
+        rows = [
+            data.row(market, r) | {"value": data.value_cell(market, r, direction, thr)}
+            for r in pg.results
+        ]
     if not leagues:
         empty = html.Div("Select at least one league to see fixtures.", className="empty")
+    elif challenge is not None and not results:
+        empty = html.Div(
+            challenge.get("message")
+            or "No Weekly Challenge matches fit these filters. Switch to All upcoming matches "
+            "to analyse every fixture.",
+            className="empty",
+        )
     elif not results:
         empty = html.Div(
-            NO_ODDS_MESSAGE
-            if odds_only
-            else "No fixtures match these filters. Try a wider date range or a lower threshold.",
+            "No fixtures match these filters. Try a wider date range or a lower threshold.",
             className="empty",
         )
     else:
@@ -899,7 +1015,9 @@ def results_table(
                 # Data-quality flags (formerly a separate, usually empty "Data" column)
                 if not row["available"]:
                     value = html.Span(
-                        "No model", className="pill subtle", title=row["unavailable_reason"]
+                        "Not in snapshot" if row.get("frozen") else "No model",
+                        className="pill subtle",
+                        title=row["unavailable_reason"],
                     )
                 elif row["limited"]:
                     value = [
@@ -940,6 +1058,13 @@ def value_lines(v: dict) -> list:
     out = [html.Span(v["main"], className="v-main")]
     if v["sub"]:
         out.append(html.Span(v["sub"], className="v-sub muted small"))
+    if v.get("picked"):  # Weekly Challenge view: this match's pick in the portfolio
+        out.append(
+            html.Span(
+                [icon("check", "ic-sm"), f"Your pick: {v['picked']}"],
+                className="v-pick small",
+            )
+        )
     return out
 
 
@@ -948,7 +1073,8 @@ def fixture_card(market: str, row: dict, selected: int | None) -> html.Button:
         probs = " · ".join(f"{lbl} {row[f'p_{k}']}" for k, lbl in MARKET_KEYS[market])
         metric = f"Est. goals {row['estimated_goals']}"
     else:
-        probs, metric = row["unavailable_reason"], "No model estimate"
+        probs = row["unavailable_reason"]
+        metric = "Not in the round snapshot" if row.get("frozen") else "No model estimate"
     odds = row["odds"] if row["odds"] in ("No odds", "—") else f"Odds {row['odds']}"
     bottom = [html.Span(odds, className="muted small")]
     if row["odds_status"] == "stale":

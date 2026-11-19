@@ -25,15 +25,20 @@ document.addEventListener("keydown", function (e) {
   e.preventDefault();
 });
 
-/* Announce the odds filter as an on/off switch to assistive technology. */
+/* Full-value tooltips for filter values that must be truncated on narrow screens. */
 (function () {
-  function mark() {
-    const box = document.querySelector("#odds-only input[type=checkbox]");
-    if (box && box.getAttribute("role") !== "switch") {
-      box.setAttribute("role", "switch");
-      box.setAttribute("aria-label", "Only show matches with odds");
-    }
+  function label() {
+    document.querySelectorAll(".filters .dash-dropdown").forEach(function (el) {
+      const items = [...el.querySelectorAll(".dash-dropdown-value-item")].map(function (i) {
+        return i.innerText.trim(); }).filter(Boolean);
+      const v = el.querySelector(".dash-dropdown-value");
+      const text = items.length > 1 ? items.join(", ") : (v ? v.innerText.trim() : "");
+      if (text && el.getAttribute("title") !== text) { el.setAttribute("title", text); }
+    });
+    document.querySelectorAll(".filters .dates input").forEach(function (el) {
+      if (el.value && el.getAttribute("title") !== el.value) { el.setAttribute("title", el.value); }
+    });
   }
-  new MutationObserver(mark).observe(document.documentElement, { childList: true, subtree: true });
-  document.addEventListener("DOMContentLoaded", mark);
+  new MutationObserver(label).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+  document.addEventListener("DOMContentLoaded", label);
 })();
