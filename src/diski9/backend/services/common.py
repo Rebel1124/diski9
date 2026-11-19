@@ -7,6 +7,7 @@ Services never show database exceptions to users. Each error carries a short
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Sequence
 from typing import Any
 from uuid import UUID
@@ -16,6 +17,8 @@ from sqlalchemy import Connection, select
 from ..auth.accounts import account
 from ..auth.permissions import Principal
 from ..db.schema import users
+
+logger = logging.getLogger(__name__)
 
 
 class ServiceError(Exception):
@@ -103,3 +106,31 @@ def cli_principal(conn: Connection, user_id: UUID, now) -> Principal:
         reauthenticated_at=None,
         now=now,
     )
+
+
+class PersistenceFailed(ServiceError):
+    """The database could not complete the write; nothing was saved."""
+
+    code = "persistence_failed"
+
+
+SAVE_FAILED = "Your changes could not be saved just now. They are still on this page; try again."
+
+
+class map_db_errors:  # noqa: N801 - used as a context manager
+    """Turn database exceptions into user-safe service errors (details are logged,
+    never shown). A deadline trigger firing in a race becomes :class:`RoundClosed`."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        from sqlalchemy.exc import DBAPIError
+
+        if exc is None or not isinstance(exc, DBAPIError):
+            return False
+        code = getattr(getattr(exc, "orig", None), "sqlstate", None)
+        logger.warning("competition write failed: %s (%s)", type(exc.orig).__name__, code)
+        if code == "23514" and "not open" in str(exc.orig):
+            raise RoundClosed("The deadline has passed; this round can no longer change.") from None
+        raise PersistenceFailed(SAVE_FAILED) from None
