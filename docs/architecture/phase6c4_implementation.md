@@ -4,9 +4,12 @@
 `45ef8c7` (tag `v4.1.0`, annotated object `e112e2d`; 1,304 tests passed, 1 hosted
 Supabase test deferred; CI run 27 green; migrations `app_0001`–`app_0005`).
 
-**Status:** Stage A (architecture and policy assessment) only. **No settlement code,
-migration or user interface has been written.** Stages B–G wait for the product
-owner's review of this assessment and explicit authorisation.
+**Status:** Stage A assessment (§1–§21, kept as written for the record) **approved
+by the product owner on 19 Nov 2026 with the decisions in §22**, which supersede
+the Stage A proposals where they differ (notably: completion-based cutoff, no
+closing window, owner-only reopening, explicit development result modes).
+**Stages B–D authorised**; their implementation record starts at §23. Stages E–G
+wait for separate authorisation.
 
 **Precedence:** the decision register (D-, T-, R- series) and the approved policy
 notes (`settle/v1`, D-32b) over this document. This document separates three kinds
@@ -665,3 +668,23 @@ publication examples to the approved Friday 08:00 SAST target (D-11 revision):
 §4.1 and the architecture considerations §5. Historical records are unchanged: the
 decision review, research proposal, D-29a/D-29b research entries, the Phase 6A.2
 design and release notes.
+
+## 22. Approved decisions (19 Nov 2026) and superseded Stage A proposals
+
+The owner approved the assessment after a targeted clarification. The register
+records them as **S-01 to S-11**; `settle/v1` was amended (§2, §2a, rules 1 and
+3–6, notes, §5).
+
+| Stage A item | Approved decision | Effect on this document |
+|---|---|---|
+| Q-1 by-ID fetch | S-01 approved | §6 stands |
+| Q-2 window start | S-02: max(cutoff, last **material** change) + 24 h; nothing relevant pending; no unresolved blocking alert; database clock; materiality defined across the whole locked round | §8.2 recommendation adopted with the S-02 definitions |
+| Q-3 closing window | **Rejected.** S-03: completion-based cutoff, no grace period | §5 rows on actual kickoff ≤ cutoff, §8.2 closing time and the `close_grace_minutes` column in §10 are **superseded** |
+| Q-4 / Q-11 kickoff evidence and V3 | S-04: two V3 branches (started / rescheduled), `periods.first` supporting only, blocking alerts for unverified or contradictory evidence | §5 V3 row refined |
+| Q-5 conflicts | S-05: A → B → A kept; idempotent repeats; late commits never override; material conflicts via correction | §6 stands |
+| Q-6 / Q-7 reopening | S-06: no automatic reopening; **owner-only** reopening with T-14, evidence, reason, preview, confirmation, audit, recalculation, new version | §12.1 "Q-7 → `result.correct`" **superseded**: a new owner capability |
+| Q-8 CLI authentication | S-07: interactive password via Supabase Auth in Stage E; service boundaries in B–D | §12.2 option A |
+| Q-9 development rounds | S-08: explicit frozen `synthetic` / `real` mode, no fallback or mixing | §13 "synthetic when present, otherwise real" **superseded** |
+| Q-10 finalisation | S-09: in 6C.4 | §15 stands |
+| Q-12 migration | S-10: approved in principle, no grace column | §10 as amended |
+| Q-13 interim display | S-11: approved for Stage F | §14 stands |
