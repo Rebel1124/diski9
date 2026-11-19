@@ -203,6 +203,8 @@ erDiagram
 * **Constraints:** `UNIQUE (code)`; `deadline_at < settle_cutoff_at`;
   `published_at`, `deadline_at`, `settle_cutoff_at` set once (trigger).
 * **Index:** `(status)`, `(series, deadline_at)`.
+* **6C.3 (`app_0003`):** `is_development boolean` (set once): development rounds
+  (codes `dev-…`, synthetic fixtures) are never confused with real rounds.
 * **Note:** `status` is a projection of `round_status_history`; whether the round
   is competitive, practice or void is **not** stored here but in `designations`.
 
@@ -212,7 +214,11 @@ erDiagram
 
 ### 4.4 `round_snapshots` [H]
 * **Purpose:** the immutable round sheet (replaces the prototype's in-memory
-  pinned snapshot).
+  pinned snapshot). Since 6C.3 `feasibility` also keeps the opening report, the
+  data source, the fixture and outcome order and league names, so the engine's
+  `RoundSnapshot` is rebuilt exactly and its fingerprint re-checked on load;
+  `snapshot_fixtures` and `snapshot_offers` accept rows only while the round is
+  `draft` (trigger).
 * **Key fields:** `id`, `round_id UNIQUE`, `as_of`, `fingerprint` (SHA-256 of the
   canonical content), `model_version`, `params_hash`, `forecast_cutoff_at`,
   `feasibility jsonb` (eligible fixtures, leagues, matching result),
@@ -242,12 +248,18 @@ erDiagram
 * Never read by submission, settlement or scoring. Deleted with the account.
   A stored adjustment whose context no longer matches is ignored, as in the
   prototype.
+* **6C.3 (`app_0003`):** `version int` for optimistic concurrency (an older tab
+  cannot overwrite newer numbers).
 
 ### 5.2 `portfolio_drafts` [P]
 * `user_id`, `round_id`, `selections jsonb`, `snapshot_fingerprint`,
   `updated_at`. `PRIMARY KEY (user_id, round_id)`.
 * Convenience only: lets a draft follow the participant between devices. It is
   never authoritative; confirmation re-validates everything from the snapshot.
+* **6C.3 (`app_0003`):** `version int` (optimistic concurrency; a reset keeps the
+  row so versions are never reused); writes only while the round is `open` and
+  before `deadline_at` (trigger, database clock). Selections hold outcome keys
+  only.
 
 ### 5.3 `entries` [P with set-once columns]
 * **Purpose:** one participant's place in one round; the lock point for

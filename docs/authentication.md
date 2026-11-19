@@ -317,6 +317,12 @@ selections that are no longer eligible); no automatic submission; and private
 server-side Your View storage (T-10). Phase 6C.2 has no stored portfolios, so
 there is nothing that could be overwritten yet.
 
+**Phase 6C.3 status (checkpoint after Stage D):** the server-side storage for
+saved drafts and numerical Your View exists (`services.drafts`,
+`services.your_view`: owner from the session, capability `analysis.persist_own`,
+active account re-checked on every write, optimistic versions). The pages, the
+saving of kept guest work and guest Your View adoption are connected in Stage F.
+
 ## 8. Account interface (Stage H)
 
 Server-rendered pages on the same Flask server as Dash, in the existing design

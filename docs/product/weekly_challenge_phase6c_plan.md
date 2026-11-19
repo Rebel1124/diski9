@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0, 6C.1 and 6C.2 implemented (see the implementation notes at the end); 6C.3 onwards not started. Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 Stages A–D implemented and awaiting the owner's checkpoint review (Stages E–G not started); 6C.4 onwards not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -281,3 +281,23 @@ could not push to the repository.
   current round and frozen snapshot, no automatic submission, server-side Your
   View storage. Local acceptance guide:
   [`phase6c2_local_acceptance_mac.md`](../phase6c2_local_acceptance_mac.md).
+
+## Implementation notes (6C.3, Stages A–D)
+
+**6C.3 checkpoint (branch `feature/phase-6c3-competition-persistence`).** Record:
+[`phase6c3_implementation.md`](../architecture/phase6c3_implementation.md); handover:
+[`phase6c3_implementation_handover.md`](../architecture/phase6c3_implementation_handover.md);
+local acceptance: [`phase6c3_local_acceptance_mac.md`](../phase6c3_local_acceptance_mac.md).
+* **Done:** services for rounds (create, publish with opening checks and a frozen,
+  fingerprint-checked snapshot, lock with the `deadline` designation), drafts and
+  Your View (private, versioned, validated server-side); development rounds from
+  deterministic synthetic fixtures; `diski9 round ...`.
+* **Database:** migration `app_0003` (additive: version columns, development flag,
+  snapshot and draft guards). The stage description expected "none structural";
+  the version columns are needed for the approved "two tabs produce a conflict"
+  criterion, which the 6C.1 schema covered only for entries.
+* **Module layout:** publish and lock live in `services/rounds.py` (run by the CLI or
+  a scheduler) rather than separate `jobs/` modules; drafts and Your View have their
+  own service modules.
+* **Waiting for approval:** Stages E (confirm, replace, withdraw), F (pages) and G
+  (acceptance); owner questions Owner-1, Owner-2 and ID-5.

@@ -257,3 +257,41 @@ and the API base URL points at a closed port, so no allowance is spent.
 * The football store stays SQLite (D-39); its migration is a separate task.
 * Docker could not be used in the Phase 6C.1 build environment; the tests were run
   against a local PostgreSQL 16 server there and against PostgreSQL 17 in CI.
+
+## 12. Competition services and round commands (Phase 6C.3)
+
+Business rules live in `diski9.backend.services` (`rounds`, `snapshots`, `drafts`,
+`your_view`, `common`); repositories stay plain data access. Every service takes a
+server-built `Principal`, checks a capability, writes in one transaction and uses
+the database clock. Errors are typed with user-safe messages
+(`services.common`). Details: [Phase 6C.3 record](architecture/phase6c3_implementation.md).
+
+Round commands (server CLI; the acting operator is resolved by verified email, as
+for `diski9 account`):
+
+```bash
+uv run diski9 round list
+```
+
+```bash
+uv run diski9 round create --week 2026-W48 --by-email operator@example.test
+```
+
+```bash
+uv run diski9 round publish --code 2026-W48-weekend --by-email operator@example.test
+```
+
+```bash
+uv run diski9 round lock --code 2026-W48-weekend
+```
+
+```bash
+uv run diski9 round dev-open --by-email operator@example.test --deadline-minutes 30
+```
+
+`publish` builds the snapshot read-only from the football store (no API request)
+and refuses with the reason if the opening rules are not met. `lock` is refused
+before the deadline and is idempotent. `dev-open` publishes a development round
+from deterministic synthetic fixtures (refused when `DISKI9_APP_ENVIRONMENT` is
+`production`). Migration `app_0003` adds draft and Your View versions, the
+development flag and the snapshot and draft guards.
