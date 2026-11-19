@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** plan for owner review; nothing has started. Each stage is a separate
+**Status:** 6C.0 and 6C.1 implemented (see the implementation notes at the end); 6C.2 onwards not started. Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -217,3 +217,36 @@ The Phase 6C acceptance criteria in the
 [implementation plan](weekly_challenge_implementation_plan.md) (persistent
 lifecycle, settlement, D-32b, corrections, permissions, unchanged engines and UI)
 are met, and every new rule is tested against real PostgreSQL.
+
+## Implementation notes (6C.0 and 6C.1)
+
+**6C.0 — weekly research collector (done, branch `research/weekly-pools`).**
+See the collection proposal §12 on that branch
+(`docs/research/weekly_pool_collection_proposal.md`).
+The schedules (Thursday 08:00 SAST capture from 26 November 2026; daily 09:15 SAST
+results) fire into one dedicated collector session that has the repository
+attached; a pre-activation check showed that sessions started fresh for each run
+could not push to the repository.
+
+**6C.1 — PostgreSQL foundation (done, branch `feature/phase-6c1-postgres-foundation`).**
+* **Infrastructure:** `docker-compose.yml` (PostgreSQL 17, localhost-only port,
+  named volume, health check), `docker/postgres/init/` (test database and the
+  `diski9_app` role), `.env.example` entries, `diski9 app-db upgrade|downgrade|
+  current|check`.
+* **Access layer:** `diski9.backend.db` (`settings`, `engine` with `transaction`,
+  `read_only`, `db_now`, `check_health`; `migrate`; `schema` mirror) and
+  `diski9.backend.repositories` (`accounts`, `rounds`, `portfolios`, `ops`), using
+  SQLAlchemy 2 Core and psycopg 3 (new production dependency `psycopg[binary]`).
+* **Schema:** revision `app_0001` in a separate Alembic environment
+  (`migrations_app/`, version table `public.app_alembic_version`), written as
+  explicit SQL: 37 tables, history and guarded-table triggers, set-once columns,
+  the submission deadline trigger, composite ownership keys, deferred keys,
+  approved-rule CHECKs, runtime-role grants and seed configuration.
+* **Tests:** `tests/backend/` (settings guards, migrations, integrity and
+  privileges, multi-connection concurrency) against real PostgreSQL; CI workflow
+  `.github/workflows/ci.yml`.
+* **Deviations from the stage description:** the database role is created by the
+  Docker init script (local) or by the operator (deployments), not by migrations,
+  because roles are cluster-wide; repositories cover the foundation tables only
+  (settlement, scoring and championship queries come with their stages).
+* Details and commands: [`docs/backend.md`](../backend.md).

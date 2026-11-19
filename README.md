@@ -74,6 +74,10 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   * release notes: [`docs/releases/v4.0.0.md`](docs/releases/v4.0.0.md); history:
     [`CHANGELOG.md`](CHANGELOG.md)
 
+* **Phase 6C.1 — PostgreSQL foundation (in development, not released):** competition
+  database schema, migrations, repositories and tests on real PostgreSQL:
+  [`docs/backend.md`](docs/backend.md)
+
 Not yet built (Phase 6C onwards): user accounts, permanent portfolios, server-side
 rounds, automated settlement and live leaderboards.
 

@@ -1,4 +1,10 @@
-# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6C architecture finalisation)
+# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6C.0/6C.1)
+
+**Phase 6C.0/6C.1 approval (owner review):** D-01 (Supabase Auth), D-08
+(`settle/v1`), D-29b (research collection activation), D-39 (football store stays
+separate during 6C), D-40 (merge and v4.0.0 release), T-12 (session lifetimes) and
+T-13 (automated testing) approved. D-29 validation and the D-36 final retention
+policy remain outstanding.
 
 **Phase 6C architecture finalisation (owner review):** approved D-03 (PostgreSQL
 direction), D-04, D-05, D-06, D-11, D-12, D-32b-Q1, D-34, D-35, D-37, D-38,
@@ -81,6 +87,13 @@ listed at the end.
 | D-37 | **Eligibility and terms (approved as the proposed launch policy):** 18+ self-declaration and versioned terms acceptance, subject to applicable legal requirements; the schema records the declaration and each accepted terms version |
 | D-38 | **First official championship (approved):** beta rounds are unofficial; Official Championship 1 begins only after D-29 validation and formal launch approval |
 | D-29a | **Weekly research collection (approved approach):** a separate weekly collection after the odds trial ends: all eight leagues, one complete fixture and odds snapshot each Thursday at 08:00 SAST, results collected and rechecked until final, raw and normalised data with provider and capture timestamps, existing consensus, freshness and eligibility rules, feasibility recorded, at least six to eight qualifying pools, D-32b validation with observed and simulated voids kept apart, and no ability to modify production competition records. Activation requires the owner's confirmation of the schedule ([proposal](../research/weekly_pool_collection_proposal.md)) |
+| D-01 | **Authentication (approved, Phase 6C.0/6C.1 approval):** Supabase Auth. Develop and test locally; no paid cloud infrastructure yet; use Supabase's supported authentication interfaces for Python, Flask and Dash (to be confirmed in Phase 6C.2) rather than assuming generic OIDC compatibility; keep independent Diski 9 user identities, roles and entitlements and provider-independent competition services; no passwords in the application database; plan for verified email, secure account recovery, session revocation and future social sign-in. Implementation in Phase 6C.2 |
+| D-08 | **Settlement rules `settle/v1` (approved):** as defined in [`settle/v1`](weekly_challenge_settle_v1.md): the fixed cutoff of 48 hours after the latest scheduled kickoff recorded at publication, the V1–V5 rules and the verdict priority. Additional requirements: completion at or before the cutoff is eligible for normal settlement subject to higher-priority void rules; actual match-completion time is distinguished from provider result-receipt time; delayed result notifications use the approved correction process; original provider statuses, raw results and normalised verdicts are preserved; all timestamps in UTC; the settlement-policy version is recorded against each published round; later kickoff changes cannot silently modify the published cutoff; tests cover conflicting provider statuses, exact cutoff boundaries and repeated deliveries; where reliable evidence is insufficient the operator is alerted rather than completion times or results being invented. Implementation in Phase 6C.4 |
+| D-29b | **Weekly research collection (approved and activated):** branch `research/weekly-pools`; capture Thursdays 08:00 SAST from 26 November 2026; results daily 09:15 SAST after the first capture. Implemented in Phase 6C.0 |
+| D-39 | **Football store (approved):** the SQLite football database stays separate throughout Phase 6C; the competition backend consumes it through defined integration boundaries and copies required data into immutable round snapshots and result records; migration to PostgreSQL is a separate approved task before hosted deployment |
+| D-40 | **Merge and release (approved, done):** `feature/weekly-challenge-final-polish` merged to `main` (`d12ddff`) and released as v4.0.0 (`0286fa8`), described as an accepted functional prototype with browser-session persistence |
+| T-12 | **Session lifetimes (approved):** participant idle expiry 14 days; absolute lifetime 30 days; operator authentication recency at most 12 hours; additional recent authentication for sensitive operations (changing roles or entitlements, overriding results, invalidating competitive rounds, reopening frozen championships); secure server-side sessions with rotation, revocation, CSRF protection and appropriate cookies. The exact sensitive-operation policy is proposed in Phase 6C.2 |
+| T-13 | **Automated testing (approved):** repository checks with a real PostgreSQL service (implemented in Phase 6C.1: `.github/workflows/ci.yml`) |
 
 ## Provisional (empirical) — synthetic evidence, to confirm on real pools
 
@@ -132,15 +145,8 @@ documents linked below.
 
 | ID | Question | Recommendation | Needed |
 |---|---|---|---|
-| D-01 | Identity provider | **Supabase Auth** (Free for development, Pro for production); runner-up AWS Cognito if hosting goes to AWS. See the [comparison](../architecture/auth_provider_comparison.md) | Before 6C.2 |
-| D-08 | `settle/v1` exact definitions | Approve as written in [`settle/v1`](weekly_challenge_settle_v1.md): verdict order V3, V2, settle (incl. V5), V1, V4; cutoff = latest scheduled kickoff on the round sheet at publish + 48 hours | Before 6C.4 |
 | D-29 | **Championship scoring validation (open validation requirement):** validate `points-150-75-v2` and D-32b on six to eight qualifying real weekly pools (observed voids separate from simulated scenarios). Retain D-31 unless the evidence is compelling | Run as pools accumulate | Before the first official championship |
-| D-29b | Activation of the weekly research collection | Approve the branch `research/weekly-pools`, the schedules (Thursday 08:00 SAST capture; daily 09:15 SAST results) and building the collector | Before 26 November 2026 |
 | D-36 | Final data-retention policy | Pseudonymisation as in the database design §11; log retention 30 days; backups per provider schedule; legal review | Before launch |
-| D-39 | Football store migration to PostgreSQL | Keep SQLite during 6C; migrate (schema `football`) before hosted deployment, as a separately approved task | Before Phase 10 |
-| D-40 | Merge and tag of Phase 6B before Phase 6C | Merge `feature/weekly-challenge-final-polish` to `main` and tag it, then branch 6C.1 from there | Before 6C.1 |
-| T-12 | Session lifetimes (technical) | 14 days idle, 30 days absolute; re-authentication within 12 hours for operator and owner actions | 6C.2 |
-| T-13 | Continuous integration (technical) | Add a CI workflow with a PostgreSQL service (none exists today) | 6C.1 |
 
 ## Superseded Phase 5C items
 

@@ -1,6 +1,6 @@
 # Phase 6C — Proposed database design (competition backend)
 
-**Status:** proposal for owner review. Nothing is implemented. It refines the
+**Status:** implemented as revision `app_0001` in Phase 6C.1 (see §14 for the differences from this proposal). Original status: proposal for owner review. It refines the
 Phase 6A.2 schema sketch in the [technical design](weekly_challenge_design.md) §4
 for the approved direction: PostgreSQL (D-03), SQLAlchemy 2 Core, Alembic, managed
 OIDC sign-in (D-01, provider pending), roles and entitlements (D-34), and the
@@ -511,3 +511,32 @@ datasets (`data/research_crossleague.sqlite`, `docs/research/`) and the odds tri
 | audit_log | (target_type, target_id, at); (actor_user_id, at) |
 | job_runs | (job, scope, started_at) |
 | domain_events | (user_id, at); (kind, at) |
+
+## 14. Implementation notes (revision `app_0001`)
+
+The schema was implemented as proposed, with these refinements:
+* `submissions` also stores `round_id` and `snapshot_id`, so composite foreign
+  keys enforce that a submission belongs to its owner's entry **and** uses its
+  round's snapshot; `submission_selections` stores `snapshot_id`, so every
+  selection must be an offer on that snapshot.
+* `entries` has `UNIQUE (id, round_id, user_id)` (target of the ownership key)
+  and both submission pointers are `DEFERRABLE INITIALLY DEFERRED`.
+* `result_observations` distinguishes `observed_at` (provider receipt time),
+  `recorded_at` (database time) and `actual_kickoff_at`, keeps the raw payload and
+  hash, and requires operator corrections to carry the original values, actor and
+  reason (D-08, D-35).
+* `round_scores` repeats its score set's `kind` so that a composite foreign key
+  and CHECKs can enforce "no points outside championship rounds" and the
+  void-refund shape.
+* `round_evaluations` CHECKs encode D-32b: pending predictions force
+  `not_evaluated`, `pass` requires `2 × played > total`, and the five-ranked-entry
+  failure exists only for competitive rounds (D-32b-Q1).
+* `designations` allows one `deadline` designation per round (partial unique
+  index); operator designations require actor and reason.
+* `app_sessions` adds `authenticated_at` (operator recency, T-12) and
+  `rotated_from` (session rotation).
+* `rounds` set-once columns include `finalised_at` and the configuration, rules,
+  scoring and model versions, so the published cutoff and settlement policy cannot
+  change silently.
+* The runtime role and its privileges are applied by the migration only if the
+  role exists; roles are created by the Docker init script or the operator.

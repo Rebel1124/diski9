@@ -175,3 +175,18 @@ This document supersedes the Phase 6C discussion paper previously at this path.
 | Continuous integration | Add a CI workflow with a PostgreSQL service (the repository has none today) | 6C.1 |
 | Football-store migration timing | Before hosted deployment (late 6D or Phase 10), separately approved | Before Phase 10 |
 | D-29 collection activation | Branch, schedules and the collector task (proposal §11) | Before 26 November |
+
+## 10. Implementation decisions taken in Phase 6C.1
+
+| Topic | Decision |
+|---|---|
+| PostgreSQL version | 17 locally (Docker Compose) and in CI; schema compatible with 13+ (tested on 16 as well) |
+| Driver | psycopg 3 (`postgresql+psycopg://`); other URLs are rejected |
+| Migrations | Separate Alembic environment `migrations_app/`; version table `public.app_alembic_version` (survives a schema drop); revisions written as explicit SQL; the SQLAlchemy mirror `diski9.backend.db.schema` is checked against the migrated database by a test |
+| Package layout | `diski9.backend.db` (settings, engine, transactions, migrate, schema) and `diski9.backend.repositories` (plain functions over an open connection); services, auth and jobs packages are added in later stages |
+| Sessions | UTC, statement timeout 15 s, lock timeout 5 s, pre-ping, pool 5 + 5 per process |
+| Deadline foundation | Insert trigger on submissions (open status and `transaction_timestamp() < deadline_at`); `FOR SHARE` on the round for submissions, `FOR UPDATE` for status changes |
+| Job overlap | Transaction-scoped advisory locks on `(job, scope)` |
+| Privileges | Runtime role `diski9_app`: SELECT and INSERT on history, narrow UPDATE on guarded tables, full DML on projections, no TRUNCATE; created outside migrations |
+| Credentials | Environment or untracked `.env`; never logged (URLs rendered without passwords, validation errors hide input) |
+| Tests | `tests/backend` on real PostgreSQL; skipped locally without `DISKI9_APP_TEST_DATABASE_URL`, mandatory in CI (`DISKI9_REQUIRE_POSTGRES=1`) |
