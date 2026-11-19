@@ -205,7 +205,9 @@ def current_round(engine: Engine, *, include_development: bool = False) -> Round
     """The round participants should see: the open round whose deadline is still
     ahead (earliest first); otherwise the most recent round past its deadline
     (open but not yet locked, or locked and later), so "deadline passed" and
-    "locked" states stay visible. Database clock."""
+    "locked" states stay visible. Database clock. When several open rounds share the
+    earliest deadline (only with several test rounds open at once), the most recently
+    published one is shown, so the choice is deterministic."""
     with read_only(engine) as conn:
         now = db_now(conn)
         base = select(rounds.c.id)
@@ -213,7 +215,7 @@ def current_round(engine: Engine, *, include_development: bool = False) -> Round
             base = base.where(rounds.c.is_development.is_(False))
         rid = conn.execute(
             base.where(rounds.c.status == "open", rounds.c.deadline_at > now)
-            .order_by(rounds.c.deadline_at)
+            .order_by(rounds.c.deadline_at, rounds.c.published_at.desc(), rounds.c.id)
             .limit(1)
         ).scalar_one_or_none()
         if rid is None:

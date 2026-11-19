@@ -599,3 +599,20 @@ def test_current_round_prefers_an_open_round_before_its_deadline(engine, op):
     cur = svc.current_round(engine, include_development=True)
     assert cur.id != expired.id and cur.deadline_at > expired.deadline_at
     assert cur.status == "open"
+
+
+def test_current_round_tie_on_deadline_shows_the_most_recently_published(engine, op):
+    from diski9.backend.devdata import dev_snapshot
+
+    with transaction(engine) as conn:
+        now = db_now(conn)
+    first = now + timedelta(minutes=20)  # deadline 5 minutes ahead, the same for both
+    views = []
+    for _ in range(2):
+        code = unique("dev-tie")
+        snap = dev_snapshot(code, now, first, seed=3)
+        v = svc.create_round(engine, op, code=code, window_start=snap.window[0],
+                             window_end=snap.window[1], development=True)  # fmt: skip
+        views.append(svc.publish_round(engine, op, v.id, snap, source="development"))
+    assert views[0].deadline_at == views[1].deadline_at
+    assert svc.current_round(engine, include_development=True).id == views[1].id
