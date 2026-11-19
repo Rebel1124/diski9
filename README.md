@@ -74,15 +74,20 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   * release notes: [`docs/releases/v4.0.0.md`](docs/releases/v4.0.0.md); history:
     [`CHANGELOG.md`](CHANGELOG.md)
 
-* **Phase 6C.2 — accounts (in development, not released):** Supabase Auth sign-up,
-  sign-in, verification, recovery, usernames, privacy, sessions and permissions:
-  [`docs/authentication.md`](docs/authentication.md)
-* **Phase 6C.1 — PostgreSQL foundation (in development, not released):** competition
-  database schema, migrations, repositories and tests on real PostgreSQL:
-  [`docs/backend.md`](docs/backend.md)
+* **Competition backend and persistence (v4.1.0, development milestone)**:
+  * PostgreSQL application database with migrations; Supabase Auth accounts,
+    public usernames, server-side sessions and permissions:
+    [`docs/backend.md`](docs/backend.md), [`docs/authentication.md`](docs/authentication.md)
+  * persistent rounds with immutable published snapshots, saved drafts and Your
+    View, confirmation, replacement, withdrawal and re-entry with immutable
+    history, server-enforced deadlines and the most recent locked entry
+  * a **development milestone**, run locally; not production-ready and not
+    deployed publicly
+  * release notes: [`docs/releases/v4.1.0.md`](docs/releases/v4.1.0.md)
 
-Not yet built (Phase 6C onwards): user accounts, permanent portfolios, server-side
-rounds, automated settlement and live leaderboards.
+Not yet built (Phase 6C.4 onwards): result settlement, voids and corrections, live
+leaderboards and championship scoring, administration and automated scheduling,
+and public deployment.
 
 ## Getting started on a new computer
 

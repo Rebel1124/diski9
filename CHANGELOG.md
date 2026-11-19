@@ -3,6 +3,31 @@
 Versions follow the repository's release tags. Diski 9 is an educational football
 analytics product; it uses virtual credits only and involves no real money.
 
+## v4.1.0 — Competition backend and persistence (2026-11-19)
+
+A **stable development milestone** (Phases 6C.1–6C.3), accepted by the product
+owner. Not production-ready and not deployed publicly. Settlement, live
+leaderboards, championship scoring, administration and automated scheduling are
+future work (Phase 6C.4 onwards).
+
+* PostgreSQL application database with Alembic migrations (`app_0001`–`app_0005`)
+  and database-level integrity and security protections.
+* Supabase Auth accounts, public usernames and anonymity, server-side sessions and
+  capability-based permissions.
+* Persistent rounds with immutable published snapshots; Friday 08:00 SAST standard
+  publication target; server-authoritative deadlines.
+* Persistent drafts with stale-edit protection; separate live and frozen Your
+  View; guest-work adoption.
+* Confirmation, replacement, withdrawal and re-entry with immutable submission
+  history; practice versus competitive classification; most recent locked entry.
+* Match Lab educational guidance and layout refinements; updated My Challenge.
+* Validation: 1,304 tests passed, 1 skipped (hosted Supabase, deferred);
+  quantitative outputs unchanged; migration and restart checks; browser journeys.
+* Unchanged: Goal Model 1.0, odds ingestion, consensus, forecast snapshots, the
+  football schema and the competition mathematics.
+
+Details: [`docs/releases/v4.1.0.md`](docs/releases/v4.1.0.md).
+
 ## v4.0.0 — Weekly Challenge functional prototype (2026-11-19)
 
 The Diski 9 Weekly Challenge is introduced as an **accepted functional
