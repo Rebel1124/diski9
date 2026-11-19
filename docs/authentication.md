@@ -66,7 +66,11 @@ cd diski9
 ```
 
 ```bash
-supabase gen signing-key --algorithm ES256 > supabase/signing_keys.json
+echo '[]' > supabase/signing_keys.json
+```
+
+```bash
+supabase gen signing-key --algorithm ES256
 ```
 
 ```bash

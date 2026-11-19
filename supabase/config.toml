@@ -41,7 +41,7 @@ enable_anonymous_sign_ins = false
 enable_manual_linking = false
 minimum_password_length = 10
 # Asymmetric signing keys (recommended); create the file with
-#   supabase gen signing-key --algorithm ES256 > supabase/signing_keys.json
+#   echo "[]" > supabase/signing_keys.json && supabase gen signing-key --algorithm ES256
 # (git-ignored). Remove this line to use the legacy shared secret locally.
 signing_keys_path = "./signing_keys.json"
 

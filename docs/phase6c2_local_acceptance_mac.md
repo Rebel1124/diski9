@@ -84,16 +84,34 @@ The project already contains `supabase/config.toml` (local settings: email
 confirmation on, links to `http://127.0.0.1:8050/auth/confirm`, local inbox,
 password minimum 10 characters) and the two email templates.
 
-Create a local asymmetric signing key (git-ignored, never committed):
+Create a local asymmetric signing key (git-ignored, never committed). The CLI
+reads the existing keys file named in `config.toml` before adding a key, so start
+it as an empty list (do not redirect the command's output into the file: the
+shell would empty it first and the CLI would fail with "Unexpected EOF"):
 
 ```bash
-supabase gen signing-key --algorithm ES256 > supabase/signing_keys.json
+echo '[]' > supabase/signing_keys.json
 ```
 
-Check that the file holds a JSON key (it starts with `[` or `{`):
+```bash
+supabase gen signing-key --algorithm ES256
+```
+
+Check that the file now holds a key (longer than `[]`, with `"kty": "EC"`):
 
 ```bash
-head -c 40 supabase/signing_keys.json; echo
+head -c 80 supabase/signing_keys.json; echo
+```
+
+If it still shows only `[]` because your CLI version printed the key on screen
+instead, write it outside the `supabase` folder and move it into place:
+
+```bash
+supabase gen signing-key --algorithm ES256 > ~/d9-signing-key.json
+```
+
+```bash
+mv ~/d9-signing-key.json supabase/signing_keys.json
 ```
 
 Start the stack (the first start downloads images and takes a few minutes):
@@ -108,6 +126,9 @@ services:
 ```bash
 supabase start -x realtime,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor
 ```
+
+A warning that `auth.email.enable_signup` is deprecated is harmless (newer CLI
+versions renamed the setting).
 
 If `supabase start` reports an unknown configuration key, your CLI is older than
 the configuration: run `brew upgrade supabase` again. As a last resort, delete the
