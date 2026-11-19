@@ -804,6 +804,12 @@ and values, never credentials.
   new downgrade guard refused because earlier modules had written settlement data.
   The test now runs on its own fresh database (as does the full-downgrade test);
   the guard is unchanged.
+* CI: runs 29–30 (decisions, Stage B) passed; runs 31–33 failed on a timing race
+  in one test helper (provider evidence recorded before its receipt time had
+  passed, correctly refused by the database) and, in run 32, the shared-database
+  downgrade test described above; both fixed (`38d2081`); **run 34 passed**
+  (1,421 passed, 13 skipped: browser tests without Playwright on the runner and the
+  hosted Supabase test).
 * Quantitative regression: engine files unchanged from v4.1.0; fingerprint
   `88bcd717…` identical. Source changes against v4.1.0 are additions only.
 * Performance (`tools/phase6c4_perf.py`, local PostgreSQL, median ms):
