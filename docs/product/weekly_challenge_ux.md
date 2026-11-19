@@ -289,6 +289,8 @@ can't lose.
 | Round postponed (opening checks failed) | "This week's round is postponed: not enough eligible fixtures to build a full portfolio. The championship is paused and continues with the next full round." |
 | Practice round (fewer than 5 valid entries at the deadline) | "Practice round: fewer than 5 entries this week. Your result counts for your history, but no championship points are awarded." |
 | Void round (cancelled after the deadline) | "This round was cancelled after the deadline. Your 100 credits are returned and the championship is unaffected." |
+| Void round (widespread voids, D-32b; Phase 6C copy, proposed) | "This round is void: half or more of all predictions could not be settled on a played match, or fewer than five entries could be ranked. Your 100 credits are returned and the championship is unaffected." |
+| Round under review (correction window) | "Results are provisional until the correction window closes." |
 | Entry with all nine predictions void (D-33) | "Void — Refunded: none of your predictions could be settled. Your 100 credits are returned; this entry isn't ranked and earns no points." |
 | Bucket full | "Foundation is full (4/4). Remove a Foundation pick to add this." |
 | Not enough fixtures left for a bucket (after other picks) | "Only 1 Challenger outcome left on unused fixtures — swap a pick to free a fixture." |

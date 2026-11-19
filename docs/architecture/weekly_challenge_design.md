@@ -525,10 +525,12 @@ and no replacement predictions are possible after the deadline.
 * an entry whose nine picks are all void is refunded and unranked (D-33);
 * entries recovering at least 100.00 remain eligible for points in a competitive
   round;
-* whether widespread voids invalidate the whole round is decision D-32b
-  (recommendation: void the round unless more than half of all confirmed
-  predictions settled on a played result and at least five entries remain ranked;
-  see `docs/product/weekly_challenge_d32_round_invalidation.md`).
+* widespread voids invalidate the whole round under the approved D-32b rule:
+  the round is void unless strictly more than half of all predictions of the
+  locked valid entries settled on a played result (won or lost) and at least five
+  entries remain ranked. It is evaluated only when no prediction is pending,
+  stays provisional during the correction window, and is re-evaluated on any
+  correction (see `docs/product/weekly_challenge_d32_round_invalidation.md`).
 
 ### 7.3 Process, idempotency and audit
 
@@ -670,8 +672,8 @@ continuation rules approved, D-26 to D-28 and D-30; implemented in
   * `valid_entries` < 5 → `practice`: settles, weekly table, **no**
     `challenge_round_scores` rows, counter unchanged;
   * whole round cancelled or invalidated after the deadline → `void`: stakes
-    returned, no scores, counter unchanged (an operator cancellation, or the
-    widespread-void rule once D-32b is decided, evaluated at final settlement);
+    returned, no scores, counter unchanged (an audited operator cancellation, or
+    the approved D-32b widespread-void rule, evaluated at final settlement);
   * fully void entries count toward `valid_entries` at the deadline (D-33);
   * otherwise → `championship`: scored, counter + 1.
 * A championship is exactly **10 championship-designated rounds**; there is no
@@ -687,8 +689,12 @@ continuation rules approved, D-26 to D-28 and D-30; implemented in
 * Championship standings are an aggregation, so no cascade logic is needed.
   After a championship is frozen, a correction needs the audited `--reopen` path,
   which re-freezes the snapshot.
-* A correction can never change a round's designation, which is fixed at the
-  deadline; only an operator void (audited) can.
+* A correction can never change the designation fixed at the deadline
+  (championship or practice). It can change whether the round is void under
+  D-32b: each reassessment is recorded as a new, insert-only designation entry
+  (basis `d32b`), and the championship counter, round numbers and points are
+  derived from the current designation, so no points or counter steps are
+  duplicated. An operator void stays an audited action with a reason.
 
 ### 12.4 Reference implementation
 

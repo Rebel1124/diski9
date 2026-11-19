@@ -183,8 +183,18 @@ No single estimate combines both sources.
   points, excluded from the weekly ranking, no recovery or top-ten finish
   recorded, shown as "Void — Refunded"; counts toward the five-entry minimum at the
   deadline; kept for history and audit.
-* **Round invalidation after widespread voids (D-32b, open):** see the
-  recommendation in `weekly_challenge_d32_round_invalidation.md`.
+* **Round invalidation after widespread voids (D-32b, approved):** a round stays
+  competitive only if, at final settlement, strictly more than 50% of all
+  predictions of the valid entries locked at the deadline were settled on played
+  results (exactly 50% fails; prediction instances counted, correct or incorrect),
+  and at least five entries remain eligible for the weekly ranking. Otherwise the
+  whole round is void: 100 credits returned to every confirmed participant, net 0,
+  no points, recoveries, top-ten finishes or competitive ranking, counter
+  unchanged, everything retained for audit. Pending fixtures never invalidate a
+  round; the rule is evaluated once every prediction has a final verdict and is
+  provisional during the correction window; a correction triggers an auditable
+  reassessment. Exceptional operator invalidation needs permission, a reason and
+  an audit record. Detail: `weekly_challenge_d32_round_invalidation.md`.
 * Exact payouts with D-15 rounding.
 * Idempotent, audited settlement, with a 24-hour correction window before a round
   is final.
@@ -265,8 +275,9 @@ operational rules below supersede the Phase 6A.2 text.
     tie-breakers and doesn't advance the counter. Practice results are kept
     separately for history.
   * A round cancelled or invalidated as a whole after the deadline is a **void
-    round**: stakes are returned, nothing counts, and the counter doesn't advance
-    (see the research report for edge cases).
+    round**: stakes are returned, nothing counts, and the counter doesn't advance.
+    Invalidation happens by an audited operator action or by the approved
+    widespread-void rule (D-32b, §5.5).
 * FR-C8. **Opening checks (approved, D-28):** at least 15 eligible fixtures, at
   least 3 eligible leagues, and an exact check that a strict 4/3/2 portfolio on
   nine distinct fixtures exists (FR-R).
@@ -343,6 +354,14 @@ operational rules below supersede the Phase 6A.2 text.
 7. Rounds that fail the opening checks are postponed; rounds with fewer than 5
    valid entries are practice rounds; neither counts.
 8. Existing Diski 9 functionality and Goal Model 1.0 are unchanged.
+9. Settlement follows D-32 (partial voids) and D-33 (fully void entries), with
+   D-15 rounding, for every void code.
+10. **D-32b:** with the locked entry set fixed, the round is void exactly when
+    `2 × played predictions ≤ total predictions` or fewer than five entries remain
+    ranked; exactly 50% played voids the round; pending predictions never trigger
+    it; a correction that crosses the threshold in either direction produces an
+    audited reassessment, and points and the championship counter never double
+    count.
 
 ## 9. Evidence status
 

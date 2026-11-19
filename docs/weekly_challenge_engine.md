@@ -287,9 +287,10 @@ order-independent and reproducible.
 
 **Partial voids (D-32, approved):** they settle upstream (void legs at 1.00,
 payouts recalculated with D-15 rounding); the engine receives the settled gross.
-The engine has no majority-void threshold: whether widespread voids invalidate a
-round is the open decision D-32b and, once decided, is applied in settlement
-(Phase 6C) by classifying the round as `void`.
+The engine has no majority-void threshold: the approved D-32b rule (strictly
+more than half of the locked predictions played, and at least five ranked
+entries) is applied in settlement (Phase 6C) by classifying the round as `void`.
+The scoring engine itself is unchanged.
 
 ## 11. Legacy compatibility
 

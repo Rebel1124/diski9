@@ -1,10 +1,17 @@
-# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6B close-out)
+# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6C preparation)
+
+**Phase 6C preparation (owner review):** D-32b (round invalidation after
+widespread voids) approved with clarifications; see the
+[D-32b note](weekly_challenge_d32_round_invalidation.md). Its validation on real
+pools is added to D-29. The remaining outstanding decisions, and new items found
+during Phases 6A and 6B, are reviewed in the
+[outstanding decision review](weekly_challenge_phase6c_decision_review.md); none
+of them is approved by that review. Architecture questions for Phase 6C are in
+[Phase 6C architecture considerations](../architecture/phase6c_architecture_considerations.md).
 
 **Phase 6B close-out (owner review):** D-33 approved; D-32 settlement rules
-approved, with the round-invalidation question (D-32b) open pending review of the
-[recommendation](weekly_challenge_d32_round_invalidation.md); D-29 remains an open
-validation requirement with an approved approach. The technical backlog for the
-next phases is in the implementation plan.
+approved; D-29 remains an open validation requirement with an approved approach.
+The technical backlog for the next phases is in the implementation plan.
 
 This register supersedes the Phase 5C register (`2e079ba`) and the Phase 6A.2
 version (`6d5b47f`). IDs are kept, so history can be traced. Superseded items are
@@ -45,8 +52,9 @@ listed at the end.
 | D-30 | **Championship continuation (approved):** a championship is always ten completed championship-eligible rounds, independent of league seasons and calendar quarters. Breaks, end of season or unavailable pools **pause** it with points preserved; it is never shortened and no champion is crowned early. After ten rounds: finalise, archive, record the champion(s), reset. Join any time; all ten rounds count; history and lifetime statistics kept |
 | D-31 | **Approved for the MVP (Phase 6A.3): Scenario D, `points-150-75-v2`.** Ranks 1–10 earn 150/135/125/120/115/110/105/100/95/90, any other recovery 75, no recovery 0; D-26 ties; maximum 150 per round and 1,500 per championship. Implemented in `diski9.challenge.scoring`. The incentive evidence is simulated (D-29); approval does not claim real-world incentives are eliminated |
 | D-15 | Settlement precision: each accumulator rounded half-up to 0.01; state gross = sum; recovery = gross ≥ 100.00 (approved in Phase 6A) |
-| D-32 | **Partially voided portfolios (approved, Phase 6B close-out):** a voided prediction settles at decimal odds 1.00; all other predictions settle normally; a bucket containing an incorrect, non-voided prediction pays 0; bucket payouts, including The Diski 9, are recalculated with the adjusted odds; the approved payout rounding (D-15) is retained; an entry recovering at least 100.00 credits stays eligible for championship points in a competitive round, except a fully voided entry (D-33); no replacement predictions after the submission deadline. *Open part: D-32b (round invalidation), below* |
+| D-32 | **Partially voided portfolios (approved, Phase 6B close-out):** a voided prediction settles at decimal odds 1.00; all other predictions settle normally; a bucket containing an incorrect, non-voided prediction pays 0; bucket payouts, including The Diski 9, are recalculated with the adjusted odds; the approved payout rounding (D-15) is retained; an entry recovering at least 100.00 credits stays eligible for championship points in a competitive round, except a fully voided entry (D-33); no replacement predictions after the submission deadline. Whole-round invalidation is D-32b |
 | D-33 | **Entire portfolio voided (approved, Phase 6B close-out):** when all nine predictions of a confirmed portfolio are void: gross returned 100.00; net 0.00; championship points 0; excluded from the weekly ranking (other entrants ranked as if it were absent); no successful recovery and no qualifying top-ten finish recorded; settlement status "Void — Refunded"; the entry counts toward the five-valid-entry minimum assessed at the deadline, subject to the round-invalidation rule (D-32b); the portfolio and its settlement record are retained for history and audit. The participant is neither penalised nor rewarded for predictions that were never tested. Implemented in the scoring engine as `AllVoidPolicy.REFUND_UNRANKED` (the default of `points-150-75-v2`) |
+| D-32b | **Round invalidation after widespread voids (approved, Phase 6C preparation):** a round remains competitive only when, at final settlement, **(1)** strictly more than 50% of all predictions belonging to the valid confirmed entries locked at the deadline were settled on played results (exactly 50% fails), and **(2)** at least five entries remain eligible for the weekly ranking (not "Void — Refunded"). Otherwise the whole round is void: every confirmed participant gets the original 100 credits back; net 0; no championship points, recoveries, qualifying top-ten finishes or competitive weekly ranking; the championship counter does not advance; submissions, results, provisional settlement calculations and the invalidation reason are retained. Clarifications: the authoritative locked entry set is used; prediction instances are counted, not unique fixtures; played predictions count whether correct or incorrect; pending fixtures never invalidate a round (the rule is evaluated only when every prediction has a final verdict, and the settlement cutoff bounds the wait); evaluation is deterministic and provisional until the R-14 correction window ends; an exceptional operator invalidation needs the operator permission, an explicit reason and an audit trail; a result correction triggers an auditable reassessment that can never duplicate points or advance the counter twice. Validation on real pools is part of D-29, keeping observed voids separate from simulated cancellations. Detail: [D-32b note](weekly_challenge_d32_round_invalidation.md). Sub-question D-32b-Q1 (practice rounds) is outstanding |
 
 ## Provisional (empirical) — synthetic evidence, to confirm on real pools
 
@@ -73,8 +81,8 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | T-01 | Generalised engine `ChallengeConfig` (bands, sizes, stakes, classification source); the 6A 3/3/3 config kept as a legacy regression vector | Reuses tested 6A code; one source of truth |
 | T-02 | Bucket derived server-side from the stored full-precision `market_prob`; the client never sends a bucket | Integrity; no boundary disputes from display rounding |
 | T-05 | Points stored as integers; championship standings computed by aggregation, plus a frozen snapshot at completion (replaces the fraction storage needed only by the superseded average-points rule) | Corrections re-score automatically |
-| T-07 | Round **designation** fixed at the deadline: `championship` / `practice` / `postponed` / `void`. Only an audited operator action can void a round afterwards | Designation must not depend on match results |
-| T-08 | **Void round:** a round cancelled or invalidated as a whole after the deadline returns every stake and does not count (no points, counter unchanged). Partial voids settle normally under D-32; when widespread voids invalidate a round is D-32b | Prevents an all-void round handing every entrant 100.00, a recovery and a shared first place (150 points each) |
+| T-07 | Round **designation** fixed at the deadline: `championship` / `practice` / `postponed` / `void`. Afterwards a round can become void only through the approved D-32b rule at final settlement (which depends on which predictions were tested, never on results) or an audited operator action | Designation must not depend on match results |
+| T-08 | **Void round:** a round cancelled or invalidated as a whole after the deadline returns every stake and does not count (no points, counter unchanged). Partial voids settle normally under D-32; widespread voids invalidate a round under the approved D-32b rule | Prevents an all-void round handing every entrant 100.00, a recovery and a shared first place (150 points each) |
 | T-06 | Any settlement correction re-scores the whole round; after a championship is frozen, only the audited `--reopen` path | Positions depend on all entrants |
 | R-01 | Common deadline: earliest eligible kickoff minus 15 minutes | Unchanged from 5C |
 | R-02 | Round sheet frozen at publish | Unchanged |
@@ -86,22 +94,35 @@ and [risk-structure research](../research/weekly_challenge_risk_structure.md).
 | R-09 | Same as D-15 | Unchanged |
 | R-11 | Routes `/challenge`, `/challenge/learn`, `/challenge/me`, `/leaderboards` | Adds the learn page |
 | R-14 | 24-hour correction window before a round is final | Unchanged |
+| T-09 | **Server-side withdrawal (new):** only before the deadline; an insert-only withdrawal record; a withdrawn entry is not in the locked set (does not count for D-28 or D-32b); the participant may submit again before the deadline | The prototype withdrawal is a browser note only |
+| T-10 | **Your View storage (new):** private per user and fixture, with the Phase 6B.3 model-context stamp; never used for submission, settlement or scoring; deleted with the account | Keeps Your View educational and separate from the competition |
+| T-11 | **Designation history and derived counters (new):** designations are insert-only records with a basis (`deadline`, `d32b`, `operator`) and reason; the latest is current. Championship round numbers, the counter, points and standings are derived from current designations and settlements | D-32b reassessments and corrections can never duplicate points or advance the counter twice |
 
 ## Outstanding — owner decision needed
 
-| ID | Question | Recommendation | Blocking |
+The "Needed" column uses the owner-confirmed phases (Phase 6C contains the
+backend work previously lettered 6E–6G). Options, trade-offs and rationale for
+each item are in the [outstanding decision review](weekly_challenge_phase6c_decision_review.md).
+A recommendation is not an approval.
+
+| ID | Question | Recommendation | Needed |
 |---|---|---|---|
-| D-01 | Identity and sign-in | An authenticating reverse proxy | Phase 6E |
-| D-02 | Hosting | A single hosted server | Phase 6E |
-| D-03 | Database for hosted use | SQLite (WAL) first; PostgreSQL before multiple workers | Phase 6E |
-| D-04 | Leaderboard privacy | Public display names with an opt-out | Phase 6G |
-| D-05 | Display-name policy | 3–24 characters; unique; blocklist | Phase 6E |
-| D-06 | Deadline buffer | 15 minutes | Phase 6C |
-| D-08 | Settlement and void rules `settle/v1` (void codes V1–V5, cutoff). The payout treatment of voids is now decided by D-32 and D-33 | Accept as specified | Phase 6C (settlement) |
-| D-11 | Round calendar | Weekend window; publish Thursday 06:00 UTC; postpone when the opening checks fail | Phase 6C |
-| D-12 | PSL coverage (no qualifying odds) | Accept for the MVP and state it in the UI | Phase 6C |
-| D-29 | **Championship scoring validation (open validation requirement; approach approved at the Phase 6B close-out):** keep collecting real weekly fixture pools and reference odds through the existing scheduled odds trial; validate the championship scoring system on six to eight real weekly pools, assessing fixture availability, round feasibility, scoring fairness, recovery rates, participant behaviour and the effect of growing competition size. The approved scoring (D-31, `points-150-75-v2`) is retained unless that research gives compelling evidence for an amendment. Not a blocker for continued development | Approach approved; run the validation as pools accumulate | Before the first official public championship |
-| D-32b | **Round invalidation after widespread voids:** how widespread cancellations or voids should affect the competitive status of a whole round. Recommendation for review: [most predictions must be tested](weekly_challenge_d32_round_invalidation.md): the round stays competitive only if more than half of all confirmed predictions settled on a played result and at least five entries remain ranked; otherwise it is void (T-08) | Review the recommendation | Before Phase 6C settlement design |
+| D-01 | Identity and sign-in | In-app OpenID Connect with a managed provider; no passwords stored (revises the earlier reverse-proxy recommendation) | Before Phase 6C |
+| D-02 | Hosting | One small managed container host with a managed database in the same region; 6C stays host-agnostic | Constraints before 6C; provider by Phase 10 |
+| D-03 | Database for hosted use | PostgreSQL in production, SQLite for local work and tests (multiple web workers are likely at launch) | Before Phase 6C |
+| D-04 | Leaderboard privacy | Public display names with an opt-out shown as "Private participant" | Default before 6C; wording before Phase 10 |
+| D-05 | Display-name policy | 3–24 characters; unique; blocklist; one change per 30 days; name history; operator rename | Before Phase 6C |
+| D-06 | Deadline buffer | 15 minutes (already in use under R-01 and FR-R3), stored per round | Before Phase 6C |
+| D-08 | Settlement and void rules `settle/v1` (void codes V1–V5, 48-hour cutoff). The payout treatment of voids is decided by D-32, D-33 and D-32b | Accept as specified | Before Phase 6C settlement |
+| D-11 | Round calendar | Weekend window; publish Thursday 06:00 UTC; postpone when the opening checks fail; midweek rounds deferred | Defaults before Phase 6C |
+| D-12 | PSL coverage (no qualifying odds; the odds trial has found 0 priced PSL fixtures) | Accept for the MVP and state it in the UI | Phase 6D (copy) |
+| D-29 | **Championship scoring validation (open validation requirement; approach approved at the Phase 6B close-out):** keep collecting real weekly fixture pools and reference odds; validate the championship scoring system on six to eight real weekly pools, assessing fixture availability, round feasibility, scoring fairness, recovery rates, participant behaviour and the effect of growing competition size. **Also validate the D-32b rule** on the same pools, reporting observed voids separately from simulated cancellation scenarios. The approved scoring (D-31, `points-150-75-v2`) is retained unless the research gives compelling evidence for an amendment. Not a blocker for continued development. Note: the scheduled odds trial covers only the EPL and PSL and ends on 21 November; full eight-league weekly pools need a weekly capture after it (needs approval) | Approach approved; approve a weekly full-pool capture | Before the first official public championship |
+| D-32b-Q1 | Should the D-32b test also apply to practice rounds? | Yes, for one consistent settlement path | Deferrable |
+| D-34 | Roles and permissions (new) | `participant`, `operator`, `owner`; capabilities checked server-side; operator actions need a reason and audit; premium access is an entitlement, not a role | Before Phase 6C |
+| D-35 | Result corrections and operator overrides (new) | Provider results by default; audited operator override stored as a new result observation | Before Phase 6C settlement |
+| D-36 | Account deletion and data retention (new) | Pseudonymise on deletion; keep settlement records as "Former participant"; delete Your View | Schema before 6C; policy before Phase 10 |
+| D-37 | Eligibility, terms and responsible engagement (new) | 18+ self-declaration; terms version accepted and stored | Before Phase 10 |
+| D-38 | Start of the first official championship (new) | Beta rounds unofficial; championship 1 starts after D-29 | Before Phase 10 |
 
 ## Superseded Phase 5C items
 
