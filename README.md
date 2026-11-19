@@ -2,8 +2,8 @@
 
 Educational football analytics: a **Screener** and **The Match Lab** with transparent
 model probabilities for Match Result, BTTS and Over/Under 2.5 (Engine 3.0, Goal
-Model 1.0) and, later, the **Diski 9 Weekly Challenge** (nine picks, three
-probability-balanced buckets).
+Model 1.0) and the **Diski 9 Weekly Challenge** functional prototype (nine picks in
+three probability-balanced buckets, virtual credits only).
 
 > We calculate the probabilities. You analyse the match. You make the call.
 
@@ -64,7 +64,18 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   * `odds-coverage` reports availability per league and market
   * details: [`docs/odds_coverage_phase5a.md`](docs/odds_coverage_phase5a.md)
 
-Not yet built: Challenge, user accounts, leaderboards.
+* **Weekly Challenge functional prototype (v4.0.0)**:
+  * the Weekly Challenge, My Challenge and Leaderboards pages, integrated with the
+    Match Lab, on the Phase 6A engines (strict 4/3/2 portfolios, 40/30/20/10
+    virtual credits, exact eight-state payouts, `points-150-75-v2` scoring)
+  * an accepted **prototype**: portfolios are kept in the browser session only;
+    leaderboards use demonstration data; there are no accounts, no permanent
+    portfolios and no automated settlement yet
+  * release notes: [`docs/releases/v4.0.0.md`](docs/releases/v4.0.0.md); history:
+    [`CHANGELOG.md`](CHANGELOG.md)
+
+Not yet built (Phase 6C onwards): user accounts, permanent portfolios, server-side
+rounds, automated settlement and live leaderboards.
 
 ## Getting started on a new computer
 

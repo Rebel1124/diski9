@@ -1,6 +1,6 @@
 [project]
 name = "diski9"
-version = "0.1.0"
+version = "4.0.0"
 description = "Diski 9 — football statistical screener and virtual weekly challenge"
 requires-python = ">=3.12"
 dependencies = [
