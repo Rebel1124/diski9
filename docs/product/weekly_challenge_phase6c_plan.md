@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 Stages A–D implemented and awaiting the owner's checkpoint review (Stages E–G not started); 6C.4 onwards not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G) and awaiting the owner's local acceptance; 6C.4 onwards not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -301,3 +301,17 @@ local acceptance: [`phase6c3_local_acceptance_mac.md`](../phase6c3_local_accepta
   own service modules.
 * **Waiting for approval:** Stages E (confirm, replace, withdraw), F (pages) and G
   (acceptance); owner questions Owner-1, Owner-2 and ID-5.
+
+## Implementation notes (6C.3, checkpoint refinements and Stages E–G)
+
+Approved at the checkpoint (19 November 2026): Your View per analytical context
+(live and each published snapshot), guest Your View adoption, the one-hour
+snapshot construction age (separate from odds freshness), D-11 revised to Friday
+08:00 SAST, frozen-versus-latest information in the pages, and competitive
+classification kept separate from official championship membership. Then:
+Stage E (confirm, replace, withdraw, re-entry with authoritative validation and
+deadline checks after every lock), Stage F (pages connected; per-tab save
+ordering, migration `app_0005`) and Stage G (real-browser journeys A–G,
+regression, performance, documentation). Record:
+[`phase6c3_implementation.md`](../architecture/phase6c3_implementation.md);
+handover: [`phase6c3_implementation_handover.md`](../architecture/phase6c3_implementation_handover.md).

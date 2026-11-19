@@ -286,10 +286,12 @@ application session, not the token, is what the browser holds.
 | Match Lab and statistics | Yes | Yes | Yes |
 | Your View analysis (this browser tab) | Yes | Yes | Yes |
 | Browse the Weekly Challenge; build and analyse a draft | Yes | Yes | Yes |
-| Prototype confirm, replace, withdraw (this browser tab only) | Yes | Yes | Yes |
+| Build and analyse a portfolio for the published round (kept in this tab) | Yes | Yes | Yes (saved to the account) |
+| Confirm, replace, withdraw an entry in a published round | No ("Sign in to confirm") | No (finish set-up) | Yes (Phase 6C.3) |
+| Confirm, replace, withdraw in the demonstration round (this tab only) | Yes | Yes | Yes |
 | Public leaderboard information (demonstration data today) | Yes | Yes | Yes |
 | Account settings, privacy, password, sign out everywhere | No | Set-up page only | Yes |
-| Persist Your View and drafts; competitive entries; history | Phase 6C.3 | Phase 6C.3 | Phase 6C.3 (needs participant capabilities) |
+| Saved drafts, entries and Your View (live and frozen contexts) across devices | No | No | Yes (Phase 6C.3) |
 
 **Guest drafts at sign-in and sign-out (shared-device safety):**
 * Prototype state (`ch-session`, `ch-prefs`, `lab-store`) lives only in the
@@ -317,11 +319,16 @@ selections that are no longer eligible); no automatic submission; and private
 server-side Your View storage (T-10). Phase 6C.2 has no stored portfolios, so
 there is nothing that could be overwritten yet.
 
-**Phase 6C.3 status (checkpoint after Stage D):** the server-side storage for
-saved drafts and numerical Your View exists (`services.drafts`,
-`services.your_view`: owner from the session, capability `analysis.persist_own`,
-active account re-checked on every write, optimistic versions). The pages, the
-saving of kept guest work and guest Your View adoption are connected in Stage F.
+**Phase 6C.3 (implemented):** drafts, entries and Your View are saved to the
+account for onboarded participants (owner from the session, capabilities
+`analysis.persist_own` and `challenge.submit`, active account re-checked on every
+write, optimistic versions). **Keep** in the sign-in dialog now opens a review
+of the guest work (portfolio and compatible Your View adjustments, live and
+frozen) against the account: nothing is saved until **Save to my account**,
+differing saved work is replaced only after an explicit choice, incompatible or
+wrong-round work is listed with the reason, and nothing is ever confirmed
+(`services.adoption`, one transaction). Guest work in the tab is never replaced
+by account data before the choice. Sign-out also clears the adoption marker.
 
 ## 8. Account interface (Stage H)
 

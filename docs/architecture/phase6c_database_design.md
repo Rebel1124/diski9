@@ -250,6 +250,15 @@ erDiagram
   prototype.
 * **6C.3 (`app_0003`):** `version int` for optimistic concurrency (an older tab
   cannot overwrite newer numbers).
+* **6C.3 checkpoint (`app_0004`):** one current state **per analytical context**:
+  surrogate `id`; `context_kind` (`live`, `round`, `unassigned` for rows saved
+  before the change, kept but never applied); `snapshot_id` set exactly for
+  `round`, foreign key `(snapshot_id, fixture_id)` → `snapshot_fixtures`;
+  `UNIQUE NULLS NOT DISTINCT (user_id, fixture_id, context_kind, snapshot_id)`;
+  index `(user_id, snapshot_id)`. Not a history (D-41).
+* **6C.3 (`app_0005`):** `writer_tab`, `writer_seq` (also on `portfolio_drafts`):
+  the browser tab that wrote last and its request sequence, so a superseded
+  request from the same tab never replaces newer work.
 
 ### 5.2 `portfolio_drafts` [P]
 * `user_id`, `round_id`, `selections jsonb`, `snapshot_fingerprint`,

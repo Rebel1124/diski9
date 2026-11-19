@@ -295,3 +295,18 @@ before the deadline and is idempotent. `dev-open` publishes a development round
 from deterministic synthetic fixtures (refused when `DISKI9_APP_ENVIRONMENT` is
 `production`). Migration `app_0003` adds draft and Your View versions, the
 development flag and the snapshot and draft guards.
+
+Since the checkpoint refinements and Stages E–F:
+
+* services `entries` (confirm, replace, withdraw, re-enter) and `adoption`
+  (guest work: plan, then one all-or-nothing transaction);
+* migrations `app_0004` (Your View per context, weekend schedule v2 with Friday
+  08:00 SAST publication, development rounds kept out of the official series) and
+  `app_0005` (per-tab save ordering);
+* `DISKI9_SNAPSHOT_MAX_AGE_MINUTES` (1–180, default 60): snapshot construction
+  age at publication, in addition to the unchanged odds freshness rule;
+* `DISKI9_SHOW_DEVELOPMENT_ROUNDS=1` (refused in production): let `serve` show
+  development rounds;
+* `round dev-open --mirror-upcoming`: real upcoming fixtures from the football
+  store with synthetic odds (development round; nothing is written to the football
+  store, no API request).

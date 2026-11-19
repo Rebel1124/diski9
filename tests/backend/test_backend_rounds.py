@@ -588,3 +588,14 @@ def test_current_round_prefers_open_and_hides_development(engine, op):
     cur = svc.current_round(engine)
     assert cur is None or not cur.is_development
     assert view.id in {r.id for r in svc.list_rounds(engine, limit=200)}
+
+
+def test_current_round_prefers_an_open_round_before_its_deadline(engine, op):
+    """An open round past its deadline (lock pending) yields to an open round whose
+    deadline is still ahead; with none ahead, the past-deadline round is shown."""
+    expired, _ = publish_dev(engine, op, deadline_in=timedelta(seconds=2))
+    ahead, _ = publish_dev(engine, op, deadline_in=timedelta(hours=5))
+    wait_until(engine, expired.deadline_at)
+    cur = svc.current_round(engine, include_development=True)
+    assert cur.id != expired.id and cur.deadline_at > expired.deadline_at
+    assert cur.status == "open"

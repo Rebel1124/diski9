@@ -1,16 +1,25 @@
-# Phase 6C.3 checkpoint (Stages A–D): local acceptance on a Mac
+# Phase 6C.3 local acceptance on a Mac (complete application)
 
-What you can check at this checkpoint: persistent weekly **rounds** with frozen
-snapshots, **lock** with practice/championship classification, private
-**drafts** and private numerical **Your View**, all in your local PostgreSQL.
+This guide covers the whole persistent Weekly Challenge:
+- rounds with frozen snapshots;
+- saved drafts;
+- Your View in the live and frozen contexts;
+- guest-work adoption;
+- confirm, replace and withdraw;
+- deadline enforcement and lock;
+- practice versus competitive classification.
 
-**Not yet visible in the pages.** The Weekly Challenge, My Challenge and Match Lab
-pages still keep work in the browser tab, exactly as accepted. Connecting them to
-these services is Stage F, after your approval. At this checkpoint you test
-through the command line, a small demonstration script and the automated tests.
+Everything runs locally:
+- your PostgreSQL 17 container (Diski 9 data);
+- the Supabase CLI stack (accounts and emails);
+- `uv run diski9 serve`.
 
-Everything is local. No live football API request is made, nothing is deployed,
-and `.env` is not changed.
+No live football API request is needed. Nothing is deployed, and `.env` is not changed. Commands assume the setup from the Phase 6C.2 guide (`docs/phase6c2_local_acceptance_mac.md`).
+
+**Development data is synthetic or mirrored.** Rounds whose code starts with `dev-` are development rounds:
+- they are flagged in the database;
+- they are refused in production;
+- they never count toward an official championship.
 
 ---
 
@@ -42,117 +51,155 @@ git pull
 uv sync
 ```
 
-## 2. Start your services
+`git log --oneline -1` should show the commit named in the final report.
 
-Your PostgreSQL 17 container (as for Phases 6C.1 and 6C.2):
+## 2. Start your services
 
 ```bash
 docker compose up -d
 ```
 
-The local Supabase stack, only if you also want to sign in to the app:
-
 ```bash
 supabase start
 ```
 
-## 3. Apply the new migration
+## 3. Apply the migrations
 
 ```bash
 uv run diski9 app-db upgrade
 ```
 
-It should report `app_0003`. This migration only adds columns and safety
-triggers; your accounts are kept.
+It should report `app_0005`. The migrations only add things:
+- version columns;
+- Your View per analytical context;
+- the Friday 08:00 SAST weekend schedule (D-11 revised);
+- per-tab save ordering;
+- safety triggers.
+
+Your accounts are kept.
+
+Any Your View rows saved earlier are kept as "unassigned" and are not applied. They can only exist from the checkpoint demonstration script.
+
+## 4. Create a development round for testing
+
+Use your owner (or operator) test account's email in place of `alpha@example.test`.
+
+**Round mirroring real upcoming fixtures.** This is the best option for testing the live and frozen contexts on the same match:
 
 ```bash
-uv run diski9 app-db check
+uv run diski9 round dev-open --by-email alpha@example.test --mirror-upcoming --deadline-minutes 1440 --code dev-accept-1
 ```
 
-## 4. Open and inspect a development round
+This takes real upcoming fixtures and their current estimated goals from your football database:
+- the odds are **synthetic**;
+- the deadline is at least 24 hours away, which gives you time for manual testing;
+- it needs at least 15 upcoming fixtures in 3 leagues after that time in your football database (run your usual `refresh-data` first if needed; no new API request is made by this command).
 
-Use the email of your owner (or an operator) test account from Phase 6C.2 in
-place of `alpha@example.test`.
+If it reports that the rules are not met, try a smaller `--deadline-minutes` value. You can also use the fully synthetic option:
 
 ```bash
-uv run diski9 round dev-open --by-email alpha@example.test --deadline-minutes 10
+uv run diski9 round dev-open --by-email alpha@example.test --deadline-minutes 1440 --code dev-accept-1
 ```
 
-This creates a `dev-…` round from **synthetic development fixtures** (20 matches
-called "Dev Home 01 v Dev Away 01" and so on, in four leagues), runs every normal
-opening check (15 fixtures, 3 leagues, odds rules, exact 4/3/2 feasibility) and
-publishes it with a deadline 10 minutes from now. Note the round code it prints.
+Check it:
 
 ```bash
 uv run diski9 round list
 ```
 
-```bash
-uv run diski9 round show --code dev-YYYYMMDD-HHMMSS
-```
-
-Try to lock it early:
+## 5. Start Diski 9 showing development rounds
 
 ```bash
-uv run diski9 round lock --code dev-YYYYMMDD-HHMMSS
+DISKI9_SHOW_DEVELOPMENT_ROUNDS=1 uv run diski9 serve
 ```
 
-Before the deadline this says "The submission deadline has not been reached yet."
+Open http://127.0.0.1:8050. Without that variable, development rounds are hidden: participants then see "No round is open" unless a real round is published. The variable is refused in production.
 
-## 5. Drafts and Your View across "devices"
+## 6. Test accounts
 
-Use an onboarded participant account (a different test account is fine):
+Use the accounts from Phase 6C.2, or register new ones; confirmation emails arrive in Mailpit at http://127.0.0.1:54324. You need at least two participant accounts (A and B), plus your owner account for the round commands.
+
+**Sign-in limit:** after 20 sign-ins in 15 minutes from one address, sign-in pauses. If that happens while testing, wait, or clear the local counters:
 
 ```bash
-uv run python tools/phase6c3_demo.py --email bravo@example.test --code dev-YYYYMMDD-HHMMSS
+docker exec -it <container-name> psql -U diski9 -d diski9 -c "DELETE FROM app.auth_rate_events;"
 ```
 
-You should see: a partial draft saved on the "laptop", the same draft read on the
-"phone" (a separate connection pool), the phone removing a prediction, the stale
-laptop being stopped with "This draft was changed in another tab or on another
-device", and Your View numbers saved and read back identically. Run the same
-command again: it starts by finding the draft saved by the previous run, which
-shows the data persists between processes and restarts.
+## 7. What to check
 
-You can look at the stored rows directly (replace `<container-name>`; use
-`docker ps` to find it):
+### A. Persistent drafts (returning participant)
+1. Sign in as A → **Weekly Challenge**. The bar shows the round, its status, **Frozen** time and **Deadline**, with the note that everyone uses the same frozen odds.
+2. Choose 3–4 predictions. Under the tracker: **Saved to your account**.
+3. Go to the Match Lab and back, refresh, sign out and sign in: the same predictions are there.
+
+### B. Another device or browser
+1. Open a private window (or another browser), sign in as A: the same draft appears.
+2. Change a prediction there.
+3. Back in the first window, change a different prediction: you see "Your saved portfolio was changed in another tab or on another device…" with **Load latest saved portfolio**. Click it: the other device's draft is shown. Nothing is merged.
+
+### G. Live versus frozen Your View (same match)
+1. From the builder, click **Match Lab →** on a match. The Match Lab shows **Weekly Challenge snapshot · Frozen: …**.
+2. Change Section D (or B or C) for the home team, for example +0.20.
+3. In the Screener choose **All upcoming matches** with the same match selected. It now shows **Latest available data · Model updated: …**.
+4. Make a different change, for example +0.10.
+5. Switch back and forth: each context keeps its own numbers.
+6. **Reset all adjustments** in one context: the other is unchanged.
+7. Sign out and in, or use the other browser: both contexts are restored.
+
+With a mirrored round both baselines start equal (they were frozen just now). The frozen one stays fixed when your football data is refreshed; the live one follows it.
+
+The Weekly Challenge **Your View** probability source uses only your frozen-context adjustments.
+
+### D. Guest-work adoption
+1. Sign out (or use a private window) and, as a guest, choose some predictions and make a Match Lab adjustment from the Weekly Challenge.
+2. Sign in as B (with no saved draft). The page asks **Keep the analysis you did as a guest?**
+3. Choose **Keep**. A review lists what can be saved (portfolio, Your View items) and anything that cannot be saved, with the reason.
+4. Choose **Save to my account**. Check on another device that the draft and the adjustment are there. Nothing is confirmed.
+5. Repeat as A (who has a saved draft): the review shows the portfolio under **Different from what your account already has**. Leave **Keep my account's saved work** selected and save: A's draft is unchanged. **Replace it with my guest work** would replace it. **Discard guest work** removes the tab's guest work.
+
+### C. Confirm, replace, withdraw, re-enter
+1. As A, complete 4 Foundation, 3 Balanced and 2 Challenger predictions → **Review & Submit** → **Confirm entry**. You see "Your entry has been confirmed".
+2. **My Challenge** shows **Confirmed**, with published, frozen and deadline times.
+3. In the builder remove one prediction: My Challenge says your saved portfolio has changes that are not confirmed. The confirmed entry is unchanged.
+4. Choose a different prediction → Review → **Replace my confirmed entry**.
+5. **My Challenge → Withdraw submission** → confirm: **Withdrawn** (history kept).
+6. Review → **Confirm entry** again: confirmed, version 3.
+
+A guest sees **Sign in to confirm** instead of a confirm button.
+
+### F. Account isolation
+1. In one window, as A, make a draft and an adjustment, then sign out.
+2. Sign in as B in the same window: none of A's predictions or adjustments are visible.
+3. Sign out, sign in as A: A's work is back.
+
+### E. Deadline and lock (short round, safe)
+Published deadlines cannot be changed, so create a separate short round:
 
 ```bash
-docker exec -it <container-name> psql -U diski9 -d diski9 -c "SELECT round_id, jsonb_array_length(selections) AS picks, version, updated_at FROM app.portfolio_drafts ORDER BY updated_at DESC LIMIT 5;"
+uv run diski9 round dev-open --by-email alpha@example.test --deadline-minutes 10 --code dev-lock-1
 ```
+
+The open round with the earliest deadline still ahead is shown, so this short round now appears in the app.
+
+Have 5 accounts confirm entries within the 10 minutes (or fewer, for a practice round).
+
+After the deadline:
+- the builder says **Deadline passed**;
+- predictions, Confirm and Withdraw are refused.
+
+Then lock it:
 
 ```bash
-docker exec -it <container-name> psql -U diski9 -d diski9 -c "SELECT fixture_id, model_context, state, version FROM app.your_view_adjustments ORDER BY updated_at DESC LIMIT 5;"
+uv run diski9 round lock --code dev-lock-1
 ```
 
-The Your View rows hold numbers only: no notes or reasons.
+- With 5 or more entries: `designation=championship`, which is the stored name for a **competitive** round. My Challenge says "competitive round (unofficial beta: no official championship yet)".
+- With fewer: **practice**.
+- Running the command again changes nothing.
 
-## 6. Lock the round after its deadline
+Before the deadline, `round lock` is refused.
 
-After the 10 minutes:
-
-```bash
-uv run diski9 round lock --code dev-YYYYMMDD-HHMMSS
-```
-
-It reports `status=locked designation=practice valid_entries=0` (there are no
-confirmed entries yet: confirmation is Stage E). Run it again: "already locked;
-nothing changed". The demonstration script now stops with "This round is closed"
-and the saved draft is still readable.
-
-## 7. Restart check
-
-Stop and start your PostgreSQL container, then show the round again:
-
-```bash
-docker compose restart
-```
-
-```bash
-uv run diski9 round show --code dev-YYYYMMDD-HHMMSS
-```
-
-The fingerprint and deadline are unchanged.
+When the short round is locked, the app goes back to showing `dev-accept-1`.
 
 ## 8. Run the automated tests
 
@@ -160,44 +207,31 @@ The fingerprint and deadline are unchanged.
 export DISKI9_APP_TEST_DATABASE_URL="$(grep '^DISKI9_APP_TEST_DATABASE_URL=' .env | cut -d= -f2-)"
 ```
 
-The Phase 6C.3 tests only:
-
 ```bash
-uv run pytest -q tests/backend/test_backend_rounds.py tests/backend/test_backend_drafts.py tests/backend/test_backend_your_view.py tests/backend/test_backend_runtime_role.py
+uv run pytest -q tests/backend
 ```
-
-Everything (the genuine Supabase Auth tests are skipped unless you run them as in
-the Phase 6C.2 guide, section 14):
 
 ```bash
 uv run pytest -q
 ```
 
-## 9. Optional: a real-data round
+The genuine Supabase Auth tests run only with a local Supabase Auth server, as in the Phase 6C.2 guide, section 14. One test always skips: it needs a hosted Supabase `auth` schema.
 
-Only if your football database has fresh odds for next weekend (no API request
-is made by these commands):
+## 9. Known limitations to keep in mind
+- Settlement, results, leaderboards and championship points are not built yet (later phases). The championship panel and Leaderboards are demonstration data.
+- In a mirrored development round the odds are synthetic; only fixtures, teams, kickoffs and estimated goals are real.
+- Automated Friday publication is Phase 6C.6. Rounds are published with the commands above.
 
-```bash
-uv run diski9 round create --week 2026-W48 --by-email alpha@example.test
-```
-
-```bash
-uv run diski9 round publish --code 2026-W48-weekend --by-email alpha@example.test
-```
-
-If the data does not meet the opening rules, publication is refused with the
-reason and the round stays in `draft`; nothing is relaxed. A real round you
-publish locally is a local test only.
-
-## 10. Returning to the previous branch
+## 10. Going back
 
 ```bash
 git checkout feature/match-lab-guidance
 ```
 
-To take the database back to the Phase 6C.2 schema first (only if you need to):
+Only if you need the earlier schema:
 
 ```bash
 uv run diski9 app-db downgrade --revision app_0002
 ```
+
+Downgrading below `app_0004` removes frozen-context Your View rows (that schema cannot hold them).

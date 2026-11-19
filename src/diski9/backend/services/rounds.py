@@ -202,18 +202,23 @@ def list_rounds(engine: Engine, limit: int = 20) -> list[RoundView]:
 
 
 def current_round(engine: Engine, *, include_development: bool = False) -> RoundView | None:
-    """The round participants should see: the open round with the earliest
-    deadline, otherwise the most recently locked or later round."""
+    """The round participants should see: the open round whose deadline is still
+    ahead (earliest first); otherwise the most recent round past its deadline
+    (open but not yet locked, or locked and later), so "deadline passed" and
+    "locked" states stay visible. Database clock."""
     with read_only(engine) as conn:
+        now = db_now(conn)
         base = select(rounds.c.id)
         if not include_development:
             base = base.where(rounds.c.is_development.is_(False))
         rid = conn.execute(
-            base.where(rounds.c.status == "open").order_by(rounds.c.deadline_at).limit(1)
+            base.where(rounds.c.status == "open", rounds.c.deadline_at > now)
+            .order_by(rounds.c.deadline_at)
+            .limit(1)
         ).scalar_one_or_none()
         if rid is None:
             rid = conn.execute(
-                base.where(rounds.c.status.in_(("locked", "settling", "final")))
+                base.where(rounds.c.status.in_(("open", "locked", "settling", "final")))
                 .order_by(rounds.c.deadline_at.desc())
                 .limit(1)
             ).scalar_one_or_none()

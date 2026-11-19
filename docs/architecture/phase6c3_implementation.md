@@ -316,3 +316,96 @@ Synthetic fixtures are never written to the football store; their IDs start at
 production, are hidden from the participant-facing current round unless the
 server explicitly enables development rounds outside production, and cannot join
 the official series.
+
+## 8. Stage E — confirmed submission lifecycle (`services.entries`)
+
+* **Confirm** turns the participant's **saved draft at the version the page
+  showed** into an immutable submission. The server re-derives everything from the
+  frozen snapshot: nine outcomes on nine fixtures, buckets 4/3/2
+  (`structured.validate_portfolio`), odds, market and model probabilities, the
+  fixed credits, and the engine evaluation (`evaluate_portfolio` for market and
+  model) stored on the submission (`p_recover_*`, `expected_gross_*`, `max_gross`,
+  the eight states). Nothing numerical comes from the client; Your View is never
+  read.
+* **Replace** is an explicit confirm over an active entry (`replace=True`): a new
+  submission version becomes current in the same transaction, earlier versions
+  stay (insert-only), `entry_events` records `replaced`. Any failure rolls back
+  and the previous version stays current; the draft is kept.
+* **Withdraw** clears the current pointer (`state = 'withdrawn'`) with a
+  `withdrawn` event; nothing is deleted. **Re-entry** is a new confirm (new
+  version, `confirmed` event).
+* **Concurrency and idempotency:** round `FOR SHARE` (the lock job's `FOR UPDATE`
+  waits, and vice versa), entry `FOR UPDATE` (created with `ON CONFLICT DO NOTHING`
+  so two devices can never create two entries), expected entry version, draft
+  version, and a per-user idempotency key (the page derives it from its tab and the
+  versions shown, so a double click is one submission; reusing a key for different
+  content is refused). **The deadline is checked with `clock_timestamp()` after all
+  locks are held** (also for drafts and adoption): a request that waited for the
+  lock job or another device can never use the transaction start time to slip in
+  after the deadline. Found by the multi-connection tests: withdrawal originally
+  checked the deadline before waiting for the entry lock (fixed).
+
+## 9. Stage F — application integration
+
+* **Backend mode** (`ChallengeService(backend=...)`, enabled when accounts are
+  configured): the live round is the **published round's frozen snapshot**; there
+  is no fallback to a snapshot built on the fly. No round, database unavailable,
+  deadline passed (lock pending) and locked are explicit states.
+  `current_round` prefers an open round whose deadline is ahead, otherwise the most
+  recent round past its deadline. Development rounds are shown only with
+  `DISKI9_SHOW_DEVELOPMENT_ROUNDS=1`, refused in production.
+* **State lifecycle (signed-in participant)** — `app/challenge/persist.py`:
+  1. *Hydration* on page load and route change fills the tab copy (`ch-session`)
+     from the account (draft, entry, versions), unless the copy holds unsaved
+     changes (`acct.dirty`) or unresolved guest work.
+  2. *Actions* work on the page's own copy and version (they never pull in
+     another device's newer draft); every change to the predictions is saved in the
+     same request (`drafts.save_draft` with the page's version and a per-tab
+     writer token). "Saved to your account" appears only after the database
+     confirmed the write.
+  3. *Response ordering:* Dash discards the response of a superseded callback but
+     the server still runs it; migration `app_0005` records the writing tab and
+     its request sequence so an older request from the same tab arriving late is
+     ignored and a newer one may replace it. Other tabs and devices still need the
+     current version.
+  4. *Conflicts and failures* show a short message with **Load latest saved
+     portfolio** or **Try again**; nothing is merged and the page keeps the
+     participant's unsaved choice until they decide.
+  5. *Sign-out* clears the tab (`Clear-Site-Data` and script, including the
+     adoption marker); *account switching* is detected by the owner marker.
+* **Match Lab contexts** — `app/lab_context.py`: opened from the Weekly Challenge
+  (Screener "Weekly Challenge") on a snapshot fixture → **frozen**: the baseline is
+  the snapshot's estimated goals and the probabilities come from Goal Model 1.0's
+  own `markets` function; the live calculation details are replaced by a note;
+  the bookmaker card is labelled as the latest prices. Otherwise → **live**
+  (latest data). Each context has its own Your View in the tab
+  (`"<fixture>"` / `"r:<round>:<fixture>"`) and in the database
+  (`LiveContext` / `RoundContext`); a reset applies only to the context shown. The
+  Weekly Challenge "Your View" probability source uses only frozen-context
+  adjustments (`integration.personal_probabilities`).
+* **Indicators** (T-19): Screener line above the match list ("Weekly Challenge
+  snapshot · Frozen … · Deadline …" with the shared-snapshot note, or "Latest
+  available data · Model updated …"); builder status strip (round, status,
+  frozen time, deadline) and note; Match Lab context line; review footer; My
+  Challenge facts (published, frozen, deadline, classification). All times are the
+  stored values, shown in SAST; the snapshot time is never presented as the time of
+  each bookmaker quote.
+* **My Challenge** distinguishes no round, not started, draft in progress, ready to
+  confirm, confirmed, confirmed with unconfirmed draft changes, withdrawn, locked
+  (with or without an entry) and the classification once known ("competitive
+  round (unofficial beta: no official championship yet)" or "practice round").
+  The illustrative championship panel and the Leaderboards stay labelled as
+  demonstration data (persistent leaderboards come with settlement).
+* **Guests** keep the tab prototype on the published round but cannot confirm a
+  real entry ("Sign in to confirm"); the demonstration round is unchanged.
+* **Guest-work adoption UI** — `app/challenge/adopt_ui.py`: **Keep** in the
+  sign-in dialog marks the review as pending; the page lists what can be saved,
+  what differs from saved account work (one choice: keep the account's or replace
+  with the guest's), and what cannot be saved with the reason. **Save to my
+  account** runs `services.adoption.adopt` (one transaction); **Discard guest
+  work** clears it. Found by the browser journeys: the first page after sign-in
+  used to replace guest predictions with account data before the choice (fixed).
+* **Development round mirroring real fixtures** (`dev-open --mirror-upcoming`):
+  real upcoming fixtures and their current estimated goals from the local football
+  store with synthetic odds, so the same match exists in both contexts. Real
+  fixture IDs are used read-only; the round is still a development round.
