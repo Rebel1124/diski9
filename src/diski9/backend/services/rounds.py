@@ -28,6 +28,7 @@ from ..auth.accounts import lock_snapshot
 from ..auth.permissions import Capability, Principal, authorize
 from ..db import db_now, read_only, transaction
 from ..db.schema import (
+    championship_series,
     designations,
     entries,
     round_schedules,
@@ -41,8 +42,32 @@ from . import snapshots
 from .common import LockRefused, NotFound, PublicationRefused, ValidationFailed
 
 MODEL_VERSION = f"goal-model-{GOAL_MODEL_VERSION}"
-MAX_SNAPSHOT_AGE = timedelta(hours=1)  # ID-5: publication must follow the snapshot closely
-CLOCK_SKEW = timedelta(minutes=1)
+# Snapshot construction age (approved at the 6C.3 checkpoint): an operational
+# safeguard, separate from and in addition to the odds freshness rule (every
+# eligible quote verified within 24 hours before the snapshot, unchanged).
+DEFAULT_MAX_SNAPSHOT_AGE = timedelta(hours=1)
+MAX_SNAPSHOT_AGE_ENV = "DISKI9_SNAPSHOT_MAX_AGE_MINUTES"
+SNAPSHOT_AGE_BOUNDS = (1, 180)  # minutes; server configuration only
+
+
+def max_snapshot_age() -> timedelta:
+    """The configured construction-age limit (server environment; default one hour).
+    Values outside 1-180 minutes are refused rather than silently used."""
+    import os
+
+    raw = os.environ.get(MAX_SNAPSHOT_AGE_ENV)
+    if raw in (None, ""):
+        return DEFAULT_MAX_SNAPSHOT_AGE
+    try:
+        minutes = int(raw)
+    except ValueError:
+        raise ValueError(f"{MAX_SNAPSHOT_AGE_ENV} must be a whole number of minutes") from None
+    lo, hi = SNAPSHOT_AGE_BOUNDS
+    if not lo <= minutes <= hi:
+        raise ValueError(f"{MAX_SNAPSHOT_AGE_ENV} must be between {lo} and {hi} minutes")
+    return timedelta(minutes=minutes)
+
+
 DESIGNATION_OF = {
     RoundClassification.COMPETITIVE: "championship",
     RoundClassification.PRACTICE: "practice",
@@ -75,10 +100,28 @@ class RoundView:
     valid_entries: int | None
     designation: str | None
     fingerprint: str | None
+    series: str = "beta"
+    snapshot_at: datetime | None = None  # when the competition information was frozen
 
     @property
     def is_open(self) -> bool:
         return self.status == "open"
+
+    @property
+    def classification(self) -> str | None:
+        """``competitive`` or ``practice`` once fixed at the deadline (D-28). The
+        stored designation value ``championship`` is the legacy name for a
+        competitively classified round; it does **not** mean the round counts
+        toward an official championship."""
+        return {"championship": "competitive", "practice": "practice"}.get(self.designation or "")
+
+    @property
+    def counts_toward_official_championship(self) -> bool:
+        """Always False in Phase 6C.3. Official membership needs the ``official``
+        series, a started Official Championship 1 (D-38, after D-29 validation and
+        launch approval) and the derived membership of Phase 6C.5; beta and
+        development rounds never count."""
+        return False
 
 
 @dataclass(frozen=True)
@@ -98,9 +141,15 @@ def _view(conn: Connection, round_id: UUID) -> RoundView:
     r = conn.execute(select(rounds).where(rounds.c.id == round_id)).one_or_none()
     if r is None:
         raise NotFound("No such round.")
-    fp = conn.execute(
-        select(round_snapshots.c.fingerprint).where(round_snapshots.c.round_id == round_id)
-    ).scalar_one_or_none()
+    snap = conn.execute(
+        select(round_snapshots.c.fingerprint, round_snapshots.c.as_of).where(
+            round_snapshots.c.round_id == round_id
+        )
+    ).one_or_none()
+    fp, as_of = (snap.fingerprint, snap.as_of) if snap else (None, None)
+    series = conn.execute(
+        select(championship_series.c.code).where(championship_series.c.id == r.series_id)
+    ).scalar_one()
     des = conn.execute(
         select(designations.c.designation)
         .where(designations.c.round_id == round_id)
@@ -124,6 +173,8 @@ def _view(conn: Connection, round_id: UUID) -> RoundView:
         r.valid_entries,
         des,
         fp,
+        series,
+        as_of,
     )
 
 
@@ -291,7 +342,7 @@ def publish_round(
     snapshot: RoundSnapshot,
     *,
     source: str,
-    max_snapshot_age: timedelta = MAX_SNAPSHOT_AGE,
+    snapshot_age_limit: timedelta | None = None,
 ) -> RoundView:
     """Validate the opening conditions and freeze the snapshot (needs
     ``round.publish``). Either everything is written - snapshot rows, deadline,
@@ -304,7 +355,8 @@ def publish_round(
             select(round_schedules).where(round_schedules.c.id == r.schedule_id)
         ).one()
         now = db_now(conn)
-        problem, details = _publication_problem(r, sched, snapshot, source, now, max_snapshot_age)
+        age_limit = snapshot_age_limit or max_snapshot_age()
+        problem, details = _publication_problem(r, sched, snapshot, source, now, age_limit)
         if problem is None:
             config = get_config(sched.config_version)
             report = snapshot.opening_report(config)
@@ -383,8 +435,8 @@ def _publication_problem(r, sched, snap: RoundSnapshot, source, now, max_age):
         return "The snapshot was built for a different round.", {}
     if snap.config_version != sched.config_version:
         return "The snapshot uses a different competition configuration version.", {}
-    if snap.snapshot_at > now + CLOCK_SKEW:
-        return "The snapshot time is in the future.", {}
+    if snap.snapshot_at > now:
+        return "The snapshot construction time is in the future.", {}
     if now - snap.snapshot_at > max_age:
         return (
             "The snapshot is too old to publish; build a fresh one.",

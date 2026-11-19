@@ -232,3 +232,87 @@ isolation, separate engines as "devices"); migration up/down/up and privileges.
 | Owner-1 | Frozen versus live Your View context with one row per fixture | Keep one row; apply only in the matching context (§4) |
 | Owner-2 | Guest Your View adoption | Explicit, per fixture, matching context only (§4) |
 | ID-5 | Publication snapshot-age guard (1 hour) | Keep |
+
+## 7. Checkpoint refinements (approved 19 Nov 2026)
+
+The owner accepted Stages A–D and decided the open items. Owner-1 was decided
+the other way from the recommendation (separate contexts); Owner-2 and ID-5 were
+approved. Register: D-11 (revised), D-28 (clarified), T-10 and T-15 (refined),
+T-18, T-19.
+
+### 7.1 Your View per analytical context (migration `app_0004`)
+
+| Column | Meaning |
+|---|---|
+| `id bigint` identity | Surrogate primary key (replaces the old key `(user_id, fixture_id)`) |
+| `context_kind` | `live` (All Upcoming Fixtures), `round` (a published round's frozen snapshot) or `unassigned` (saved before `app_0004`) |
+| `snapshot_id` | Set exactly when `context_kind = 'round'`; foreign key `(snapshot_id, fixture_id)` → `snapshot_fixtures`, so a frozen state can only exist for a fixture on that snapshot |
+
+* **Uniqueness:** `UNIQUE NULLS NOT DISTINCT (user_id, fixture_id, context_kind,
+  snapshot_id)`: one live state per user and fixture, one frozen state per user,
+  fixture and snapshot. Index `(user_id, snapshot_id)` for loading a round.
+* **Server-side context:** `LiveContext(fixture_id, model_context)` takes the stamp
+  the server computed from its current data; `RoundContext(round_id, fixture_id)`
+  is resolved in the database (snapshot, frozen estimated goals, round model
+  version). Nothing about the frozen context comes from the browser.
+* **Not a history:** each context keeps only its current numbers; a refit of the
+  live model does not create a row (the live stamp changes and the stored state is
+  reported `incompatible` until the participant adjusts or resets, as before).
+* **Existing data:** rows saved before `app_0004` cannot be told apart (the live
+  and frozen stamps have the same format), so they are kept unchanged as
+  `unassigned`, never applied and never overwritten (they coexist with new rows;
+  deleted with the account). Before this revision no page wrote to the table, so
+  in practice only development and test rows exist. **Downgrade** to `app_0003`
+  removes frozen rows (that schema cannot hold them) and keeps the most recently
+  updated row per user and fixture.
+* Development rounds that reuse synthetic fixture IDs have different snapshots,
+  so their frozen states never mix.
+
+### 7.2 Guest-work adoption (`services.adoption`)
+
+`plan_adoption` (read-only) classifies the guest draft and each guest Your View
+state as `ready`, `same`, `conflict` or `rejected` (with a reason: round closed,
+other or earlier round, invalid predictions, model baseline changed, unknown
+match, values out of range) and records the account versions it saw. `adopt`
+re-runs the checks and writes everything in **one transaction** with those
+versions: conflicting account work is replaced only when the participant chose
+"replace", otherwise kept; if the account changed in between (`AdoptionStale`) or
+any write fails (`PersistenceFailed`), nothing is saved. No entry is ever
+created or changed.
+
+### 7.3 Snapshot construction age (T-18)
+
+`DISKI9_SNAPSHOT_MAX_AGE_MINUTES` (server environment, 1–180, default 60;
+invalid values are refused). Publication requires construction time ≤ database
+time and age ≤ the limit (exactly the limit passes), **and** the unchanged odds
+rules at the snapshot time (24 hours, three bookmaker groups) **and** every opening
+rule. Loading a published snapshot applies no age rule.
+
+### 7.4 D-11 revision
+
+Schedule `weekend` version 2 (Friday 08:00 SAST) is added by `app_0004`; version
+1 gets `active_to` and stays for rounds that reference it. New rounds use the
+latest version. Window, deadline and cutoff rules are unchanged. **Scheduling
+observation for the owner:** with Friday-evening fixtures (EPL, Bundesliga, La
+Liga, PSL often kick off between 19:00 and 21:00 SAST), the common deadline
+(earliest kickoff − 15 minutes) leaves roughly 10–13 hours between an 08:00 SAST
+publication and the deadline in such weeks, compared with about 35 hours under
+the Thursday target. No rule was changed; the observation is reported for review.
+
+### 7.5 Competitive versus official (D-28 clarified, D-38)
+
+The stored designation `championship` is the legacy name for a competitively
+classified round. `RoundView.classification` returns `competitive`/`practice`;
+`RoundView.counts_toward_official_championship` is always False in 6C.3. Rounds
+belong to the `beta` series by default; official membership is derived in 6C.5
+and needs the official series and a started Official Championship 1.
+Development rounds cannot be placed in the official series (trigger).
+
+### 7.6 Development-fixture isolation
+
+Synthetic fixtures are never written to the football store; their IDs start at
+9,000,000,000 (real API fixture IDs are far smaller); development rounds carry
+`is_development`, `dev-` codes and a `development` snapshot source, are refused in
+production, are hidden from the participant-facing current round unless the
+server explicitly enables development rounds outside production, and cannot join
+the official series.

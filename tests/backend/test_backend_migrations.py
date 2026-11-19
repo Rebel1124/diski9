@@ -20,9 +20,9 @@ def test_downgrade_removes_everything_and_upgrade_recreates_it(pg_url):
         assert conn.execute(text("SELECT to_regnamespace('app')")).scalar() is None
     assert migrate.current(pg_url) is None
     migrate.upgrade(pg_url)
-    assert migrate.current(pg_url) == migrate.head() == "app_0003"
+    assert migrate.current(pg_url) == migrate.head() == "app_0004"
     migrate.upgrade(pg_url)  # repeat: no-op, no error
-    assert migrate.current(pg_url) == "app_0003"
+    assert migrate.current(pg_url) == "app_0004"
     eng.dispose()
 
 
@@ -38,13 +38,24 @@ def test_seed_configuration(pg_url):
                 "SELECT s.deadline_buffer_minutes, s.settle_cutoff_hours, "
                 "s.correction_window_hours, s.config_version, s.rules_version, "
                 "s.scoring_version, cs.code, s.eligible_competitions, s.timezone, "
-                "s.publish_rule->>'time' FROM app.round_schedules s "
-                "JOIN app.championship_series cs ON cs.id = s.series_id WHERE s.code = 'weekend'"
+                "s.publish_rule->>'time', s.publish_rule->>'weekday', s.version, s.active_to "
+                "FROM app.round_schedules s "
+                "JOIN app.championship_series cs ON cs.id = s.series_id WHERE s.code = 'weekend' "
+                "ORDER BY s.version DESC LIMIT 1"
             )
         ).one()
         assert sched[:7] == (15, 48, 24, "broad60-432-v1", "settle/v1", "points-150-75-v2", "beta")
         assert sorted(sched[7]) == [39, 40, 61, 78, 135, 140, 288, 289]
         assert sched[8] == "Africa/Johannesburg" and sched[9] == "08:00"
+        # D-11 as revised at the 6C.3 checkpoint: Friday 08:00 SAST, schedule version 2
+        assert sched[10:13] == ("friday", 2, None)
+        old = conn.execute(
+            text(
+                "SELECT publish_rule->>'weekday', active_to IS NOT NULL FROM app.round_schedules "
+                "WHERE code = 'weekend' AND version = 1"
+            )
+        ).one()
+        assert tuple(old) == ("thursday", True)  # kept for rounds published under it
     eng.dispose()
 
 

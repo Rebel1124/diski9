@@ -1,17 +1,21 @@
 """Private Your View storage (Phase 6C.3, Stage D; T-10 and D-41).
 
-One row per participant and fixture holds the **current numerical** Match Lab
-state - Section B ``context``, Section C ``cats`` and Section D ``manual``, each
-per team - plus the model-context stamp it was made against. No notes, reasons,
-history or attribution are stored (D-41).
+One row per participant, fixture and **analytical context** holds the current
+numerical Match Lab state - Section B ``context``, Section C ``cats`` and Section D
+``manual``, each per team - plus the model-context stamp it was made against.
+The contexts (approved at the 6C.3 checkpoint) are the live Match Lab
+(:class:`LiveContext`) and a published round's frozen snapshot
+(:class:`RoundContext`); saving or resetting one never touches the other. Only the
+current numbers per context are kept: no notes, reasons, history or attribution
+(D-41).
 
 * The owner is always ``principal.user_id``; nothing here is ever read by
   rounds, drafts, submission, settlement or leaderboards.
-* The caller passes the model context computed **on the server**
-  (``app.lab.model_context`` for the live Match Lab, :func:`frozen_context` for a
-  published round). A stored state is ``active`` only in that same context;
-  otherwise it is reported ``incompatible``, not returned for use, and not
-  rewritten by being read.
+* The context is determined on the server: the live stamp comes from the
+  server's current data, and a round context is looked up from the database
+  (snapshot identity and frozen baseline). A stored state is ``active`` only when
+  its stamp equals the context's; otherwise it is ``incompatible``, not returned
+  for use, and not rewritten by being read.
 * Values are validated against the Match Lab's own limits; legacy note fields
   are dropped without changing any number.
 * Optimistic versions as for drafts: an older tab cannot overwrite newer work.
@@ -25,16 +29,17 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
-from sqlalchemy import Engine, func, select, update
+from sqlalchemy import Connection, Engine, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from diski9.challenge.roundsheet import RoundSnapshot
 
 from ..auth.permissions import Capability, Principal, authorize
 from ..db import read_only, transaction
-from ..db.schema import your_view_adjustments
-from .common import ValidationFailed, VersionConflict, map_db_errors, require_active
+from ..db.schema import round_snapshots, rounds, snapshot_fixtures, your_view_adjustments
+from .common import NotFound, ValidationFailed, VersionConflict, map_db_errors, require_active
 
 # The Match Lab's limits (diski9.app.lab; a test keeps them identical).
 SIDES = ("home", "away")
@@ -53,10 +58,12 @@ ACTIVE, INCOMPATIBLE, NONE = "active", "incompatible", "none"
 class YourView:
     fixture_id: int
     status: str  # active | incompatible | none
-    state: dict | None  # only when active
-    version: int  # 0 when nothing is stored
+    state: dict | None  # only when compatible with the requested context
+    version: int  # 0 when nothing is stored for this context
     updated_at: datetime | None
-    stored_context: str | None  # the context the stored numbers belong to
+    stored_context: str | None  # the model-context stamp the stored numbers belong to
+    context_kind: str = "live"  # live | round
+    snapshot_id: int | None = None
 
 
 def zero_state() -> dict:
@@ -149,130 +156,225 @@ def _fixture(fixture_id) -> int:
     return fixture_id
 
 
-def _view(row, fixture_id: int, context: str) -> YourView:
+# ------------------------------------------------------------------ contexts
+@dataclass(frozen=True)
+class LiveContext:
+    """The live Match Lab (All Upcoming Fixtures). ``model_context`` must be computed
+    on the server from the current data (``app.lab.model_context``)."""
+
+    fixture_id: int
+    model_context: str
+
+
+@dataclass(frozen=True)
+class RoundContext:
+    """A published round's frozen context. The snapshot and the frozen baseline
+    are looked up in the database; nothing about them comes from the caller."""
+
+    round_id: UUID
+    fixture_id: int
+
+
+Context = LiveContext | RoundContext
+
+
+@dataclass(frozen=True)
+class _Resolved:
+    kind: str  # live | round
+    fixture_id: int
+    snapshot_id: int | None
+    model_context: str
+
+
+def _resolve(conn: Connection, ctx: Context, cache: dict | None = None) -> _Resolved:
+    if isinstance(ctx, LiveContext):
+        fid = _fixture(ctx.fixture_id)
+        _check_context(fid, ctx.model_context)
+        return _Resolved("live", fid, None, ctx.model_context)
+    if not isinstance(ctx, RoundContext):
+        raise ValidationFailed("Unknown analysis context.", [{"reason": "context"}])
+    fid = _fixture(ctx.fixture_id)
+    key = ("round", ctx.round_id)
+    if cache is None or key not in cache:
+        head = conn.execute(
+            select(round_snapshots.c.id, rounds.c.model_version, rounds.c.status)
+            .join(rounds, rounds.c.id == round_snapshots.c.round_id)
+            .where(round_snapshots.c.round_id == ctx.round_id)
+        ).one_or_none()
+        if head is None or head.status == "draft":
+            raise NotFound("This round has no published snapshot.")
+        fixtures = {
+            r.fixture_id: r
+            for r in conn.execute(
+                select(
+                    snapshot_fixtures.c.fixture_id,
+                    snapshot_fixtures.c.estimated_goals_home,
+                    snapshot_fixtures.c.estimated_goals_away,
+                ).where(snapshot_fixtures.c.snapshot_id == head.id)
+            )
+        }
+        found = (head, fixtures)
+        if cache is not None:
+            cache[key] = found
+    else:
+        found = cache[key]
+    head, fixtures = found
+    f = fixtures.get(fid)
+    if f is None:
+        raise NotFound("This match is not part of the round's snapshot.")
+    if f.estimated_goals_home is None or f.estimated_goals_away is None:
+        raise ValidationFailed(
+            "This match has no frozen baseline to adjust.", [{"reason": "no_baseline"}]
+        )
+    version = (head.model_version or "").removeprefix("goal-model-")
+    stamp = (
+        f"{version}|{fid}|{round(f.estimated_goals_home, 2):.2f}|"
+        f"{round(f.estimated_goals_away, 2):.2f}"
+    )
+    return _Resolved("round", fid, head.id, stamp)
+
+
+def _row(conn: Connection, uid: UUID, r: _Resolved, *, for_update: bool = False):
+    q = select(your_view_adjustments).where(
+        your_view_adjustments.c.user_id == uid,
+        your_view_adjustments.c.fixture_id == r.fixture_id,
+        your_view_adjustments.c.context_kind == r.kind,
+        your_view_adjustments.c.snapshot_id.is_not_distinct_from(r.snapshot_id),
+    )
+    if for_update:
+        q = q.with_for_update()
+    return conn.execute(q).one_or_none()
+
+
+def _view(row, r: _Resolved) -> YourView:
     if row is None:
-        return YourView(fixture_id, NONE, None, 0, None, None)
-    if row.model_context != context:
+        return YourView(r.fixture_id, NONE, None, 0, None, None, r.kind, r.snapshot_id)
+    if row.model_context != r.model_context:
         return YourView(
-            fixture_id, INCOMPATIBLE, None, row.version, row.updated_at, row.model_context
+            r.fixture_id,
+            INCOMPATIBLE,
+            None,
+            row.version,
+            row.updated_at,
+            row.model_context,
+            r.kind,
+            r.snapshot_id,
         )
     state = clean_state(row.state)
     status = ACTIVE if has_adjustment(state) else NONE
-    return YourView(fixture_id, status, state, row.version, row.updated_at, row.model_context)
+    return YourView(
+        r.fixture_id,
+        status,
+        state,
+        row.version,
+        row.updated_at,
+        row.model_context,
+        r.kind,
+        r.snapshot_id,
+    )
 
 
-def get_your_view(engine: Engine, principal: Principal, fixture_id: int, context: str) -> YourView:
-    authorize(principal, Capability.PERSIST_OWN_ANALYSIS)
-    fid = _fixture(fixture_id)
-    _check_context(fid, context)
+def resolved_context(engine: Engine, ctx: Context) -> str:
+    """The model-context stamp the server uses for ``ctx`` (for display and tests)."""
     with read_only(engine) as conn:
-        row = conn.execute(
-            select(your_view_adjustments).where(
-                your_view_adjustments.c.user_id == principal.user_id,
-                your_view_adjustments.c.fixture_id == fid,
-            )
-        ).one_or_none()
-    return _view(row, fid, context)
+        return _resolve(conn, ctx).model_context
 
 
-def get_many(
-    engine: Engine, principal: Principal, contexts: Mapping[int, str]
-) -> dict[int, YourView]:
-    """Your View for several fixtures in one query (for portfolio analysis)."""
+def get_your_view(engine: Engine, principal: Principal, ctx: Context) -> YourView:
     authorize(principal, Capability.PERSIST_OWN_ANALYSIS)
-    for fid, ctx in contexts.items():
-        _check_context(_fixture(fid), ctx)
+    with read_only(engine) as conn:
+        r = _resolve(conn, ctx)
+        return _view(_row(conn, principal.user_id, r), r)
+
+
+def get_many(engine: Engine, principal: Principal, contexts) -> dict:
+    """Your View for several contexts in one transaction ({context: YourView})."""
+    authorize(principal, Capability.PERSIST_OWN_ANALYSIS)
+    contexts = list(contexts)
     if not contexts:
         return {}
     with read_only(engine) as conn:
-        rows = {
-            r.fixture_id: r
-            for r in conn.execute(
-                select(your_view_adjustments).where(
-                    your_view_adjustments.c.user_id == principal.user_id,
-                    your_view_adjustments.c.fixture_id.in_(list(contexts)),
-                )
-            )
-        }
-    return {fid: _view(rows.get(fid), fid, ctx) for fid, ctx in contexts.items()}
+        cache: dict = {}
+        out = {}
+        for ctx in contexts:
+            try:
+                r = _resolve(conn, ctx, cache)
+            except (NotFound, ValidationFailed):
+                continue
+            out[ctx] = _view(_row(conn, principal.user_id, r), r)
+        return out
 
 
-def save_your_view(
-    engine: Engine,
-    principal: Principal,
-    fixture_id: int,
-    context: str,
-    state: Any,
-    *,
-    expected_version: int,
+def write_in(
+    conn: Connection, uid: UUID, ctx: Context, state: Any, expected_version: int
 ) -> YourView:
-    """Store the current numbers for this fixture in this model context. A reset
-    stores zeros (the row and its version remain)."""
-    authorize(principal, Capability.PERSIST_OWN_ANALYSIS)
-    fid = _fixture(fixture_id)
-    _check_context(fid, context)
+    """Save inside an open transaction (also used by guest adoption)."""
+    r = _resolve(conn, ctx)
     clean = clean_state(state)
     if isinstance(expected_version, bool) or not isinstance(expected_version, int):
         raise ValidationFailed("Missing version.", [{"reason": "version"}])
-    uid = principal.user_id
-    with map_db_errors(), transaction(engine) as conn:
-        require_active(conn, uid)
-        row = conn.execute(
-            select(your_view_adjustments)
-            .where(
-                your_view_adjustments.c.user_id == uid, your_view_adjustments.c.fixture_id == fid
-            )
-            .with_for_update()
-        ).one_or_none()
-        if row is not None and row.model_context == context and row.state == clean:
-            return _view(row, fid, context)  # nothing changed: no write
-        current = row.version if row is not None else 0
-        if expected_version != current:
-            raise VersionConflict(
-                "Your View for this match was changed in another tab or on another device. "
-                "Reload it to continue.",
-                _view(row, fid, context),
-            )
-        if row is None:
-            new = conn.execute(
-                pg_insert(your_view_adjustments)
-                .values(user_id=uid, fixture_id=fid, model_context=context, state=clean, version=1)
-                .on_conflict_do_nothing()
-                .returning(your_view_adjustments)
-            ).one_or_none()
-            if new is None:
-                latest = conn.execute(
-                    select(your_view_adjustments).where(
-                        your_view_adjustments.c.user_id == uid,
-                        your_view_adjustments.c.fixture_id == fid,
-                    )
-                ).one_or_none()
-                raise VersionConflict(
-                    "Your View for this match was saved on another device a moment ago.",
-                    _view(latest, fid, context),
-                )
-            return _view(new, fid, context)
+    row = _row(conn, uid, r, for_update=True)
+    if row is not None and row.model_context == r.model_context and row.state == clean:
+        return _view(row, r)  # nothing changed: no write
+    current = row.version if row is not None else 0
+    if expected_version != current:
+        raise VersionConflict(
+            "Your View for this match was changed in another tab or on another device. "
+            "Reload it to continue.",
+            _view(row, r),
+        )
+    if row is None:
         new = conn.execute(
-            update(your_view_adjustments)
-            .where(
-                your_view_adjustments.c.user_id == uid,
-                your_view_adjustments.c.fixture_id == fid,
-                your_view_adjustments.c.version == expected_version,
-            )
+            pg_insert(your_view_adjustments)
             .values(
-                model_context=context,
+                user_id=uid,
+                fixture_id=r.fixture_id,
+                context_kind=r.kind,
+                snapshot_id=r.snapshot_id,
+                model_context=r.model_context,
                 state=clean,
-                version=your_view_adjustments.c.version + 1,
-                updated_at=func.transaction_timestamp(),
+                version=1,
             )
+            .on_conflict_do_nothing(constraint="uq_your_view_context")
             .returning(your_view_adjustments)
-        ).one()
-        return _view(new, fid, context)
+        ).one_or_none()
+        if new is None:
+            raise VersionConflict(
+                "Your View for this match was saved on another device a moment ago.",
+                _view(_row(conn, uid, r), r),
+            )
+        return _view(new, r)
+    new = conn.execute(
+        update(your_view_adjustments)
+        .where(
+            your_view_adjustments.c.id == row.id,
+            your_view_adjustments.c.version == expected_version,
+        )
+        .values(
+            model_context=r.model_context,
+            state=clean,
+            version=your_view_adjustments.c.version + 1,
+            updated_at=func.transaction_timestamp(),
+        )
+        .returning(your_view_adjustments)
+    ).one()
+    return _view(new, r)
+
+
+def save_your_view(
+    engine: Engine, principal: Principal, ctx: Context, state: Any, *, expected_version: int
+) -> YourView:
+    """Store the current numbers for this context only. A reset stores zeros (the
+    row and its version remain). The other context of the same match is never
+    touched."""
+    authorize(principal, Capability.PERSIST_OWN_ANALYSIS)
+    clean_state(state)  # validate before opening a transaction
+    with map_db_errors(), transaction(engine) as conn:
+        require_active(conn, principal.user_id)
+        return write_in(conn, principal.user_id, ctx, state, expected_version)
 
 
 def reset_your_view(
-    engine: Engine, principal: Principal, fixture_id: int, context: str, *, expected_version: int
+    engine: Engine, principal: Principal, ctx: Context, *, expected_version: int
 ) -> YourView:
-    return save_your_view(
-        engine, principal, fixture_id, context, zero_state(), expected_version=expected_version
-    )
+    return save_your_view(engine, principal, ctx, zero_state(), expected_version=expected_version)

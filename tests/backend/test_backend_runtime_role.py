@@ -38,13 +38,10 @@ def test_full_stage_b_to_d_flow_as_runtime_role(engine, app_engine):
     d = drafts.save_draft(app_engine, p, view.id, valid_keys(snap, 4), expected_version=0)
     assert drafts.get_draft(app_engine, p, view.id) == d
     f = snap.fixtures[0]
-    ctx = yv.frozen_context(snap, f.fixture_id, view.model_version)
+    ctx = yv.RoundContext(view.id, f.fixture_id)
     state = yv.zero_state()
     state["context"]["home"] = 0.2
-    assert (
-        yv.save_your_view(app_engine, p, f.fixture_id, ctx, state, expected_version=0).state
-        == state
-    )
+    assert yv.save_your_view(app_engine, p, ctx, state, expected_version=0).state == state
     snapshots.CACHE.clear()
     assert svc.published_snapshot(app_engine, view.id).fingerprint == snap.fingerprint
     wait_until(app_engine, view.deadline_at)

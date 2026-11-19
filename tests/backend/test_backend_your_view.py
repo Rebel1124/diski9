@@ -18,11 +18,18 @@ from diski9.backend.db.schema import users, your_view_adjustments
 from diski9.backend.services import drafts, snapshots
 from diski9.backend.services import rounds as svc
 from diski9.backend.services import your_view as yv
-from diski9.backend.services.common import AccountInactive, ValidationFailed, VersionConflict
+from diski9.backend.services.common import (
+    AccountInactive,
+    NotFound,
+    ValidationFailed,
+    VersionConflict,
+)
 
 FID = 1_234_567
 CTX = f"1.0|{FID}|1.45|0.98"
 CTX_NEW = f"1.0|{FID}|1.52|0.98"  # the model was refitted: a different baseline
+LIVE = yv.LiveContext(FID, CTX)
+LIVE_NEW = yv.LiveContext(FID, CTX_NEW)
 
 
 def adjusted() -> dict:
@@ -46,10 +53,10 @@ def test_limits_match_the_match_lab():
 
 def test_save_and_retrieve_numbers_only(engine):
     p = principal(engine)
-    assert yv.get_your_view(engine, p, FID, CTX).status == yv.NONE
-    saved = yv.save_your_view(engine, p, FID, CTX, adjusted(), expected_version=0)
+    assert yv.get_your_view(engine, p, LIVE).status == yv.NONE
+    saved = yv.save_your_view(engine, p, LIVE, adjusted(), expected_version=0)
     assert saved.status == yv.ACTIVE and saved.version == 1 and saved.state == adjusted()
-    assert yv.get_your_view(engine, p, FID, CTX) == saved
+    assert yv.get_your_view(engine, p, LIVE) == saved
     with transaction(engine) as conn:
         stored = conn.execute(
             select(your_view_adjustments.c.state).where(
@@ -75,8 +82,7 @@ def test_states_produced_by_the_match_lab_round_trip_exactly(engine):
         out = yv.save_your_view(
             engine,
             p,
-            FID + i,
-            f"1.0|{FID + i}|1.10|1.20",
+            yv.LiveContext(FID + i, f"1.0|{FID + i}|1.10|1.20"),
             s,
             expected_version=version if i == 0 else 0,
         )
@@ -93,7 +99,7 @@ def test_legacy_notes_are_dropped_and_numbers_kept(engine):
     legacy["cats"]["squad"]["note"] = "striker injured"
     legacy["notes"] = ["old journal"]
     legacy["reason"] = "gut feeling"
-    saved = yv.save_your_view(engine, p, FID, CTX, legacy, expected_version=0)
+    saved = yv.save_your_view(engine, p, LIVE, legacy, expected_version=0)
     assert saved.state == adjusted()
     assert lab.normalise_state(legacy) == saved.state  # the Match Lab reads it the same
 
@@ -116,54 +122,54 @@ def test_out_of_range_or_malformed_values_are_refused(engine, mutate, reason):
     s = adjusted()
     mutate(s)
     with pytest.raises(ValidationFailed) as exc:
-        yv.save_your_view(engine, p, FID, CTX, s, expected_version=0)
+        yv.save_your_view(engine, p, LIVE, s, expected_version=0)
     assert reason in {i["reason"] for i in exc.value.issues}
-    assert yv.get_your_view(engine, p, FID, CTX).version == 0
+    assert yv.get_your_view(engine, p, LIVE).version == 0
 
 
 def test_context_must_belong_to_the_fixture(engine):
     p = principal(engine)
     for bad in ("", "1.0|999|1.00|1.00", "nonsense", f"1.0|{FID}|1.4|0.98"):
         with pytest.raises(ValidationFailed):
-            yv.save_your_view(engine, p, FID, bad, adjusted(), expected_version=0)
+            yv.save_your_view(engine, p, yv.LiveContext(FID, bad), adjusted(), expected_version=0)
 
 
 def test_a_different_model_context_is_not_applied_or_rewritten(engine):
     p = principal(engine)
-    saved = yv.save_your_view(engine, p, FID, CTX, adjusted(), expected_version=0)
-    other = yv.get_your_view(engine, p, FID, CTX_NEW)
+    saved = yv.save_your_view(engine, p, LIVE, adjusted(), expected_version=0)
+    other = yv.get_your_view(engine, p, LIVE_NEW)
     assert other.status == yv.INCOMPATIBLE and other.state is None
     assert other.stored_context == CTX
-    assert yv.get_your_view(engine, p, FID, CTX) == saved  # reading changed nothing
+    assert yv.get_your_view(engine, p, LIVE) == saved  # reading changed nothing
     # a new adjustment made in the new context replaces it, only from the current version
     with pytest.raises(VersionConflict):
-        yv.save_your_view(engine, p, FID, CTX_NEW, adjusted(), expected_version=0)
+        yv.save_your_view(engine, p, LIVE_NEW, adjusted(), expected_version=0)
     fresh = yv.zero_state()
     fresh["manual"]["home"] = 0.3
-    new = yv.save_your_view(engine, p, FID, CTX_NEW, fresh, expected_version=saved.version)
+    new = yv.save_your_view(engine, p, LIVE_NEW, fresh, expected_version=saved.version)
     assert new.status == yv.ACTIVE and new.state == fresh
-    assert yv.get_your_view(engine, p, FID, CTX).status == yv.INCOMPATIBLE
+    assert yv.get_your_view(engine, p, LIVE).status == yv.INCOMPATIBLE
 
 
 def test_reset_stores_zeros_and_keeps_the_version_moving(engine):
     p = principal(engine)
-    s1 = yv.save_your_view(engine, p, FID, CTX, adjusted(), expected_version=0)
-    r = yv.reset_your_view(engine, p, FID, CTX, expected_version=s1.version)
+    s1 = yv.save_your_view(engine, p, LIVE, adjusted(), expected_version=0)
+    r = yv.reset_your_view(engine, p, LIVE, expected_version=s1.version)
     assert r.status == yv.NONE and r.state == yv.zero_state() and r.version == 2
     with pytest.raises(VersionConflict):  # a tab still at v1 cannot bring back old numbers
-        yv.save_your_view(engine, p, FID, CTX, adjusted(), expected_version=1)
+        yv.save_your_view(engine, p, LIVE, adjusted(), expected_version=1)
 
 
 def test_identical_saves_write_nothing(engine):
     p = principal(engine)
-    s1 = yv.save_your_view(engine, p, FID, CTX, adjusted(), expected_version=0)
-    again = yv.save_your_view(engine, p, FID, CTX, adjusted(), expected_version=0)
+    s1 = yv.save_your_view(engine, p, LIVE, adjusted(), expected_version=0)
+    again = yv.save_your_view(engine, p, LIVE, adjusted(), expected_version=0)
     assert again.version == 1 and again.updated_at == s1.updated_at
 
 
 def test_concurrent_saves_one_wins_one_conflicts(engine):
     p = principal(engine)
-    yv.save_your_view(engine, p, FID, CTX, yv.zero_state(), expected_version=0)
+    yv.save_your_view(engine, p, LIVE, yv.zero_state(), expected_version=0)
     a, b = adjusted(), adjusted()
     b["manual"]["home"] = 0.5
     results, barrier = [], threading.Barrier(2)
@@ -171,7 +177,7 @@ def test_concurrent_saves_one_wins_one_conflicts(engine):
     def device(state):
         barrier.wait()
         try:
-            results.append(yv.save_your_view(engine, p, FID, CTX, state, expected_version=1))
+            results.append(yv.save_your_view(engine, p, LIVE, state, expected_version=1))
         except VersionConflict as exc:
             results.append(exc)
 
@@ -185,32 +191,31 @@ def test_concurrent_saves_one_wins_one_conflicts(engine):
 
 def test_private_to_each_account(engine):
     a, b = principal(engine), principal(engine)
-    yv.save_your_view(engine, a, FID, CTX, adjusted(), expected_version=0)
-    assert yv.get_your_view(engine, b, FID, CTX).status == yv.NONE
-    assert yv.get_many(engine, b, {FID: CTX})[FID].state is None
-    yv.save_your_view(engine, b, FID, CTX, yv.zero_state(), expected_version=0)
-    assert yv.get_your_view(engine, a, FID, CTX).state == adjusted()
+    yv.save_your_view(engine, a, LIVE, adjusted(), expected_version=0)
+    assert yv.get_your_view(engine, b, LIVE).status == yv.NONE
+    assert yv.get_many(engine, b, [LIVE])[LIVE].state is None
+    yv.save_your_view(engine, b, LIVE, yv.zero_state(), expected_version=0)
+    assert yv.get_your_view(engine, a, LIVE).state == adjusted()
 
 
 def test_another_device_or_restarted_app_sees_the_same_state(pg_url, engine):
     p = principal(engine)
-    saved = yv.save_your_view(engine, p, FID, CTX, adjusted(), expected_version=0)
+    saved = yv.save_your_view(engine, p, LIVE, adjusted(), expected_version=0)
     other = make_app_engine(BackendDatabaseSettings(environment="test"), url=pg_url)
     try:
-        assert yv.get_your_view(other, p, FID, CTX) == saved
+        assert yv.get_your_view(other, p, LIVE) == saved
     finally:
         other.dispose()
 
 
 def test_guests_and_suspended_accounts(engine):
     with pytest.raises(AuthorizationError):
-        yv.get_your_view(engine, GUEST, FID, CTX)
+        yv.get_your_view(engine, GUEST, LIVE)
     with pytest.raises(AuthorizationError):
         yv.save_your_view(
             engine,
             replace(principal(engine), onboarded=False),
-            FID,
-            CTX,
+            LIVE,
             adjusted(),
             expected_version=0,
         )
@@ -218,38 +223,33 @@ def test_guests_and_suspended_accounts(engine):
     with transaction(engine) as conn:
         conn.execute(update(users).where(users.c.id == p.user_id).values(status="suspended"))
     with pytest.raises(AccountInactive):
-        yv.save_your_view(engine, p, FID, CTX, adjusted(), expected_version=0)
+        yv.save_your_view(engine, p, LIVE, adjusted(), expected_version=0)
 
 
 def test_frozen_context_and_no_effect_on_the_competition(engine):
-    """Your View uses the published round's frozen baseline as its context and
+    """A round context takes its snapshot and frozen baseline from the database and
     changes nothing shared: snapshot, odds, probabilities, buckets, drafts."""
     op = principal(engine, role="operator")
     view, snap = publish_dev(engine, op)
     f = snap.fixtures[0]
-    ctx = yv.frozen_context(snap, f.fixture_id, view.model_version)
+    rc = yv.RoundContext(view.id, f.fixture_id)
     h, a = (round(x, 2) for x in f.estimated_goals)
-    assert ctx == f"1.0|{f.fixture_id}|{h:.2f}|{a:.2f}"
-    assert yv.frozen_context(snap, 1, view.model_version) is None
+    assert yv.resolved_context(engine, rc) == f"1.0|{f.fixture_id}|{h:.2f}|{a:.2f}"
+    assert yv.resolved_context(engine, rc) == yv.frozen_context(
+        snap, f.fixture_id, view.model_version
+    )
     p = principal(engine)
+    with pytest.raises(NotFound):
+        yv.save_your_view(engine, p, yv.RoundContext(view.id, 1), adjusted(), expected_version=0)
     keys = valid_keys(snap, 3)
     d = drafts.save_draft(engine, p, view.id, keys, expected_version=0)
     s = adjusted()
     s["manual"]["home"] = 2.0
-    yv.save_your_view(engine, p, f.fixture_id, ctx, s, expected_version=0)
+    yv.save_your_view(engine, p, rc, s, expected_version=0)
     snapshots.CACHE.clear()
     after = svc.published_snapshot(engine, view.id)
     assert after.fingerprint == snap.fingerprint and after.outcomes == snap.outcomes
     assert drafts.get_draft(engine, p, view.id) == d
-    many = yv.get_many(
-        engine,
-        p,
-        {
-            f.fixture_id: ctx,
-            snap.fixtures[1].fixture_id: yv.frozen_context(
-                snap, snap.fixtures[1].fixture_id, "1.0"
-            ),
-        },
-    )
-    assert many[f.fixture_id].status == yv.ACTIVE
-    assert many[snap.fixtures[1].fixture_id].status == yv.NONE
+    other = yv.RoundContext(view.id, snap.fixtures[1].fixture_id)
+    many = yv.get_many(engine, p, [rc, other])
+    assert many[rc].status == yv.ACTIVE and many[other].status == yv.NONE

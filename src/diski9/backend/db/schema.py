@@ -563,8 +563,11 @@ users = Table(
 your_view_adjustments = Table(
     "your_view_adjustments",
     metadata,
-    Column("user_id", UUID(as_uuid=True), primary_key=True),
-    Column("fixture_id", BigInteger, primary_key=True),
+    Column("id", BigInteger, primary_key=True),
+    Column("user_id", UUID(as_uuid=True), nullable=False),
+    Column("fixture_id", BigInteger, nullable=False),
+    Column("context_kind", Text, nullable=False),
+    Column("snapshot_id", BigInteger, nullable=True),
     Column("model_context", Text, nullable=False),
     Column("state", JSONB, nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
