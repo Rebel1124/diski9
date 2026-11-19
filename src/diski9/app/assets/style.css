@@ -622,6 +622,23 @@ table.results td.value-cell { white-space: nowrap; }
   .cat-inputs { grid-template-columns: minmax(0, 1fr); gap: 8px; }
 }
 
+/* Sections B and C: guidance (left, about 60%) beside the stacked home and away
+   controls (right, about 40%), with a subtle divider; one column on small screens */
+.cat-split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 0 22px;
+  align-items: start; }
+.cat-split.single { grid-template-columns: minmax(0, 1fr); }
+.cat-guide-col { min-width: 0; }
+.cat-guide-col .cat-guide { max-width: none; margin-bottom: 0; }
+.cat-split .cat-inputs { grid-template-columns: minmax(0, 1fr); gap: 10px; padding-left: 22px;
+  border-left: 1px solid var(--border); }
+.cat-split .cat-inputs .cat-field { justify-content: flex-start; }
+.cat-split .cat-input-label { overflow-wrap: anywhere; }
+.ctx-acc .cat-split + .adj-actions { margin-top: 12px; }
+@media (max-width: 760px) {
+  .cat-split { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .cat-split .cat-inputs { padding-left: 0; border-left: 0; gap: 8px; }
+}
+
 /* ===================== Site navigation (Phase 6B) ===================== */
 .site-nav { border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 30; }
 .nav-inner { max-width: 1240px; margin: 0 auto; padding: 8px 20px; display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }

@@ -77,6 +77,14 @@ other match-specific circumstances)
 > team with little to play for may be less sharp. Motivation is hard to measure, so
 > keep any adjustment modest unless the evidence is clear.
 
+**Layout.** On screens wider than 760px each card in Sections B and C uses two
+columns: the keywords and guidance on the left (about 60%), and the home and away
+controls stacked on the right (about 40%) behind a subtle divider, aligned at the
+same position in every card. Headings and status span the full width; Section B's
+clear button and guardrail text sit beneath. Smaller screens stack heading and
+status, keywords, guidance, then the home and away controls. Screenshots:
+`layout_section_*` in `docs/screenshots/match_lab_guidance/`.
+
 The wording lives in `src/diski9/app/lab.py` (`CONTEXT_ADJUST_NOTE`,
 `FACTORS_NOTE`, `FACTORS_CAUTION`, `CATEGORY_GUIDANCE`). Screenshots before and after:
 `docs/screenshots/match_lab_guidance/`.

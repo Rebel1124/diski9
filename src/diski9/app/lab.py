@@ -698,6 +698,15 @@ def _ctx_input(side: str, team: str, value: float) -> html.Div:
     )
 
 
+def _split(guide: list, controls: list | None) -> html.Div:
+    """Guidance on the left, the home and away controls stacked on the right (desktop);
+    one column on small screens, in the same order."""
+    kids = [html.Div(guide, className="cat-guide-col")]
+    if controls:
+        kids.append(html.Div(controls, className="cat-inputs"))
+    return html.Div(kids, className="cat-split" if controls else "cat-split single")
+
+
 def context_adjustment(r: dict, state: dict) -> html.Details:
     """One overall, optional adjustment per team from the user's reading of Section B.
     Never derived from the Form Score, head-to-head or positions: the user chooses."""
@@ -715,13 +724,12 @@ def context_adjustment(r: dict, state: dict) -> html.Details:
             ),
             html.Div(
                 [
-                    html.P(CONTEXT_ADJUST_NOTE, className="muted small cat-guide"),
-                    html.Div(
+                    _split(
+                        [html.P(CONTEXT_ADJUST_NOTE, className="muted small cat-guide")],
                         [
                             _ctx_input("home", f["home"], c["home"]),
                             _ctx_input("away", f["away"], c["away"]),
                         ],
-                        className="cat-inputs",
                     ),
                     html.Div(
                         [
@@ -818,20 +826,19 @@ def factors_section(r: dict, state: dict) -> html.Div:
     cards = []
     for key, title, items in CATEGORIES:
         c = state["cats"][key]
-        body = [
+        guide = [
             html.Ul([html.Li(i) for i in items], className="cat-items"),
             html.P(CATEGORY_GUIDANCE[key], className="muted small cat-guide"),
         ]
-        if available:
-            body.append(
-                html.Div(
-                    [
-                        _cat_input(key, "home", f["home"], c["home"]),
-                        _cat_input(key, "away", f["away"], c["away"]),
-                    ],
-                    className="cat-inputs",
-                )
-            )
+        controls = (
+            [
+                _cat_input(key, "home", f["home"], c["home"]),
+                _cat_input(key, "away", f["away"], c["away"]),
+            ]
+            if available
+            else None
+        )
+        body = [_split(guide, controls)]
         cards.append(
             html.Details(
                 [

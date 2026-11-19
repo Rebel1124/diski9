@@ -334,10 +334,22 @@ def test_section_b_guidance_comes_before_inputs_like_section_c(data):
     d = render_detail(r, ov, off, "1X2", data)
     for acc_cls in ("ctx-acc", "cat-acc"):
         acc = _find(d, lambda c, k=acc_cls: isinstance(c, html.Details) and k in c.className)[0]
-        body = acc.children[1].children
-        kinds = [getattr(c, "className", "") for c in body]
-        guide = next(i for i, k in enumerate(kinds) if "cat-guide" in k)
-        assert guide < kinds.index("cat-inputs"), acc_cls
+        split = _find(acc, lambda c: getattr(c, "className", None) == "cat-split")[0]
+        left, right = split.children  # guidance column, then the stacked controls
+        assert left.className == "cat-guide-col" and _find(
+            left, lambda c: "cat-guide" in str(getattr(c, "className", ""))
+        ), acc_cls
+        assert right.className == "cat-inputs" and len(right.children) == 2, acc_cls
+        sides = [
+            c.id["side"] if isinstance(c.id, dict) else c.id
+            for c in _find(
+                right,
+                lambda c: (
+                    isinstance(getattr(c, "id", None), (str, dict)) and "slider" not in str(c.id)
+                ),
+            )
+        ]
+        assert [x.replace("ctx-", "") for x in sides] == ["home", "away"], acc_cls
 
 
 def test_recent_form_summary_two_columns(data):
