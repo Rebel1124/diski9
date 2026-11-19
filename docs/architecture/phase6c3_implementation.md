@@ -409,3 +409,175 @@ the official series.
   real upcoming fixtures and their current estimated goals from the local football
   store with synthetic odds, so the same match exists in both contexts. Real
   fixture IDs are used read-only; the round is still a development round.
+
+## 10. Stage G — final acceptance (19 Nov 2026)
+
+### 10.1 Most recent locked entry (owner-approved UX refinement)
+
+Problem: My Challenge showed only the current round, so once another round was
+open a participant could no longer see the entry they had confirmed for a round
+whose deadline had passed (while its matches were being played).
+
+* **Service** `entries.latest_locked_entry(engine, principal, exclude_round_id,
+  include_development)`: read-only, owner-scoped (the signed-in principal's own
+  `entries` row; no user ID from the browser). It returns the most recent round
+  (by deadline, database clock) where the participant's entry is **confirmed with
+  a current submission** and the deadline has passed (status `open` = lock pending,
+  or `locked`/`settling`/`final`). Withdrawn entries have no current submission and
+  are never returned. The round already shown as the current round is excluded, so
+  an entry is never displayed twice. Values come from the stored immutable
+  submission (`submissions` / `submission_selections`), never from a draft.
+* **Page** (`pages.locked_entry_card`, via `persist.most_recent_locked`): a compact,
+  read-only card titled **Most recent locked entry** below the current round's
+  cards: round code (with "Development ·" for dev rounds), status pill
+  (**Deadline passed** while the lock job has not run, then **Locked**), deadline,
+  frozen-odds time, confirmation time and version, classification once locked, the
+  fixed credits (100 virtual: 40 / 30 / 20 / 10), maximum payout, "Results: not
+  available yet (settlement comes in a later phase)", the stored Market and Diski 9
+  estimates, and an expandable list of the nine predictions with their frozen odds
+  (the existing confirmed-predictions component). No buttons; nothing about results
+  or payouts is invented. Shown only to signed-in participants; failures hide the
+  card rather than showing partial data.
+* **Related fix found while testing:** after the deadline, a page loaded afresh
+  showed the participant's round as "unavailable" (the builder only chose the live
+  round while it was playable), hiding a confirmed entry. In backend mode the
+  published round past its deadline is now shown read-only, and the current-round
+  card distinguishes **Deadline passed** ("the round is waiting to be locked",
+  facts "Changes: none possible (lock pending)") from **Locked**.
+* Not built (deferred): full history, search, settlement, results, analytics,
+  championship calculations, persistent leaderboards.
+
+### 10.2 Automated regression coverage added in Stage G
+
+| File | What it proves |
+|---|---|
+| `tests/backend/test_backend_locked_entry.py` (8) | lock-pending then locked status; stored current version (replacement v2, buckets 4/3/2); open round does not hide it; no duplicate of the current round; current-round draft changes leave it unchanged; draft save, replace and withdraw refused after the deadline; withdrawn and never-entered accounts get nothing; owner scope; guests refused; development rounds hidden unless enabled |
+| `tests/backend/test_app_persistence.py` (11) | page code on real PostgreSQL: guest work never replaced before the keep/discard choice; unsaved changes survive hydration and saved work is restored in a new tab; a stale device gets a conflict and keeps its own copy, the other device's draft is untouched, "Load latest" brings it in; overlapping saves from one tab keep the newest; account switch clears the other account's work; Match Lab frozen context uses the snapshot baseline, live context the latest data, a fixture outside the round falls back to live; My Challenge locked-entry card (pending → locked text, stored odds, credits, no results, no Withdraw), unchanged by draft changes, not duplicated, absent for withdrawn, never-entered and guest; current round after the deadline says "Deadline passed" until locked |
+| `tests/backend/test_backend_schedule_display.py` (5) | SAST conversion (midnight crossing, no DST); stored frozen time and deadline shown as stored; no page hard-codes "Thursday"/"Friday"; an alternative schedule (own window and publication rule) works with the same 15-minute deadline rule while Friday 08:00 SAST stays the default; Friday-evening participation window arithmetic |
+| `tests/backend/test_backend_upgrade_paths.py` (3) | fresh install to `app_0005` with schedule v2; upgrade from 6C.2 (`app_0002`) keeps accounts and Your View numbers exactly (row becomes `unassigned`); upgrade from the Stage D checkpoint (`app_0003`) keeps round, draft (version 4), confirmed entry and Your View with no row lost or duplicated; submissions still immutable; downgrade/re-upgrade to each revision keeps data; a new engine reads the same state |
+
+Stage F defects and their durable tests: deadline after lock waits
+(`test_backend_entries::test_waiting_for_the_lock_job_cannot_extend_the_window`,
+`…another_device…`, `test_backend_drafts::test_waiting_for_another_device_cannot_extend_the_draft_window`);
+stale-device handling (`test_app_persistence::test_stale_device…`); guest work
+before the decision (`test_app_persistence::test_guest_work…`); open round chosen
+over an expired one (`test_backend_rounds::test_current_round_prefers_an_open_round_before_its_deadline`);
+overlapping same-tab saves (`test_backend_drafts::test_saves_from_one_tab_are_ordered…`,
+`test_app_persistence::test_overlapping_saves…`); separate tabs and devices
+(`test_backend_drafts::test_concurrent_saves_from_two_devices`,
+`test_backend_entries::test_simultaneous_confirmations_from_two_devices`).
+
+### 10.3 Schedules and times (T-19, D-11 revised)
+
+Friday 08:00 SAST remains the default publication rule (schedule `weekend` v2);
+alternative schedules remain supported (`create_round(schedule_code=…)`). The
+deadline is always the earliest included kickoff minus 15 minutes. Pages display
+stored UTC times converted to SAST (`Africa/Johannesburg`, UTC+2 all year).
+
+**Shorter participation window with Friday-evening fixtures** (reported, no rule
+changed): when a round includes a Friday-evening kickoff the common deadline falls
+on Friday evening, so publication at 08:00 SAST leaves about 10–13 hours (12 h 45 min
+for a 21:00 kickoff; 10 h 45 min for 19:00). Weeks without Friday fixtures keep the
+full Friday-to-Saturday window.
+
+### 10.4 Quantitative regression (engines unchanged)
+
+* `git diff 597ed70 HEAD -- src/diski9/challenge src/diski9/screener src/diski9/odds
+  src/diski9/db src/diski9/ingestion src/diski9/api_football src/diski9/research`
+  is **empty**: Goal Model 1.0, odds/consensus, classification, feasibility,
+  accumulator and payout engines, analysis (512-state, conditional), scoring and the
+  football database code are byte-identical to the pre-persistence baseline.
+* `tools/phase6c3_quant_regression.py` computes on fixed inputs (the frozen
+  demonstration pool, 420 outcomes; six deterministic complete portfolios; a Goal
+  Model grid of 24 goal-estimate pairs; the demonstration scoring rounds and the
+  classification boundaries 0/4/5/6/200 entries with and without cancellation):
+  outcome assessments and buckets, the round-opening report, Market and Diski 9
+  evaluations (recovery probability, nothing-back probability, expected gross,
+  full payout distributions), Your View source evaluation, the 512-state correct-count
+  analysis, the calculation breakdown, the application service's cached evaluation,
+  Goal Model market probabilities, round scores and championship summary. Run on
+  `597ed70` (separate worktree and environment) and on this branch, the 1.47 MB
+  JSON outputs are **byte-identical** (SHA-256 `88bcd717deca6c1c…`).
+* The engine suites (14 files, 407 tests) pass on both the baseline and this branch.
+* Persistence round trips: stored submissions equal the engine's values
+  (`test_backend_entries::test_confirmation_stores_snapshot_values_and_engine_evaluation`);
+  snapshots round-trip with identical fingerprints at full precision
+  (`test_backend_rounds::test_real_pool_round_trips_at_full_precision`).
+
+### 10.5 Database migration and restart checks
+
+The upgrade-path tests above, the existing migration suite (clean upgrade,
+downgrade to base, repeat upgrade, mirror agreement, history-table protection,
+runtime-role privileges, browser roles) and a real PostgreSQL server restart
+(`pg_ctl restart -m fast`) of the browser-journey database: users, drafts,
+submissions, confirmed entries, Your View rows, rounds and the snapshot
+fingerprints (MD5 of all fingerprints) were identical before and after
+(42 / 37 / 19 / 15 / 6 / 8).
+
+### 10.6 Browser acceptance (Stage G)
+
+Journeys A–G (Stage F) still apply; the Stage G code changes touch only My
+Challenge and the post-deadline display, so they were not repeated. New:
+
+* **Journey H** (`tools/e2e_6c3/journey_h.js`, run twice, rounds `dev-lock-e2e8`
+  and `dev-lock-e2e9`): a participant confirms nine predictions in a 4-minute round;
+  after the deadline the mirrored round becomes current and My Challenge shows the
+  card **Deadline passed … waiting to be locked**; after `round lock` it shows
+  **Locked** and the practice classification; the nine stored odds are all shown;
+  the card has no buttons; adding current-round predictions leaves it identical;
+  no horizontal overflow at 768 and 390 px; another account sees neither the card
+  nor the round code; no page errors.
+* **Screenshots** (`tools/e2e_6c3/shots.js`): Weekly Challenge frozen information,
+  Screener Weekly Challenge and All Upcoming Fixtures context lines, Match Lab
+  frozen and latest headers, My Challenge current round, each at 1360, 768 and
+  390 px; no overflow, no page errors; the frozen Your View (1.27 → 1.42) persisted
+  across a reload while the live context stayed at 1.27.
+
+### 10.7 Performance (browser end to end and backend)
+
+Browser timings (`tools/e2e_6c3/perf.js`, headless Chromium, same container, same
+football data copy, median of 5 runs; Match Lab steps once). An action ends with
+the last Dash callback of its continuous chain (Resource Timing; a gap over 1 s
+ends it). Configurations: **A** pre-persistence app `597ed70` (prototype,
+demonstration round, its odds are stale so only the demo round is playable);
+**B** this branch in prototype mode (accounts off, same demo round); **C** this
+branch with accounts on, guest, published round `dev-mirror-e2e` (20 fixtures);
+**D** the same signed in (persistence active).
+
+| ms (median) | A baseline | B prototype | C guest | D signed in |
+|---|---|---|---|---|
+| Weekly Challenge load | 440 | 475 | 749 | 1,071 |
+| Add prediction | 166 | 174 | 148 | 192 |
+| Remove prediction | 151 | 172 | 118 | 178 |
+| Screener load | 259 | 287 | 341 | 453 |
+| Match Lab open (row click) | 1,588 | 1,512 | 1,624 | 828 |
+| Your View adjustment | 580 | 538 | 587 | 631 |
+| Your View reset | 566 | 563 | 645 | 665 |
+| Context switch (All upcoming) | — | — | 1,153 | 1,796 |
+| My Challenge load | 308 | 310 | 315 | 370 |
+
+* **A versus B** (same inputs): equivalent within run-to-run noise — no code
+  regression on the prototype path.
+* **C/D versus A/B** use a different round (published 20-fixture snapshot versus the
+  demonstration pool) and the first row of the Screener differs, so Match Lab and
+  context-switch figures are not directly comparable across those columns.
+* **D versus C** (persistence cost on the same round): about +320 ms on the Weekly
+  Challenge load and +640 ms on the context switch; saves on add/remove are within
+  noise (+30–60 ms). Server-side profiling: each signed-in callback first runs the
+  Phase 6C.2 session check (`_before_request` → `sessions.resolve`, about 10 ms
+  alone, up to about 125 ms when five callbacks run in parallel) and then 30–40 ms
+  of persistence reads (draft, entry, Your View context resolution). No repeated
+  writes were found: identical saves write nothing (tested), hydration reads only
+  on page load or route change.
+* **Intermittent outlier, not caused by persistence:** about every 5 minutes (the
+  `--ttl 300` default) one request rebuilds the Screener data (bookmaker consensus
+  for ~240 fixtures, ~0.9 s alone, ~3 s with concurrent requests waiting); measured
+  earlier as 3–4 s loads. Unchanged since the baseline; candidates for later work:
+  background refresh. A trailing 4 ms callback ~3.7 s after a guest page load is a
+  client-side follow-up and not counted.
+* Backend services (Stage F, local PostgreSQL, median of 20): publish 41 ms;
+  snapshot load 5.8 ms uncached / 0.3 ms cached; draft save 11.7 ms; Your View save
+  2.7 ms; current round 2.4 ms.
+* Limitations: one container, local PostgreSQL and local auth on the same host;
+  no network latency; small data; no baseline exists for signed-in behaviour
+  (persistence did not exist), so D is compared with C.

@@ -184,8 +184,9 @@ The open round with the earliest deadline still ahead is shown, so this short ro
 Have 5 accounts confirm entries within the 10 minutes (or fewer, for a practice round).
 
 After the deadline:
-- the builder says **Deadline passed**;
-- predictions, Confirm and Withdraw are refused.
+- predictions, Confirm and Withdraw are refused for the short round;
+- the app shows the open round whose deadline is still ahead again (`dev-accept-1`), so the short round moves to the **Most recent locked entry** card on My Challenge (section H), marked **Deadline passed** until it is locked;
+- the builder shows **Deadline passed** for the short round only when no other open round has a deadline ahead.
 
 Then lock it:
 
@@ -199,7 +200,20 @@ uv run diski9 round lock --code dev-lock-1
 
 Before the deadline, `round lock` is refused.
 
-When the short round is locked, the app goes back to showing `dev-accept-1`.
+After the lock the card says **Locked** and shows the classification.
+
+### H. Most recent locked entry
+Use the account that confirmed an entry in the short round of section E (or repeat section E with a single account; a practice round is fine).
+
+1. While `dev-accept-1` is open, open **My Challenge**. Below the cards for the current round there is a card **Most recent locked entry** with the short round's code.
+2. Before `round lock` it says **Deadline passed**: "this entry can no longer change. The round is waiting to be locked." After `round lock` it says **Locked**: "It cannot be edited, replaced or withdrawn."
+3. Check the facts: deadline, frozen-odds time, confirmation time (and version if you replaced), classification after the lock, credits 100 virtual (40 / 30 / 20 / 10), maximum payout, and "Results: not available yet".
+4. Open **Show the nine predictions in …**: your nine confirmed predictions with their frozen odds and market probabilities. The card has no buttons.
+5. Change predictions in the current round (Weekly Challenge): the locked card does not change.
+6. Sign out and sign in as another account (one that did not enter the short round, or withdrew before its deadline): no locked card appears.
+7. Narrow the window (or use the browser's device mode at 390 px): the card stacks without horizontal scrolling.
+
+The card shows only the most recent round whose deadline has passed. Full history, results and settlement come in later phases.
 
 ## 8. Run the automated tests
 
@@ -217,10 +231,16 @@ uv run pytest -q
 
 The genuine Supabase Auth tests run only with a local Supabase Auth server, as in the Phase 6C.2 guide, section 14. One test always skips: it needs a hosted Supabase `auth` schema.
 
+One Stage G test module (`tests/backend/test_backend_upgrade_paths.py`) creates and drops its own database `diski9_upgrade_test` on the same PostgreSQL server as your test database, to check the upgrade paths. It never touches `diski9_test`'s data or your development database. Your test database user needs permission to create databases (the default `postgres` user in your container has it).
+
 ## 9. Known limitations to keep in mind
 - Settlement, results, leaderboards and championship points are not built yet (later phases). The championship panel and Leaderboards are demonstration data.
 - In a mirrored development round the odds are synthetic; only fixtures, teams, kickoffs and estimated goals are real.
 - Automated Friday publication is Phase 6C.6. Rounds are published with the commands above.
+- My Challenge shows the current round and the single most recent locked entry; older entries and results are not shown yet.
+- With Friday-evening fixtures, Friday 08:00 SAST publication leaves about 10–13 hours before the deadline.
+- About every 5 minutes one page load is slower (1–3 s) while the Screener refreshes its football data; this is unchanged from before Phase 6C.3.
+- Opening a match by typing `/?fixture=<id>` in the address bar does not select it; use the Match Lab links in the builder or click the row.
 
 ## 10. Going back
 

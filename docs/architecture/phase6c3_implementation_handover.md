@@ -1,4 +1,4 @@
-# Phase 6C.3 — Handover at the Stage F checkpoint (resume Stage G from here)
+# Phase 6C.3 — Handover (Stage G complete; awaiting owner acceptance)
 
 This document lets Phase 6C.3 resume after context compaction without the
 conversation history. Read it with:
@@ -25,8 +25,10 @@ conversation history. Read it with:
 | Baseline | `feature/match-lab-guidance` `597ed70` (1,158 tests) |
 | Checkpoint A–D (accepted) | `96d127c` |
 | After the checkpoint | `48e8f04` refinements · `1d5014a` Stage E · `bdace69` Stage F part 1 · `560c37a` Stage F journey fixes · Stage F checkpoint commit (this document; see `git log -1`) |
-| Stages | A–F **complete**; Stage G **not started beyond the browser journeys already run** (§6) |
-| Owner instruction | stop at this checkpoint for compaction; Stage G remains authorised |
+| Stage F checkpoint | `62a3147` (accepted by the owner, 19 Nov 2026) |
+| Stage G | `3e597e7` locked entry, post-deadline display, regression and upgrade tests · final Stage G commit (docs, screenshots, tools; see `git log -1`) |
+| Stages | A–G **complete**; Phase 6C.3 awaits the owner's local acceptance (no 6C.4) |
+| Owner instruction | stop for product-owner acceptance testing; no merge, tag or deploy |
 
 ## 2. Approved decisions in force (do not reopen)
 
@@ -92,7 +94,7 @@ database clock; deadlines are re-checked with `clock_timestamp()` after all lock
   note, Match Lab context line, review footer, My Challenge facts and states).
 * CLI `diski9 round list|show|create|publish|lock|dev-open [--mirror-upcoming]`.
 
-## 4. Tests run and results (this checkpoint)
+## 4. Tests run and results (Stage F checkpoint; Stage G results in §9)
 
 * Backend (real PostgreSQL): rounds, drafts, Your View, refinements (contexts,
   migration of existing rows, adoption, construction age boundaries, Friday
@@ -136,12 +138,18 @@ done.**
 
 ## 6. Known issues and limitations
 
-* My Challenge shows the **current** round only: once a short round locks while
-  another round is open, the locked entry is no longer shown (history of past
-  rounds belongs to 6C.5). Decide in Stage G whether to show the participant's
-  most recent locked entry as well (would be a UX addition; flag to the owner).
-* After the deadline but before the lock, the builder shows the "Deadline passed"
-  ribbon (screenshot), not separately asserted in text by the Journey E script.
+* ~~My Challenge shows the current round only~~ — resolved in Stage G by the
+  owner-approved **Most recent locked entry** card (T-20); full history stays
+  deferred to 6C.5.
+* ~~After the deadline a freshly loaded page showed the round as unavailable~~ —
+  fixed in Stage G; "Deadline passed" (lock pending) versus "Locked" is asserted by
+  `test_app_persistence` and Journey H.
+* Screener data refresh (`--ttl`, default 300 s) makes one request every few
+  minutes take 1–3 s (unchanged since before 6C.3).
+* Typing `/?fixture=<id>` directly does not select the match (the link works only
+  inside the app), so the journeys that load that address open the match the
+  Screener selects first, not necessarily the one picked (both contexts were still
+  exercised and asserted).
 * The builder re-renders on round status changes only after the per-process round
   cache (3 s) refreshes.
 * Development rounds mirroring real fixtures use real fixture IDs read-only;
@@ -154,7 +162,7 @@ done.**
 * Friday publication leaves about 10–13 hours before the common deadline in weeks
   with Friday-evening fixtures (reported; no rule changed).
 
-## 7. Remaining Stage G work (precise)
+## 7. Stage G work list (all done; see implementation record §10)
 
 1. **Contextual Your View tests** already covered in backend tests; add an
    app-level test for `lab_context.resolve` (frozen baseline from snapshot, live
@@ -215,3 +223,22 @@ set -a && . tmp/dev/serve.env && set +a && DISKI9_APP_DATABASE_URL=postgresql+ps
 
 Odds trial and research collector schedules run independently (see the session
 summary in the conversation); do not touch them.
+
+## 9. Stage G results (19 Nov 2026)
+
+Full detail: [`phase6c3_implementation.md`](phase6c3_implementation.md) §10.
+
+* Most recent locked entry (T-20) implemented, read-only, owner-scoped; plus the
+  post-deadline display fix.
+* New tests: locked entry (8), application-level persistence (11), schedules and
+  SAST (5), upgrade paths (3).
+* Quantitative regression: engine code byte-identical to `597ed70`; fingerprint
+  JSON byte-identical (SHA-256 `88bcd717…`); engine suites 407/407 on both.
+* Migration paths (fresh, `app_0002`, `app_0003`, down/up) and a real PostgreSQL
+  restart: data identical.
+* Browser: Journey H passed twice; 18 header/context screenshots plus 4 locked-entry
+  captures at desktop, tablet and mobile; no overflow, no page errors.
+* Performance: prototype path unchanged versus the baseline; signed-in overhead on
+  the same round about +320 ms on Weekly Challenge load (session check plus
+  persistence reads); no repeated writes.
+* The final full-suite counts, CI run and commit are in the final report.

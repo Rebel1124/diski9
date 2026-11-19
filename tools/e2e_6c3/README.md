@@ -26,4 +26,16 @@ Run with `NODE_PATH=$(npm root -g) node <script>`:
   deadline ahead earlier than the mirrored round, or the short round's timing
   interferes.
 
+* `journey_h.js` (Stage G) — Journey H: most recent locked entry (short round
+  confirmed, deadline passes, card shows "Deadline passed", lock, card shows
+  "Locked", stored odds, read-only, unchanged by current-round changes, invisible to
+  another account, tablet and mobile captures). `CODE=<new dev code>` per run.
+* `shots.js` (Stage G) — header and context screenshots at 1360, 768 and 390 px
+  with overflow and page-error checks.
+* `perf.js` (Stage G) — end-to-end browser timings (`MODE=demo|guest|account`,
+  `BASE=…`, `RUNS=5`); see `docs/architecture/phase6c3_implementation.md` §10.7.
+
+`owner.json` (git-ignored) only needs the owner's email for the `round` commands:
+`{"email": "…"}`.
+
 Screenshots go to `docs/screenshots/phase6c3/`.
