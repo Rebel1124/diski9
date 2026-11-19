@@ -34,7 +34,16 @@ ROOT = Path(__file__).resolve().parents[2]
 WORK = ROOT / "tmp" / "local_auth"
 TEMPLATES = ROOT / "supabase" / "templates"
 AUTH_DB = "diski9_auth_local"
-SUPABASE_ROLES = ("anon", "authenticated", "service_role", "supabase_admin", "authenticator")
+# "postgres" exists in hosted Supabase and stock installs, but not in every CI image;
+# a Supabase Auth migration grants to it.
+SUPABASE_ROLES = (
+    "anon",
+    "authenticated",
+    "service_role",
+    "supabase_admin",
+    "authenticator",
+    "postgres",
+)
 
 
 def _b64(n: int, length: int) -> str:
