@@ -34,6 +34,7 @@ class Capability(StrEnum):
     SUSPEND_USER = "user.suspend"
     # owner
     REOPEN_CHAMPIONSHIP = "championship.reopen"
+    REOPEN_ROUND = "round.reopen"  # a finalised round's settlement (S-06, owner only)
     MANAGE_ROLES = "roles.manage"
     MANAGE_ENTITLEMENTS = "entitlements.manage"
 
@@ -53,6 +54,7 @@ OPERATOR = PARTICIPANT | {
 }
 OWNER = OPERATOR | {
     Capability.REOPEN_CHAMPIONSHIP,
+    Capability.REOPEN_ROUND,
     Capability.MANAGE_ROLES,
     Capability.MANAGE_ENTITLEMENTS,
 }
@@ -72,6 +74,7 @@ SENSITIVE = frozenset(
         Capability.CORRECT_RESULT,
         Capability.VOID_ROUND,
         Capability.REOPEN_CHAMPIONSHIP,
+        Capability.REOPEN_ROUND,
         Capability.SUSPEND_USER,
     }
 )

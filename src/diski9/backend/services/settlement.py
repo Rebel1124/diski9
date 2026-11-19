@@ -725,7 +725,12 @@ def personal_result(engine: Engine, principal: Principal, round_id: UUID) -> Per
         ).scalar_one_or_none()
         if e is None:
             return None
-        s = _current_entry_settlements(conn, round_id).get(e)
+        s = conn.execute(
+            select(entry_settlements)
+            .where(entry_settlements.c.entry_id == e)
+            .order_by(entry_settlements.c.revision.desc())
+            .limit(1)
+        ).one_or_none()
         if s is None:
             return None
         status = conn.execute(
