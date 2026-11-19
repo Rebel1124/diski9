@@ -164,6 +164,16 @@ def _round(conn: Connection, round_id: UUID, *, for_share: bool):
     return r
 
 
+def ensure_before_deadline(conn: Connection, r) -> None:
+    """``clock_timestamp()`` (not the transaction start), so a wait for another
+    device's lock can never extend the window."""
+    from sqlalchemy import text
+
+    now = conn.execute(text("SELECT clock_timestamp()")).scalar_one()
+    if not _editable(r, now):
+        raise RoundClosed("This round is closed; your saved draft can no longer change.")
+
+
 def _editable(r, now) -> bool:
     return r.status == "open" and r.deadline_at is not None and now < r.deadline_at
 
@@ -214,6 +224,7 @@ def save_draft(
             .where(portfolio_drafts.c.user_id == uid, portfolio_drafts.c.round_id == round_id)
             .with_for_update()
         ).one_or_none()
+        ensure_before_deadline(conn, r)  # re-checked after every lock is held
         if row is not None and list(row.selections) == sels:
             return _view(row, round_id, True)  # nothing changed: no write
         current = row.version if row is not None else 0

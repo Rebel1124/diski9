@@ -345,3 +345,44 @@ def test_a_failed_write_saves_nothing_and_says_so(engine, rnd, monkeypatch):
     assert "still on this page" in exc.value.message and "version" not in exc.value.message
     monkeypatch.undo()
     assert drafts.get_draft(engine, p, view.id) == d  # rolled back
+
+
+def test_waiting_for_another_device_cannot_extend_the_draft_window(engine, op, pg_url):
+    """A draft save that waits for another device's lock past the deadline is
+    refused (the deadline is re-checked after the wait)."""
+    import threading
+
+    from diski9.backend.db import BackendDatabaseSettings, make_app_engine
+
+    view, snap = publish_dev(engine, op, deadline_in=timedelta(seconds=4))
+    p = principal(engine)
+    d = drafts.save_draft(engine, p, view.id, valid_keys(snap, 1), expected_version=0)
+    patient = make_app_engine(
+        BackendDatabaseSettings(environment="test", lock_timeout_ms=20000), url=pg_url
+    )
+    holder = engine.connect()
+    trans = holder.begin()
+    holder.execute(
+        select(portfolio_drafts).where(portfolio_drafts.c.user_id == p.user_id).with_for_update()
+    )
+    out = []
+
+    def attempt():
+        try:
+            out.append(
+                drafts.save_draft(
+                    patient, p, view.id, valid_keys(snap, 2), expected_version=d.version
+                )
+            )
+        except Exception as exc:  # noqa: BLE001
+            out.append(exc)
+
+    t = threading.Thread(target=attempt)
+    t.start()
+    wait_until(engine, view.deadline_at)
+    trans.rollback()
+    holder.close()
+    t.join(timeout=10)
+    patient.dispose()
+    assert isinstance(out[0], RoundClosed)
+    assert drafts.get_draft(engine, p, view.id).version == d.version

@@ -255,7 +255,13 @@ def _save_draft_in(conn: Connection, uid: UUID, guest: Mapping, expected: int) -
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     rid = UUID(str(guest["round_id"]))
-    drafts_svc._round(conn, rid, for_share=True)
+    r = drafts_svc._round(conn, rid, for_share=True)
+    conn.execute(
+        select(portfolio_drafts.c.version)
+        .where(portfolio_drafts.c.user_id == uid, portfolio_drafts.c.round_id == rid)
+        .with_for_update()
+    )
+    drafts_svc.ensure_before_deadline(conn, r)
     snap = snapshots.CACHE.get(conn, rid)
     sels = drafts_svc.parse_selections(guest["selections"])
     drafts_svc.validate_selections(snap, sels)
