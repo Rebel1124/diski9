@@ -1,4 +1,10 @@
-# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6C.0/6C.1)
+# Diski 9 Weekly Challenge — Decision Register (revised, Phase 6C.2)
+
+**Phase 6C.2 (owner brief):** architecture confirmed (Supabase Auth; Supabase-hosted
+PostgreSQL for future production; local PostgreSQL and local Supabase for
+development; hosting still undecided until Phase 10; no AWS). Implemented as
+described in [`docs/authentication.md`](../authentication.md). New proposals awaiting
+approval are listed under "Outstanding" (T-14 to T-17).
 
 **Phase 6C.0/6C.1 approval (owner review):** D-01 (Supabase Auth), D-08
 (`settle/v1`), D-29b (research collection activation), D-39 (football store stays
@@ -145,6 +151,10 @@ documents linked below.
 
 | ID | Question | Recommendation | Needed |
 |---|---|---|---|
+| T-14 | **Sensitive-operation re-authentication (proposed, Phase 6C.2):** the password must have been entered within 15 minutes for changing roles or entitlements, overriding results, invalidating rounds, reopening frozen championships, suspending accounts and changing the password; operator capabilities otherwise need a sign-in within 12 hours (T-12) | Approve as implemented (15 minutes, the owner's suggested starting point) | Before 6C.4 operator actions |
+| T-15 | **Guest drafts at authentication transitions (proposed):** browser-tab prototype state is retained in the tab when a guest signs in (never adopted), cleared at sign-out, and cleared when a different account signs in in the same tab; Phase 6C.3 adds an explicit "save this draft to my account" action | Approve | Before 6C.3 |
+| T-16 | **Provider revalidation interval (proposed):** provider tokens are refreshed when the access token is within 5 minutes of expiry, so a revocation at Supabase ends ordinary browsing within about an hour; privileged operations check the provider immediately and fail closed | Approve | 6C.3 |
+| T-17 | **Email links with a confirm button (proposed):** confirmation and recovery links open a page with a button; only the button uses the single-use token (protects against email scanners) | Approve | 6C.3 |
 | D-29 | **Championship scoring validation (open validation requirement):** validate `points-150-75-v2` and D-32b on six to eight qualifying real weekly pools (observed voids separate from simulated scenarios). Retain D-31 unless the evidence is compelling | Run as pools accumulate | Before the first official championship |
 | D-36 | Final data-retention policy | Pseudonymisation as in the database design §11; log retention 30 days; backups per provider schedule; legal review | Before launch |
 

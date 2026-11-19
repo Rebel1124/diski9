@@ -19,3 +19,6 @@ data/
 *.sqlite3
 *.db
 tmp/
+supabase/signing_keys.json
+supabase/.temp/
+supabase/.branches/

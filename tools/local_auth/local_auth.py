@@ -48,9 +48,14 @@ def es256_jwk(kid: str) -> dict:
     key = ec.generate_private_key(ec.SECP256R1())
     pub = key.public_key().public_numbers()
     return {
-        "kty": "EC", "crv": "P-256", "alg": "ES256", "kid": kid, "use": "sig",
+        "kty": "EC",
+        "crv": "P-256",
+        "alg": "ES256",
+        "kid": kid,
+        "use": "sig",
         "key_ops": ["sign", "verify"],
-        "x": _b64(pub.x, 32), "y": _b64(pub.y, 32),
+        "x": _b64(pub.x, 32),
+        "y": _b64(pub.y, 32),
         "d": _b64(key.private_numbers().private_value, 32),
     }
 
@@ -60,8 +65,16 @@ def legacy_api_key(secret: str, role: str) -> str:
     the Supabase CLI does for its local anon and service_role keys."""
     import jwt
 
-    return jwt.encode({"role": role, "iss": "supabase-local", "iat": int(time.time()),
-                       "exp": int(time.time()) + 10 * 365 * 86400}, secret, algorithm="HS256")
+    return jwt.encode(
+        {
+            "role": role,
+            "iss": "supabase-local",
+            "iat": int(time.time()),
+            "exp": int(time.time()) + 10 * 365 * 86400,
+        },
+        secret,
+        algorithm="HS256",
+    )
 
 
 def prepare(admin_url: str) -> None:
@@ -78,9 +91,9 @@ def prepare(admin_url: str) -> None:
                 f"THEN CREATE ROLE {role} NOLOGIN; END IF; END $$;"
             )
         conn.execute(
-            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_auth_admin') "
-            "THEN CREATE ROLE supabase_auth_admin NOINHERIT CREATEROLE LOGIN PASSWORD 'local-auth-only'; "
-            "END IF; END $$;"
+            "DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles "
+            "WHERE rolname = 'supabase_auth_admin') THEN CREATE ROLE supabase_auth_admin "
+            "NOINHERIT CREATEROLE LOGIN PASSWORD 'local-auth-only'; END IF; END $$;"
         )
     db_url = admin_url.rsplit("/", 1)[0] + f"/{AUTH_DB}"
     with psycopg.connect(db_url, autocommit=True) as conn:
@@ -91,7 +104,9 @@ def prepare(admin_url: str) -> None:
 
 
 def _serve_templates(port: int) -> None:
-    handler = lambda *a, **k: http.server.SimpleHTTPRequestHandler(*a, directory=str(TEMPLATES), **k)  # noqa: E731
+    def handler(*a, **k):
+        return http.server.SimpleHTTPRequestHandler(*a, directory=str(TEMPLATES), **k)
+
     httpd = socketserver.TCPServer(("127.0.0.1", port), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
 
@@ -108,8 +123,13 @@ def config(args) -> dict:
         state["service_role_key"] = legacy_api_key(secret, "service_role")
         keys_file.write_text(json.dumps(state, indent=2))
         keys_file.chmod(0o600)
-    legacy = {"kty": "oct", "k": base64.urlsafe_b64encode(state["legacy_secret"].encode()).rstrip(b"=").decode(),
-              "kid": "legacy", "alg": "HS256", "key_ops": ["verify"]}
+    legacy = {
+        "kty": "oct",
+        "k": base64.urlsafe_b64encode(state["legacy_secret"].encode()).rstrip(b"=").decode(),
+        "kid": "legacy",
+        "alg": "HS256",
+        "key_ops": ["verify"],
+    }
     return {
         "state": state,
         "env": {
@@ -201,8 +221,10 @@ def main() -> None:
     pr.add_argument("--admin-url", required=True)
     r = sub.add_parser("run")
     r.add_argument("--gotrue", required=True, help="path to the Supabase Auth binary")
-    r.add_argument("--auth-db-url",
-                   default=f"postgres://supabase_auth_admin:local-auth-only@127.0.0.1:5433/{AUTH_DB}")
+    r.add_argument(
+        "--auth-db-url",
+        default=f"postgres://supabase_auth_admin:local-auth-only@127.0.0.1:5433/{AUTH_DB}",
+    )
     r.add_argument("--port", type=int, default=9999)
     r.add_argument("--smtp-port", type=int, default=2500)
     r.add_argument("--template-port", type=int, default=9998)

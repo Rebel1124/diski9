@@ -55,6 +55,11 @@ class BackendDatabaseSettings(BaseSettings):
     statement_timeout_ms: int = Field(default=15_000, ge=100)
     lock_timeout_ms: int = Field(default=5_000, ge=50)
     echo_sql: bool = False
+    # "session": a direct connection or Supabase's session pooler (port 5432), which
+    # keep session settings; "transaction": Supabase's transaction pooler (port
+    # 6543), where settings are applied per transaction and prepared statements are
+    # disabled. Transaction-level locks and the database clock work in both.
+    pooler_mode: Literal["session", "transaction"] = "session"
 
     @field_validator("database_url")
     @classmethod

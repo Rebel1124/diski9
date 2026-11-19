@@ -33,10 +33,18 @@ def make_app_engine(
     """A pooled engine for the competition database."""
     settings = settings or BackendDatabaseSettings()
     target = url or settings.url()
-    options = (
-        f"-c timezone=UTC -c statement_timeout={settings.statement_timeout_ms} "
-        f"-c lock_timeout={settings.lock_timeout_ms}"
-    )
+    connect_args: dict = {"application_name": APPLICATION_NAME}
+    session_settings = {
+        "timezone": "UTC",
+        "statement_timeout": str(settings.statement_timeout_ms),
+        "lock_timeout": str(settings.lock_timeout_ms),
+    }
+    if settings.pooler_mode == "session":
+        connect_args["options"] = " ".join(f"-c {k}={v}" for k, v in session_settings.items())
+    else:
+        # transaction poolers reuse server connections between clients: no startup
+        # options, no server-side prepared statements
+        connect_args["prepare_threshold"] = None
     engine = create_engine(
         target,
         pool_size=settings.pool_size,
@@ -46,8 +54,15 @@ def make_app_engine(
         pool_pre_ping=True,
         echo=settings.echo_sql,
         hide_parameters=True,
-        connect_args={"options": options, "application_name": APPLICATION_NAME},
+        connect_args=connect_args,
     )
+
+    if settings.pooler_mode == "transaction":
+
+        @event.listens_for(engine, "begin")
+        def _per_transaction_settings(conn) -> None:
+            for key, value in session_settings.items():
+                conn.exec_driver_sql(f"SELECT set_config('{key}', '{value}', true)")
 
     @event.listens_for(engine, "handle_error")
     def _log_error(ctx) -> None:  # pragma: no cover - logging only

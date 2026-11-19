@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0 and 6C.1 implemented (see the implementation notes at the end); 6C.2 onwards not started. Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented (see the implementation notes at the end); 6C.3 onwards not started. Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -250,3 +250,25 @@ could not push to the repository.
   because roles are cluster-wide; repositories cover the foundation tables only
   (settlement, scoring and championship queries come with their stages).
 * Details and commands: [`docs/backend.md`](../backend.md).
+
+## Implementation notes (6C.2)
+
+**6C.2 — authentication, accounts and permissions (done, branch
+`feature/phase-6c2-authentication`).** Details: [`docs/authentication.md`](../authentication.md).
+* **Flow:** Supabase Auth through the official Python client server-side; email and
+  password; token_hash email links verified with `verify_otp` behind a confirm
+  button; Diski 9's own server-side sessions; provider tokens encrypted and
+  refreshed under a row lock.
+* **Database:** migration `app_0002` (session provider columns, authentication
+  rate-limit events, beta terms version, row-level security on every `app` table
+  with access only for `diski9_app`; nothing for Supabase's browser roles).
+* **Modules:** `diski9.backend.auth` (`settings`, `crypto`, `provider`, `sessions`,
+  `accounts`, `usernames`, `permissions`, `privileged`, `ratelimit`, `web`,
+  templates); account menu in `diski9.app.app`; `assets/account.css`,
+  `assets/account.js`; CLI `diski9 account ...`; `tools/local_auth/` (local
+  Supabase Auth harness); `supabase/config.toml` and email templates.
+* **Deviations:** none from the brief. Google sign-in deferred as allowed. Sign-out
+  from the Dash menu goes through a confirmation page (a POST with a CSRF token).
+* **Tests:** unit, mocked-provider (real PostgreSQL), Supabase PostgreSQL
+  compatibility, and genuine Supabase Auth integration (local server; CI uses the
+  official image). Hosted Supabase not tested (needs an owner-created project).

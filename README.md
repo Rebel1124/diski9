@@ -74,6 +74,9 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
   * release notes: [`docs/releases/v4.0.0.md`](docs/releases/v4.0.0.md); history:
     [`CHANGELOG.md`](CHANGELOG.md)
 
+* **Phase 6C.2 — accounts (in development, not released):** Supabase Auth sign-up,
+  sign-in, verification, recovery, usernames, privacy, sessions and permissions:
+  [`docs/authentication.md`](docs/authentication.md)
 * **Phase 6C.1 — PostgreSQL foundation (in development, not released):** competition
   database schema, migrations, repositories and tests on real PostgreSQL:
   [`docs/backend.md`](docs/backend.md)

@@ -68,5 +68,28 @@ jobs:
           uv run diski9 app-db downgrade --revision base
           uv run diski9 app-db upgrade
 
-      - name: Test suite (including PostgreSQL integration tests)
-        run: uv run pytest -q -p no:cacheprovider
+      - name: Start a real Supabase Auth server (official image) for integration tests
+        env:
+          SUPABASE_AUTH_IMAGE: supabase/gotrue:v2.198.0
+        run: |
+          docker pull -q "$SUPABASE_AUTH_IMAGE"
+          bin=$(docker run --rm --entrypoint sh "$SUPABASE_AUTH_IMAGE" -c 'command -v auth || command -v gotrue')
+          docker create --name supabase-auth "$SUPABASE_AUTH_IMAGE" >/dev/null
+          docker cp "supabase-auth:$bin" ./supabase-auth-bin
+          docker rm supabase-auth >/dev/null
+          uv run python tools/local_auth/local_auth.py prepare \
+            --admin-url postgresql://diski9:ci-only-password@localhost:5432/postgres
+          nohup uv run python tools/local_auth/local_auth.py run --gotrue ./supabase-auth-bin \
+            --auth-db-url postgres://supabase_auth_admin:local-auth-only@localhost:5432/diski9_auth_local \
+            > supabase-auth.log 2>&1 &
+          for i in $(seq 1 90); do
+            if [ -f tmp/local_auth/env ] && curl -sf http://127.0.0.1:9999/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl -sf http://127.0.0.1:9999/health || (cat supabase-auth.log; exit 1)
+          cat tmp/local_auth/env >> "$GITHUB_ENV"
+          echo "DISKI9_TEST_SUPABASE_DB_URL=postgresql+psycopg://diski9:ci-only-password@localhost:5432/diski9_auth_local" >> "$GITHUB_ENV"
+          echo "DISKI9_REQUIRE_SUPABASE_AUTH=1" >> "$GITHUB_ENV"
+
+      - name: Test suite (PostgreSQL and real Supabase Auth integration tests)
+        run: uv run pytest -q -p no:cacheprovider -rs

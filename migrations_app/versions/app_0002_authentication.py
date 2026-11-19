@@ -103,8 +103,9 @@ BEGIN
   END LOOP;
 END $$;
 DROP TABLE app.auth_rate_events;
--- terms_acceptances referencing this version (if any) block the delete, by design
-DELETE FROM app.terms_versions WHERE version = '{TERMS_VERSION}';
+-- acceptances are insert-only history: keep the version if anyone accepted it
+DELETE FROM app.terms_versions WHERE version = '{TERMS_VERSION}'
+  AND NOT EXISTS (SELECT 1 FROM app.terms_acceptances WHERE terms_version = '{TERMS_VERSION}');
 DROP INDEX app.ix_app_sessions_provider_session;
 ALTER TABLE app.app_sessions
   DROP COLUMN provider_session_id,

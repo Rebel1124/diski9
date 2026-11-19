@@ -114,7 +114,7 @@ released revision.
 
 The full design, with the relationship diagram, is in
 [`docs/architecture/phase6c_database_design.md`](architecture/phase6c_database_design.md).
-Revision `app_0001` creates 37 tables in schema `app`:
+Revision `app_0001` creates 37 tables in schema `app` (revision `app_0002`, Phase 6C.2, adds `auth_rate_events`, provider-linked session columns, the beta terms version and row-level security; see [`docs/authentication.md`](authentication.md)):
 
 | Area | Tables |
 |---|---|
