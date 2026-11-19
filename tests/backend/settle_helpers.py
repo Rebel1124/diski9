@@ -28,13 +28,13 @@ from diski9.backend.services import rounds as svc
 from diski9.challenge.config import DEFAULT_CONFIG
 from diski9.challenge.structured import evaluate_groups
 
-N_FIXTURES = 12
+N_FIXTURES = 18
 # (market, outcome, bucket, market probability, odds for fixture i)
 OUTCOMES = (
-    ("1X2", "HOME", "A", 0.70, lambda i: Decimal(f"1.{31 + i}")),
-    ("BTTS", "BTTS_YES", "B", 0.52, lambda i: Decimal(f"1.{85 + i}")),
-    ("OU25", "UNDER_2_5", "B", 0.47, lambda i: Decimal(f"2.0{i % 10}")),
-    ("1X2", "AWAY", "C", 0.28, lambda i: Decimal(f"3.{15 + i}")),
+    ("1X2", "HOME", "A", 0.70, lambda i: Decimal("1.31") + Decimal(i) / 100),
+    ("BTTS", "BTTS_YES", "B", 0.52, lambda i: Decimal("1.77") + Decimal(i) / 100),
+    ("OU25", "UNDER_2_5", "B", 0.47, lambda i: Decimal("2.03") + Decimal(i) / 100),
+    ("1X2", "AWAY", "C", 0.28, lambda i: Decimal("3.15") + Decimal(i) / 100),
 )
 BY_KEY = {(m, o): (b, p, f) for m, o, b, p, f in OUTCOMES}
 DEFAULT_ENTRY = (
@@ -216,3 +216,27 @@ def provider_item(fid, status, *, ko, h=None, a=None, first_half=None, extra=Non
     if extra:
         item["fixture"].update(extra)
     return item
+
+
+def settlement_worlds(
+    engine, rounds_specs, *, development=False, cutoff_after=timedelta(seconds=3)
+):
+    """Several rounds created together, so one wait covers every deadline."""
+    made = []
+    with transaction(engine) as conn:
+        for specs in rounds_specs:
+            rid, snap, fids, deadline, cutoff = make_settlement_round(
+                conn, deadline_in=timedelta(seconds=3), cutoff_after=cutoff_after,
+                development=development,
+            )  # fmt: skip
+            users, ents = [], []
+            for spec in specs:
+                u = make_user(conn)
+                users.append(u)
+                ents.append(confirm_entry(conn, rid, snap, fids, u, spec)[0])
+            made.append({"round": rid, "snapshot": snap, "fixtures": fids, "deadline": deadline,
+                         "cutoff": cutoff, "users": users, "entries": ents})  # fmt: skip
+    wait_until(engine, max(w["deadline"] for w in made))
+    for w in made:
+        svc.lock_round(engine, svc.SYSTEM, w["round"])
+    return made
