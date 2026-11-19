@@ -349,8 +349,100 @@ def cmd_refresh_data(args, engine) -> None:
 def cmd_serve(args, engine) -> None:
     from diski9.app import ScreenerData, create_app
 
-    app = create_app(ScreenerData(engine, ttl_seconds=args.ttl, tz=args.tz))
+    auth = None
+    from diski9.backend.auth.settings import AuthSettings
+
+    auth_settings = AuthSettings()
+    if auth_settings.enabled:
+        from diski9.backend.auth.web import AuthRuntime
+        from diski9.backend.db import make_app_engine
+
+        auth = AuthRuntime.create(make_app_engine(), auth_settings)
+        print("Accounts enabled (Supabase Auth)")
+    else:
+        print("Accounts disabled: DISKI9_SUPABASE_AUTH_URL / _PUBLISHABLE_KEY not set (guest mode)")
+    app = create_app(ScreenerData(engine, ttl_seconds=args.ttl, tz=args.tz), auth=auth)
     app.run(host=args.host, port=args.port, debug=args.debug)
+
+
+def cmd_account(args) -> int:
+    """Server-side account administration. There is no web equivalent: these need
+    shell access to the server and its database credentials."""
+    from diski9.backend.auth import privileged as pv
+
+    if args.action == "generate-keys":
+        import secrets as _s
+
+        from diski9.backend.auth.crypto import generate_fernet_key
+
+        print(f"DISKI9_APP_SECRET_KEY={_s.token_urlsafe(48)}")
+        print(f"DISKI9_APP_TOKEN_ENCRYPTION_KEY={generate_fernet_key()}")
+        print("# put these in your untracked .env (or the host's secret store); never commit them")
+        return 0
+    from diski9.backend.auth.sessions import revoke_all_sessions
+    from diski9.backend.db import make_app_engine, transaction
+
+    engine = make_app_engine()
+    try:
+        with transaction(engine) as conn:
+            if args.action == "list-privileged":
+                from sqlalchemy import select
+
+                from diski9.backend.db.schema import profiles, user_roles
+
+                rows = conn.execute(
+                    select(user_roles.c.role, profiles.c.username, user_roles.c.granted_at)
+                    .join(profiles, profiles.c.user_id == user_roles.c.user_id)
+                    .order_by(user_roles.c.role, profiles.c.username)
+                ).all()
+                for r in rows:
+                    print(f"{r.role:8} {r.username} (since {r.granted_at:%Y-%m-%d})")
+                if not rows:
+                    print("no operators or owners")
+                return 0
+            if not args.email:
+                print("error: --email is required", file=sys.stderr)
+                return 2
+            target = pv.find_user_by_email(conn, args.email)
+            if args.action == "bootstrap-owner":
+                if not args.confirm:
+                    print("error: add --confirm to grant the first owner role", file=sys.stderr)
+                    return 2
+                pv.bootstrap_owner(conn, target, args.reason or "initial owner bootstrap")
+                print("owner role granted (first owner); lucy.* entitlements granted")
+                return 0
+            if not (args.by_email and args.reason):
+                print(
+                    "error: --by-email (an owner, or operator for status changes) and "
+                    "--reason are required",
+                    file=sys.stderr,
+                )
+                return 2
+            actor = pv.find_user_by_email(conn, args.by_email)
+            if args.action == "grant-role":
+                pv.grant_role(conn, actor, target, args.role, args.reason)
+            elif args.action == "revoke-role":
+                pv.revoke_role(conn, actor, target, args.role, args.reason)
+            elif args.action == "grant-feature":
+                pv.grant_feature(conn, actor, target, args.feature, args.reason)
+            elif args.action == "revoke-feature":
+                pv.revoke_feature(conn, actor, target, args.feature, args.reason)
+            elif args.action in ("suspend", "reinstate"):
+                pv.set_status(
+                    conn,
+                    actor,
+                    target,
+                    "suspended" if args.action == "suspend" else "active",
+                    args.reason,
+                    revoke_all_sessions,
+                )
+            print(f"{args.action}: done (audited)")
+            return 0
+    except pv.PrivilegeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    finally:
+        engine.dispose()
 
 
 def cmd_app_db(args) -> int:
@@ -505,6 +597,30 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out", default=None)
     s.set_defaults(func=cmd_analyse_odds_trial)
 
+    s = sub.add_parser(
+        "account", help="server-side account administration (owner bootstrap, roles)"
+    )
+    s.add_argument(
+        "action",
+        choices=[
+            "generate-keys",
+            "list-privileged",
+            "bootstrap-owner",
+            "grant-role",
+            "revoke-role",
+            "grant-feature",
+            "revoke-feature",
+            "suspend",
+            "reinstate",
+        ],
+    )
+    s.add_argument("--email", help="the account to change (its verified email address)")
+    s.add_argument("--by-email", help="the acting owner or operator (verified email address)")
+    s.add_argument("--role", choices=["operator", "owner"])
+    s.add_argument("--feature", help="for example lucy.research")
+    s.add_argument("--reason", help="recorded in the audit log")
+    s.add_argument("--confirm", action="store_true", help="required for bootstrap-owner")
+
     s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
     s.add_argument("action", choices=["upgrade", "downgrade", "current", "check"])
     s.add_argument("--revision", default=None, help="target revision (default head)")
@@ -516,6 +632,8 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING)
     if args.command == "app-db":
         return cmd_app_db(args)
+    if args.command == "account":
+        return cmd_account(args)
     engine = make_engine(args.database_url)
     from diski9.ingestion.common import MissingReferenceData
     from diski9.workflow import SetupIncomplete
