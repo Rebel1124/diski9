@@ -297,7 +297,7 @@ def account_menu() -> list:
         ),
         html.A("Sign out", href="/auth/sign-out"),
     ]
-    summary = [label] + (
+    summary = [icon("circle-user", "acct-ic"), html.Span(label, className="acct-name")] + (
         [] if p.onboarded else [html.Span("Action needed", className="acct-badge")]
     )
     return [

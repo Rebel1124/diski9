@@ -868,6 +868,17 @@ table.results td.value-cell { white-space: nowrap; }
   .nav-links { flex-wrap: nowrap; }
   .nav-link { white-space: nowrap; }
 }
+/* small screens: brand and the account control share the first row (the account
+   control always visible); the page links take their own row and scroll sideways */
+@media (max-width: 600px) {
+  .nav-inner { flex-wrap: wrap; overflow-x: visible; row-gap: 4px; }
+  .nav-brand { white-space: nowrap; order: 1; }
+  .nav-inner > .nav-account { order: 2; margin-left: auto; min-width: 0; max-width: 62%; }
+  .nav-inner > .nav-links { order: 3; flex: 1 0 100%; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .nav-inner > .nav-links::-webkit-scrollbar { display: none; }
+  .nav-account details.acct-menu { min-width: 0; max-width: 100%; }
+  .nav-account .acct-link { white-space: nowrap; }
+}
 
 /* ===================== Phase 6B.1: compact builder ===================== */
 .ch-filters { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)) auto; gap: 8px 10px; align-items: end;

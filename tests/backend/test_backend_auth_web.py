@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
 from auth_helpers import FakeProvider, csrf_from, make_settings
@@ -530,6 +531,21 @@ def test_dash_shell_menu_for_guest_and_member(app, provider, engine):
     assert name in member and email not in member
     uid = c.get("/test/whoami").json["user"]
     assert uid not in member  # the owner tag is derived, never the internal ID
+    # a decorative profile icon (Lucide circle-user) sits before the username, inside the
+    # one clickable, keyboard-operable <summary>
+    assert "className='ic ic-circle-user acct-ic', aria-hidden='true'" in member
+    assert member.index("ic-circle-user") < member.index(name)
+    assert "Summary(" in member and "emoji" not in member.lower()
+
+
+def test_auth_pages_back_link_reuses_main_navigation_style(client):
+    page = client.get("/auth/sign-in").get_data(as_text=True)
+    assert (
+        '<nav class="nav-account" aria-label="Site"><a class="acct-link" href="/">Back to Diski 9</a>'
+        in page
+    )
+    css = (Path(__file__).resolve().parents[2] / "src/diski9/app/assets/account.css").read_text()
+    assert "a.back" not in css  # the separate style is gone; .nav-account .acct-link applies
 
 
 def test_dash_shell_without_auth_is_unchanged():

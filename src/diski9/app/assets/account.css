@@ -7,8 +7,17 @@
 .nav-account .acct-link:hover { color: var(--text); background: var(--surface-2); }
 .nav-account .acct-link.primary { color: #062a24; background: var(--accent); }
 .nav-account details.acct-menu { position: relative; }
-.nav-account details.acct-menu > summary { list-style: none; cursor: pointer; color: var(--text);
-  font-size: 14px; font-weight: 600; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border); }
+/* the account control: profile icon + username, muted like the other navigation links and
+   white (the app's --text) on hover, focus or while open; icon and name share one colour */
+.nav-account details.acct-menu > summary { list-style: none; cursor: pointer; color: var(--muted);
+  font-size: 14px; font-weight: 600; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border);
+  display: inline-flex; align-items: center; gap: 7px; max-width: 100%; }
+.nav-account details.acct-menu > summary:hover,
+.nav-account details.acct-menu > summary:focus-visible { color: var(--text); background: var(--surface-2); }
+.nav-account details.acct-menu > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.nav-account details.acct-menu[open] > summary { color: var(--text); }
+.nav-account .acct-ic { width: 1.15em; height: 1.15em; vertical-align: 0; }
+.nav-account .acct-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-account details.acct-menu > summary::-webkit-details-marker { display: none; }
 .nav-account details.acct-menu[open] > summary { border-color: var(--accent); }
 .nav-account .acct-panel { position: absolute; right: 0; top: calc(100% + 6px); min-width: 210px; z-index: 40;
@@ -56,7 +65,6 @@
 .auth-header { border-bottom: 1px solid var(--border); background: var(--surface); }
 .auth-header .inner { max-width: 1240px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 16px; }
 .auth-header a.brand-link { font-weight: 750; color: var(--accent); text-decoration: none; }
-.auth-header a.back { color: var(--muted); text-decoration: none; font-size: 14px; margin-left: auto; }
 @media (max-width: 520px) {
   .auth-kv { grid-template-columns: 1fr; }
   .auth-page { margin-top: 18px; }
