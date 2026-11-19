@@ -113,7 +113,9 @@ References: [technical architecture](../architecture/phase6c_architecture_consid
 * **Objectives:** versioned round schedules; publish job writing immutable
   snapshots with opening checks; server-side deadlines; drafts; confirm,
   replace, withdraw (T-09) with history; lock job and base designation; Your View
-  persistence (T-10); connect the accepted Weekly Challenge, My Challenge and
+  persistence (T-10: the current numerical adjustments only, per user and fixture,
+  across devices; no notes or reasons and no adjustment history, D-41); connect the
+  accepted Weekly Challenge, My Challenge and
   Match Lab pages to the backend.
 * **Dependencies:** 6C.1, 6C.2; D-06 and D-11 (approved).
 * **Modules and files:** `services/rounds.py`, `services/portfolios.py`,

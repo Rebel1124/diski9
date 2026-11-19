@@ -417,17 +417,14 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
 .cat-sum-wrap { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; font-weight: 500;
   font-variant-numeric: tabular-nums; margin-right: 18px; }
 .cat-sum.active { color: var(--warn); }
-.cat-note-flag { font-size: 11px; border-radius: 999px; padding: 0 7px; background: var(--surface-2); color: var(--muted);
-  border: 1px solid var(--border); }
-.cat-items { display: flex; flex-wrap: wrap; gap: 4px 14px; padding-left: 18px; margin: 2px 0 10px; color: var(--muted);
+.cat-items { display: flex; flex-wrap: wrap; gap: 4px 14px; padding-left: 18px; margin: 2px 0 6px; color: var(--muted);
   font-size: 13.5px; }
+/* static guidance in place of the former note boxes: subtle, readable line length */
+.cat-guide { margin: 0 0 10px; max-width: 78ch; line-height: 1.5; }
 .cat-items li { margin-right: 6px; }
 .cat-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.cat-field.wide { margin-bottom: 10px; }
 .cat-input-label { font-size: 12px; color: var(--muted); }
-.cat-note { width: 100%; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 6px;
-  padding: 8px 10px; font-size: 14px; }
-.cat-note:focus, .cat-input:focus { border-color: var(--accent); outline: none; }
+.cat-input:focus { border-color: var(--accent); outline: none; }
 .cat-inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .caution { color: var(--warn); }
 
@@ -458,8 +455,7 @@ details.more details.more { background: var(--surface-2); margin-top: 8px; }
   .match-meta { font-size: 13px; }
 }
 .cat-inputs { grid-template-columns: repeat(2, minmax(0, 240px)); }
-.cat-field.wide { max-width: 640px; }
-@media (max-width: 720px) { .cat-inputs { grid-template-columns: 1fr 1fr; } .cat-field.wide { max-width: none; } }
+@media (max-width: 720px) { .cat-inputs { grid-template-columns: 1fr 1fr; } }
 .cat-inputs .cat-field { justify-content: flex-end; }
 .cat-input-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 720px) {

@@ -236,7 +236,8 @@ erDiagram
 
 ### 5.1 `your_view_adjustments` [P][private] (T-10)
 * `user_id`, `fixture_id`, `model_context` (the Phase 6B.3 stamp: model version,
-  fixture, estimated goals), `state jsonb`, `updated_at`.
+  fixture, estimated goals), `state jsonb` (numbers only: Section B, Section C and
+  manual adjustments per team; no free text since D-41), `updated_at`.
   `PRIMARY KEY (user_id, fixture_id)`.
 * Never read by submission, settlement or scoring. Deleted with the account.
   A stored adjustment whose context no longer matches is ignored, as in the

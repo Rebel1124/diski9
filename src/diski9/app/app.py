@@ -47,7 +47,6 @@ from .lab import (
     ADJUST_MAX,
     CATEGORY_MAX,
     CONTEXT_MAX,
-    NOTE_MAX,
     SIDES,
     adjustment_text,
     baseline_rounded,
@@ -542,14 +541,14 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
     """Pure logic behind the Match Lab callback: the fixture's new user state and any
     messages about input that could not be used.
 
-    * a match-context adjustment or note (Section B) updates Section B only;
-      "Clear Section B adjustments" clears its numbers (the note is kept)
-    * a category adjustment or note (Section C) updates that category only
+    * a match-context adjustment (Section B) updates Section B only;
+      "Clear Section B adjustments" clears its numbers
+    * a category adjustment (Section C) updates that category only
     * the compact B / C sliders and their number boxes are two views of ONE value:
       either trigger sets it, and the callback writes it back to both
     * a slider or box (Section D) sets the *final* estimate: the manual adjustment
       becomes final - baseline - Section B - Section C, so nothing is counted twice
-    * Reset clears all adjustments in B, C and D (notes are kept)
+    * Reset clears all adjustments in B, C and D
     """
     base_r = baseline_rounded(r)
     state = normalise_state(stored, base_r)
@@ -563,9 +562,6 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
         return state, messages
     if trigger == "ctx-clear":
         state["context"]["home"] = state["context"]["away"] = 0.0
-        return state, messages
-    if trigger == "ctx-note":
-        state["context"]["note"] = str(value or "").strip()[:NOTE_MAX]
         return state, messages
     if trigger in ("ctx-home", "ctx-away", "ctx-home-slider", "ctx-away-slider"):
         side = trigger.split("-")[1]  # slider and box share one Section B value
@@ -589,11 +585,6 @@ def lab_update(r: dict, trigger, value, stored: dict | None) -> tuple[dict, list
                 )
             else:
                 state["cats"][key][side] = v
-        return state, messages
-    if isinstance(trigger, dict) and trigger.get("type") == "cat-note":
-        key = trigger.get("cat")
-        if key in state["cats"]:
-            state["cats"][key]["note"] = str(value or "").strip()[:NOTE_MAX]
         return state, messages
     for side in ("home", "away"):
         if trigger in (f"lab-{side}-slider", f"lab-{side}-input"):
@@ -816,10 +807,8 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Input("lab-away-input", "value"),
         Input("lab-reset", "n_clicks"),
         Input({"type": "cat-adj", "cat": ALL, "side": ALL}, "value"),
-        Input({"type": "cat-note", "cat": ALL}, "value"),
         Input("ctx-home", "value"),
         Input("ctx-away", "value"),
-        Input("ctx-note", "value"),
         Input("ctx-clear", "n_clicks"),
         Input({"type": "cat-slider", "cat": ALL, "side": ALL}, "value"),
         Input("ctx-home-slider", "value"),

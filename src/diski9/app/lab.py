@@ -125,34 +125,71 @@ CATEGORIES = [
     ),
 ]
 CATEGORY_KEYS = tuple(k for k, _, _ in CATEGORIES)
+# Static guidance per factor: what to look at, how it could move each team's estimated
+# goals, and when to leave the adjustment at zero. Written so that it can also frame
+# future assisted research (Phase 7) without asking anyone to type notes.
+CATEGORY_GUIDANCE = {
+    "squad": (
+        "Consider which key players are unavailable or likely to be rested, how important "
+        "they are to the team's attack or defence, and the quality of their replacements. A "
+        "missing first-choice striker may lower that team's estimated goals; an absent central "
+        "defender or goalkeeper may raise the opponent's. Recent transfers matter mainly when "
+        "this season's results do not yet reflect them."
+    ),
+    "fitness": (
+        "Consider how many matches each team has played recently, their rest days and travel, "
+        "and whether heavy rotation is likely. A tired or much-changed side may create fewer "
+        "chances and concede more. Small differences in rest rarely justify more than a small "
+        "adjustment."
+    ),
+    "tactics": (
+        "Consider managerial or tactical changes that this season's results may not yet "
+        "reflect, and how the two styles are likely to interact. A more attacking approach can "
+        "raise both a team's estimated goals and its opponent's; a defensive set-up may lower "
+        "both. A few matches under a new manager are a small sample."
+    ),
+    "conditions": (
+        "Consider weather and pitch conditions, an unusual venue, and what each team is playing "
+        "for. Heavy rain or strong wind often lowers scoring for both sides, and a team with "
+        "little to play for may be less sharp. Motivation is hard to measure, so keep any "
+        "adjustment modest unless the evidence is clear."
+    ),
+}
 CATEGORY_MAX = 2.0  # largest +/- adjustment one category can carry
-NOTE_MAX = 280
 FACTORS_NOTE = (
-    "These factors are not automatically included in the statistical model. You can research "
-    "them independently and choose whether they justify adjusting either team's estimated goals."
+    "These factors are not included in the statistical model. Adjust only for information the "
+    "model has not already captured, judge each team separately, and leave an adjustment at "
+    "0.00 when the evidence is unclear."
 )
 FACTORS_CAUTION = (
-    "Some factors may overlap with recent match results. Avoid counting the same information twice."
+    "Adjustments are your own estimates, not guaranteed improvements. Related factors can "
+    "overlap with each other and with recent results: avoid counting the same information twice."
 )
 SIDES = ("home", "away")
 CONTEXT_MAX = 1.0  # Section B guardrail: +/- 1 goal (not a validated effect size)
 CONTEXT_ADJUST_NOTE = (
-    "Recent form, league position and head-to-head results can help you assess a match. "
-    "However, some of this information is already reflected in the model's goal estimates. "
-    "Only adjust if you believe the context reveals something the model has not fully captured."
+    "Recent form, league position and head-to-head results are partly reflected in the model's "
+    "estimated goals already. Adjust only if the context suggests something this season's goal "
+    "data misses, such as a recent run that reflects a genuine change rather than an easy or "
+    "difficult set of fixtures. Head-to-head results from earlier seasons often involve "
+    "different squads and managers. Judge each team separately, keep adjustments modest, and "
+    "leave them at 0.00 if the context only confirms what the model shows."
 )
 
 
 # ------------------------------------------------------------ user state
-# Per fixture, in the browser's memory store only:
-#   {"cats": {category: {"note": str, "home": float, "away": float}},
+# Per fixture, in the browser's memory store only (numbers only; no free text):
+#   {"context": {"home": float, "away": float},
+#    "cats": {category: {"home": float, "away": float}},
 #    "manual": {"home": float, "away": float}}
+# Notes saved by earlier versions are ignored when a state is read and dropped when it
+# is next saved.
 # Your estimate = model baseline (rounded to 0.01) + sum of category adjustments
 #                 + additional manual adjustment, kept within 0-10 goals.
 def new_state() -> dict:
     return {
-        "context": {"note": "", "home": 0.0, "away": 0.0},
-        "cats": {k: {"note": "", "home": 0.0, "away": 0.0} for k in CATEGORY_KEYS},
+        "context": {"home": 0.0, "away": 0.0},
+        "cats": {k: {"home": 0.0, "away": 0.0} for k in CATEGORY_KEYS},
         "manual": {"home": 0.0, "away": 0.0},
     }
 
@@ -220,13 +257,11 @@ def normalise_state(stored: dict | None, base_r: dict | None = None) -> dict:
     for k in CATEGORY_KEYS:
         c = (stored.get("cats") or {}).get(k) or {}
         state["cats"][k] = {
-            "note": str(c.get("note") or "")[:NOTE_MAX],
             "home": float(c.get("home") or 0.0),
             "away": float(c.get("away") or 0.0),
         }
     ctx = stored.get("context") or {}
     state["context"] = {
-        "note": str(ctx.get("note") or "")[:NOTE_MAX],
         "home": float(ctx.get("home") or 0.0),
         "away": float(ctx.get("away") or 0.0),
     }
@@ -255,8 +290,7 @@ def has_adjustment(state: dict | None) -> bool:
 
 
 def is_empty(state: dict) -> bool:
-    notes = [state["context"]["note"], *(state["cats"][k]["note"] for k in CATEGORY_KEYS)]
-    return not has_adjustment(state) and not any(notes)
+    return not has_adjustment(state)
 
 
 def breakdown(base_r: dict, state: dict) -> dict:
@@ -602,8 +636,6 @@ def context_summary(state: dict) -> list:
                 className="cat-sum active",
             )
         ]
-    if c["note"]:
-        out.append(html.Span("Note", className="cat-note-flag", title=c["note"]))
     return out
 
 
@@ -683,25 +715,7 @@ def context_adjustment(r: dict, state: dict) -> html.Details:
             ),
             html.Div(
                 [
-                    html.P(CONTEXT_ADJUST_NOTE, className="muted small"),
-                    html.Label(
-                        [
-                            html.Span(
-                                "Why are you making this adjustment? (optional)",
-                                className="cat-input-label",
-                            ),
-                            dcc.Input(
-                                id="ctx-note",
-                                type="text",
-                                value=c["note"],
-                                maxLength=NOTE_MAX,
-                                debounce=True,
-                                placeholder="e.g. what in the context the model may have missed",
-                                className="cat-note",
-                            ),
-                        ],
-                        className="cat-field wide",
-                    ),
+                    html.P(CONTEXT_ADJUST_NOTE, className="muted small cat-guide"),
                     html.Div(
                         [
                             _ctx_input("home", f["home"], c["home"]),
@@ -720,7 +734,7 @@ def context_adjustment(r: dict, state: dict) -> html.Details:
                             html.Span(
                                 f"Each team: between -{CONTEXT_MAX:.2f} and +{CONTEXT_MAX:.2f} "
                                 "goals, in steps of 0.05. This range is a guardrail, not a "
-                                "validated effect size. Your note is kept.",
+                                "validated effect size.",
                                 className="muted small",
                             ),
                         ],
@@ -784,10 +798,7 @@ def category_summary(state: dict, key: str) -> list:
         text, cls = "No adjustment", "cat-sum muted"
     else:
         text, cls = f"Home {signed(c['home'])} · Away {signed(c['away'])}", "cat-sum active"
-    out = [html.Span(text, className=cls)]
-    if c["note"]:
-        out.append(html.Span("Note", className="cat-note-flag", title=c["note"]))
-    return out
+    return [html.Span(text, className=cls)]
 
 
 def _cat_input(key: str, side: str, team: str, value: float) -> html.Div:
@@ -809,21 +820,7 @@ def factors_section(r: dict, state: dict) -> html.Div:
         c = state["cats"][key]
         body = [
             html.Ul([html.Li(i) for i in items], className="cat-items"),
-            html.Label(
-                [
-                    html.Span("Research notes (optional)", className="cat-input-label"),
-                    dcc.Input(
-                        id={"type": "cat-note", "cat": key},
-                        type="text",
-                        value=c["note"],
-                        maxLength=NOTE_MAX,
-                        debounce=True,
-                        placeholder="e.g. what you found and where",
-                        className="cat-note",
-                    ),
-                ],
-                className="cat-field wide",
-            ),
+            html.P(CATEGORY_GUIDANCE[key], className="muted small cat-guide"),
         ]
         if available:
             body.append(
@@ -1117,8 +1114,7 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> ht
                     ),
                     html.Span(
                         "Clears every adjustment in Sections B, C and D and restores the model "
-                        "estimates. Your notes in Sections B and C are kept. Nothing leaves this "
-                        "browser tab or changes the model.",
+                        "estimates. Nothing leaves this browser tab or changes the model.",
                         className="muted small",
                     ),
                 ],

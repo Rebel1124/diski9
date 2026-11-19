@@ -164,7 +164,6 @@ def test_market_switch_keeps_adjustment(data):
     func = detail["callback"].__wrapped__
     r = _result(data)
     st, _ = lab_update(r, {"type": "cat-adj", "cat": "squad", "side": "home"}, -0.15, None)
-    st, _ = lab_update(r, {"type": "cat-note", "cat": "squad"}, "Striker out", st)
     st, _ = lab_update(r, "lab-home-input", 2.5, st)
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
@@ -175,8 +174,8 @@ def test_market_switch_keeps_adjustment(data):
             d,
             lambda c: getattr(c, "id", None) == {"type": "cat-adj", "cat": "squad", "side": "home"},
         )
-        note = _find(d, lambda c: getattr(c, "id", None) == {"type": "cat-note", "cat": "squad"})
-        assert cat[0].value == "-0.15" and note[0].value == "Striker out"
+        assert cat[0].value == "-0.15"
+        assert not _find(d, lambda c: (getattr(c, "id", None) or {}) == {"type": "cat-note"})
         box = _find(d, lambda c: getattr(c, "id", None) == "lab-home-input")
         assert box[0].value == "2.50"  # two decimals, not 2.5
         assert "Adjusted by you" in _text(d)
@@ -465,16 +464,15 @@ def test_section_c_categories_aggregate_into_section_d(data):
     # a later category change keeps the manual adjustment and moves the final estimate
     st3, _ = lab_update(r, {"type": "cat-adj", "cat": "conditions", "side": "home"}, 0.05, st2)
     assert breakdown(base, st3)["home"]["final"] == round(base["home"] - 0.25, 2)
-    # notes are stored per category; invalid category values are explained and ignored
-    st4, _ = lab_update(r, {"type": "cat-note", "cat": "squad"}, "  Striker out  ", st3)
-    assert st4["cats"]["squad"]["note"] == "Striker out"
+    # invalid category values are explained and ignored
+    st4 = st3
     st5, msg = lab_update(r, {"type": "cat-adj", "cat": "squad", "side": "home"}, 9, st4)
     assert st5 == st4 and "between -2 and +2" in msg[0]
     cleared, _ = lab_update(r, {"type": "cat-adj", "cat": "squad", "side": "home"}, None, st4)
     assert cleared["cats"]["squad"]["home"] == 0.0  # an emptied box means 0
-    # reset: every adjustment cleared, research notes kept
+    # reset: every adjustment cleared
     reset, _ = lab_update(r, "lab-reset", 1, st4)
-    assert not has_adjustment(reset) and reset["cats"]["squad"]["note"] == "Striker out"
+    assert not has_adjustment(reset)
 
 
 def test_final_estimate_never_negative_and_explained(data):
@@ -538,8 +536,9 @@ def test_section_c_structure_and_education(data):
         "Travel demands",
         "Relevant tactical matchups",
         "Title or relegation circumstances",
-        "not automatically included in the statistical model",
-        "Avoid counting the same information twice",
+        "not included in the statistical model",
+        "leave an adjustment at 0.00 when the evidence is unclear",
+        "avoid counting the same information twice",
         "never assigns a value",
     ):
         assert phrase in t, phrase
@@ -715,3 +714,60 @@ def test_browser_filters_and_section_c_d_flow(data):
             assert r["errors"] == 0, name
     finally:
         server.shutdown()
+
+
+# ------------------------------------------------ static factor guidance (MVP refinement)
+def test_factor_guidance_replaces_note_boxes(data):
+    from diski9.app.lab import CATEGORIES, CATEGORY_GUIDANCE, FACTORS_CAUTION, FACTORS_NOTE
+
+    r, ov, off = data.detail(EPL_FIX)
+    d = render_detail(r, ov, off, "1X2", data)
+    assert set(CATEGORY_GUIDANCE) == {k for k, _, _ in CATEGORIES}  # one per existing factor
+    t = " ".join(_text(d).split())
+    for text_ in (*CATEGORY_GUIDANCE.values(), FACTORS_NOTE, FACTORS_CAUTION):
+        assert text_ in t
+        assert "xG" not in text_  # estimated goals, never shot-based xG
+    assert "0.00 when the evidence is unclear" in FACTORS_NOTE
+    assert "Research notes" not in t and "Why are you making this adjustment" not in t
+    ids = [getattr(c, "id", None) for c in _find(d, lambda c: getattr(c, "id", None))]
+    assert not [
+        i for i in ids if i == "ctx-note" or (isinstance(i, dict) and i.get("type") == "cat-note")
+    ]
+    assert not _find(d, lambda c: "cat-note" in str(getattr(c, "className", "")))
+    # no free-text field anywhere in Match Lab's adjustment sections
+    from dash import dcc
+
+    texts = [c for c in _find(d, lambda c: isinstance(c, dcc.Input)) if c.type == "text"]
+    assert all(
+        c.id in ("lab-home-input", "lab-away-input", "ctx-home", "ctx-away")
+        or (isinstance(c.id, dict) and c.id.get("type") == "cat-adj")
+        for c in texts
+    )
+
+
+def test_states_saved_with_notes_keep_identical_numbers(data):
+    """Browser tabs may still hold a Your View saved by the earlier version (with notes).
+    It is read with the notes ignored and gives exactly the same estimates."""
+    from diski9.app.lab import baseline_rounded, is_empty, normalise_state, user_estimates
+
+    r = _result(data)
+    legacy = {
+        "context": {"note": "Derby day", "home": 0.25, "away": -0.1},
+        "cats": {
+            "squad": {"note": "Striker out", "home": -0.15, "away": 0.0},
+            "fitness": {"note": "", "home": 0.0, "away": 0.1},
+        },
+        "manual": {"home": 0.05, "away": 0.0},
+    }
+    st = normalise_state(legacy, baseline_rounded(r))
+    assert "note" not in st["context"] and all("note" not in c for c in st["cats"].values())
+    b = breakdown(baseline_rounded(r), st)
+    base = baseline_rounded(r)
+    assert b["home"]["final"] == round(base["home"] + 0.25 - 0.15 + 0.05, 2)
+    assert b["away"]["final"] == round(base["away"] - 0.1 + 0.1, 2)
+    assert user_estimates(r, st) == {"home": b["home"]["final"], "away": b["away"]["final"]}
+    # a state holding only an old note and no numbers is empty (removed when next saved)
+    assert is_empty(normalise_state({"context": {"note": "x", "home": 0, "away": 0}}))
+    # updating a legacy state drops its notes from what is saved
+    st2, _ = lab_update(r, {"type": "cat-adj", "cat": "tactics", "side": "home"}, "0.10", legacy)
+    assert "Derby day" not in json.dumps(st2) and "Striker out" not in json.dumps(st2)
