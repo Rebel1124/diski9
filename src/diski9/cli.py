@@ -445,6 +445,119 @@ def cmd_account(args) -> int:
         engine.dispose()
 
 
+def cmd_round(args) -> int:
+    """Weekly round administration through the server CLI (Phase 6C.3). Publication
+    and lock run the same services and checks as any other caller; nothing here can
+    change a published snapshot or deadline."""
+    from datetime import timedelta
+
+    from diski9.backend.auth import privileged as pv
+    from diski9.backend.db import BackendDatabaseSettings, db_now, make_app_engine, transaction
+    from diski9.backend.services import rounds as svc
+    from diski9.backend.services.common import ServiceError, cli_principal
+
+    settings = BackendDatabaseSettings()
+    engine = make_app_engine(settings)
+
+    def actor():
+        if not args.by_email:
+            raise ServiceError("--by-email (an operator or owner) is required", code="usage")
+        with transaction(engine) as conn:
+            uid = pv.find_user_by_email(conn, args.by_email)
+            return cli_principal(conn, uid, db_now(conn))
+
+    def show(v) -> None:
+        print(
+            f"{v.code}  status={v.status}  development={v.is_development}  "
+            f"deadline={v.deadline_at:%Y-%m-%d %H:%M UTC}  "
+            if v.deadline_at
+            else f"{v.code}  status={v.status}  development={v.is_development}  ",
+            end="",
+        )
+        print(
+            f"designation={v.designation or '-'}  valid_entries="
+            f"{'-' if v.valid_entries is None else v.valid_entries}  "
+            f"fingerprint={v.fingerprint or '-'}"
+        )
+
+    try:
+        if args.action == "list":
+            for v in svc.list_rounds(engine):
+                show(v)
+            return 0
+        if args.action == "show":
+            show(svc.get_round(engine, svc.round_id_for_code(engine, args.code)))
+            return 0
+        if args.action == "create":
+            year, week = (int(x) for x in args.week.split("-W"))
+            start, end = svc.schedule_window(engine, year, week)
+            v = svc.create_round(
+                engine,
+                actor(),
+                code=f"{year}-W{week:02d}-weekend",
+                window_start=start,
+                window_end=end,
+            )
+            show(v)
+            return 0
+        if args.action == "publish":
+            from diski9.app.data import LEAGUE_SHORT
+            from diski9.challenge.roundsheet import build_live_snapshot
+
+            p = actor()
+            rid = svc.round_id_for_code(engine, args.code)
+            r = svc.get_round(engine, rid)
+            football = make_engine(args.database_url)
+            with transaction(engine) as conn:
+                now = db_now(conn)
+            snap = build_live_snapshot(
+                football, now, r.window_start_at, r.window_end_at, r.code, LEAGUE_SHORT
+            )
+            show(svc.publish_round(engine, p, rid, snap, source="football-db"))
+            return 0
+        if args.action == "dev-open":
+            from diski9.backend.devdata import dev_snapshot
+
+            if settings.environment == "production":
+                raise ServiceError("development rounds are refused in production", code="usage")
+            p = actor()
+            with transaction(engine) as conn:
+                now = db_now(conn)
+            first = now + timedelta(minutes=args.deadline_minutes + 15)
+            code = args.code or f"dev-{now:%Y%m%d-%H%M%S}"
+            snap = dev_snapshot(code, now, first, seed=args.seed)
+            v = svc.create_round(
+                engine,
+                p,
+                code=code,
+                window_start=snap.window[0],
+                window_end=snap.window[1],
+                development=True,
+            )
+            show(svc.publish_round(engine, p, v.id, snap, source="development"))
+            print("Development fixtures (synthetic): not real football data.")
+            return 0
+        if args.action == "lock":
+            who = actor() if args.by_email else svc.SYSTEM
+            res = svc.lock_round(engine, who, svc.round_id_for_code(engine, args.code))
+            show(res.round)
+            print(
+                "already locked; nothing changed"
+                if res.already_locked
+                else f"locked {res.locked_entries} entries"
+            )
+            return 0
+    except (ServiceError, pv.PrivilegeError) as exc:
+        print(f"error: {getattr(exc, 'message', exc)}", file=sys.stderr)
+        details = getattr(exc, "details", None)
+        if details:
+            print(json.dumps(details, indent=2, default=str), file=sys.stderr)
+        return 2
+    finally:
+        engine.dispose()
+    return 2
+
+
 def cmd_app_db(args) -> int:
     """Competition database (PostgreSQL) commands. Never touches the SQLite store."""
     from diski9.backend.db import BackendDatabaseSettings, check_health, make_app_engine, migrate
@@ -621,6 +734,19 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--reason", help="recorded in the audit log")
     s.add_argument("--confirm", action="store_true", help="required for bootstrap-owner")
 
+    s = sub.add_parser("round", help="weekly rounds: create, publish, lock (competition DB)")
+    s.add_argument("action", choices=["list", "show", "create", "publish", "lock", "dev-open"])
+    s.add_argument("--code", help="round code, for example 2026-W48-weekend")
+    s.add_argument("--week", help="ISO week for create, for example 2026-W48")
+    s.add_argument("--by-email", help="the acting operator or owner (verified email address)")
+    s.add_argument("--seed", type=int, default=2026, help="dev-open: fixture seed")
+    s.add_argument(
+        "--deadline-minutes",
+        type=int,
+        default=120,
+        help="dev-open: minutes from now until the submission deadline",
+    )
+
     s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
     s.add_argument("action", choices=["upgrade", "downgrade", "current", "check"])
     s.add_argument("--revision", default=None, help="target revision (default head)")
@@ -634,6 +760,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_app_db(args)
     if args.command == "account":
         return cmd_account(args)
+    if args.command == "round":
+        return cmd_round(args)
     engine = make_engine(args.database_url)
     from diski9.ingestion.common import MissingReferenceData
     from diski9.workflow import SetupIncomplete

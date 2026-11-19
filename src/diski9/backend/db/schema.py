@@ -222,6 +222,7 @@ portfolio_drafts = Table(
     Column("selections", JSONB, nullable=False),
     Column("snapshot_fingerprint", Text, nullable=True),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("version", Integer, nullable=False, server_default=text("0")),
 )
 
 privacy_history = Table(
@@ -370,6 +371,7 @@ rounds = Table(
     Column("model_version", Text, nullable=True),
     Column("valid_entries", Integer, nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("is_development", Boolean, nullable=False, server_default=text("false")),
 )
 
 score_sets = Table(
@@ -566,6 +568,7 @@ your_view_adjustments = Table(
     Column("model_context", Text, nullable=False),
     Column("state", JSONB, nullable=False),
     Column("updated_at", DateTime(timezone=True), nullable=False),
+    Column("version", Integer, nullable=False, server_default=text("0")),
 )
 
 HISTORY = frozenset(

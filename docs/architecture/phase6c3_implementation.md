@@ -1,0 +1,234 @@
+# Phase 6C.3 — Persistent competition functionality: implementation record
+
+**Branch:** `feature/phase-6c3-competition-persistence` (from `597ed70`, the
+approved `feature/match-lab-guidance` baseline: 1,158 tests, CI green).
+**Authorised so far:** Stages A–D (assessment, rounds and snapshots, drafts, Your
+View). Stages E–G (confirmation lifecycle, page integration, final acceptance)
+wait for the owner's checkpoint approval. The handover for the checkpoint is
+[`phase6c3_implementation_handover.md`](phase6c3_implementation_handover.md).
+
+Precedence: the decision register (D- and T-series) over this document; this
+document records **implementation decisions within the approved scope** (marked
+"ID-n") and lists anything that needs the owner (marked "Owner").
+
+## 1. Stage A — assessment of the baseline
+
+### 1.1 What already exists and is reused
+
+| Area | Existing asset | Use in 6C.3 |
+|---|---|---|
+| Schema | `app_0001`: `rounds` (set-once publication fields), `round_status_history`, `round_snapshots` / `snapshot_fixtures` / `snapshot_offers` (insert-only), `portfolio_drafts`, `your_view_adjustments`, `entries` / `submissions` / `submission_selections` / `entry_events`, `designations` (one `deadline` row per round), the submission deadline trigger, `job_runs`, `audit_log` | Used as designed; no duplicate tables |
+| Security | `app_0002`: row-level security on every `app` table, access only for `diski9_app`; nothing for browser roles | New objects follow the same pattern |
+| Repositories | `repositories.rounds` (create, status change with history, `FOR SHARE` / `FOR UPDATE` round locks, snapshot insert), `repositories.portfolios` (entries, submissions, optimistic entry update), `repositories.ops` (job runs, advisory job locks, audit) | Extended, not replaced |
+| Engine | `challenge.roundsheet` (`RoundSnapshot` with content fingerprint, `build_live_snapshot` from the football store, `assess_round`), `challenge.structured` (`assess_outcome`, `round_opening_report` with the exact 4/3/2 matching, `selection_blocks`, `validate_portfolio`, `evaluate_market_and_model`), `challenge.scoring.classify_round` (≥ 5 valid entries) | Called unchanged; no maths in services or callbacks |
+| Auth | `Principal`, `authorize()`, capabilities `analysis.persist_own`, `challenge.submit`, `round.publish`, `jobs.run`; `accounts.lock_snapshot` (name and privacy at lock) | Every service checks the principal; identity only from the server session |
+| Your View | `app.lab`: numeric state `{context, cats, manual}`, model-context stamp `goal-model|fixture|home|away`, legacy-note tolerance (D-41) | Same state and stamp stored server-side |
+| Prototype state | `app.challenge.state` (browser `ch-session`, draft keys `fixture|market|outcome`, `migrate_draft`, `reconcile`) | Kept for guests; authenticated authority moves to services in Stage F |
+
+### 1.2 Gaps found
+
+1. No service layer for rounds, publication, lock, drafts or Your View
+   (repositories only).
+2. `portfolio_drafts` and `your_view_adjustments` have **no version column**, so
+   an older tab could overwrite newer work (the database design only specifies
+   optimistic concurrency for `entries`).
+3. No way to tell development rounds from real ones in the database.
+4. Snapshot child rows (`snapshot_fixtures`, `snapshot_offers`) are insert-only
+   but could still be *added to* after publication.
+5. Draft writes after the deadline are only prevented by convention.
+6. No round CLI; the only round creation is in test factories.
+7. No snapshot loader: a published round cannot yet be rebuilt into the
+   engine's `RoundSnapshot`.
+
+### 1.3 Database changes (migration `app_0003`, additive)
+
+| Change | Reason |
+|---|---|
+| `portfolio_drafts.version int NOT NULL DEFAULT 0` | Optimistic concurrency for drafts (ID-3) |
+| `your_view_adjustments.version int NOT NULL DEFAULT 0` | Same protection for Your View across tabs and devices (ID-9) |
+| `rounds.is_development boolean NOT NULL DEFAULT false`, set once | Development rounds are distinguishable at the database level (ID-6) |
+| Trigger: snapshot fixtures and offers can only be inserted while the round is `draft` | A published snapshot cannot gain rows (immutability) |
+| Trigger: a draft can only be inserted or changed while its round is `open` and before `deadline_at` by the database clock | Defence in depth for the deadline (drafts stay readable afterwards) |
+| New trigger functions: `EXECUTE` revoked from `PUBLIC`, granted to `diski9_app` | Same boundary as `app_0002` |
+
+No changes to Supabase schemas, the football store, history tables or roles.
+
+### 1.4 Transaction and concurrency boundaries
+
+* **Publish:** one transaction; the round row `FOR UPDATE`; status must be
+  `draft`; opening checks, snapshot rows, deadline, settlement cutoff and the
+  `open` status are written together, or nothing is.
+* **Lock:** one transaction; round `FOR UPDATE` (waits for in-flight
+  submissions, which hold `FOR SHARE`); only at or after `deadline_at` by the
+  database clock; locks every active confirmed entry, records `valid_entries`,
+  the `deadline` designation (`championship` ≥ 5, else `practice`) and the
+  status change. A second call finds `locked` and changes nothing.
+* **Draft save:** one transaction; round `FOR SHARE`; deadline by
+  `transaction_timestamp()`; optimistic version check (`UPDATE … WHERE version =
+  expected`, or `INSERT … ON CONFLICT DO NOTHING` for the first save).
+* **Your View save:** one transaction; optimistic version check as for drafts.
+* The submission deadline trigger from `app_0001` already rejects late
+  submissions regardless of when the lock job runs (Stage E builds on it).
+
+### 1.5 Security risks considered
+
+| Risk | Control |
+|---|---|
+| Client-supplied user ID, bucket, odds or probability | Services take a `Principal` built by the server; drafts store only outcome keys; every value is read from the frozen snapshot |
+| Cross-account access | Every query is keyed by `principal.user_id`; no API accepts a user ID; tests attempt cross-account reads and writes |
+| Suspended user mid-request | Mutations re-check `users.status = 'active'` inside the transaction |
+| Late writes | Database clock in the write transaction; triggers as a second line |
+| Development data mistaken for competition data | `is_development` flag, `dev-` code prefix, development commands refuse to run when `DISKI9_APP_ENVIRONMENT=production`, and development snapshots cannot be published into real rounds (and vice versa) |
+| Error leakage | Services raise typed errors with user-safe messages; database exceptions are logged, not shown |
+| Cross-account caching | Only published snapshots (immutable, shared) are cached per process; nothing private is cached |
+
+### 1.6 Unresolved items
+
+None blocks Stages B–D. Items for the owner at the checkpoint (§6):
+frozen versus live Your View context (Owner-1), guest Your View adoption
+(Owner-2), and the publication snapshot-age guard (ID-5, adopted unless the
+owner objects).
+
+## 2. Stage B — rounds and frozen snapshots
+
+Modules: `diski9.backend.services.rounds`, `diski9.backend.services.snapshots`,
+`diski9.backend.devdata`; CLI `diski9 round ...`.
+
+* **ID-1 Round identity.** Live rounds use the code `YYYY-Www-<schedule>` (for
+  example `2026-W48-weekend`); the window comes from the schedule's window rule
+  (Friday 00:00 UTC to Tuesday 00:00 UTC). Development rounds use `dev-…`.
+  The code is the `round_id` inside the snapshot fingerprint, so a published
+  snapshot has the same fingerprint as the prototype's live snapshot built for
+  the same code, time and inputs.
+* **ID-2 Snapshot storage.** `snapshot_fixtures` and `snapshot_offers` hold every
+  outcome of the `RoundSnapshot` at full precision (`double precision`
+  probabilities; consensus odds are already quantised to 0.01 by the consensus
+  layer, so `numeric(8,2)` is exact). `eligible`, `bucket` and
+  `ineligible_reason` come from `assess_outcome` at the snapshot time.
+  `round_snapshots.feasibility` keeps the opening report, the builder's
+  diagnostics and the data source. Loading rebuilds the `RoundSnapshot` and
+  **recomputes its fingerprint; a mismatch is refused** (integrity check).
+* **Opening checks** are `round_opening_report` unchanged (≥ 15 eligible
+  fixtures, ≥ 3 eligible leagues, exact 4/3/2 matching across overlapping
+  fixtures, strict odds rules). A refusal leaves the round in `draft` and returns
+  the reason from `assess_round` plus the report.
+* **Deadline** = earliest kickoff in the published snapshot minus the schedule's
+  buffer (15 minutes, D-06), the same rule as the prototype (`RoundSnapshot.deadline`).
+  Every snapshot fixture carries a strict-consensus market, so this is never
+  later than the earliest eligible kickoff. Publication is refused if the
+  deadline is already past by the database clock.
+* **Settlement cutoff** = latest kickoff in the snapshot + 48 hours (D-08),
+  set once at publication.
+* **ID-5 Publication snapshot age (adopted unless the owner objects).** A
+  snapshot is published only if its time is no more than one hour before, and
+  not after, the database clock. Odds freshness (24 hours) is evaluated at the
+  snapshot time, so this keeps that check meaningful at publication. It is an
+  operational guard, not a competition rule, and is a parameter.
+* **Lock** as in §1.4. Validity at lock is re-checked in SQL (nine selections,
+  nine distinct fixtures, 4/3/2 buckets); drafts and withdrawn entries never
+  count. The classification uses `challenge.scoring.classify_round` and is
+  stored once as the `deadline` designation (T-07, T-11). Settlement is not
+  implemented.
+* **ID-6 Development rounds.** `diski9 round dev-open` builds a deterministic
+  synthetic snapshot (seeded, four leagues, labelled "Development fixtures") with
+  kickoffs relative to the current time, creates a `dev-` round with
+  `is_development = true` and publishes it through the normal path (all checks
+  apply). The command refuses in production. A development snapshot cannot be
+  published into a non-development round and vice versa. No live API requests.
+* **Authorisation.** Create and publish need `round.publish`; lock needs
+  `jobs.run` when a person runs it; the CLI resolves the acting operator by
+  verified email (as `diski9 account` does) and the scheduled lock runs as a
+  system job (no actor). Every publish and lock writes a `job_runs` row and an
+  audit record.
+
+## 3. Stage C — persistent drafts
+
+Module: `diski9.backend.services.drafts`.
+
+* **Ownership:** keyed by `(principal.user_id, round_id)`; capability
+  `analysis.persist_own`; active account re-checked in the transaction.
+* **Content:** an ordered list of outcome keys `{fixture_id, market, outcome}`
+  plus the snapshot fingerprint. Nothing the client says about odds, buckets or
+  probabilities is stored or trusted.
+* **Validation (no silent changes):** each key must be an outcome of the round's
+  frozen snapshot, eligible, on a fixture not already used, in a bucket with
+  room, and must not make a 4/3/2 completion impossible
+  (`structured.selection_blocks`, the builder's rule). Any failure rejects the
+  whole save with per-selection reasons; nothing is truncated or replaced.
+  Incomplete drafts (0–9 selections) are allowed.
+* **ID-3 Stale-edit handling:** `version` starts at 1 on the first save and
+  increases on every change. A save names the version it was based on; if the
+  stored version differs, the save is refused with `DraftConflict` carrying the
+  latest saved draft, so the page can offer "load the latest saved draft".
+  Nothing is merged.
+* **ID-4 Idempotency:** a save whose selections equal the stored selections
+  writes nothing and returns the stored draft (repeated clicks, callback reruns
+  and network retries cause no writes and no false conflicts).
+* **Clearing** saves an empty selection list (the row and its version remain),
+  so a version number is never reused (no ABA overwrite after a reset).
+* **Round boundaries:** a draft belongs to one round; it is never read for
+  another round and never carried forward. After the deadline drafts stay
+  readable and cannot change (service and trigger); nothing is deleted.
+* **Errors:** typed exceptions with short, user-safe messages; the caller keeps
+  the participant's unsaved work and can retry.
+
+## 4. Stage D — persistent Your View (D-41, T-10)
+
+Module: `diski9.backend.services.your_view`.
+
+* **Scope:** the current numeric state only — Section B `context`, Section C
+  `cats` (squad, fitness, tactics, conditions), Section D `manual` — per
+  `(user, fixture)`, with the model-context stamp. No notes, reasons, history or
+  new tables. Legacy note fields are dropped on save; the numbers are unchanged.
+* **Validation (server-side):** finite numbers within the existing limits
+  (Section B ±1.00, each Section C factor ±2.00, manual within the range the
+  Match Lab can produce), at most two decimals; unknown factors are refused.
+  The limits are the Match Lab constants (a test keeps them identical).
+* **Model context:** the caller passes the stamp it computed on the server
+  (`app.lab.model_context` for the live Match Lab, or
+  `your_view.frozen_context` from a published snapshot). A stored state is
+  returned as `active` only when its stamp equals the requested one; otherwise it
+  is reported as `incompatible` and **not** returned for use, and it is not
+  rewritten by reading. A new adjustment saved in another context replaces it
+  (the prototype behaviour), and only with the current version.
+* **ID-9 Versioning:** as for drafts; a reset saves zeros (row kept).
+* **Privacy:** read and written only for `principal.user_id`; never read by
+  rounds, drafts, submission, settlement or leaderboards.
+* **Owner-1 (for Stage F, not blocking):** the table holds **one** state per
+  user and fixture. The Match Lab today always uses the live baseline; a
+  published round has a frozen baseline (`snapshot_fixtures.estimated_goals_*`).
+  When the two baselines agree (same rounded estimated goals) one adjustment
+  serves both; when they differ, the adjustment applies only in the context it
+  was made in, and the other context shows "made against a different model
+  baseline" (the existing 6B.3 behaviour). Recommendation: keep one row (no
+  schema change) for the MVP; revisit only if participants need separate frozen
+  and live adjustments for the same fixture.
+* **Owner-2 (for Stage F):** the approved decisions cover adopting a guest
+  *portfolio* (T-15); they do not say whether a guest's tab-only Your View
+  adjustments may be adopted into the account. Recommendation: offer it inside
+  the same explicit keep/discard choice, per fixture, only where the model
+  context still matches, never automatically.
+
+## 5. Test coverage (Stages B–D)
+
+Real PostgreSQL (`tests/backend/`): publication success and every refusal
+(fixtures, leagues, bookmaker groups, stale odds, overlapping-eligibility
+infeasibility, past deadline, wrong source, snapshot age), snapshot immutability
+(update, delete, insert after publication), fingerprint equivalence with the
+prototype builder and round-trip after a new engine and cleared cache,
+full-precision values, deadline and cutoff arithmetic, lock before, at and after
+the deadline, idempotent and concurrent lock, four versus five participants,
+drafts and withdrawn entries excluded; drafts (create, edit, clear, incomplete,
+invalid, duplicate fixture, wrong round, conflict, concurrent saves from two
+connections, idempotent retries, after-deadline refusal by service and
+trigger, cross-account isolation, suspended account, guest); Your View (round
+trip, limits, legacy notes, context compatibility, conflicts, reset, account
+isolation, separate engines as "devices"); migration up/down/up and privileges.
+
+## 6. Decisions for the owner at the checkpoint
+
+| ID | Question | Recommendation |
+|---|---|---|
+| Owner-1 | Frozen versus live Your View context with one row per fixture | Keep one row; apply only in the matching context (§4) |
+| Owner-2 | Guest Your View adoption | Explicit, per fixture, matching context only (§4) |
+| ID-5 | Publication snapshot-age guard (1 hour) | Keep |
