@@ -33,12 +33,17 @@ def _dt(s: str) -> datetime:
 
 # ---------------------------------------------------------------- window and timing
 def test_round_window_for_the_first_scheduled_capture():
-    w = wp.round_window(_dt("2026-11-26T06:00:00+00:00"))  # Thursday 08:00 SAST
+    # D-11 revision: capture on Friday 08:00 SAST; the round window is unchanged
+    w = wp.round_window(_dt("2026-11-27T06:00:00+00:00"))  # Friday 08:00 SAST
     assert w.code == "2026-W48"
     assert w.start == _dt("2026-11-27T00:00:00+00:00")
     assert w.end == _dt("2026-12-01T00:00:00+00:00")
+    assert w.capture_day.isoformat() == "2026-11-27"
+    assert wp.timeliness(_dt("2026-11-27T06:00:00+00:00"), w) == "on_time"
+    assert wp.timeliness(_dt("2026-11-27T10:30:00+00:00"), w) == "late"  # 12:30 SAST
+    # an earlier (Thursday) capture still belongs to the same weekend and is on time
+    assert wp.round_window(_dt("2026-11-26T06:00:00+00:00")) == w
     assert wp.timeliness(_dt("2026-11-26T06:00:00+00:00"), w) == "on_time"
-    assert wp.timeliness(_dt("2026-11-26T10:30:00+00:00"), w) == "late"  # 12:30 SAST
 
 
 def test_round_window_year_boundary():

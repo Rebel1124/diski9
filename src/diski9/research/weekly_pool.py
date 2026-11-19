@@ -1,10 +1,11 @@
 """D-29 weekly research pool collection (Phase 6C.0).
 
-Research only. Each Thursday a complete fixture and odds snapshot of the coming
-weekend is captured for all eight leagues; results are collected daily until every
-fixture is final under ``settle/v1``. Everything is written as files under
-``research/weekly_pools/<round_code>/`` (committed to the ``research/weekly-pools``
-branch by the scheduled job), never to a competition database.
+Research only. Each Friday morning (D-11 revision) a complete fixture and odds
+snapshot of the coming weekend is captured for all eight leagues; results are
+collected daily until every fixture is final under ``settle/v1``. Everything is
+written as files under ``research/weekly_pools/<round_code>/`` (committed to the
+``research/weekly-pools`` branch by the scheduled job), never to a competition
+database.
 
 Reproducibility: a capture stores the raw API data it used (window fixtures, odds
 pages trimmed to the three Diski 9 markets, rate-limit headers) and the frozen Goal
@@ -53,7 +54,7 @@ RULES_VERSION = "settle/v1"
 SAST = ZoneInfo("Africa/Johannesburg")
 DEADLINE_BUFFER = timedelta(minutes=15)  # D-06
 SETTLE_CUTOFF = timedelta(hours=48)  # D-08
-ON_TIME_BEFORE = time(12, 0)  # capture counts as on time before 12:00 SAST Thursday
+ON_TIME_BEFORE = time(12, 0)  # capture counts as on time before 12:00 SAST Friday
 IDS_PER_REQUEST = 20  # API-Football ``fixtures?ids=`` limit
 TARGET_QUALIFYING = 8  # capture stops here (D-29 needs six to eight qualifying pools)
 
@@ -115,7 +116,7 @@ class RoundWindow:
     code: str  # ISO week of the Friday, e.g. "2026-W48"
     start: datetime  # Friday 00:00 UTC
     end: datetime  # Tuesday 00:00 UTC (exclusive): the weekend window of FR-R1
-    thursday: date  # scheduled capture day
+    capture_day: date  # scheduled capture day: the Friday itself (D-11 revision)
 
 
 def round_window(at: datetime) -> RoundWindow:
@@ -124,15 +125,13 @@ def round_window(at: datetime) -> RoundWindow:
     friday = d + timedelta(days=(4 - d.weekday()) % 7)
     iso = friday.isocalendar()
     start = datetime.combine(friday, time(0), UTC)
-    return RoundWindow(
-        f"{iso.year}-W{iso.week:02d}", start, start + timedelta(days=4), friday - timedelta(days=1)
-    )
+    return RoundWindow(f"{iso.year}-W{iso.week:02d}", start, start + timedelta(days=4), friday)
 
 
 def timeliness(at: datetime, window: RoundWindow) -> str:
     local = at.astimezone(SAST)
-    on_time = local.date() < window.thursday or (
-        local.date() == window.thursday and local.time() < ON_TIME_BEFORE
+    on_time = local.date() < window.capture_day or (
+        local.date() == window.capture_day and local.time() < ON_TIME_BEFORE
     )
     return "on_time" if on_time else "late"
 
@@ -859,7 +858,7 @@ def report(store: Path = STORE_DIR, now: datetime | None = None) -> dict[str, An
     if rounds:
         first = min(datetime.strptime(r["round"] + "-5", "%G-W%V-%u") for r in rounds)
         week = first.replace(tzinfo=UTC)
-        while week + timedelta(days=-1) < now:
+        while week < now:  # a week counts as missing once its capture day has begun
             code = round_window(week).code
             if code not in captured:
                 gaps.append(code)

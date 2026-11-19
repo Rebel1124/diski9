@@ -25,7 +25,7 @@ research/weekly_pools/
 
 ## Commands
 
-* `uv run diski9 research-pool capture`: Thursday 08:00 SAST.
+* `uv run diski9 research-pool capture`: Friday 08:00 SAST (D-11 revision; was Thursday).
 * `uv run diski9 research-pool results`: daily 09:15 SAST; no requests when no pool is open.
 * `uv run diski9 research-pool replay [--round 2026-W48]`: rebuild pools offline and
   compare fingerprints, content and raw hashes (exit code 1 on any mismatch).

@@ -22,7 +22,7 @@ Collect six to eight qualifying real weekly pools to validate:
 
 | Step | When (SAST / UTC) | Content |
 |---|---|---|
-| **Capture** | Thursday 08:00 SAST (06:00 UTC) | Fixtures for the coming round window (Friday 00:00 to Monday 23:59 UTC) in all eight leagues; pre-match odds (1X2, BTTS, Over/Under 2.5) for all eight leagues; the Goal Model 1.0 probabilities for those fixtures |
+| **Capture** | Friday 08:00 SAST (06:00 UTC); Thursday until the D-11 revision, see §13 | Fixtures for the coming round window (Friday 00:00 to Monday 23:59 UTC) in all eight leagues; pre-match odds (1X2, BTTS, Over/Under 2.5) for all eight leagues; the Goal Model 1.0 probabilities for those fixtures |
 | **Results** | Daily at 09:15 SAST (07:15 UTC) from Tuesday | Status, actual kickoff and 90-minute score for every pool fixture that is not yet final |
 | **Close-out** | When every fixture is final under `settle/v1` (normally Thursday, after the cutoff) | Pool marked closed; validation inputs frozen |
 
@@ -88,7 +88,7 @@ called.
 |---|---|
 | Network or rate-limit errors | Existing client retries with backoff; a page that still fails is recorded in the manifest |
 | Partial capture (a league failed) | Status `partial`; one automatic retry 30 minutes later; a later complete capture for the same round replaces it only if made before 12:00 SAST, otherwise the partial capture is kept and flagged. A partial pool does not count as qualifying |
-| Missed Thursday capture | A late capture is allowed until the round's computed deadline (earliest eligible kickoff minus 15 minutes) and is flagged `late`; after that the week is recorded as `missed`. No retrospective odds |
+| Missed Friday capture | A late capture is allowed until the round's computed deadline (earliest eligible kickoff minus 15 minutes) and is flagged `late`; after that the week is recorded as `missed`. No retrospective odds |
 | Results still pending at the cutoff | `settle/v1` voids them (V1/V4); the actual later outcome is still recorded as an observation |
 | Unknown status codes or missing scores | Kept pending and reported in the daily one-line report |
 | Quota below the reserve | The job stops and reports; nothing is partially written without a manifest entry |
@@ -180,7 +180,8 @@ Run once six qualifying pools exist, and again at eight:
   rebuilds its working database (the "occasional rebuild" in §5 happens every
   week). This is still within budget and makes every capture independent.
 * **Partial captures:** a later complete capture replaces an accepted partial one
-  until the round deadline (flagged `late` after 12:00 SAST Thursday); after the
+  until the round deadline (flagged `late` after 12:00 SAST Friday, the capture
+  day since the D-11 revision); after the
   deadline no capture is accepted (`after_deadline`), and a complete capture is
   never repeated.
 * **Results** are fetched from the start of the round window, only for fixtures
@@ -209,3 +210,29 @@ Run once six qualifying pools exist, and again at eight:
   with a one-line report; a failed or missed run can be repeated by hand with the
   same commands (`capture` is refused once a complete capture exists; `results`
   only adds changed observations).
+
+## 13. Schedule revision: Friday capture (D-11 revision, 19 November 2026)
+
+The product owner moved the standard Weekly Challenge publication target from
+Thursday 08:00 SAST to Friday 08:00 SAST (D-11 revision). The weekly capture
+follows it so the research pools stay representative of the competition.
+
+* **Capture schedule:** `CRON_TZ=Africa/Johannesburg 0 8 * * 5` (was `* * 4`).
+  The first capture is Friday 27 November 2026, 08:00 SAST (06:00 UTC); no capture
+  runs on Thursday 26 November. The results schedule is unchanged (daily 09:15
+  SAST) and makes no requests until the first pool exists.
+* **Round window unchanged:** Friday 00:00 UTC to Tuesday 00:00 UTC (exclusive).
+  A Friday capture maps to the same weekend and round code as before (the Friday
+  itself), so no fixture window, eligibility rule or exclusion changes. The
+  capture now runs six hours after the window opens; none of the eight leagues
+  schedules a match between 00:00 and 06:00 UTC on a Friday, and the existing
+  round deadline (earliest eligible kickoff minus 15 minutes) still decides
+  whether a capture is accepted.
+* **Code (labels only):** the scheduled capture day used for `timeliness` is now
+  the Friday (on time before 12:00 SAST Friday; a capture made before Friday is
+  also on time), and the report counts a week as missing once its Friday has begun
+  instead of its Thursday. Timeliness does not affect whether a pool qualifies.
+  Nothing else changed: odds freshness, consensus, Broad60 boundaries, 4/3/2
+  feasibility, fingerprints, raw files, replay and the stop conditions in the
+  Phase 6C.2 section are as before.
+
