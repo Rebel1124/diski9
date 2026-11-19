@@ -1606,8 +1606,70 @@ def round_card(
     )
 
 
-def confirmed_summary(sub, local, can_withdraw: bool) -> html.Div:
-    """Compact card: the frozen submission's Market / Diski 9 / Your View estimates."""
+def your_view_now(service, snap, sub) -> dict | None:
+    """Your View for the confirmed nine predictions **now** (signed-in participant):
+    the frozen-context Your View saved in the account for this round, applied to the
+    confirmed predictions. Shown privately on My Challenge only; never stored with
+    the entry and never used for scoring. ``None`` when nothing applies."""
+    from . import integration, lab_persist
+
+    if not sub or not sub.get("persistent") or snap is None:
+        return None
+    try:
+        lab = lab_persist.load_round(service, {})
+        personal = integration.personal_probabilities(None, snap, lab)
+    except Exception:  # noqa: BLE001 - the card is simply not shown
+        return None
+    keys = sub.get("selections") or []
+    chosen = {o.key for o in service.outcomes_for(snap, keys)}
+    personal = {k: v for k, v in personal.items() if k in chosen}
+    port = service.portfolio(snap, keys)
+    if port is None:
+        return None
+    if not personal:
+        return {"adjusted": 0}
+    ev = pa.evaluate_sources(port, personal)["personal"]
+    return {
+        "adjusted": len({k[0] for k in personal}),
+        "estimate": {"p_recover": ev.p_recover, "p_zero": ev.p_zero, "expected": ev.expected_gross},
+    }
+
+
+def your_view_block(yv) -> html.Div | None:
+    if yv is None:
+        return None
+    if not yv["adjusted"]:
+        return html.P(
+            "Your View: none of these nine matches has a Weekly Challenge (frozen) "
+            "adjustment. Adjust a match in the Match Lab from the Weekly Challenge to "
+            "see your own estimate here.",
+            className="muted small ch-yv-now-note",
+        )
+    n = yv["adjusted"]
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.Span("Your View — now", className="ch-h3"),
+                    html.Span("Private · not part of your entry", className="ch-pill off"),
+                ],
+                className="ch-row-between",
+            ),
+            estimate_cards({"personal": yv["estimate"]}),
+            html.P(
+                f"Calculated now from your current Weekly Challenge adjustments "
+                f"({n} of 9 matches adjusted; the others use the Diski 9 baseline). "
+                "It changes if you change your view and is never used for scoring.",
+                className="muted small",
+            ),
+        ],
+        className="ch-yv-now",
+    )
+
+
+def confirmed_summary(sub, local, can_withdraw: bool, your_view=None) -> html.Div:
+    """Compact card: the frozen submission's Market / Diski 9 estimates, and (for a
+    signed-in participant) Your View calculated now, clearly separated."""
     return html.Div(
         [
             html.Div(
@@ -1622,10 +1684,11 @@ def confirmed_summary(sub, local, can_withdraw: bool) -> html.Div:
                 className="ch-row-between",
             ),
             estimate_cards(sub.get("estimates") or {}),
+            your_view_block(your_view),
             html.Div(
                 [
                     html.Span(
-                        "Values frozen when you confirmed. Maximum payout "
+                        "Market and Diski 9 values frozen when you confirmed. Maximum payout "
                         f"{c.credits(sub.get('max_gross', '0'))}.",
                         className="muted small",
                     ),
@@ -1815,7 +1878,8 @@ def my_challenge_body(service, state, local) -> list:
     can_withdraw = bool(sub) and avail.playable and not locked(avail)
     status = round_card(state, snap, avail, sels, sub, label, cls, line, local, kind, rv)
     if sub:
-        confirmed = confirmed_summary(sub, local, can_withdraw)
+        yv_now = your_view_now(service, snap, sub) if access_kind == "account" else None
+        confirmed = confirmed_summary(sub, local, can_withdraw, yv_now)
     else:
         confirmed = html.Div(
             [

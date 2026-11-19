@@ -1272,3 +1272,10 @@ table.results td.value-cell { white-space: nowrap; }
 .ch-locked-entry .ch-src-card .ch-big, .ch-locked-entry .ch-src-card strong { font-size: 15px; }
 .ch-locked-entry .ch-locked-preds { margin: 10px 0 0; box-shadow: none; }
 @media (max-width: 600px) { .ch-locked-entry .ch-src-cards { grid-template-columns: minmax(0, 1fr); } }
+
+/* My Challenge: Your View calculated now (private, not part of the entry) */
+.ch-yv-now { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line, #2a3340); }
+.ch-yv-now .ch-src-cards { grid-template-columns: minmax(0, 1fr); margin: 8px 0 4px; }
+.ch-yv-now .ch-src-card { padding: 8px 10px; max-width: 340px; }
+.ch-yv-now .ch-src-card .ch-big, .ch-yv-now .ch-src-card strong { font-size: 15px; }
+.ch-yv-now-note { margin: 8px 0 0; }

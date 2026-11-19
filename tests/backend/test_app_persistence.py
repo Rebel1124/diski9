@@ -288,3 +288,33 @@ def test_current_round_after_the_deadline_says_deadline_passed_until_locked(engi
     rsvc.lock_round(engine, rsvc.SYSTEM, view.id)
     out, _, _ = body_text(engine, view.id)
     assert "Your entry is locked." in out and "lock pending" not in out
+
+
+# ------------------------------------------------------------------ Your View now (My Challenge)
+def test_my_challenge_shows_your_view_now_without_touching_the_entry(engine, op, as_user):
+    from diski9.backend.services import your_view as yv
+
+    view, snap = publish_dev(engine, op, deadline_in=timedelta(hours=3), seed=53)
+    p, other = principal(engine), principal(engine)
+    d = drafts.save_draft(engine, p, view.id, valid_keys(snap, 9), expected_version=0)
+    es.confirm_entry(engine, p, view.id, draft_version=d.version, expected_entry_version=0,
+                     idempotency_key=uuid.uuid4().hex)  # fmt: skip
+    stored = es.get_entry(engine, p, view.id).current
+    as_user(p)
+    out, _, _ = body_text(engine, view.id)
+    assert "Your View — now" not in out and "none of these nine matches" in out
+    # a frozen-context adjustment on one confirmed match
+    fid = valid_keys(snap, 9)[0]["fixture_id"]
+    state = yv.zero_state()
+    state["manual"] = {"home": 0.4, "away": 0.0}
+    yv.save_your_view(engine, p, yv.RoundContext(view.id, fid), state, expected_version=0)
+    out, _, _ = body_text(engine, view.id)
+    assert "Your View — now" in out and "1 of 9 matches adjusted" in out
+    assert "Private · not part of your entry" in out
+    after = es.get_entry(engine, p, view.id).current
+    assert (after.id, after.version, after.p_recover_market, after.expected_gross_market) == (
+        stored.id, stored.version, stored.p_recover_market, stored.expected_gross_market)  # fmt: skip
+    # another account sees nothing of it
+    as_user(other)
+    out, _, _ = body_text(engine, view.id)
+    assert "Your View — now" not in out

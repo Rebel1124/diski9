@@ -175,6 +175,8 @@ The Weekly Challenge **Your View** probability source uses only your frozen-cont
 
 A guest sees **Sign in to confirm** instead of a confirm button.
 
+**Your View on My Challenge.** The confirmed card shows the frozen Market and Diski 9 figures. Below them, **Your View — now** appears once you have adjusted at least one of your nine matches in the Match Lab **from the Weekly Challenge** (header "Weekly Challenge snapshot"). It is calculated from your current adjustments each time the page loads, is private, and is not part of your entry. Adjustments made under "All upcoming fixtures" (latest data) are separate and do not count here.
+
 ### F. Account isolation
 1. In one window, as A, make a draft and an adjustment, then sign out.
 2. Sign in as B in the same window: none of A's predictions or adjustments are visible.
