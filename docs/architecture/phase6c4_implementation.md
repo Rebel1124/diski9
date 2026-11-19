@@ -8,7 +8,7 @@ Supabase test deferred; CI run 27 green; migrations `app_0001`–`app_0005`).
 by the product owner on 19 Nov 2026 with the decisions in §22**, which supersede
 the Stage A proposals where they differ (notably: completion-based cutoff, no
 closing window, owner-only reopening, explicit development result modes).
-**Stages B–D authorised**; their implementation record starts at §23. Stages E–G
+**Stages B–D implemented** (record in §23; mandatory owner checkpoint). Stages E–G
 wait for separate authorisation.
 
 **Precedence:** the decision register (D-, T-, R- series) and the approved policy
@@ -688,3 +688,164 @@ records them as **S-01 to S-11**; `settle/v1` was amended (§2, §2a, rules 1 an
 | Q-10 finalisation | S-09: in 6C.4 | §15 stands |
 | Q-12 migration | S-10: approved in principle, no grace column | §10 as amended |
 | Q-13 interim display | S-11: approved for Stage F | §14 stands |
+
+---
+
+## 23. Stages B–D implementation record (19 Nov 2026)
+
+**Commits:** decisions and policy amendment `182966b`; Stage B `dee7bf4`; Stage C
+`55ac667`; Stage D `ffe1fba`; this record and the checkpoint documentation follow.
+
+### 23.1 Policy amendments (S-01 to S-11)
+* `docs/product/weekly_challenge_settle_v1.md`: completion-based cutoff (§2),
+  late completion versus delayed notification, the evidence table (§2a), V3
+  branches (rule 1), rules 3–6 using the status *recorded at the cutoff*, notes,
+  conflicting results (§5).
+* `docs/product/weekly_challenge_decisions.md`: S-01 to S-11; D-08 and R-14 notes.
+* Consequential wording: closure handover digest (§8), this document (§22).
+
+### 23.2 Migration `app_0006_settlement_evidence` (Stage B)
+| Object | Change |
+|---|---|
+| `result_observations` | unique `(fixture_id, raw_hash)` replaced by an index (A → B → A recordable); source `synthetic` with `scope_round_id` (trigger: development round in synthetic mode only; corrections keep fixture and scope); operator rows need actor, reason and evidence (assertions without a provider row allowed); `actual_kickoff_at` / `completed_at` only on operator rows; `provider_first_half_at` (supporting only); `observed_at <= recorded_at` except synthetic |
+| `rounds` | set-once `correction_window_hours` and `result_mode`; a publish trigger copies the schedule's window and sets `real` for real rounds whatever code path publishes; existing published rounds back-filled; development rounds start with no mode and cannot be settled until one is chosen |
+| `selection_verdicts` | `rule`, `evidence` (score used, observation IDs, notes, policy), `material`; CHECK that rule, verdict and void code agree |
+| `settlement_runs` | `evaluated_at`, `phase`, `time_override` (trigger: development rounds only), `actor_user_id`, `manifest`, `evidence_through_id`, `material`; triggers `invalidation`, `finalise` |
+| `settlement_versions` (new, insert-only) | consecutive versions; `provisional` / `final` / `reopened` lifecycle enforced by trigger (`final` → only `reopened`; `reopened` only after `final`; reopened needs actor, reason, evidence) |
+| `settlement_alerts`, `settlement_alert_resolutions` (new, insert-only) | alerts unique per round and fingerprint; one resolution per alert; human resolutions need an actor; `corrected` needs the correction observation |
+
+Row-level security and runtime-role grants follow `app_0002`. **Downgrade**
+refuses (`object_in_use`, nothing changed) once any 6C.4 data exists, because the
+earlier schema cannot represent it; with no such data it restores `app_0005`
+exactly. A downgrade to `base` on a database with settlement history is therefore
+also refused — deliberate: settlement history is never discarded silently.
+
+### 23.3 Result evidence (Stage B)
+* `ingestion/results_fetch.py` (new; existing ingestion untouched):
+  `fetch_fixtures_by_ids` batches IDs 20 per request (`ids=a-b-c`);
+  `canonical_hash`; `evidence_fields` reads `score.fulltime` exactly as the
+  football store and keeps `periods.first` separately. The provider's `ids`
+  parameter is used as documented by the provider; **no live request was made**
+  (not authorised); confirming it is a one-request task when live access is
+  authorised.
+* `repositories/results.py`: `record_evidence` deduplicates against the
+  observation **preceding** it in receipt order for the same fixture and scope,
+  under a transaction-scoped advisory lock; reads per result mode never mix
+  (`real`: provider + unscoped operator rows; `synthetic`: rows scoped to the
+  round).
+* `services/results.py`: `import_results` (real mode only; locked/settling/final
+  rounds; only fixtures selected in locked entries; skips fixtures more than 30
+  minutes ahead and those final or cancelled for 6 hours unless `full`; refuses
+  responses older than 30 minutes at recording; optional hand-off of the same
+  items to the unchanged `store_fixtures`); `set_result_mode` (development only,
+  set once, audited); `record_synthetic_observation` (development round in
+  synthetic mode, never production).
+
+### 23.4 Fixture resolution (Stage B, `challenge/settle.py`)
+Pure functions. Only observations recorded at or before the evaluation time are
+considered. Order: V3 (*started*: our in-play/interrupted/final observation before
+the deadline, or an operator-verified kickoff; *rescheduled*: a consistent provider
+schedule before the deadline) → ambiguity holds (unverified `periods.first`,
+contradictory schedules) → V2 → regression hold → unknown status → settle (completion
+evidence: a final observation **recorded at or before the cutoff**, or an operator
+`completed_at` at or before it; score from the latest scored final, or the first
+one when a later score would change a selected verdict) → after the cutoff, the void
+rule from the status recorded at the cutoff (V1 for `PST` or a schedule beyond the
+cutoff, V4 for `ABD`/`SUSP`/`INT`, otherwise `V1-catch-all`) plus a blocking
+`late_notification` when a final arrived only after the cutoff → pending. A live
+operator correction (latest not withdrawn) is authoritative for status, score and
+any verified times.
+
+### 23.5 Settlement (Stage C, `services/settlement.py`)
+One transaction per round with the round locked; `compute` (read-only plan) and
+`apply` (writes). Entry payouts through `challenge.settle.settle_entry`, which calls
+the unchanged `structured.evaluate_groups` with void legs at 1.00; complete entries
+take the engine state for their win vector; partial entries count only resolved
+winning accumulators ("settled so far"); a pending accumulator has no payout (never
+0). Every complete entry without voids is checked against the confirmed
+submission's stored states (`SettlementIntegrityError` otherwise). D-32b counts
+prediction instances of the locked set; designation rows are written only when the
+outcome changes, never touching the lock's base classification; an operator void
+is not undone by D-32b. Revisions only on change; verdict revisions are material
+when verdict, void code or rule changes (score-only revisions are recorded as
+non-material); every entry change is material; a settlement version is written for
+the first run and every material run. Alerts are deduplicated by fingerprint;
+only unknown-status, missing-score and regression alerts are superseded
+automatically when the evidence clears them. Development time overrides are
+refused for real rounds, production and the scheduled-job actor (service **and**
+database trigger). A finalised round is never changed: a material difference
+raises `post_final_change`. `personal_result` is owner-scoped; recovery and rank
+eligibility stay `None` until the entry is complete and the round's validity has
+been evaluated; a void round shows the refund (gross 100.00, net 0).
+
+### 23.6 Corrections, finalisation, reopening (Stage D, `services/corrections.py`)
+| Operation | Capability | T-14 | Preview + token | Reason / evidence | Effect |
+|---|---|---|---|---|---|
+| `correct_result` | `result.correct` | yes | yes | both | operator observation (correcting the latest evidence, original values kept), whole-round recalculation, alerts it resolves marked `corrected` |
+| `withdraw_correction` | `result.correct` | yes | — | reason | withdrawal row, recalculation |
+| `resolve_alert` | `result.correct` | yes | — | reason | `late_notification` → `confirmed` (void stands); informational → `acknowledged`; other blocking alerts refused (need a correction) |
+| `invalidate_round` | `round.void` | yes | yes | reason | operator `void` designation, material version |
+| `finalise_round` | `jobs.run` or scheduled actor | — | — | — | final run first; refuses on material change, pending, open blocking alert or before max(cutoff, last material change) + window; then status `final`, confirming designation (`provisional = false`), `final` version |
+| `reopen_round` | `round.reopen` (**owner only**, new) | yes | yes | both | status back to `settling`, `reopened` version, optional correction, recalculation, new version; the `final` version stays |
+
+Tokens summarise the exact impact and the current version, so a stale or
+concurrent confirmation is refused. Audit payloads hold reasons, evidence sources
+and values, never credentials.
+
+### 23.7 Evidence
+* Tests added: `tests/test_settle_rules.py` (45), `tests/test_settle_entry.py`
+  (11, including hypothesis properties), `tests/backend/test_backend_results.py`
+  (17), `test_backend_settlement.py` (16), `test_backend_scenarios.py` (15),
+  `test_backend_corrections.py` (17), `test_backend_settlement_security.py` (6),
+  one upgrade-path test and one auth unit case.
+* Full suite (real PostgreSQL + local Supabase Auth): **1,433 passed, 1 skipped**
+  (the deferred hosted Supabase test). The first full run had one failure: a 6C.3
+  migration test downgraded the shared session database to `app_0003`, which the
+  new downgrade guard refused because earlier modules had written settlement data.
+  The test now runs on its own fresh database (as does the full-downgrade test);
+  the guard is unchanged.
+* Quantitative regression: engine files unchanged from v4.1.0; fingerprint
+  `88bcd717…` identical. Source changes against v4.1.0 are additions only.
+* Performance (`tools/phase6c4_perf.py`, local PostgreSQL, median ms):
+
+| Locked entries | Settle (first) | Rerun | Preview | Correction (preview + execute) | Own result | Import 18 fixtures |
+|---|---|---|---|---|---|---|
+| 50 | 68 | 45 | 33 | 101 | 3.7 | 42 |
+| 200 | 103 | 90 | 93 | 330 | 3.7 | 50 |
+| 1,000 | 480 | 462 | 479 | 1,317 | 4.3 | 72 |
+
+### 23.8 Deviations from the Stage A design (with reasons)
+1. **No closing window** (S-03); the void rule comes from the status recorded at the
+   cutoff.
+2. **Alerts in dedicated tables** instead of `domain_events`: blocking alerts need
+   audited resolutions with state, which `domain_events` cannot hold.
+3. **`settlement_versions` table** added (S-10 "authoritative settlement version
+   references and lifecycle integrity").
+4. **Publish trigger** fills the frozen window and real mode, so every publication
+   path (service, tests, future jobs) freezes them.
+5. **Operator full-time corrections need `completed_at`** when no provider final was
+   recorded by the cutoff — a direct consequence of S-03.
+6. **Material score conflicts keep the first final score** pending an audited
+   correction (S-05 "rather than silently replacing authoritative verdicts").
+
+### 23.9 Limitations and open items
+* The provider's multi-ID request is implemented to its documented contract but not
+  exercised live (no live calls authorised).
+* Development corrections, alert resolutions and reopening evaluate at the database
+  clock (only settlement runs and finalisation accept the development time
+  override); development scenarios for those flows use short real cutoffs.
+* `personal_result` is the service boundary for Stage F; no UI yet.
+* CLI commands (and the interactive Supabase password check that will build the
+  principal with fresh `authenticated_at` / `reauthenticated_at`) are Stage E; until
+  then the existing `cli_principal` is unchanged and no settlement command exists.
+* Score sets, ranks, points, championships: 6C.5. Scheduling and admin UI: 6C.6.
+* D-29 and D-36 remain outstanding.
+
+### 23.10 Remaining work (Stages E–G, not started)
+* **E:** CLI commands for import, show, preview, settle, alerts, correct, withdraw,
+  resolve, invalidate, finalise, reopen (owner), `set-mode`, `dev-results
+  scenario`; interactive `getpass` password verification through Supabase Auth per
+  command (S-07); no secrets in argv, logs or audit.
+* **F:** My Challenge results panel per §14 and S-11.
+* **G:** full regression, browser journeys, performance on the owner's machine,
+  documentation and the Mac acceptance guide.

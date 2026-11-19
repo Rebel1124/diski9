@@ -562,3 +562,18 @@ The schema was implemented as proposed, with these refinements:
   change silently.
 * The runtime role and its privileges are applied by the migration only if the
   role exists; roles are created by the Docker init script or the operator.
+
+## 15. Revision `app_0006` (Phase 6C.4)
+
+Settlement evidence, development result modes and settlement versions; detail in
+[`phase6c4_implementation.md`](phase6c4_implementation.md) §23.2. In short:
+`result_observations` keeps every distinct provider state (the unique hash index
+became an ordinary index), gains scoped `synthetic` evidence, operator assertions
+with evidence, verified event times on operator rows only and the provider's
+first-half start as supporting evidence; `rounds` freezes `correction_window_hours`
+and `result_mode` (set once, filled at publication); `selection_verdicts` records the
+rule, evidence and materiality; `settlement_runs` records evaluation time, phase,
+override, actor and the evidence manifest; new insert-only `settlement_versions`
+(provisional → final → reopened), `settlement_alerts` and
+`settlement_alert_resolutions`. The downgrade refuses once settlement data exists.
+

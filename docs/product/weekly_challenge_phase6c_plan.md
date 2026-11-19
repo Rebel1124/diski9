@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A (architecture and policy assessment) written for owner review on branch `feature/phase-6c4-settlement` (`docs/architecture/phase6c4_implementation.md`); 6C.4 Stages B–G and later phases not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A approved (decisions S-01 to S-11) and Stages B–D implemented on branch `feature/phase-6c4-settlement` (`docs/architecture/phase6c4_implementation.md` §22–§23), awaiting the mandatory owner checkpoint; 6C.4 Stages E–G and later phases not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -318,6 +318,18 @@ ordering, migration `app_0005`) and Stage G (real-browser journeys A–G,
 regression, performance, documentation). Record:
 [`phase6c3_implementation.md`](../architecture/phase6c3_implementation.md);
 handover: [`phase6c3_implementation_handover.md`](../architecture/phase6c3_implementation_handover.md).
+
+## Implementation notes (6C.4, Stages B–D)
+
+Stage A approved with decisions S-01 to S-11 (completion-based cutoff, no grace
+period). Stages B–D on `feature/phase-6c4-settlement`: migration `app_0006`
+(evidence, development result modes, verdict rules, run manifests, settlement
+versions, alerts), pure `settle/v1` resolution, provider by-ID fetch boundary,
+round settlement through the unchanged engine, D-32b, corrections, alert
+resolution, operator invalidation, finalisation and owner-only reopening.
+**Database changes:** one additive migration (the plan's "none structural" was
+revised by S-10). Record: `docs/architecture/phase6c4_implementation.md` §23.
+Stages E (CLI), F (My Challenge) and G (acceptance) need separate authorisation.
 
 ## Deferred backlog accepted at the 6C.3 closure (19 Nov 2026)
 

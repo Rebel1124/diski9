@@ -13,7 +13,7 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.exc import DBAPIError
 from svc_helpers import principal, publish_dev, unique, valid_keys
 
-from diski9.backend.db import db_now, migrate, transaction
+from diski9.backend.db import BackendDatabaseSettings, db_now, make_app_engine, migrate, transaction
 from diski9.backend.db.schema import (
     championship_series,
     entries,
@@ -145,10 +145,14 @@ def test_contexts_are_private_per_account(engine, rnd):
         assert yv.get_your_view(engine, b, ctx).status == yv.NONE
 
 
-def test_existing_rows_are_preserved_as_unassigned_through_the_migration(pg_url, engine):
+def test_existing_rows_are_preserved_as_unassigned_through_the_migration(fresh_url):
     """Rows saved before app_0004 cannot be told apart (live or frozen), so they are
     kept unchanged as ``unassigned`` and never applied; downgrade and re-upgrade keep
-    them."""
+    them. Runs on a separate database: the session database may hold Phase 6C.4
+    settlement data, whose downgrade is refused by design."""
+    pg_url = fresh_url
+    migrate.upgrade(pg_url)
+    engine = make_app_engine(BackendDatabaseSettings(environment="test"), url=pg_url)
     p = principal(engine)
     migrate.downgrade(pg_url, "app_0003")
     try:
@@ -189,6 +193,7 @@ def test_existing_rows_are_preserved_as_unassigned_through_the_migration(pg_url,
             ).scalars()
         )
     assert kinds == ["live", "unassigned"]
+    engine.dispose()
 
 
 # ------------------------------------------------------------ guest adoption
