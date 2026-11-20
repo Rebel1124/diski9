@@ -125,7 +125,8 @@ rounds (CH-02).
 * **Run on the Stage B code:** 1,521 passed, 1 failed, 0 skipped (real PostgreSQL,
   local Supabase Auth, browser tests). The single failure was the intermittent
   ordering assertion above, which was then fixed and passed repeatedly.
-* **Final confirmation run:** see the checkpoint report.
+* **Final confirmation run on the committed code (`3f9241c`):** 1,522 passed,
+  0 failed, 0 skipped. That is the 1,481-test baseline plus 41 new tests.
 * The local Supabase Auth harness reached its background time limit during the run
   and was restarted; all auth-dependent tests passed.
 
