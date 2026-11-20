@@ -31,6 +31,8 @@ from diski9.leagues import (
 )
 from diski9.odds.collect import collect_odds, summarise_fetch
 from diski9.odds.consensus import fixture_consensus, load_bookmakers
+from diski9.settlement_cli import ROUND_ACTIONS, add_round_arguments
+from diski9.settlement_cli import add_parsers as add_settlement_parsers
 
 log = logging.getLogger("diski9")
 
@@ -541,7 +543,15 @@ def cmd_round(args) -> int:
                     league_names=LEAGUE_SHORT,
                 )
             else:
-                snap = dev_snapshot(code, now, first, seed=args.seed)
+                if args.spacing_minutes < 1:
+                    raise ServiceError("--spacing-minutes must be 1 or more", code="usage")
+                snap = dev_snapshot(
+                    code,
+                    now,
+                    first,
+                    seed=args.seed,
+                    spacing=timedelta(minutes=args.spacing_minutes),
+                )
             v = svc.create_round(
                 engine,
                 p,
@@ -753,8 +763,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--reason", help="recorded in the audit log")
     s.add_argument("--confirm", action="store_true", help="required for bootstrap-owner")
 
-    s = sub.add_parser("round", help="weekly rounds: create, publish, lock (competition DB)")
-    s.add_argument("action", choices=["list", "show", "create", "publish", "lock", "dev-open"])
+    s = sub.add_parser(
+        "round",
+        help="weekly rounds: create, publish, lock; invalidate, finalise, reopen (competition DB)",
+    )
+    s.add_argument(
+        "action",
+        choices=["list", "show", "create", "publish", "lock", "dev-open", *ROUND_ACTIONS],
+    )
     s.add_argument("--code", help="round code, for example 2026-W48-weekend")
     s.add_argument("--week", help="ISO week for create, for example 2026-W48")
     s.add_argument("--by-email", help="the acting operator or owner (verified email address)")
@@ -777,6 +793,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="dev-open --mirror-upcoming: number of fixtures, earliest kickoffs first "
         "(0 = every upcoming fixture within seven days of the first allowed kickoff)",
     )
+    s.add_argument(
+        "--spacing-minutes",
+        type=int,
+        default=120,
+        help="dev-open (synthetic fixtures): minutes between kickoffs; use 1 for a "
+        "compressed round whose matches all start within minutes of each other",
+    )
+    add_round_arguments(s)
+    add_settlement_parsers(sub)
 
     s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
     s.add_argument("action", choices=["upgrade", "downgrade", "current", "check"])
@@ -791,6 +816,12 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_app_db(args)
     if args.command == "account":
         return cmd_account(args)
+    if args.command in ("results", "settle", "dev-results") or (
+        args.command == "round" and args.action in ROUND_ACTIONS
+    ):
+        from diski9.settlement_cli import run as run_settlement
+
+        return run_settlement(args)
     if args.command == "round":
         return cmd_round(args)
     engine = make_engine(args.database_url)

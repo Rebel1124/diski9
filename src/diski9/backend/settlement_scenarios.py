@@ -10,7 +10,13 @@ Stage E.
 
 Times are placed relative to the round so every scenario works for any span
 between deadline and cutoff: ``t1`` (not started), ``t2`` (in play), ``t3``
-(final) lie strictly between them.
+(final) lie strictly between them. With ``horizon`` (the ``prompt`` timeline of
+the CLI) the span used for ``t1``–``t3`` is capped, so the evidence lies minutes
+after the deadline and becomes visible at the database clock almost at once;
+operations that always evaluate at the database clock (corrections, alert
+resolutions, reopening) can then be exercised without waiting days. The cutoff
+itself never moves: ``cutoff-boundary`` and ``late-notification`` still place
+evidence at the real cutoff and need ``settle run --as-of`` after it.
 """
 
 from __future__ import annotations
@@ -80,12 +86,15 @@ def build(
     deadline: datetime,
     cutoff: datetime,
     entries: Sequence[Sequence[ScenarioLeg]],
+    horizon: timedelta | None = None,
 ) -> list[SyntheticObservation]:
     if name not in SCENARIOS:
         raise ValueError(f"unknown scenario {name!r}; choose one of {', '.join(SCENARIOS)}")
     if not entries:
         raise ValueError("the round has no locked entries")
-    span = cutoff - deadline
+    span = cutoff - deadline if horizon is None else min(cutoff - deadline, horizon)
+    if span <= timedelta(0):
+        raise ValueError("the timeline needs a positive span after the deadline")
     t1, t2, t3 = deadline + span / 8, deadline + span / 4, deadline + span / 2
     ko = t2 - span / 16
     outcomes: dict[int, list[tuple[str, str]]] = {}
@@ -188,7 +197,42 @@ def build(
     return sorted(out, key=lambda o: (o.observed_at, o.fixture_id))
 
 
-def apply_scenario(engine: Engine, actor: Principal, round_id: UUID, name: str) -> int:
+#: the CLI's ``prompt`` timeline: final evidence four minutes after the deadline
+PROMPT_HORIZON = timedelta(minutes=8)
+
+#: what each scenario demonstrates (operator documentation and ``dev-results scenarios``)
+DESCRIPTIONS = {
+    "all-correct": "every selected outcome wins; all four accumulators succeed",
+    "all-incorrect": "every selected outcome loses; gross 0.00, not recovered",
+    "one-bucket-wins": "bucket A fixtures win, the rest lose: Foundation pays, others 0.00",
+    "partial-void": "one Foundation fixture is cancelled (void at 1.00), the rest win",
+    "bucket-all-void": "every Balanced fixture is cancelled: its stake is returned at 1.00",
+    "all-nine-void": "every selected fixture is cancelled: refund 100.00, not rank-eligible",
+    "round-invalid-majority": "at least half of all locked predictions void: the round is "
+    "void (D-32b) and every entry is refunded",
+    "pending": "half the fixtures stay in play: partial settlement, totals settled so far",
+    "cutoff-boundary": "one final exactly at the cutoff (settles) and one a second after "
+    "(void V1); needs settle run --as-of after the cutoff",
+    "late-notification": "a final first received an hour after the cutoff: void stands, "
+    "blocking alert; needs settle run --as-of after the cutoff",
+    "provider-correction": "a final score later changed by the provider so the verdict "
+    "flips: the first score is kept and a blocking conflict alert is raised",
+    "status-regression": "a final later reported as not started: held pending with a "
+    "blocking alert",
+    "early-start-unverified": "the provider's first-half time is before the deadline "
+    "without corroboration: pending with a blocking alert",
+    "repeat": "every final delivered twice, identically: stored once (idempotent)",
+}
+
+
+def apply_scenario(
+    engine: Engine,
+    actor: Principal,
+    round_id: UUID,
+    name: str,
+    *,
+    horizon: timedelta | None = None,
+) -> int:
     """Record a scenario for a locked development round in synthetic mode. Returns
     the number of observations stored (identical repeats are not stored)."""
     from .services.settlement import locked_legs
@@ -201,7 +245,9 @@ def apply_scenario(engine: Engine, actor: Principal, round_id: UUID, name: str) 
         for _, ls, _ in legs.values()
     ]
     stored = 0
-    for o in build(name, deadline=r.deadline_at, cutoff=r.settle_cutoff_at, entries=entries):
+    for o in build(
+        name, deadline=r.deadline_at, cutoff=r.settle_cutoff_at, entries=entries, horizon=horizon
+    ):
         new = results_svc.record_synthetic_observation(
             engine,
             actor,
@@ -216,3 +262,71 @@ def apply_scenario(engine: Engine, actor: Principal, round_id: UUID, name: str) 
         )
         stored += new is not None
     return stored
+
+
+# ------------------------------------------------------------------ test entries
+def test_selections(snapshot, variant: int = 0) -> list[dict]:
+    """A deterministic, complete set of nine selections for development testing,
+    chosen with the builder's own rules from the round's outcomes rotated by
+    ``variant`` (so several test accounts get different portfolios)."""
+    from ..challenge.config import DEFAULT_CONFIG
+    from ..challenge.structured import selection_blocks
+
+    outcomes = list(snapshot.outcomes)
+    if not outcomes:
+        raise ValueError("the round has no outcomes")
+    shift = (variant * 7) % len(outcomes)
+    ordered = outcomes[shift:] + outcomes[:shift]
+    chosen: list = []
+    for o in ordered:
+        if len(chosen) == 9:
+            break
+        blocks = selection_blocks(chosen, outcomes, snapshot.snapshot_at, DEFAULT_CONFIG)
+        if blocks.get(o.key) is None:
+            chosen.append(o)
+    if len(chosen) != 9:
+        raise ValueError("no complete portfolio could be built for this variant")
+    return [
+        {"fixture_id": o.fixture_id, "market": str(o.market), "outcome": str(o.outcome)}
+        for o in chosen
+    ]
+
+
+def submit_test_entry(engine: Engine, participant: Principal, round_id: UUID, variant: int = 0):
+    """Confirm a deterministic portfolio for an **authenticated** participant on an
+    open development round, through the ordinary draft and entry services (their
+    authorisation, deadline and integrity checks all apply). Refused in production
+    and for real rounds. Returns the entry view."""
+    import uuid as _uuid
+
+    from .db import BackendDatabaseSettings
+    from .services import drafts as drafts_svc
+    from .services import entries as entries_svc
+    from .services.common import ServiceError
+    from .services.snapshots import load_snapshot
+
+    if BackendDatabaseSettings().environment == "production":
+        raise ServiceError("Test entries are disabled in production.", code="usage")
+    with transaction(engine) as conn:
+        r = results_svc.round_row(conn, round_id)
+        if not r.is_development:
+            raise ServiceError("Test entries are only for development rounds.", code="usage")
+        snap = load_snapshot(conn, round_id)
+    current = drafts_svc.get_draft(engine, participant, round_id)
+    draft = drafts_svc.save_draft(
+        engine,
+        participant,
+        round_id,
+        test_selections(snap, variant),
+        expected_version=current.version,
+    )
+    entry = entries_svc.get_entry(engine, participant, round_id)
+    return entries_svc.confirm_entry(
+        engine,
+        participant,
+        round_id,
+        draft_version=draft.version,
+        expected_entry_version=entry.version,
+        idempotency_key=f"dev-test-entry-{_uuid.uuid4().hex}",
+        replace=entry.current is not None,
+    )
