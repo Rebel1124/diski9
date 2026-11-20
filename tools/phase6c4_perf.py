@@ -74,8 +74,11 @@ def main(url: str) -> None:
     with transaction(engine) as conn:
         now = db_now(conn)
     op = replace(op, authenticated_at=now, reauthenticated_at=now, now=now)
+    from diski9.backend.services import settlement_ops as ops
+    from diski9.backend.services.participant_results import my_settlement
+
     print(f"{'entries':>8} {'settle':>8} {'rerun':>8} {'preview':>8} {'correct':>8} "
-          f"{'own':>6} {'import':>7}  (ms)")  # fmt: skip
+          f"{'own':>6} {'mine':>6} {'status':>7} {'import':>7}  (ms)")  # fmt: skip
     for n in (50, 200, 1000):
         (w,) = settlement_worlds(engine, [[shifted(k % 10) for k in range(n)]],
                                  cutoff_after=timedelta(seconds=4))  # fmt: skip
@@ -102,6 +105,10 @@ def main(url: str) -> None:
         _, t_corr = timed(correction)
         me = principal(engine, user_id=w["users"][0])
         _, t_own = timed(lambda w=w, me=me: st.personal_result(engine, me, w["round"]), 5)
+        # Stage F: the My Challenge read; Stage E: the operator status report
+        me = replace(me, onboarded=True)
+        _, t_mine = timed(lambda w=w, me=me: my_settlement(engine, me, w["round"]), 5)
+        _, t_status = timed(lambda w=w: ops.round_report(engine, op, w["round"]), 3)
 
         class Client:
             def get(self, endpoint, params, items=items):
@@ -116,7 +123,7 @@ def main(url: str) -> None:
             engine, op, w["round"], lambda ids: fetch_fixtures_by_ids(Client(), ids),
             full=True))  # fmt: skip
         print(f"{n:>8} {t_settle:>8.0f} {t_rerun:>8.0f} {t_prev:>8.0f} {t_corr:>8.0f} "
-              f"{t_own:>6.1f} {t_imp:>7.0f}")  # fmt: skip
+              f"{t_own:>6.1f} {t_mine:>6.1f} {t_status:>7.0f} {t_imp:>7.0f}")  # fmt: skip
     engine.dispose()
     with admin.connect() as c:
         c.execute(text(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)"))

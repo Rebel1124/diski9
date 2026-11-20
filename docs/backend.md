@@ -312,13 +312,21 @@ Since the checkpoint refinements and Stages E–F:
   store with synthetic odds (development round; nothing is written to the football
   store, no API request).
 
-## Settlement (Phase 6C.4, Stages B–D)
+## Settlement (Phase 6C.4)
 
 Migration `app_0006` adds settlement evidence, development result modes and
 settlement versions. Services: `services/results.py` (by-ID provider import,
 development result modes and synthetic evidence), `services/settlement.py`
 (settlement runs, D-32b, personal results), `services/corrections.py` (corrections,
 alert resolution, invalidation, finalisation, owner reopening). Rules:
-`challenge/settle.py` (`settle/v1` as amended 19 Nov 2026). No CLI or user interface
-yet (Stages E and F). Record: `docs/architecture/phase6c4_implementation.md` §23.
+`challenge/settle.py` (`settle/v1` as amended 19 Nov 2026).
+
+Stage E adds the operator commands (`results`, `settle`, `round invalidate /
+finalise / finalise-check / reopen`, development-only `dev-results`), each verifying
+the acting person's Supabase password interactively (`backend/auth/operator_cli.py`,
+`settlement_cli.py`, read-only reports in `services/settlement_ops.py`); reference:
+`docs/operator_settlement_cli.md`. Stage F shows the participant's own results on My
+Challenge (`services/participant_results.py`, `app/challenge/results_ui.py`).
+Owner acceptance: `docs/phase6c4_local_acceptance_mac.md`. Record:
+`docs/architecture/phase6c4_implementation.md` §23–§24.
 
