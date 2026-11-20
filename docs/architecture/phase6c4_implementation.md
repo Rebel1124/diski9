@@ -966,3 +966,109 @@ observations, verdicts, entry settlements, versions, alerts and audit rows and t
 revision were identical before and after. The owner's e2e database (11 rounds, 21
 entries, 56 users from 6C.3) was upgraded from `app_0005`: rounds and entries
 byte-identical (checksums), window back-filled, development rounds without a mode.
+
+### 24.6 Tests (Stage G)
+* **New:** `test_backend_operator_cli.py` (13, **genuine**: the real `diski9`
+  command in a pseudo-terminal, real local Supabase Auth, real PostgreSQL),
+  `test_backend_settlement_ops.py` (16, authentication paths with a provider mock,
+  reports, prompt timeline, test entries), `test_backend_participant_results.py`
+  (14), two `entry-all-void` scenario tests; one 6C.3 assertion updated (the locked
+  card's "not available yet" wording became "results appear here as the matches are
+  settled").
+* **CLI security evidence (genuine):** authorised operator; incorrect password;
+  unavailable and unconfigured provider (fail closed before asking); `--password`
+  rejected as an argument; piped input refused; participant refused; unknown email
+  refused; operator refused for reopening, owner allowed after preview and token;
+  declined confirmation changes nothing; stale preview token refused (nothing
+  written); T-14 boundary with a one-minute recency setting (a confirmation typed
+  62 seconds after the password refused, within the window accepted); synthetic
+  input, result-mode change and time overrides refused on a genuine round;
+  `test-entry` needs the participant's own password; audit payloads contain neither
+  the password nor any token.
+* **Full suite (local, real PostgreSQL 16, local Supabase Auth harness, browser
+  tests with Playwright):** 1,478 passed, 1 failed — the 6C.3 wording assertion
+  above, fixed in `6a17226` and re-run (module: 12 passed). No skips: with
+  `DISKI9_TEST_SUPABASE_DB_URL` pointing at the harness's own auth database the
+  Supabase-schema test ran against a genuine (local) Supabase `auth` schema; a
+  **hosted** Supabase project is still untested (Phase 10).
+* **PostgreSQL restart:** settlement tables' checksum identical across a fast
+  restart of the cluster; the running app reconnected and served the participant's
+  result.
+* **Quantitative regression:** `tools/phase6c3_quant_regression.py` output SHA-256
+  `88bcd717deca6c1c…` — byte-identical to v4.1.0. Engine, ingestion, research and
+  odds modules: no file changed since v4.1.0 (only the new `settle.py` and
+  `results_fetch.py` added).
+
+### 24.7 Browser acceptance (`tools/e2e_6c4`)
+Real app, PostgreSQL and local Supabase Auth; operator steps through the real CLI
+in a pseudo-terminal. Final run (`journeys.js`, run `fvohl`; `journey_current.js`,
+run `h087h`):
+
+| # | Journey | Result |
+|---|---|---|
+| 1 | Confirm in the browser; deadline passed; locked | pass |
+| 2 | Partial settlement (pending and resolved, settled so far, undecided net and recovery) | pass |
+| 3 | Successful and unsuccessful accumulators | pass |
+| 4 | Complete provisional result with pre-match estimates labelled | pass |
+| 5 | Individual all-nine-void refund (`entry-all-void`, round valid) | pass |
+| 6 | Operator invalidation: round void, refund, "Not paid" accumulators | pass |
+| 7 | Material correction: Corrected pill and notice, revised figures | pass |
+| 8 | Finalisation (development `--as-of`): Final result | pass |
+| 9 | Operator reopen refused; owner reopen: provisional with reopened notice | pass (the operator refusal was confirmed by hand and by the genuine CLI test; the first scripted check waited for a prompt that a refusal never shows — harness fixed) |
+| 10 | New round current while the previous entry shows its result | pass |
+| 11 | Sign out (nothing private) and switch account (only the other account's own entry) | pass |
+| 12 | Market / Diski 9 / Your View analysis on the Weekly Challenge | pass |
+| — | Results in the current-round cards; correction seen after in-app navigation | pass |
+
+Desktop 1360, tablet 768 and mobile 390 px: no horizontal overflow, no clipped
+result values, every returned or net value with two decimals, no console or page
+errors, no emoji, page reads write nothing (settlement, audit, draft and entry
+counts unchanged across repeated loads). Screenshots: `docs/screenshots/phase6c4/`.
+
+Defects found by the journeys and fixed: the CLI printed the earliest finalisation
+time to the second, so a copied `--as-of` could be early (now prints the exact
+value); a void round's accumulator table showed unpaid "Successful" returns (now
+"Not paid").
+
+### 24.8 Performance
+Browser (median of 5, local, My Challenge): locked without results (the
+pre-integration view) 426 ms; partial results 422 ms; complete results 452 ms;
+corrected result after in-app navigation 1.75 s (including Dash callbacks). The
+results panel adds no measurable load time.
+
+Backend (`tools/phase6c4_perf.py`, median ms; Stage B–D figures in §23.7):
+
+| Locked entries | Settle | Rerun | Preview | Correction | Own result (B–D) | My Challenge read | Status report | Import 18 |
+|---|---|---|---|---|---|---|---|---|
+| 50 | 61 | 35 | 25 | 94 | 3.9 | 6.6 | 25 | 32 |
+| 200 | 101 | 73 | 77 | 237 | 2.5 | 4.1 | 74 | 38 |
+| 1,000 | 422 | 386 | 363 | 1,270 | 3.2 | 4.9 | 394 | 58 |
+
+Operator commands add about 1–2 s each for the password check and process start
+(seven sequential corrections through the CLI: 8.2 s). No performance
+infrastructure was added.
+
+### 24.9 Deviations from the Stage A design
+1. `settle run` needs no `--confirm` (it is idempotent and recomputed from evidence;
+   material operator changes keep preview + confirmation).
+2. Round commands use `round invalidate / finalise / finalise-check / reopen` as
+   designed; the 6C.3 `round create / publish / lock / dev-open` keep `--by-email`.
+3. `entry-all-void` scenario added (15 in total) for the individual D-33 refund.
+4. The development *prompt* timeline (capped span) instead of only `--as-of`: the
+   database clock stays authoritative for corrections, alert resolutions and
+   reopening, as required.
+
+### 24.10 Limitations
+* Corrections, alert resolutions and reopening use the database clock in
+  development too; prepared rounds make them testable within minutes, but evidence
+  placed at the real cutoff (`cutoff-boundary`, `late-notification`) can only be
+  settled with `settle run --as-of` after it.
+* The 6C.3 round commands still accept `--by-email` without a password (6C.6).
+* Hosted Supabase compatibility untested (Phase 10); the CLI tests run against the
+  local harness and, in CI, the official Supabase Auth image.
+* Full entry history, ranks, points, leaderboards and championships: 6C.5.
+  Scheduling, monitoring and the admin interface: 6C.6. D-29 and D-36 outstanding.
+
+### 24.11 Outstanding before release
+Owner's local acceptance on the Mac (`docs/phase6c4_local_acceptance_mac.md`);
+then release preparation, merge and tag only when separately authorised.
