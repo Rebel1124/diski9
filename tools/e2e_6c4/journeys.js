@@ -172,7 +172,7 @@ async function account(browser, tag, role) {
   t = await me(p);
   out.journeys.J8_final = has(t, 'Final result') && has(t, 'Final since');
   await shot(p, 'j8_final_desktop', '.ch-res-summary');
-  const refused = cli('operator', ['round', 'reopen', '--code', R2, '--reason', 'review', '--evidence', 'note'], R2);
+  const refused = cli('operator', ['round', 'reopen', '--code', R2, '--reason', 'review', '--evidence', 'note']);  // refused before any prompt
   out.journeys.J9_operator_refused = refused.includes('does not have permission');
   const reopened = cli('owner', ['round', 'reopen', '--code', R2, '--reason', 'league review of a result',
     '--evidence', 'league letter'], R2);

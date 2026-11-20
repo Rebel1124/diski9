@@ -8,8 +8,9 @@ Supabase test deferred; CI run 27 green; migrations `app_0001`–`app_0005`).
 by the product owner on 19 Nov 2026 with the decisions in §22**, which supersede
 the Stage A proposals where they differ (notably: completion-based cutoff, no
 closing window, owner-only reopening, explicit development result modes).
-**Stages B–D implemented** (record in §23; mandatory owner checkpoint). Stages E–G
-wait for separate authorisation.
+**Stages B–D implemented** (record in §23) and accepted at the owner checkpoint.
+**Stages E–G implemented** (record in §24); awaiting the owner's local acceptance
+(`docs/phase6c4_local_acceptance_mac.md`) before any release, merge or 6C.5 work.
 
 **Precedence:** the decision register (D-, T-, R- series) and the approved policy
 notes (`settle/v1`, D-32b) over this document. This document separates three kinds
@@ -847,7 +848,7 @@ and values, never credentials.
 * Score sets, ranks, points, championships: 6C.5. Scheduling and admin UI: 6C.6.
 * D-29 and D-36 remain outstanding.
 
-### 23.10 Remaining work (Stages E–G, not started)
+### 23.10 Remaining work at the checkpoint (since done: §24)
 * **E:** CLI commands for import, show, preview, settle, alerts, correct, withdraw,
   resolve, invalidate, finalise, reopen (owner), `set-mode`, `dev-results
   scenario`; interactive `getpass` password verification through Supabase Auth per
@@ -855,3 +856,113 @@ and values, never credentials.
 * **F:** My Challenge results panel per §14 and S-11.
 * **G:** full regression, browser journeys, performance on the owner's machine,
   documentation and the Mac acceptance guide.
+
+---
+
+## 24. Stages E–G implementation record (20 Nov 2026)
+
+Authorised after the B–D checkpoint (baseline `b036fd0`: 1,433 local passes, one
+deferred hosted Supabase test, CI runs 34–35 green, fingerprint identical).
+
+### 24.1 Stage E — secure operator CLI
+* **Commands** (`settlement_cli.py`, wired into `cli.py`): `results import / show /
+  correct / withdraw-correction`; `settle preview / run / status / alerts /
+  resolve-alert`; `round invalidate / finalise-check / finalise / reopen`;
+  development-only `dev-results scenarios / set-mode / scenario / test-entry`.
+  Handlers parse, call the B–D services and print; no settlement rule is in the CLI.
+  Reference: `docs/operator_settlement_cli.md`.
+* **Authentication (S-07)** (`backend/auth/operator_cli.py`): the acting person's
+  password is read with `getpass` from a real terminal only (no argument, variable
+  or piped input; no terminal → refused before asking), verified by Supabase Auth,
+  the returned access token verified independently (signature, issuer, audience,
+  subject) and the provider session signed out at once. The verified subject must
+  map to an existing, active, onboarded account; roles and entitlements are read
+  from the database. The principal lives for one command with
+  `authenticated_at = reauthenticated_at =` database time; before every write the
+  CLI moves `now` to the current database time, so T-14 applies at the moment of
+  confirmation. Wrong password, unconfirmed email, rate limit, provider
+  unavailable, missing configuration, unlinked or suspended account: all fail
+  closed with a user-safe message and exit code 3. No flag, variable or test hook
+  skips the check.
+* **Material changes** (corrections, invalidation, reopening) show the service's
+  impact preview, then need the round code typed or `--token` from an earlier
+  preview; the services refuse a token whose round has changed. Reasons and
+  evidence are mandatory where the services require them; audit rows hold reasons,
+  evidence and values, never credentials.
+* **Read-only reports** (`services/settlement_ops.py`): fixture evidence and current
+  resolution, alerts with resolutions, round status with finalisation eligibility —
+  the existing computation in a rolled-back transaction (verified to write nothing).
+* **Development utilities:** result mode (once, audited); the 14 Stage C scenarios
+  plus `entry-all-void` (added because an individual D-33 refund is only visible in a
+  round that stays valid); a *prompt* timeline (`PROMPT_HORIZON` = 8 minutes: final
+  evidence 4 minutes after the deadline; the cutoff never moves); `test-entry`
+  confirms a deterministic portfolio through the ordinary draft and entry services
+  **after verifying that participant's own password**; `round dev-open
+  --spacing-minutes / --fixtures` for compressed synthetic rounds. Production, real
+  rounds and synthetic input on real rounds are refused (service and database).
+* **Unchanged on purpose:** the 6C.3 `round create / publish / lock / dev-open`
+  commands keep `--by-email` (accepted 6C.3 behaviour; open item for 6C.6, noted on
+  S-07). `round lock` without `--by-email` is the scheduled-job actor, as before.
+
+### 24.2 Stage F — My Challenge settlement integration
+* `services/participant_results.py` `my_settlement(engine, principal, round_id)`:
+  read-only, owner-scoped (the server-built principal's user ID; the round ID is
+  chosen on the server: the current round view or the most recent locked entry),
+  participant capability required. Every figure is the stored settlement (latest
+  entry revision, latest verdict per selection, current designation, versions);
+  presentation states `awaiting_lock / locked / in_progress / provisional / final`
+  plus corrected, reopened, entry refunded (D-33) and round void (D-32b or operator).
+* `app/challenge/results_ui.py` and `pages.py`: **Your result** (status pill, plain
+  explanation, notices for corrections, reopening, the correction window and
+  finality; allocated, returned / returned so far / refunded, net or "Not final
+  yet", recovery or "Not decided yet" or "Refund (not a recovery)"; prediction
+  counts), **Accumulators** (credits, leg icons, outcome, actual return; a pending
+  accumulator shows "Pending", never 0.00; all-void legs show "Refunded"; in a void
+  round "Not paid"), and the nine predictions with frozen odds, the official
+  90-minute score and verdict (icon and word) and the void reason. Shown in the
+  current-round cards once the round is locked, and in the most recent entry card
+  beside another round. The Market / Diski 9 / Your View estimate cards stay,
+  labelled as pre-match expectations; Portfolio Analysis is unchanged; no new tab.
+* Results are read on every render (never kept in browser state), so a correction
+  appears on the next page load or in-app navigation.
+
+### 24.3 Live provider verification (Stage G, 3 of 5 authorised requests)
+Scratch only (no database, football store, research or odds-trial writes), retries
+disabled, request budget enforced by the client:
+
+| # | Request | Result |
+|---|---|---|
+| 1 | `fixtures?ids=` 2 EPL finals, 1 PSL final, 1 upcoming, 1 unknown ID | HTTP 200, 4 items; unknown ID simply absent; normalised status and score equal the football store for all 4 |
+| 2 | 20 EPL finals | HTTP 200, all 20 returned; all equal the store |
+| 3 | 21 IDs (deliberate limit check) | provider error "Maximum of 20 ids allowed" (our client never sends more than 20) |
+
+The `ids=a-b-c` contract and `MAX_IDS_PER_REQUEST = 20` are confirmed. Daily quota
+remaining was reported per request (7,496 → 7,494). Receipt time is our clock after
+the response; the provider's `fixture.timestamp` and `periods.first` are kept in the
+raw payload (`periods.first` was absent for the most recent matches, present for
+older ones — supporting evidence only, as S-04 requires). Missing IDs leave a
+fixture without new evidence (pending, never fabricated); unexpected IDs are
+filtered out by `import_results`.
+
+### 24.4 Polling, correction window and post-finalisation notes
+* The six-hour stability exclusion stays; `results import --full` re-checks every
+  relevant fixture regardless of age. **For 6C.6:** the finalisation job should run a
+  full relevant-fixture re-check, then settle, then finalise.
+* A re-check after the cutoff never establishes completion before the cutoff:
+  completion needs a final observation *received* by the cutoff, or an operator
+  correction with a verified completion time. Event time (provider), observation
+  (receipt) time and recording time stay distinct.
+* Near the cutoff, import promptly: a final first received afterwards is void with a
+  blocking `late_notification` alert (audited correction or confirmation).
+* Routine polling may stop after finalisation; material changes are detected (as
+  `post_final_change`) only when new evidence is received. No historical monitoring
+  service exists or was added.
+
+### 24.5 Migration protection
+`app_0006` downgrade safeguard unchanged and documented in the Mac guide: on an
+isolated copy of a database with settlement history, `downgrade app_0005` and
+`downgrade base` were both refused with "nothing was changed"; row counts of
+observations, verdicts, entry settlements, versions, alerts and audit rows and the
+revision were identical before and after. The owner's e2e database (11 rounds, 21
+entries, 56 users from 6C.3) was upgraded from `app_0005`: rounds and entries
+byte-identical (checksums), window back-filled, development rounds without a mode.
