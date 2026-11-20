@@ -234,7 +234,8 @@ def test_my_challenge_shows_the_locked_entry_beside_another_open_round(
     assert "Most recent locked entry" in out and w.short.code in out
     assert "Deadline passed" in out and "waiting to be locked" in out  # lock not run yet
     assert "Show the nine predictions in" in out
-    assert "40 / 30 / 20 / 10" in out and "Not available yet" in out  # no results invented
+    # no results invented before settlement (6C.4: "Pending: results appear here ...")
+    assert "40 / 30 / 20 / 10" in out and "results appear here as the matches are settled" in out
     assert "Withdraw" not in out.split("Most recent locked entry")[1]
     # Frozen odds and the original nine predictions from the stored submission.
     sub = es.get_entry(engine, w.a, w.short.id).current

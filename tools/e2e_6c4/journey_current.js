@@ -23,7 +23,7 @@ function cli(role, args, confirm) {
   catch (e) { return `EXIT ${e.status}\n` + (e.stdout || '').toString(); }
 }
 const wait = cond => execSync(`until [ "$(${PSQL} "${cond}")" = t ]; do sleep 2; done`, { shell: '/bin/bash' });
-async function me(p) { await p.goto(L.BASE + '/challenge/me'); await L.settle(p, 2500); return p.locator('body').innerText(); }
+async function me(p) { await p.goto(L.BASE + '/challenge/me'); await L.settle(p, 2500); return (await p.locator('body').innerText()).toLowerCase(); }  // pills are styled uppercase
 async function timeMe(p, selector, runs = 5) {
   const t = [];
   for (let i = 0; i < runs; i++) {
@@ -72,7 +72,7 @@ async function timeMe(p, selector, runs = 5) {
   cli('owner', ['settle', 'run', '--round', R]);
   out.timings.partial_results_ms = await timeMe(p, '.ch-res-summary');
   let t = await me(p);
-  out.checks.current_partial = t.includes('Partly settled') && (await p.locator('.ch-round-card .ch-pill').first().innerText()).includes('PARTLY');
+  out.checks.current_partial = t.includes('partly settled') && (await p.locator('.ch-round-card .ch-pill').first().innerText()).toUpperCase().includes('PARTLY');
   await p.screenshot({ path: SHOT + 'current_partial_desktop.png', fullPage: true });
   // complete the pending fixtures with operator corrections (full time, verified completion)
   const pend = q(`select string_agg(distinct fixture_id::text, ' ') from app.selection_verdicts v where v.round_id=(select id from app.rounds where code='${R}') and verdict='pending'`).split(' ').filter(Boolean);
@@ -90,8 +90,8 @@ async function timeMe(p, selector, runs = 5) {
   await p.locator('.ch-res-summary').first().waitFor();
   await L.settle(p, 1500);
   out.timings.corrected_refresh_ms = Date.now() - s;
-  t = await p.locator('body').innerText();
-  out.checks.current_complete_after_navigation = t.includes('Provisional result') && t.includes('Corrected') && !t.includes('still pending');
+  t = (await p.locator('body').innerText()).toLowerCase();
+  out.checks.current_complete_after_navigation = t.includes('provisional result') && t.includes('corrected') && !t.includes('still pending');
   out.timings.complete_results_ms = await timeMe(p, '.ch-res-summary');
   for (const [w, h, name] of [[1360, 900, 'desktop'], [768, 1024, 'tablet'], [390, 844, 'mobile']]) {
     await p.setViewportSize({ width: w, height: h }); await L.settle(p, 900);
