@@ -408,9 +408,11 @@ def test_competition_repair_through_the_cli(engine, env, accounts, dev_round):
     preview only (nothing written), stale token, missing reason, confirmed repair
     of a tampered derived record (audited, membership untouched)."""
     with transaction(engine) as conn:
+        # the latest development championship (the dev round itself may legitimately
+        # be waiting for assignment behind other tests' unresolved rounds)
         cid = conn.execute(text(
-            "SELECT championship_id FROM app.championship_rounds WHERE round_id = :r"),
-            {"r": dev_round["round"]}).scalar_one()  # fmt: skip
+            "SELECT id FROM app.championships WHERE stream = 'development' "
+            "ORDER BY ordinal DESC LIMIT 1")).scalar_one()  # fmt: skip
         members = conn.execute(text("SELECT round_id, championship_id FROM "
                                     "app.championship_rounds ORDER BY round_id")).all()  # fmt: skip
         orig = conn.execute(text("SELECT status, counted_rounds, rounds_required FROM "
