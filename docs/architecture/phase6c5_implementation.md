@@ -824,3 +824,25 @@ local acceptance Checkpoints 1 to 3.
 * Fingerprint `88bcd717deca6c1c…` unchanged.
 * No change to scoring, settlement, corrections, authentication, migrations or the
   app.
+
+### 4.11 Local owner acceptance concluded (20 Nov 2026)
+* **Checkpoint 4 (weekly results and lifecycle) passed on the owner's Mac:**
+  - the 68 automated weekly-result and championship lifecycle tests passed, with
+    none skipped;
+  - a fresh development round `dev-6c5-p1` was taken through the real services on
+    the scratch copy. It was assigned at publication (pending), became practice at
+    the lock, and was settled (validity pass) and finalised.
+  - The official weekly result was published in the same transaction: revision 1,
+    kind practice, built from the final settlement version. Positions and names at
+    lock were shown with no points. The championship stayed upcoming at 0 of 10,
+    and `verify` reported consistent.
+* **Checkpoints 5 and 6 waived.** The owner judged acceptance sufficient at this
+  point and waived the corrections and restoration checkpoint and the repair and
+  final verification checkpoint on the Mac. Those behaviours remain covered by the
+  automated suite (1,603 of 1,603 on `65a1440`; CI run 63 passed on `13adf00`).
+  The checkpoint 1 to 4 results are in §4.10 and above.
+* **The owner's own database** (`diski9`) was never migrated or written:
+  `app_0006`, 7 rounds and 10 entries throughout. All acceptance writes went to the
+  scratch copy `diski9_6c5_acceptance`.
+* **Status:** local owner acceptance concluded. Formal Stage D closure is recorded
+  only on the owner's explicit confirmation. Stage E is not authorised.
