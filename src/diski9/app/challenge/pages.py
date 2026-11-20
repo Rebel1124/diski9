@@ -1886,10 +1886,27 @@ def timeline(items) -> html.Div:
 
 
 def my_challenge(service, state, local) -> html.Div:
+    """Current (the 6C.3 and 6C.4 page) and, with the competition database, History
+    (Stage E). The two tabs are separate containers, so the existing Current
+    callbacks keep updating only their own container."""
+    from . import persist
+
+    if persist.backend_of(service) is None:
+        return html.Div(
+            [
+                c.page_header("My Challenge"),
+                html.Div(id=c.T("me"), children=my_challenge_body(service, state, local)),
+            ],
+            className="ch-page",
+        )
+    from . import history_ui
+
     return html.Div(
         [
             c.page_header("My Challenge"),
+            html.Div(history_ui.tabs("current"), className="ch-row-between me-tabs"),
             html.Div(id=c.T("me"), children=my_challenge_body(service, state, local)),
+            html.Div(id=c.T("me-hist"), style={"display": "none"}),
         ],
         className="ch-page",
     )
@@ -1931,6 +1948,99 @@ def my_challenge_body(service, state, local) -> list:
             ],
             className="ch-card ch-compact ch-conf-summary",
         )
+    from . import persist
+
+    if persist.backend_of(service) is not None:
+        perf, hist = current_championship_card(service, rv), None
+    else:
+        perf, hist = illustrative_blocks()
+    previous = None
+    if access_kind == "account":
+        rec = persist.most_recent_locked(service, getattr(rv, "id", None))
+        if rec:
+            prev_res = results_ui.fetch(service, UUID(rec["round_uuid"]))
+            previous = locked_entry_card(rec, local, prev_res)
+    current_results = results_ui.panel(res, sub, local) if settled else []
+    return [
+        html.Div([status, confirmed], className="ch-grid-me"),
+        *current_results,
+        None if settled else (confirmed_predictions(sub) if sub else None),
+        previous,
+        perf,
+        hist,
+        withdraw_modal(sub, local) if state.get("confirm") == "withdraw" and sub else None,
+    ]
+
+
+def current_championship_card(service, rv) -> html.Div | None:
+    """The real personal championship summary (Stage E) for the stream of the round
+    shown: the official published standing, or why there is none. Guests and
+    accounts without a database connection see nothing (nothing is fabricated)."""
+    from . import leaderboards_ui as lbu
+    from . import persist
+
+    b = persist.backend_of(service)
+    p = persist.participant(service)
+    if b is None or p is None:
+        return None
+    if rv is None:  # no current round: development mode looks at its own stream
+        stream = "development" if b.show_development else "beta"
+    else:
+        stream = "development" if getattr(rv, "is_development", False) else "beta"
+    if stream == "development" and not b.show_development:
+        return None
+    from diski9.backend.services import leaderboards as lb
+
+    try:
+        cb = lb.championship_board(b.engine, stream=stream, viewer=p, page_size=1,
+                                   include_development=b.show_development)  # fmt: skip
+    except Exception:  # noqa: BLE001 - the card is simply not shown
+        return None
+    if cb.name is None:
+        line = "The first championship begins with the next Weekly Challenge."
+        main = None
+    elif cb.me is not None:
+        m = cb.me
+        main = f"#{m.position}" + (" (shared)" if m.shared else "")
+        line = (f"{m.points} pts · {m.rounds_played} round(s) played · {m.recoveries} "
+                f"recoveries · {m.qualifying_top10} top-ten finish(es)")  # fmt: skip
+    else:
+        main = None
+        line = lbu.NOT_RANKED_TEXT.get(cb.me_status, "No ranked round in this championship yet.")
+    return html.Div(
+        [
+            html.Div(
+                [
+                    html.H2(cb.name or "Championship", className="ch-h2"),
+                    lbu.stream_badge(stream),
+                    html.Span(
+                        f"{cb.counted_rounds} of {cb.rounds_required} valid rounds",
+                        className="muted small",
+                    )
+                    if cb.name
+                    else None,
+                ],  # fmt: skip
+                className="ch-row-between",
+            ),
+            lbu.you_box(
+                "Your championship" + (" (last published)" if cb.under_review else ""), main, line
+            ),  # fmt: skip
+            html.P(
+                [
+                    "Full standings on ",
+                    dcc.Link("Leaderboards", href="/leaderboards"),
+                    "; your past entries and statistics under History.",
+                ],
+                className="muted small",
+            ),  # fmt: skip
+        ],
+        className="ch-card me-champ",
+    )
+
+
+def illustrative_blocks():
+    """Prototype mode only (no competition database): the Phase 6B demonstration
+    blocks, labelled as illustrative."""
     m = demo.demo_summary()
     rate = c.pct(m["recovery_rate"], 0) if m["recovery_rate"] is not None else "—"
     perf = html.Div(
@@ -2022,28 +2132,23 @@ def my_challenge_body(service, state, local) -> list:
         ],
         className="ch-details ch-card",
     )
-    previous = None
-    if access_kind == "account":
-        from . import persist
-
-        rec = persist.most_recent_locked(service, getattr(rv, "id", None))
-        if rec:
-            prev_res = results_ui.fetch(service, UUID(rec["round_uuid"]))
-            previous = locked_entry_card(rec, local, prev_res)
-    current_results = results_ui.panel(res, sub, local) if settled else []
-    return [
-        html.Div([status, confirmed], className="ch-grid-me"),
-        *current_results,
-        None if settled else (confirmed_predictions(sub) if sub else None),
-        previous,
-        perf,
-        hist,
-        withdraw_modal(sub, local) if state.get("confirm") == "withdraw" and sub else None,
-    ]
+    return perf, hist
 
 
 # -------------------------------------------------------------- leaderboards
-def leaderboards() -> html.Div:
+def leaderboards(service=None) -> html.Div:
+    """Real leaderboards when the competition database is configured (Stage E);
+    the Phase 6B demonstration otherwise (prototype mode, labelled as such)."""
+    from . import persist
+
+    if service is not None and persist.backend_of(service) is not None:
+        from . import leaderboards_ui
+
+        return leaderboards_ui.page(service)
+    return demo_leaderboards()
+
+
+def demo_leaderboards() -> html.Div:
     rounds = demo.demo_rounds()
     return html.Div(
         [

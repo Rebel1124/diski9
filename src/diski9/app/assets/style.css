@@ -1311,3 +1311,76 @@ table.results td.value-cell { white-space: nowrap; }
   .ch-res-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ch-res-table th:nth-child(3), .ch-res-table td:nth-child(3) { display: none; }
 }
+
+/* ---------------------------------------------------------------- Phase 6C.5 Stage E:
+   Leaderboards (Weekly, Championship) and My Challenge History */
+.lb-top { align-items: flex-start; }
+.lb-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 0; }
+.lb-select { min-width: 260px; max-width: 100%; }
+.lb-stream-select { min-width: 150px; }
+.lb-head { margin: 4px 0 12px; }
+.lb-head-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
+.lb-head-line strong { font-size: 17px; }
+.lb-head-champ { color: var(--text); }
+.lb-stream.beta { color: var(--info); border-color: var(--info); }
+.lb-stream.development { color: var(--warn); border-color: rgba(242,184,75,.5); }
+.lb-stream.official { color: var(--accent); border-color: var(--accent); }
+.lb-state { margin-bottom: 8px; }
+.lb-you .ch-you-rank { font-size: 20px; }
+.lb-you-tag { color: var(--accent); font-weight: 600; }
+.lb-name { overflow-wrap: anywhere; }
+.lb-progress { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0; }
+.lb-segs { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; }
+.lb-seg { height: 8px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--border); }
+.lb-seg.on { background: var(--accent); border-color: var(--accent); }
+.lb-champion { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.lb-pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; }
+.lb-pager-buttons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lb-pager-buttons .ch-btn[disabled] { opacity: .45; cursor: not-allowed; }
+.lb-rules { margin-top: 10px; }
+.lb-points { columns: 2; margin: 4px 0 8px; padding-left: 18px; }
+.me-tabs { margin-bottom: 4px; }
+.me-champ a, .lb-page a { color: var(--accent); }
+.me-hist-controls { margin-bottom: 12px; }
+.ch-metrics.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.me-standings { margin: 0 0 10px; padding-left: 18px; }
+.me-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.me-chart { width: 100%; }
+.small-h { font-size: 14px; margin-bottom: 6px; }
+.me-hist-detail { margin-top: 6px; }
+.me-hist-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+td.warn { color: var(--warn); }
+
+@media (max-width: 1100px) {
+  .ch-metrics.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .ch-table.lb .lb-rate { display: none; }  /* optional statistic; recoveries and played remain */
+  .me-charts { grid-template-columns: minmax(0, 1fr); }
+}
+/* phones: every row becomes a labelled card, so no column is lost and nothing scrolls sideways */
+@media (max-width: 640px) {
+  .lb-select, .lb-stream-select { min-width: 0; width: 100%; }
+  .lb-controls { width: 100%; }
+  .lb-controls > * { flex: 1 1 100%; }
+  .ch-metrics.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ch-table.lb-cards thead { display: none; }
+  .ch-table.lb-cards, .ch-table.lb-cards tbody, .ch-table.lb-cards tr { display: block; width: 100%; }
+  .ch-table.lb-cards tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 12px; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 10px; margin-bottom: 6px; }
+  .ch-table.lb-cards td { grid-column: span 2; display: flex; justify-content: space-between; gap: 8px; border: 0; padding: 2px 0; text-align: right; min-width: 0; }
+  .ch-table.lb-cards td::before { content: attr(data-label); color: var(--muted); font-size: 12px; text-align: left; }
+  .ch-table.lb-cards td.rank { grid-column: span 1; justify-content: flex-start; }
+  .ch-table.lb-cards td.rank::before { content: none; }
+  .ch-table.lb-cards td.lb-name-cell { grid-column: span 3; justify-content: flex-start; text-align: left; font-weight: 600; font-size: 15px; }
+  .ch-table.lb-cards td.lb-name-cell::before { content: none; }
+  .ch-table.lb-cards.me-hist-table td:first-child { grid-column: span 4; justify-content: flex-start; font-size: 15px; }
+  .ch-table.lb-cards.me-hist-table td:first-child::before { content: none; }
+  .ch-table.lb-cards.me-hist-table td.c { grid-column: span 4; justify-content: flex-end; }
+  .ch-table.lb-cards .lb-rate { display: flex; }
+  .ch-table.lb-cards tr.me { background: var(--accent-dim); border-color: rgba(45,212,191,.45); }
+  .ch-table.lb-cards tr.me td { background: transparent; }
+  .lb-pager { flex-direction: column; align-items: stretch; }
+  .lb-pager-buttons { justify-content: space-between; }
+  .lb-pager-buttons .ch-btn { flex: 1 1 auto; }
+  .lb-points { columns: 1; }
+}

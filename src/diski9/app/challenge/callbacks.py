@@ -426,7 +426,7 @@ def register(app, data, service: ChallengeService) -> None:
         if path == "/challenge/me":
             return show, pages.my_challenge(service, state, local), nav_links(path), None
         if path == "/leaderboards":
-            return show, pages.leaderboards(), nav_links(path), None
+            return show, pages.leaderboards(service), nav_links(path), None
         if path == "/":
             return show, None, nav_links(path), None
         return (
@@ -817,19 +817,114 @@ def register(app, data, service: ChallengeService) -> None:
             return no_update, no_update
         return int(fid), "challenge"
 
+    # ------------------------------------------------------------- My Challenge tabs
+    @app.callback(
+        Output({"t": "me", "i": ALL}, "style"),
+        Output({"t": "me-hist", "i": ALL}, "style"),
+        Output({"t": "me-hist", "i": ALL}, "children"),
+        Input(c.T("me-tab", ALL), "value"),
+        prevent_initial_call=True,
+    )
+    def my_challenge_tab(tab):
+        """Current or History (Stage E). History is rendered when it is opened, from
+        the authoritative read services, so it is never stale."""
+        if not tab:
+            return no_update, no_update, no_update
+        from . import history_ui
+
+        hide, show = {"display": "none"}, {}
+        if tab[0] == "history":
+            return [hide], [show], [history_ui.section(service, local)]
+        return [show], [hide], [no_update]
+
+    @app.callback(
+        Output({"t": "me-hbody", "i": ALL}, "children"),
+        Output({"t": "me-hscope", "i": ALL}, "options"),
+        Output({"t": "me-hscope", "i": ALL}, "value"),
+        Input(c.T("me-hstream", ALL), "value"),
+        Input(c.T("me-hscope", ALL), "value"),
+        Input({"t": "hist-goto", "i": ALL}, "n_clicks"),
+        prevent_initial_call=True,
+    )
+    def my_history(stream, scope, _goto):
+        from . import history_ui
+
+        if not stream or not scope:
+            return no_update, no_update, no_update
+        trig = ctx.triggered_id or {}
+        kind = trig.get("t") if isinstance(trig, dict) else None
+        s = stream[0]
+        if kind == "hist-goto":
+            if not ctx.triggered or not ctx.triggered[0].get("value"):
+                return no_update, no_update, no_update
+            return ([history_ui.body(service, local, s, scope[0], trig.get("i") or 1)],
+                    [no_update] * len(scope), [no_update] * len(scope))  # fmt: skip
+        if kind == "me-hstream":
+            opts = history_ui.scope_options(service, s)
+            return ([history_ui.body(service, local, s, history_ui.ALL, 1)], [opts] * len(scope),
+                    [history_ui.ALL] * len(scope))  # fmt: skip
+        return ([history_ui.body(service, local, s, scope[0], 1)], [no_update] * len(scope),
+                [no_update] * len(scope))  # fmt: skip
+
+    @app.callback(
+        Output({"t": "me-hdetail", "i": ALL}, "children"),
+        Input({"t": "hist-open", "i": ALL}, "n_clicks"),
+        State(c.T("me-hstream", ALL), "value"),
+        prevent_initial_call=True,
+    )
+    def my_history_detail(_clicks, stream):
+        """One entry's drill-down, loaded on demand (the 6C.4 results panel)."""
+        from . import history_ui
+
+        trig = ctx.triggered_id or {}
+        if not isinstance(trig, dict) or not ctx.triggered or not ctx.triggered[0].get("value"):
+            return [no_update] * len(ctx.outputs_list)
+        s = stream[0] if stream else "beta"
+        return [history_ui.detail(service, local, s, trig.get("i"))] * len(ctx.outputs_list)
+
     @app.callback(
         Output({"t": "lb-body", "i": ALL}, "children"),
         Output({"t": "lb-round-wrap", "i": ALL}, "style"),
+        Output({"t": "lb-round", "i": ALL}, "options"),
+        Output({"t": "lb-round", "i": ALL}, "value"),
         Input(c.T("lb-tab", ALL), "value"),
+        Input(c.T("lb-stream", ALL), "value"),
         Input(c.T("lb-round", ALL), "value"),
+        Input({"t": "lbw-goto", "i": ALL}, "n_clicks"),
+        Input({"t": "lbc-goto", "i": ALL}, "n_clicks"),
         prevent_initial_call=True,
     )
-    def leaderboard(tab, rnd):
+    def leaderboard(tab, stream, rnd, _gw, _gc):
+        """Demonstration leaderboards in prototype mode; otherwise the real ones
+        (Stage E): a tab or stream change resets the selector to its default, a
+        selector change shows page 1, a pager button shows its page."""
         if not tab:
-            return [], []
+            return [], [], [], []
         t = tab[0]
-        style = {"display": "none"} if t == "championship" else {}
-        return [pages.leaderboard_body(t, rnd[0] if rnd else None)], [style]
+        n_round = len(rnd)
+        if persist.backend_of(service) is None:
+            style = {"display": "none"} if t == "championship" else {}
+            return ([pages.leaderboard_body(t, rnd[0] if rnd else None)], [style],
+                    [no_update] * n_round, [no_update] * n_round)  # fmt: skip
+        from . import leaderboards_ui as lbu
+
+        trig = ctx.triggered_id or {}
+        kind = trig.get("t") if isinstance(trig, dict) else None
+        s = stream[0] if stream else "beta"
+        if kind in ("lbw-goto", "lbc-goto"):
+            if not ctx.triggered or not ctx.triggered[0].get("value"):
+                return no_update, no_update, no_update, no_update
+            page_no = trig.get("i") or 1
+            value = rnd[0] if rnd else None
+            return ([lbu.body(service, t, s, value, page_no)], [],
+                    [no_update] * n_round, [no_update] * n_round)  # fmt: skip
+        if kind == "lb-round":
+            value = rnd[0] if rnd else None
+            return ([lbu.body(service, t, s, value, 1)], [], [no_update] * n_round,
+                    [no_update] * n_round)  # fmt: skip
+        options, value = lbu.selector_options(service, t, s)
+        return ([lbu.body(service, t, s, value, 1)], [], [options] * n_round,
+                [value] * n_round)  # fmt: skip
 
 
 __all__ = ["apply_action", "key_str", "Decimal"]
