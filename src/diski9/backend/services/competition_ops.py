@@ -155,7 +155,7 @@ def _run(conn, actor_id: UUID | None):
     waiting = 0
     for stream in championships.STREAMS:
         out = championships.process_stream(conn, stream, actor=actor_id, cause="backfill")
-        created += list(out.created)
+        created += [f"{name} ({stream})" for name in out.created]
         assigned += out.assigned
         waiting += len(out.waiting)
     return items, created, assigned, waiting
@@ -204,7 +204,7 @@ def run_backfill(engine: Engine, actor: Principal, *, confirmation: str) -> Back
     for stream in championships.STREAMS:
         with transaction(engine) as conn:
             out = championships.process_stream(conn, stream, actor=actor.user_id, cause="backfill")
-            created += list(out.created)
+            created += [f"{name} ({stream})" for name in out.created]
             assigned += out.assigned
             waiting += len(out.waiting)
     with transaction(engine) as conn:
@@ -228,12 +228,13 @@ class StreamStatus:
     counted_rounds: int
     rounds_required: int
     championships: int
-    waiting_rounds: tuple[str, ...]  # unassigned published rounds, deadline order
+    waiting_rounds: tuple[str, ...]  # legitimately waiting (an earlier round holds the slot)
     unpublished_final: tuple[str, ...]  # final rounds without official results
     problems: tuple[str, ...]  # repairable and material findings
     repairable: tuple[str, ...] = ()
     material: tuple[str, ...] = ()
     notes: tuple[str, ...] = ()  # legitimate states: review, pending assignment, D-30a ...
+    not_yet_assigned: tuple[str, ...] = ()  # assignable but never processed (e.g. upgrade)
 
 
 def stream_status(engine: Engine, actor: Principal) -> tuple[StreamStatus, ...]:
@@ -251,20 +252,10 @@ def stream_status(engine: Engine, actor: Principal) -> tuple[StreamStatus, ...]:
                 {"s": stream},
             ).one_or_none()
             facts = championships.stream_rounds(conn, stream)
-            assigned = set(
-                conn.execute(
-                    text(
-                        "SELECT cr.round_id FROM app.championship_rounds cr "
-                        "JOIN app.championships c ON c.id = cr.championship_id "
-                        "WHERE c.stream = :s"
-                    ),
-                    {"s": stream},
-                ).scalars()
-            )
-            waiting = tuple(r.code for r in facts if r.id not in assigned) if is_open else ()
             unpublished = tuple(r.code for r in facts if r.status == "final" and r.latest_set
                                 is None)  # fmt: skip
             ins = championships.inspect_stream(conn, stream) if is_open else None
+            waiting = ins.waiting if ins else ()
             out.append(StreamStatus(
                 stream, is_open, cur.display_name if cur else None, cur.status if cur else None,
                 cur.counted_rounds if cur else 0, cur.rounds_required if cur else 10,
@@ -272,7 +263,9 @@ def stream_status(engine: Engine, actor: Principal) -> tuple[StreamStatus, ...]:
                 tuple(str(f) for f in ins.findings) if ins else (),
                 tuple(str(f) for f in ins.repairable) if ins else (),
                 tuple(str(f) for f in ins.material) if ins else (),
-                tuple(f"[{n.kind}] {n}" for n in ins.notes) if ins else (),
+                tuple(f"[{n.kind}] {n}" for n in ins.notes if n.kind != "pending_assignment")
+                if ins else (),
+                ins.assignable if ins else (),
             ))  # fmt: skip
     return tuple(out)
 

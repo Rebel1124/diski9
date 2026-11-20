@@ -431,6 +431,7 @@ def test_competition_repair_through_the_cli(engine, env, accounts, dev_round):
     assert rc == 3 and "Wrong-Password-1" not in out
     rc, out = cli(env, accounts, "operator", "competition", "verify")
     assert rc == 1 and "repairable:" in out, out
+    assert re.search(r"development: \d+ finding\(s\)", out), out  # findings carry their stream
 
     def versions():
         with transaction(engine) as conn:

@@ -282,3 +282,31 @@ def test_member_outside_the_stream_never_blocks_processing(rep):
     assert out.skipped is None
     ins = inspect(eng)
     assert any("not in the development stream" in f.message for f in ins.material)
+    # it is the open championship: shown as under review, never as definitive
+    b = lb.championship_board(eng, stream="development", include_development=True)
+    assert b.name == "Championship Nov-26 (99)"
+    assert b.under_review and "integrity_review" in b.review_reasons and not b.definitive
+    healthy = lb.championship_board(eng, stream="development", name=A, include_development=True)
+    assert "integrity_review" not in healthy.review_reasons
+    # a new round is not assigned into it (no permanent membership from inconsistent
+    # state), but its weekly results still publish at finalisation
+    u = rep["u"]
+    (w,) = build(eng, [[(u[i], WIN if i == 0 else lose(i)) for i in range(5)]])
+    prepare(eng, rep["op"], [w])
+    finalise(eng, fresh(eng, rep["op"]), w)
+    with transaction(eng) as conn:
+        assert (
+            conn.execute(
+                sa.text("SELECT count(*) FROM app.championship_rounds WHERE round_id = :r"),
+                {"r": w["round"]},
+            ).scalar()
+            == 0
+        )
+    wk = lb.weekly_board(eng, w["round"], include_development=True)
+    assert wk.state == "final" and wk.championship_status == "pending_assignment"
+    ins = inspect(eng)
+    assert any(n.kind == "pending_assignment" and "held" in n.message for n in ins.notes)
+    assert not any("not yet assigned" in f.message for f in ins.repairable)
+    # repair refuses the stream: nothing is reassigned or rewritten
+    plan = cops.preview_repair(eng, fresh(eng, rep["op"]), stream="development")
+    assert plan.unrepairable and not plan.material_change

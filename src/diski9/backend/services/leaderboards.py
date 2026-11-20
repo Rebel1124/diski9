@@ -528,7 +528,7 @@ class ChampionshipBoard:
     counted_rounds: int
     rounds_required: int
     under_review: bool  # a member round is reopened (or, on unrepaired data, out of date)
-    review_reasons: tuple[str, ...]  # reopened | recalculation_pending
+    review_reasons: tuple[str, ...]  # reopened | recalculation_pending | integrity_review
     corrected_after_completion: bool
     corrected_with_fewer_rounds: bool  # D-30a disclosure (never "Short")
     version: int | None  # the version shown (the latest published unless one was chosen)
@@ -626,6 +626,18 @@ def _review(conn: Connection, champ_id) -> tuple[tuple[str, ...], tuple[str, ...
             reasons.add("recalculation_pending")
             codes.append(x.code)
     return tuple(sorted(reasons)), tuple(codes)
+
+
+def _outside_stream(conn: Connection, champ_id, stream: str) -> bool:
+    """A member that is not a round of the championship's stream: the standings
+    cannot be treated as definitive until the inconsistency is investigated
+    (``competition verify`` reports it as material)."""
+    members = set(conn.execute(text(
+        "SELECT round_id FROM app.championship_rounds WHERE championship_id = :c"),
+        {"c": champ_id}).scalars())  # fmt: skip
+    if not members:
+        return False
+    return bool(members - {r.id for r in championships_svc.stream_rounds(conn, stream)})
 
 
 def _disclosure(c, counted: int, invalidated: int) -> str | None:
@@ -757,6 +769,8 @@ def championship_board(
         if me_id is not None:
             me_status = "ranked" if me is not None else _not_ranked(conn, c.id, me_id)
         reasons, review_rounds = _review(conn, c.id)
+        if _outside_stream(conn, c.id, stream):  # data written outside the services
+            reasons = tuple(sorted({*reasons, "integrity_review"}))
         roles = conn.execute(
             text(
                 "SELECT r.code, cr.role FROM app.championship_rounds cr JOIN app.rounds r "

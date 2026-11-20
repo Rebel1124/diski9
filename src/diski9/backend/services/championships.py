@@ -437,7 +437,14 @@ def process_stream(
             touched.add(m.key)  # a re-finalised counted round: re-aggregate
     # 2. assignment of unassigned rounds, in deadline order
     facts = [RoundFact(r.id, r.deadline_at, r.published_at, outcome[r.id]) for r in facts_rows]
-    plan = plan_assignments(facts, models, required)
+    if models and models[-1].key in broken:
+        # the open championship is inconsistent: no permanent membership is created
+        # from untrustworthy state; waiting rounds stay unassigned (their weekly
+        # results still publish) until the inconsistency is investigated
+        assigned = {rid for m in models for rid in m.roles}
+        plan = Plan((), (), (), tuple(f.round_id for f in facts if f.round_id not in assigned))
+    else:
+        plan = plan_assignments(facts, models, required)
     now = conn.execute(text("SELECT clock_timestamp()")).scalar_one()
     for m in plan.newly_fixed:
         conn.execute(update(championships).where(championships.c.id == m.key)
@@ -733,6 +740,8 @@ class Inspection:
     findings: tuple[Finding, ...]
     notes: tuple[Note, ...]
     republish: tuple[tuple[UUID, int], ...]  # (round, final settlement version) to publish
+    waiting: tuple[str, ...] = ()  # round codes legitimately waiting for assignment
+    assignable: tuple[str, ...] = ()  # round codes assignable now but not yet assigned
 
     @property
     def material(self) -> tuple[Finding, ...]:
@@ -971,26 +980,39 @@ def inspect_stream(conn: Connection, stream: str) -> Inspection:
     # waiting rounds: legitimate unless they could be assigned now
     probe_models = [ChampModel(m.key, m.ordinal, m.name, m.start_date, m.required,
                                dict(m.roles), m.fixed) for m in models]  # fmt: skip
+    waiting: list[str] = []
+    assignable: list[str] = []
+    open_broken = bool(probe_models) and any(rid not in fact for rid in probe_models[-1].roles)
     try:
         for pm in probe_models:
             if all(rid in fact for rid in pm.roles):  # as processing: skip broken ones
                 resolve_roles(pm, outcome, order)
-        plan = plan_assignments(
-            [RoundFact(r.id, r.deadline_at, r.published_at, outcome[r.id]) for r in facts_rows],
-            probe_models, _series_for(conn, stream)[1],
-        )  # fmt: skip
-        for rid, _ in plan.assignments:
-            findings.append(
-                Finding(
-                    "repairable",
-                    f"Round {fact[rid].code}",
-                    "can be assigned to a championship but is not",
-                )
-            )
-        for rid in plan.waiting:
-            notes.append(Note("pending_assignment", f"Round {fact[rid].code}",
-                              "championship assignment pending: an earlier round holds the "
-                              "last available slot"))  # fmt: skip
+        if open_broken:  # as processing: nothing is assigned into it
+            member = {rid for pm in probe_models for rid in pm.roles}
+            for r in facts_rows:
+                if r.id not in member:
+                    waiting.append(r.code)
+                    notes.append(Note("pending_assignment", f"Round {r.code}",
+                                      "championship assignment held: the open championship "
+                                      "needs investigation"))  # fmt: skip
+        else:
+            plan = plan_assignments(
+                [RoundFact(r.id, r.deadline_at, r.published_at, outcome[r.id])
+                 for r in facts_rows],
+                probe_models, _series_for(conn, stream)[1],
+            )  # fmt: skip
+            for rid, _ in plan.assignments:
+                assignable.append(fact[rid].code)
+                findings.append(Finding(
+                    "repairable", f"Round {fact[rid].code}",
+                    "not yet assigned to a championship (published before the upgrade, or not "
+                    "processed since): run competition backfill or competition repair",
+                ))  # fmt: skip
+            for rid in plan.waiting:
+                waiting.append(fact[rid].code)
+                notes.append(Note("pending_assignment", f"Round {fact[rid].code}",
+                                  "championship assignment pending: an earlier round holds the "
+                                  "last available slot"))  # fmt: skip
     except ChampionshipIntegrityError:
         pass  # already reported per championship
     if stream != "development":
@@ -1004,7 +1026,8 @@ def inspect_stream(conn: Connection, stream: str) -> Inspection:
                     "material", stream, f"{dev} development round(s) inside the {stream} stream"
                 )
             )
-    return Inspection(stream, tuple(findings), tuple(notes), tuple(republish))
+    return Inspection(stream, tuple(findings), tuple(notes), tuple(republish), tuple(waiting),
+                      tuple(assignable))  # fmt: skip
 
 
 def verify_stream(conn: Connection, stream: str) -> list[str]:

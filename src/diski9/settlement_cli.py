@@ -556,27 +556,35 @@ def _competition(args, engine) -> int:
                     else "no championship yet"
                 )
                 print(f"{st.stream}: {cur}; {st.championships} championship(s)")
-                if st.waiting_rounds:
-                    print(f"  championship assignment pending: {', '.join(st.waiting_rounds)}")
-                if st.unpublished_final:
-                    print(
-                        f"  final without official results (backfill): "
-                        f"{', '.join(st.unpublished_final)}"
-                    )
+            elif st.problems:
+                print(f"{st.stream}: {len(st.problems)} finding(s)")
+            else:
+                print(f"{st.stream}: consistent")
+            if st.waiting_rounds:
+                print(f"  championship assignment pending: {', '.join(st.waiting_rounds)}")
+            if st.unpublished_final:
+                print(f"  final without official results (backfill): "
+                      f"{', '.join(st.unpublished_final)}")  # fmt: skip
+            if st.not_yet_assigned:
+                print(f"  repairable: not yet assigned to a championship (published before the "
+                      f"upgrade, or not processed since; run competition backfill): "
+                      f"{', '.join(st.not_yet_assigned)}")  # fmt: skip
             for note in st.notes:
                 print(f"  note: {note}")
             for prob in st.repairable:
-                print(f"  repairable: {prob}")
+                if "not yet assigned to a championship" not in prob:
+                    print(f"  repairable: {prob}")
             for prob in st.material:
                 print(f"  needs investigation: {prob}")
             problems += len(st.problems)
-            if args.action == "verify" and not st.problems:
-                print(f"{st.stream}: consistent")
         return 1 if problems else 0
     if args.action == "repair":
         return _repair(args, engine, p, cops)
     plan = cops.preview_backfill(engine, p)
-    print("Backfill preview (nothing has changed yet)")
+    if args.token:
+        print("Checking the preview before applying the backfill (nothing has changed yet)")
+    else:
+        print("Backfill preview (nothing has changed yet)")
     for i in plan.items:
         extra = f" [{i.kind}]" if i.kind else (f": {i.reason}" if i.reason else "")
         print(f"  {i.stream:12} {i.round_code:24} {i.action.replace('_', ' ')}{extra}")
