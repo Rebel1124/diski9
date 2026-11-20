@@ -85,9 +85,18 @@ Source-of-truth specifications: *DISKI 9 Product Outline (Nov 2026)* and
     deployed publicly
   * release notes: [`docs/releases/v4.1.0.md`](docs/releases/v4.1.0.md)
 
-Not yet built (Phase 6C.4 onwards): result settlement, voids and corrections, live
-leaderboards and championship scoring, administration and automated scheduling,
-and public deployment.
+* **Settlement, voids and corrections (v4.2.0, development milestone)**:
+  * result evidence, settlement under the approved `settle/v1` policy, voids,
+    round invalidation, audited corrections, finalisation and owner-only reopening
+  * operator commands that verify the operator's password:
+    [`docs/operator_settlement_cli.md`](docs/operator_settlement_cli.md)
+  * the participant's own results on My Challenge
+  * a **development milestone**, run locally; not production-ready and not
+    deployed publicly
+  * release notes: [`docs/releases/v4.2.0.md`](docs/releases/v4.2.0.md)
+
+Not yet built (Phase 6C.5 onwards): live leaderboards and championship scoring,
+administration and automated scheduling, and public deployment.
 
 ## Getting started on a new computer
 

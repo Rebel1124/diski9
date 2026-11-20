@@ -24,7 +24,9 @@ This document is the durable starting point after context compaction. Read it wi
 
 | Item | Value |
 |---|---|
-| Accepted feature head | `feature/phase-6c4-settlement` (this acceptance record on top of `a7a310c`) |
+| Accepted feature head | `feature/phase-6c4-settlement` at `1baade7` (acceptance record on top of `a7a310c`) |
+| Merge into `main` | `02f10f8` (`--no-ff`, no conflicts; tree identical to the feature head); release commit and tag `v4.2.0` follow it |
+| Release baseline | full suite on the final code: **1,481 passed, 0 failed, 0 skipped** (real PostgreSQL, local Supabase Auth, browser tests) |
 | CI on the final code | run 48 (`a7a310c`) passed; release-baseline results in the release notes |
 | Migrations | `app_0001`–`app_0006`; `app_0006` downgrade refused once settlement data exists (deliberate) |
 | Quantitative regression | `tools/phase6c3_quant_regression.py` SHA-256 `88bcd717deca6c1c…`, byte-identical to v4.1.0 |

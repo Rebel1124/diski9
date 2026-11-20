@@ -3,6 +3,37 @@
 Versions follow the repository's release tags. Diski 9 is an educational football
 analytics product; it uses virtual credits only and involves no real money.
 
+## v4.2.0 — Settlement, voids and corrections (2026-11-20)
+
+A **stable development milestone** (Phase 6C.4, Stages A–G), accepted by the
+product owner. Not production-ready and not deployed publicly. Leaderboards,
+championship standings, administration and automated scheduling are future work
+(Phase 6C.5 onwards).
+
+* Approved `settle/v1` amendments (S-01 to S-11): completion-based cutoff, V3
+  branches, conflicting results, 24-hour correction window, owner-only reopening,
+  development result modes.
+* Migration `app_0006`: insert-only result evidence with provenance, verdict rules,
+  settlement versions, alerts; downgrade refused once settlement data exists.
+* By-ID provider results import (≤ 20 fixtures per request; relevant fixtures only).
+* Settlement through the unchanged engine: voids at 1.00 (D-32), D-15 rounding,
+  all-nine-void refunds (D-33), D-32b round invalidation, partial settlement.
+* Audited corrections, alert resolutions, operator invalidation, finalisation and
+  owner-only reopening with previews, confirmation tokens and settlement versions.
+* Operator commands with interactive Supabase password verification;
+  development-only result scenarios and test entries.
+* My Challenge shows the participant's own results (status, credits, recovery,
+  accumulators, predictions with scores and void reasons); withdrawal clears the
+  withdrawn portfolio's predictions.
+* Validation: 1,481 tests passed (release baseline); quantitative fingerprint
+  byte-identical to v4.1.0; 3 live provider requests; browser journeys; owner's
+  local acceptance.
+* Unchanged: Goal Model 1.0, Portfolio Analysis, odds ingestion, consensus, the
+  football schema and ingestion, the research collector and the competition
+  mathematics.
+
+Details: [`docs/releases/v4.2.0.md`](docs/releases/v4.2.0.md).
+
 ## v4.1.0 — Competition backend and persistence (2026-11-19)
 
 A **stable development milestone** (Phases 6C.1–6C.3), accepted by the product
