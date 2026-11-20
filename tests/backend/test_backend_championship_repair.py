@@ -249,3 +249,36 @@ def test_material_inconsistency_is_refused_and_reported(rep):
     assert counts(eng) == before
     status = next(s for s in cops.stream_status(eng, op) if s.stream == "development")
     assert status.material and not status.repairable
+
+
+def test_member_outside_the_stream_never_blocks_processing(rep):
+    """A membership row written outside the services (here a draft round inserted by
+    a superuser) is reported as material; processing leaves that championship alone
+    and publication elsewhere in the stream is not blocked."""
+    eng = rep["engine"]
+    with rep["admin"].begin() as conn:
+        sid = conn.execute(sa.text("SELECT id FROM app.championship_series WHERE code='beta'")
+                           ).scalar_one()  # fmt: skip
+        draft = conn.execute(
+            sa.text(
+                "INSERT INTO app.rounds (code, schedule_id, series_id, window_start_at, "
+                "window_end_at) SELECT 'draft-outside', id, series_id, now(), now() + interval "
+                "'1 day' FROM app.round_schedules ORDER BY id LIMIT 1 RETURNING id"
+            )
+        ).scalar_one()
+        cid = conn.execute(sa.text(
+            "INSERT INTO app.championships (stream, series_id, ordinal, start_date, display_name) "
+            "VALUES ('development', :s, 99, '2026-11-28', 'Championship Nov-26 (99)') "
+            "RETURNING id"), {"s": sid}).scalar_one()  # fmt: skip
+        conn.execute(
+            sa.text(
+                "INSERT INTO app.championship_rounds (round_id, championship_id, "
+                "role) VALUES (:r, :c, 'practice')"
+            ),
+            {"r": draft, "c": cid},
+        )
+    with transaction(eng) as conn:
+        out = ch.process_stream(conn, "development")
+    assert out.skipped is None
+    ins = inspect(eng)
+    assert any("not in the development stream" in f.message for f in ins.material)

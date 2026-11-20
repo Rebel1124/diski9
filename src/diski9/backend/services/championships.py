@@ -416,18 +416,18 @@ def process_stream(
     _rows, models, _by_id = _models(conn, stream)
     series_id, required = _series_for(conn, stream)
     outcome, order = _outcomes(facts_rows)
-    for m in models:  # members outside the stream are an integrity failure (verify)
-        for rid in m.roles:
-            if rid not in fact:
-                raise ChampionshipIntegrityError(
-                    f"{m.name}: a member round is not in the {stream} stream; nothing was changed."
-                )
-    touched: set = {m.key for m in models} if refresh_all else set()
+    # a championship with a member outside the stream (data written outside these
+    # services) is left exactly as it is, as in Stage C: verify reports it as a
+    # material finding and repair refuses the stream; it never blocks publication
+    broken = {m.key for m in models if any(rid not in fact for rid in m.roles)}
+    touched: set = {m.key for m in models if m.key not in broken} if refresh_all else set()
     # 1. role changes of members (lock; first publication; re-finalisation: Stage D),
     #    restored rounds before any new assignment (spec §23.5 rule 4)
     changes: dict = {}
     all_changes: list[RoleChange] = []
     for m in models:
+        if m.key in broken:
+            continue
         ch_ = resolve_roles(m, outcome, order)
         if ch_:
             changes[m.key] = ch_
@@ -476,7 +476,7 @@ def process_stream(
         touched.add(m.key)
     versions = 0
     for m in models:
-        if m.key in touched:
+        if m.key in touched and m.key not in broken:
             versions += _refresh(conn, m, fact, cause=cause, cause_round_id=cause_round_id,
                                  cause_score_set_id=cause_score_set_id, actor=actor,
                                  changes=changes.get(m.key, []), reason=reason)  # fmt: skip
@@ -973,7 +973,8 @@ def inspect_stream(conn: Connection, stream: str) -> Inspection:
                                dict(m.roles), m.fixed) for m in models]  # fmt: skip
     try:
         for pm in probe_models:
-            resolve_roles(pm, outcome, order)
+            if all(rid in fact for rid in pm.roles):  # as processing: skip broken ones
+                resolve_roles(pm, outcome, order)
         plan = plan_assignments(
             [RoundFact(r.id, r.deadline_at, r.published_at, outcome[r.id]) for r in facts_rows],
             probe_models, _series_for(conn, stream)[1],

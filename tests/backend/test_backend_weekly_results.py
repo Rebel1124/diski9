@@ -545,9 +545,11 @@ def test_championship_tables_protect_identity_and_membership(engine):
     """Stage B creates the Stage C tables only; their database guards are checked
     here (identity, name and membership can never change or be deleted)."""
     with transaction(engine) as conn:
-        sid = conn.execute(sa.text("SELECT id FROM app.championship_series WHERE code='beta'")
+        sid = conn.execute(sa.text("SELECT id FROM app.championship_series WHERE code='official'")
                            ).scalar_one()  # fmt: skip
-        # a draft round: never part of any stream, so processing never touches it
+        # a draft round in the official stream (never processed or inspected before the
+        # official series starts), so this deliberately inconsistent row cannot affect
+        # the development stream other tests use
         draft = conn.execute(sa.text(
             "INSERT INTO app.rounds (code, schedule_id, series_id, window_start_at, "
             "window_end_at) SELECT :c, id, series_id, now(), now() + interval '1 day' "
@@ -555,7 +557,7 @@ def test_championship_tables_protect_identity_and_membership(engine):
             {"c": f"draft-{uuid.uuid4().hex[:8]}"}).scalar_one()  # fmt: skip
         cid = conn.execute(sa.text(
             "INSERT INTO app.championships (stream, series_id, ordinal, start_date, display_name) "
-            "VALUES ('development', :s, 900001, '2026-11-28', 'Championship Nov-26 (99)') "
+            "VALUES ('official', :s, 900001, '2026-11-28', 'Championship Nov-26 (99)') "
             "RETURNING id"), {"s": sid}).scalar_one()  # fmt: skip
         conn.execute(
             sa.text(
@@ -574,10 +576,10 @@ def test_championship_tables_protect_identity_and_membership(engine):
         "WHERE championship_id=:c",
         "DELETE FROM app.championship_rounds WHERE championship_id=:c",
         "INSERT INTO app.championships (stream, series_id, ordinal, start_date, display_name) "
-        "SELECT 'development', series_id, 900002, start_date, 'Championship 2026-11' "
+        "SELECT 'official', series_id, 900002, start_date, 'Championship 2026-11' "
         "FROM app.championships WHERE id=:c",
         "INSERT INTO app.championships (stream, series_id, ordinal, start_date, display_name) "
-        "SELECT 'development', series_id, 900003, start_date, display_name "
+        "SELECT 'official', series_id, 900003, start_date, display_name "
         "FROM app.championships WHERE id=:c",  # the same name twice in a stream
     ]
     for sql in forbidden:

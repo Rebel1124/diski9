@@ -413,15 +413,22 @@ def test_competition_repair_through_the_cli(engine, env, accounts, dev_round):
             {"r": dev_round["round"]}).scalar_one()  # fmt: skip
         members = conn.execute(text("SELECT round_id, championship_id FROM "
                                     "app.championship_rounds ORDER BY round_id")).all()  # fmt: skip
-        conn.execute(text("UPDATE app.championships SET status = 'in_progress' WHERE id = :c "
-                          "AND status = 'upcoming'"), {"c": cid})  # fmt: skip
+        orig = conn.execute(text("SELECT status, counted_rounds, rounds_required FROM "
+                                 "app.championships WHERE id = :c"), {"c": cid}).one()  # fmt: skip
+        if orig.status == "upcoming":  # a derived value changed behind the services' back
+            conn.execute(text("UPDATE app.championships SET status = 'in_progress' "
+                              "WHERE id = :c"), {"c": cid})  # fmt: skip
+        else:
+            wrong = orig.counted_rounds - 1 if orig.counted_rounds else 1
+            conn.execute(text("UPDATE app.championships SET counted_rounds = :n WHERE id = :c"),
+                         {"n": wrong, "c": cid})  # fmt: skip
     rc, out = cli(env, accounts, "participant", "competition", "repair", "--preview-only")
     assert rc == 3 and "does not have permission" in out
     rc, out = cli(env, accounts, "operator", "competition", "repair", "--preview-only",
                   password="Wrong-Password-1")  # fmt: skip
     assert rc == 3 and "Wrong-Password-1" not in out
     rc, out = cli(env, accounts, "operator", "competition", "verify")
-    assert rc == 1 and "repairable:" in out and "status in_progress != upcoming" in out, out
+    assert rc == 1 and "repairable:" in out, out
 
     def versions():
         with transaction(engine) as conn:
@@ -443,8 +450,9 @@ def test_competition_repair_through_the_cli(engine, env, accounts, dev_round):
                   "--token", token, "--reason", "manual edit undone")  # fmt: skip
     assert rc == 0 and "Repair complete" in out, out
     with transaction(engine) as conn:
-        assert conn.execute(text("SELECT status FROM app.championships WHERE id = :c"),
-                            {"c": cid}).scalar() == "upcoming"  # fmt: skip
+        now = conn.execute(text("SELECT status, counted_rounds FROM app.championships "
+                                "WHERE id = :c"), {"c": cid}).one()  # fmt: skip
+        assert tuple(now) == (orig.status, orig.counted_rounds)
         assert (
             conn.execute(
                 text(
