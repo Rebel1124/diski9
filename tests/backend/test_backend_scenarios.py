@@ -8,7 +8,7 @@ from decimal import Decimal
 
 import pytest
 import sqlalchemy as sa
-from settle_helpers import DEFAULT_ENTRY, provider_item, settlement_worlds
+from settle_helpers import DEFAULT_ENTRY, provider_item, settlement_worlds, shifted
 from svc_helpers import principal, wait_until
 
 from diski9.backend import settlement_scenarios as sc
@@ -31,7 +31,11 @@ def op(engine):
 @pytest.fixture(scope="module")
 def worlds(engine, op):
     names = list(sc.SCENARIOS) + list(EXTRA)
-    made = settlement_worlds(engine, [[DEFAULT_ENTRY]] * len(names), development=True,
+    specs = [
+        [shifted(9), DEFAULT_ENTRY, shifted(1)] if n == "entry-all-void" else [DEFAULT_ENTRY]
+        for n in names
+    ]
+    made = settlement_worlds(engine, specs, development=True,
                              cutoff_after=timedelta(hours=1))  # fmt: skip
     out = dict(zip(names, made, strict=True))
     for name, w in out.items():
@@ -111,6 +115,34 @@ def test_all_nine_void(engine, op, worlds):
     settle_after(engine, op, w)
     s = entry(engine, w)
     assert (s.gross, s.basis) == (Decimal("100.00"), "all_void")
+
+
+def test_entry_all_void_refunds_one_entry_and_keeps_the_round_valid(engine, op, worlds):
+    w = worlds["entry-all-void"]
+    res = settle_after(engine, op, w)
+    assert res.outcome == "pass" and res.designation != "void"
+    with transaction(engine) as conn:
+        rows = {
+            r.entry_id: r
+            for r in conn.execute(sa.text(
+                "SELECT DISTINCT ON (entry_id) entry_id, gross, basis FROM app.entry_settlements"
+                " WHERE entry_id = ANY(:e) ORDER BY entry_id, revision DESC"),
+                {"e": w["entries"]})
+        }  # fmt: skip
+    assert (rows[w["entries"][0]].gross, rows[w["entries"][0]].basis) == (
+        Decimal("100.00"),
+        "all_void",
+    )
+    assert all(rows[e].basis == "settled" for e in w["entries"][1:])
+
+
+def test_entry_all_void_needs_two_entries():
+    from datetime import UTC, datetime
+
+    t = datetime(2026, 11, 28, tzinfo=UTC)
+    leg = sc.ScenarioLeg(1, "1X2", "HOME", "A")
+    with pytest.raises(ValueError, match="two locked entries"):
+        sc.build("entry-all-void", deadline=t, cutoff=t + timedelta(hours=50), entries=[[leg]])
 
 
 def test_round_invalid_majority(engine, op, worlds):

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from dash import dcc, html
 
 from diski9.challenge import analysis as pa
@@ -17,7 +19,7 @@ from diski9.challenge.structured import (
     selection_blocks,
 )
 
-from . import charts
+from . import charts, results_ui
 from . import components as c
 from . import state as st
 from .service import ChallengeService, key_str
@@ -1567,8 +1569,8 @@ def round_card(
 ) -> html.Div:
     facts = round_facts(state, snap, avail, sels, sub, label, local, rv)
     note = {
-        "account": "Saved to your account. Results come with settlement, which is not "
-        "available yet.",
+        "account": "Saved to your account. Results appear on My Challenge as the matches "
+        "are settled.",
         "guest": "Kept in this browser tab only. Sign in to save your portfolio and confirm "
         "an entry.",
         "setup": "Kept in this browser tab only. Finish setting up your account to save "
@@ -1643,7 +1645,7 @@ def your_view_now(service, snap, sub) -> dict | None:
     }
 
 
-def confirmed_summary(sub, local, can_withdraw: bool, your_view=None) -> html.Div:
+def confirmed_summary(sub, local, can_withdraw: bool, your_view=None, settled=False) -> html.Div:
     """Compact card: the frozen submission's Market / Diski 9 estimates, and (for a
     signed-in participant) Your View calculated now, as a third card of the same size,
     labelled private and not part of the entry."""
@@ -1676,6 +1678,13 @@ def confirmed_summary(sub, local, can_withdraw: bool, your_view=None) -> html.Di
                 ],
                 className="ch-row-between",
             ),
+            html.P(
+                "Pre-match estimates from when you confirmed. They are expectations, not "
+                "your result: see Your result for what actually happened.",
+                className="small ch-prematch-note",
+            )
+            if settled
+            else None,
             estimate_cards(estimates, tags),
             html.P(yv_note, className="muted small ch-yv-now-note") if yv_note else None,
             html.Div(
@@ -1755,11 +1764,11 @@ def confirmed_predictions(
     )
 
 
-def locked_entry_card(rec, local) -> html.Div:
+def locked_entry_card(rec, local, res=None) -> html.Div:
     """Most recent locked entry (read-only): the participant's confirmed entry in a
-    round whose deadline has passed, shown beside another current round. All values
-    are the stored submission's; no results or payouts (settlement is not available
-    yet) and no actions."""
+    round whose deadline has passed, shown beside another current round. Values are
+    the stored submission's; actual results (when settled) come from the
+    authoritative settlement (``res``); no actions."""
     pending = rec.get("round_status") == "open"
     label, line = (
         ("Deadline passed", "The submission deadline has passed, so this entry can no "
@@ -1767,6 +1776,9 @@ def locked_entry_card(rec, local) -> html.Div:
         if pending
         else ("Locked", "This entry is locked. It cannot be edited, replaced or withdrawn.")
     )  # fmt: skip
+    pill = "warn"
+    if res is not None and res.settled:
+        label, pill, line = results_ui.status(res)
     alloc = " / ".join(str(b.credits) for b in CFG.buckets) + f" / {CFG.nine_fold_credits}"
     ver = f" (version {rec['version']})" if rec.get("version", 1) > 1 else ""
     facts = [
@@ -1782,14 +1794,19 @@ def locked_entry_card(rec, local) -> html.Div:
     facts += [
         ("Credits", f"{CFG.total_credits} virtual ({alloc})"),
         ("Maximum payout", c.credits(rec.get("max_gross", "0"))),
-        ("Results", "Not available yet (settlement comes in a later phase)"),
     ]
-    return html.Div(
+    if res is None or not res.settled:
+        facts.append(("Results", "Pending: results appear here as the matches are settled"))
+    settled = res is not None and res.settled
+    card = html.Div(
         [
             html.Div(
                 [
-                    html.H2("Most recent locked entry", className="ch-h2"),
-                    html.Span(label, className="ch-pill warn"),
+                    html.H2(
+                        "Most recent entry" if settled else "Most recent locked entry",
+                        className="ch-h2",
+                    ),
+                    html.Span(label, className=f"ch-pill {pill}"),
                 ],
                 className="ch-row-between",
             ),
@@ -1798,12 +1815,31 @@ def locked_entry_card(rec, local) -> html.Div:
                 [item for k, v in facts if k != "Status" for item in (html.Dt(k), html.Dd(v))],
                 className="ch-facts small",
             ),
+            html.P(
+                "Pre-match estimates from when you confirmed (expectations, not results).",
+                className="small ch-prematch-note",
+            )
+            if settled
+            else None,
             estimate_cards(rec.get("estimates") or {}),
-            confirmed_predictions(
+            None
+            if settled
+            else confirmed_predictions(
                 rec, f"Show the nine predictions in {rec['round_id']}", "ch-locked-preds"
             ),
         ],
         className="ch-card ch-compact ch-locked-entry",
+    )
+    if not settled:
+        return card
+    return html.Div(
+        [
+            card,
+            *results_ui.panel(
+                res, rec, local, f"Show the nine predictions and results in {rec['round_id']}"
+            ),
+        ],
+        className="ch-prev-entry",
     )
 
 
@@ -1868,11 +1904,21 @@ def my_challenge_body(service, state, local) -> list:
     rv = service.round_view() if kind != "prototype" or (snap and not snap.is_demo) else None
     label, cls, line = round_state(state, snap, avail, sels, kind, rv)
     sub = st.submission_for(state, snap)
+    res = None
+    if (
+        access_kind == "account"
+        and sub
+        and getattr(rv, "status", None) in ("locked", "settling", "final")
+    ):
+        res = results_ui.fetch(service, rv.id)  # authoritative, re-read on every render
+        if res is not None and res.settled:
+            label, cls, line = results_ui.status(res)
+    settled = res is not None and res.settled
     can_withdraw = bool(sub) and avail.playable and not locked(avail)
     status = round_card(state, snap, avail, sels, sub, label, cls, line, local, kind, rv)
     if sub:
         yv_now = your_view_now(service, snap, sub) if access_kind == "account" else None
-        confirmed = confirmed_summary(sub, local, can_withdraw, yv_now)
+        confirmed = confirmed_summary(sub, local, can_withdraw, yv_now, settled=settled)
     else:
         confirmed = html.Div(
             [
@@ -1981,10 +2027,14 @@ def my_challenge_body(service, state, local) -> list:
         from . import persist
 
         rec = persist.most_recent_locked(service, getattr(rv, "id", None))
-        previous = locked_entry_card(rec, local) if rec else None
+        if rec:
+            prev_res = results_ui.fetch(service, UUID(rec["round_uuid"]))
+            previous = locked_entry_card(rec, local, prev_res)
+    current_results = results_ui.panel(res, sub, local) if settled else []
     return [
         html.Div([status, confirmed], className="ch-grid-me"),
-        confirmed_predictions(sub) if sub else None,
+        *current_results,
+        None if settled else (confirmed_predictions(sub) if sub else None),
         previous,
         perf,
         hist,

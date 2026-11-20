@@ -1282,3 +1282,32 @@ table.results td.value-cell { white-space: nowrap; }
   .ch-grid-me > .ch-card { padding-bottom: 12px; }
   .ch-grid-me .ch-card-foot { padding-top: 6px; }
 }
+
+/* ---- Phase 6C.4: actual settlement results on My Challenge (icon + words, never colour alone) */
+.ch-verdict { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; white-space: nowrap; }
+.ch-verdict.won { color: var(--win); }
+.ch-verdict.lost { color: var(--loss); }
+.ch-verdict.void { color: var(--muted); }
+.ch-verdict.pending { color: var(--info); }
+.ch-pill-row { display: inline-flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ch-res-summary, .ch-res-accs, .ch-res-preds { margin-top: 14px; }
+.ch-res-notice { margin: 4px 0 8px; padding: 6px 10px; border-left: 3px solid var(--info); background: var(--info-dim); border-radius: 6px; }
+.ch-res-metrics { margin: 8px 0 10px; }
+.ch-res-counts { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.ch-res-count { display: inline-flex; align-items: center; gap: 8px; }
+.ch-legs { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.ch-leg { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--border); }
+.ch-leg.won { color: var(--win); border-color: var(--win); }
+.ch-leg.lost { color: var(--loss); border-color: var(--loss); }
+.ch-leg.void { color: var(--muted); border-style: dashed; }
+.ch-leg.pending { color: var(--info); border-style: dotted; }
+.ch-res-table td, .ch-res-table th { vertical-align: middle; }
+.ch-pick-res { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 2px; }
+.ch-void-why { display: block; margin-top: 2px; }
+.ch-prematch-note { margin: 6px 0 4px; color: var(--muted); }
+.ch-prev-entry { margin-top: 14px; }
+.ch-prev-entry > .ch-locked-entry { margin-top: 0; }
+@media (max-width: 600px) {
+  .ch-res-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ch-res-table th:nth-child(3), .ch-res-table td:nth-child(3) { display: none; }
+}

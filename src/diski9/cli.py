@@ -551,6 +551,7 @@ def cmd_round(args) -> int:
                     first,
                     seed=args.seed,
                     spacing=timedelta(minutes=args.spacing_minutes),
+                    fixtures=args.fixtures or 20,
                 )
             v = svc.create_round(
                 engine,
@@ -790,8 +791,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--fixtures",
         type=int,
         default=20,
-        help="dev-open --mirror-upcoming: number of fixtures, earliest kickoffs first "
-        "(0 = every upcoming fixture within seven days of the first allowed kickoff)",
+        help="dev-open: number of fixtures (synthetic default 20); with --mirror-upcoming the "
+        "earliest kickoffs first (0 = every upcoming fixture within seven days of the first "
+        "allowed kickoff)",
     )
     s.add_argument(
         "--spacing-minutes",

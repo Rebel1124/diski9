@@ -127,11 +127,13 @@ uv run diski9 dev-results set-mode --round CODE --mode synthetic --operator EMAI
 uv run diski9 dev-results scenarios
 uv run diski9 dev-results scenario --round CODE --name NAME --operator EMAIL [--timeline prompt|standard]
 ```
-* `--spacing-minutes 1` (new in 6C.4) builds a compressed synthetic round: twenty
-  kickoffs a minute apart, starting 15 minutes after the deadline.
+* `--spacing-minutes 1` (new in 6C.4) builds a compressed synthetic round: kickoffs
+  a minute apart, starting 15 minutes after the deadline; `--fixtures N` sets how many
+  synthetic fixtures (default 20).
 * `test-entry` confirms a deterministic nine-prediction portfolio for a test
   participant **with that participant's own password**, through the ordinary draft
-  and entry services; `--variant` gives different portfolios. Five accounts make a
+  and entry services; `--variant` gives different portfolios (variants 0, 1 and 2
+  start from different thirds of the fixture list). Five accounts make a
   competitive round (at least five valid entries at lock); the minimum is not
   changed.
 * `set-mode` is set once per development round (`synthetic` or `real`), audited;
@@ -142,6 +144,10 @@ uv run diski9 dev-results scenario --round CODE --name NAME --operator EMAIL [--
 
 ### Scenario catalogue (deterministic; built from the round's own locked selections)
 
+Fourteen scenarios were built in Stage C; `entry-all-void` was added in Stage E
+because an individual all-nine-void refund (D-33) can only be seen in a round that
+stays valid, which needs other entries with played predictions.
+
 | Scenario | What it records | Expected result (single-entry practice round) |
 |---|---|---|
 | `all-correct` | every selected fixture final with a score that wins every selection | all four accumulators won; gross = the confirmed maximum; recovered |
@@ -149,7 +155,8 @@ uv run diski9 dev-results scenario --round CODE --name NAME --operator EMAIL [--
 | `one-bucket-wins` | Foundation (A) fixtures win, the rest lose | Foundation pays; Balanced, Challenger, The Diski 9 0.00 |
 | `partial-void` | one Foundation fixture cancelled, the rest win | that prediction void at 1.00; accumulators still won at reduced odds |
 | `bucket-all-void` | every Balanced fixture cancelled | Balanced returns its stake (all legs at 1.00) |
-| `all-nine-void` | every selected fixture cancelled | D-33: refunded 100.00, net 0.00, not rank-eligible, not "recovered" |
+| `all-nine-void` | every selected fixture cancelled | with one entry: every prediction void, so the whole **round** is void (D-32b) and refunded; use `entry-all-void` to see an individual refund |
+| `entry-all-void` (added in Stage E) | cancels the fixtures of the entry sharing fewest matches with the others; everything else wins | that entry: D-33 refund 100.00, net 0.00, not rank-eligible, not "recovered"; the round stays valid. Needs at least two entries on different matches: `dev-open --fixtures 40` and `test-entry` variants 0, 1, 2 |
 | `round-invalid-majority` | cancels fixtures until at least half of all locked predictions are void | D-32b fail: round void, every entry refunded |
 | `pending` | the later half of the fixtures stay in play | partial settlement: settled-so-far totals, pending accumulators show no payout |
 | `cutoff-boundary` | one final exactly at the cutoff, one a second after | first settles, second void V1; needs `settle run --as-of` after the cutoff |

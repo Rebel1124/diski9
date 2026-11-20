@@ -40,6 +40,7 @@ SCENARIOS = (
     "partial-void",
     "bucket-all-void",
     "all-nine-void",
+    "entry-all-void",
     "round-invalid-majority",
     "pending",
     "cutoff-boundary",
@@ -133,6 +134,18 @@ def build(
     elif name == "all-nine-void":
         for fid in fixtures:
             special[fid] = void(fid)
+    elif name == "entry-all-void":
+        if len(entries) < 2:
+            raise ValueError("entry-all-void needs at least two locked entries")
+        sets = [frozenset(x.fixture_id for x in legs) for legs in entries]
+
+        def shared(i):
+            others = frozenset().union(*(t for j, t in enumerate(sets) if j != i))
+            return (len(sets[i] & others), sorted(sets[i]))
+
+        target = min(range(len(sets)), key=shared)
+        for fid in sorted(sets[target]):
+            special[fid] = void(fid)
     elif name == "round-invalid-majority":
         counts = {
             fid: sum(1 for legs in entries for x in legs if x.fixture_id == fid) for fid in fixtures
@@ -207,7 +220,11 @@ DESCRIPTIONS = {
     "one-bucket-wins": "bucket A fixtures win, the rest lose: Foundation pays, others 0.00",
     "partial-void": "one Foundation fixture is cancelled (void at 1.00), the rest win",
     "bucket-all-void": "every Balanced fixture is cancelled: its stake is returned at 1.00",
-    "all-nine-void": "every selected fixture is cancelled: refund 100.00, not rank-eligible",
+    "all-nine-void": "every selected fixture is cancelled: refund 100.00, not rank-eligible "
+    "(with one entry the whole round is also void under D-32b)",
+    "entry-all-void": "the fixtures of the entry sharing fewest matches with the others are "
+    "cancelled, the rest win: that entry is refunded (D-33) while the round stays valid "
+    "(needs entries on different matches, e.g. test-entry variants 0, 1, 2)",
     "round-invalid-majority": "at least half of all locked predictions void: the round is "
     "void (D-32b) and every entry is refunded",
     "pending": "half the fixtures stay in play: partial settlement, totals settled so far",
@@ -267,16 +284,27 @@ def apply_scenario(
 # ------------------------------------------------------------------ test entries
 def test_selections(snapshot, variant: int = 0) -> list[dict]:
     """A deterministic, complete set of nine selections for development testing,
-    chosen with the builder's own rules from the round's outcomes rotated by
-    ``variant`` (so several test accounts get different portfolios)."""
+    chosen with the builder's own rules. Variants start from different thirds of
+    the fixture list (variant 0 from the first fixture, 1 from a third of the way
+    in, 2 from two thirds, 3 one fixture after variant 0, ...), so with enough
+    fixtures (``round dev-open --fixtures 40``) variants 0, 1 and 2 use different
+    matches; several test accounts get different portfolios."""
     from ..challenge.config import DEFAULT_CONFIG
     from ..challenge.structured import selection_blocks
 
     outcomes = list(snapshot.outcomes)
     if not outcomes:
         raise ValueError("the round has no outcomes")
-    shift = (variant * 7) % len(outcomes)
-    ordered = outcomes[shift:] + outcomes[:shift]
+    order = []
+    for o in outcomes:
+        if o.fixture_id not in order:
+            order.append(o.fixture_id)
+    n = len(order)
+    block = max(1, n // 3)
+    start = ((variant % 3) * block + variant // 3) % n
+    rank = {fid: i for i, fid in enumerate(order[start:] + order[:start])}
+    position = {o.key: i for i, o in enumerate(outcomes)}
+    ordered = sorted(outcomes, key=lambda o: (rank[o.fixture_id], position[o.key]))
     chosen: list = []
     for o in ordered:
         if len(chosen) == 9:
