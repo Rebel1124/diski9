@@ -1074,6 +1074,15 @@ infrastructure was added.
 * Full entry history, ranks, points, leaderboards and championships: 6C.5.
   Scheduling, monitoring and the admin interface: 6C.6. D-29 and D-36 outstanding.
 
-### 24.11 Outstanding before release
+### 24.11 Defect found during the owner's local acceptance (20 Nov 2026)
+An entry whose nine predictions were all settled while other entries in the round
+were still pending showed **Partly settled** and a definitive net. Both were
+misleading: the round's validity check (D-32b) was not done yet, and a void round
+would refund (net 0.00). Fixed: a new presentation state **Settled · round check
+pending**; net, like recovery, stays "Not final yet" until the round's validity is
+known; the returned figure is labelled "before the round check". Regression test
+added. No settlement data or rule changed.
+
+### 24.12 Outstanding before release
 Owner's local acceptance on the Mac (`docs/phase6c4_local_acceptance_mac.md`);
 then release preparation, merge and tag only when separately authorised.

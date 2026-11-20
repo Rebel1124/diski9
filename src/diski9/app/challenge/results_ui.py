@@ -86,6 +86,13 @@ def status(res) -> tuple[str, str, str]:
             "warn",
             "Your entry is locked. Results appear here as the matches are settled.",
         )
+    if res.state == "awaiting_round":
+        return (
+            "Settled · round check pending",
+            "demo",
+            "All your predictions are settled. Other matches in this round are still being "
+            "settled, so the round's validity check, your net and recovery are not final yet.",
+        )
     if res.state == "in_progress":
         return (
             "Partly settled",
@@ -151,7 +158,13 @@ def summary(res, local) -> html.Div:
     net = (
         "Not final yet" if res.net is None else (("+" if res.net > 0 else "") + c.credits(res.net))
     )
-    gross_sub = "settled so far" if not res.complete and not res.round_void else ""
+    gross_sub = (
+        "settled so far"
+        if not res.complete and not res.round_void
+        else "before the round check"
+        if res.state == "awaiting_round"
+        else ""
+    )
     metrics = html.Div(
         [
             c.metric("Allocated", f"{CFG.total_credits}.00", "virtual credits"),

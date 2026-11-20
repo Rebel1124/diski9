@@ -256,3 +256,21 @@ def test_void_round_shows_no_accumulator_returns(engine):
     assert "Not paid" in accs and "Successful" not in accs
     body = texts(ui.panel(r, {"picks": []}, local))
     assert "Round void" in body and "Refund (not a recovery)" in body
+
+
+def test_settled_entry_waits_for_the_round_check(engine):
+    """An entry whose nine predictions are settled while other entries are pending:
+    not 'partly settled', and neither net nor recovery is final (a void round would
+    refund)."""
+    from diski9.app.challenge import results_ui as ui
+
+    w = settlement_world(engine, [DEFAULT_ENTRY, shifted(9)], **PRAC)
+    scenario(engine, w, "pending")  # the later half of the fixtures stays in play
+    r = my_settlement(engine, me(engine, w), w["round"])  # fixtures 0-8: all settled
+    assert r.complete and r.counts["pending"] == 0
+    assert r.state == "awaiting_round" and r.net is None and r.recovered is None
+    body = texts(ui.panel(r, {"picks": []}, local))
+    assert "round check pending" in body and "Not final yet" in body
+    assert "Not decided yet" in body and "Partly settled" not in body
+    other = my_settlement(engine, me(engine, w, 1), w["round"])
+    assert other.state == "in_progress"

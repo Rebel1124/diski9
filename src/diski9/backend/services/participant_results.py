@@ -71,7 +71,7 @@ class ParticipantSettlement:
     round_id: UUID
     round_code: str
     round_status: str  # open (deadline passed) | locked | settling | final
-    state: str  # awaiting_lock | locked | in_progress | provisional | final
+    state: str  # awaiting_lock | locked | in_progress | awaiting_round | provisional | final
     is_development: bool
     settled: bool  # a settlement exists for this entry
     complete: bool
@@ -219,12 +219,15 @@ def my_settlement(
     decided = (complete and evaluated) or round_void
     if r.status == "final":
         state = "final"
-    elif complete and decided:
+    elif decided:
         state = "provisional"
+    elif complete:  # this entry is settled; the round's validity check is not done yet
+        state = "awaiting_round"
     else:
         state = "in_progress"
     gross = HUNDRED if round_void else s.gross
-    net = (ZERO if round_void else s.net) if (complete or round_void) else None
+    # net is final only once the round's validity is known (a void round refunds)
+    net = (ZERO if round_void else s.net) if decided else None
     recovered = None
     if decided:
         recovered = (not round_void) and (not entry_refunded) and s.gross >= HUNDRED
