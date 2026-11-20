@@ -991,6 +991,11 @@ byte-identical (checksums), window back-filled, development rounds without a mod
   `DISKI9_TEST_SUPABASE_DB_URL` pointing at the harness's own auth database the
   Supabase-schema test ran against a genuine (local) Supabase `auth` schema; a
   **hosted** Supabase project is still untested (Phase 10).
+* **CI:** run 36 (Stage E) passed; runs 39 and 41 failed on the one 6C.3 wording
+  assertion above; runs 37, 40, 42, 43 were cancelled by newer pushes; **run 44
+  (`6a17226`) passed: 1,466 passed, 13 skipped** (browser tests without Playwright
+  for Node on the runner). CI runs the genuine CLI tests against the official
+  Supabase Auth image (`DISKI9_REQUIRE_SUPABASE_AUTH=1`). Lint and formatting clean.
 * **PostgreSQL restart:** settlement tables' checksum identical across a fast
   restart of the cluster; the running app reconnected and served the participant's
   result.
