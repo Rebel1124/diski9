@@ -151,10 +151,13 @@ uv run diski9 competition status --operator bravo@example.test
 uv run diski9 competition verify --operator bravo@example.test
 ```
 
-What to expect on an upgraded copy:
+What to expect on an upgraded copy. `verify` prints one header line per stream:
+`<stream>: consistent` or `<stream>: N finding(s)`.
 - **development**: rounds you finalised before this upgrade appear under *final
-  without official results (backfill)*. That is expected: they were finalised
-  before official results existed.
+  without official results (backfill)*. Rounds published before the upgrade appear
+  once as *repairable: not yet assigned to a championship … run competition
+  backfill*. Both are expected after an upgrade, not corruption, and the backfill
+  resolves them.
 - **beta**: the same, if you finalised beta rounds.
 - **official**: `not started (official series, D-38)`.
 - Notes such as `[pending_assignment]` or `[backfill_needed]` describe legitimate

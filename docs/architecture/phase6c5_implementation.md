@@ -758,8 +758,8 @@ No replay subsystem is introduced. This limitation is also recorded in
 | An inconsistent membership row does not block healthy championships | Confirmed | `test_member_outside_the_stream_never_blocks_processing` (repair module): processing succeeds. The full suite (`test_frozen_context_and_no_effect_on_the_competition` publishing into the shared database) failed before `d1287c9` and passes after it |
 | `verify` reports the affected championship as material | Confirmed | Same test: a material finding "member round(s) are not in the development stream" |
 | Repair refuses non-authoritative or membership-changing work | Confirmed | Any material finding refuses the stream (`_repair_work`); `test_material_inconsistency_is_refused_and_reported`. Repair never writes membership except normal deadline-order assignment |
-| The affected championship cannot silently show misleading definitive standings | **Gap** | Processing writes no new version for it, but the read service still shows its last published version with `definitive = True` and no indicator |
-| No unsafe membership or contribution change | **Gap** | If the affected championship is the stream's open championship, waiting rounds can still be assigned into it, because assignment is planned over all championships. Those memberships are then permanent, while its counter and standings stay stale |
+| The affected championship cannot silently show misleading definitive standings | **Gap, fixed in `65a1440`** | Before the fix, the read service still showed its last published version as definitive. It now shows it as Under Review with the reason `integrity_review`, and `definitive` is false |
+| No unsafe membership or contribution change | **Gap, fixed in `65a1440`** | Before the fix, waiting rounds could be assigned into an inconsistent open championship. Assignment is now held: no membership is created, weekly results still publish, and verify notes the held assignment. Repair still refuses the stream |
 
 Both gaps are reachable only through data written outside the services, such as a
 manual database edit. They were reported to the owner before local acceptance. A
@@ -769,3 +769,58 @@ minimal correction is proposed and awaits authorisation:
 * mark such a championship Under Review with the reason `integrity_review`
   (`definitive = False`) in the read services;
 * add tests for both.
+
+### 4.10 Owner-authorised corrections during local acceptance (20 Nov 2026, `65a1440`)
+The owner authorised the safeguard fix and four presentation corrections, found at
+local acceptance Checkpoints 1 to 3.
+
+**Safeguards:**
+* While the open championship holds a member outside its stream, processing assigns
+  no waiting round. Weekly results still publish.
+* The inspection notes such a round as "championship assignment held" and does not
+  report it as assignable.
+* `championship_board` adds the reason `integrity_review`, sets `under_review` and
+  clears `definitive` for any championship with such a member.
+* Tests: `test_member_outside_the_stream_never_blocks_processing` (extended). It
+  covers healthy championships unaffected, the inconsistent open championship shown
+  as under review, a new round finalised (published, not assigned), the held note,
+  and repair refusing the stream.
+
+**Operator output (no data or behaviour change):**
+* `competition verify` prints a header per stream (`<stream>: N finding(s)` or
+  `<stream>: consistent`), so every finding carries its stream. The repair CLI test
+  asserts it.
+* The backfill lists created championships as `Name (stream)`, because names are
+  unique per stream only.
+* Rounds published before the upgrade and never processed are reported once, as
+  "not yet assigned to a championship … run competition backfill". The status line
+  "championship assignment pending" lists only rounds legitimately waiting behind
+  an earlier unresolved round.
+* `competition backfill --token` announces that it re-checks the preview before
+  applying, instead of printing "Backfill preview".
+
+**Local acceptance progress (scratch copy `diski9_6c5_acceptance` on the owner's Mac):**
+* **Checkpoint 1, environment:** branch, commit, database target (masked) and
+  `app_0006` verified.
+* **Checkpoint 2, backup and scratch copy:** backup of 290 KB with 42 table-data
+  sections. Restore counts identical: 3 users, 7 rounds, 10 entries, 10
+  settlements, 8 settlement versions, 31 audit rows. The terminal points at the copy.
+* **Checkpoint 3, migration and backfill:**
+  - `app_0007` applied to the copy only, with counts preserved. The owner's
+    `diski9` stays at `app_0006`.
+  - The upgraded copy correctly showed its 7 published rounds as unassigned.
+  - The backfill published nothing (no round was final), assigned all 7 rounds and
+    created one championship per stream. `verify` then reported consistent, and a
+    repeated preview did nothing.
+  - Memberships were correct by stream: 6 development rounds (3 pending, 3
+    practice) and 1 beta round (pending).
+
+**Regression on `65a1440`:**
+* Full suite: **1,603 passed, 0 failed, 0 skipped**. These changes extend existing
+  tests; no tests were added.
+* An earlier run of the same commit showed 12 failures and 15 errors, all in tests
+  that need the local Supabase Auth harness. The harness had reached its
+  background time limit during the run. After a restart, the full rerun passed.
+* Fingerprint `88bcd717deca6c1c…` unchanged.
+* No change to scoring, settlement, corrections, authentication, migrations or the
+  app.
