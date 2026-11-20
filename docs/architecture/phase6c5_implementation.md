@@ -184,3 +184,14 @@ collide at 20,000 users.
   - Re-finalisation republishes weekly results, but championship recalculation is
     Stage D.
 * No new operator command in Stage B; operator security is unchanged.
+
+### 2.8 Owner approval of Stage B (20 Nov 2026)
+* Stage B was approved by the owner at `ccd7c4e`: 1,522 of 1,522 local tests
+  passed, CI run 54 passed, and the fingerprint is unchanged.
+* The implementation decisions and minor schema deviations in §2.7 were accepted.
+* The lifecycle clarifications were accepted:
+  - D-32b voids are restorable only through the existing owner reopening;
+    operator invalidations are not;
+  - slot reservation in deadline order;
+  - naming from the first associated round's SAST publication date.
+* Stage C was authorised; Stage D needs separate approval.
