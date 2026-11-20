@@ -38,7 +38,7 @@ from ..db.schema import (
 )
 from ..repositories import ops, portfolios
 from ..repositories import rounds as rounds_repo
-from . import snapshots
+from . import championships, snapshots
 from .common import LockRefused, NotFound, PublicationRefused, ValidationFailed
 
 MODEL_VERSION = f"goal-model-{GOAL_MODEL_VERSION}"
@@ -420,6 +420,11 @@ def publish_round(
                 },
             )
             ops.finish_job(conn, run, "succeeded")
+            # Phase 6C.5: assign the round to its championship when that is already
+            # certain (CH-02, CH-03); same transaction, round lock then stream lock
+            championships.on_round_event(
+                conn, round_id, actor=principal.user_id, cause="round_assigned"
+            )
             return _view(conn, round_id)
         code = r.code
     raise _refuse(engine, code, problem, details)
@@ -573,4 +578,6 @@ def lock_round(engine: Engine, actor: Principal | System, round_id: UUID) -> Loc
             after={"valid_entries": locked, "designation": designation},
         )
         ops.finish_job(conn, run, "succeeded")
+        # Phase 6C.5: a practice classification releases a reserved championship slot
+        championships.on_round_event(conn, round_id, actor=actor_id, cause="round_assigned")
         return LockResult(_view(conn, round_id), locked, designation, False)

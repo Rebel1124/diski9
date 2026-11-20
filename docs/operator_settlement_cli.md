@@ -115,6 +115,19 @@ uv run diski9 round reopen         --code CODE --operator OWNER_EMAIL --reason "
 * Reopening is owner-only, with reason, evidence, preview and confirmation; the
   final version stays in history and a new version is written.
 
+### Championships (Phase 6C.5 Stage C)
+
+| Command | What it does |
+|---|---|
+| `diski9 competition status --operator EMAIL` | Read-only. Each stream (development, beta, official): the current championship and its progress, rounds whose championship assignment is pending, final rounds without official results, and integrity problems. Exit code 1 when a problem is found |
+| `diski9 competition verify --operator EMAIL` | Read-only integrity check: membership, counter (at most ten), slots, status, standings recomputed with the scoring engine, published versions, development isolation, re-finalised rounds awaiting Stage D |
+| `diski9 competition backfill --operator EMAIL [--preview-only \| --token T]` | Publishes the official weekly results of rounds finalised before `app_0007`, in deadline order and one transaction per round, then assigns rounds to championships. The preview does the real work in a transaction that is rolled back. Execution needs the preview's token (or typing `backfill`) and refuses if anything changed. Rounds that cannot be classified reliably are listed as excluded and never assigned. Resumable and idempotent; audited |
+
+Normal operation needs no command. Official weekly results and championship
+processing happen inside `round finalise`, and rounds are assigned at publication
+and lock. **Do not run a material backfill on a real database without the owner's
+approval.**
+
 ## Development-only commands
 
 All refuse production, real (non-development) rounds and synthetic input on real

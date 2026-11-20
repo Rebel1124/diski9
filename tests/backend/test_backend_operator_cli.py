@@ -363,3 +363,40 @@ def test_test_entry_needs_the_participants_own_password(engine, env, accounts):
                               "user_id = :u AND current_submission_id IS NOT NULL"),
                          {"r": view.id, "u": accounts["participant"][1]}).scalar()  # fmt: skip
     assert n == 1
+
+
+# ------------------------------------------------------------------ Phase 6C.5 Stage C
+def test_competition_commands_need_an_operator_password(env, accounts):
+    rc, out = cli(env, accounts, "participant", "competition", "status")
+    assert rc == 3 and "does not have permission" in out
+    rc, out = cli(env, accounts, "operator", "competition", "backfill", "--preview-only",
+                  password="Wrong-Password-1")  # fmt: skip
+    assert rc == 3 and "email or password is incorrect" in out and "Wrong-Password-1" not in out
+    s = Session(["competition", "backfill", "--operator", accounts["operator"][0]], env,
+                stdin_tty=False)  # fmt: skip
+    rc, out = s.finish()
+    assert rc == 3 and "needs an interactive terminal" in out
+
+
+def test_competition_status_verify_and_backfill_through_the_cli(engine, env, accounts):
+    def score_sets():
+        with transaction(engine) as conn:
+            return conn.execute(text("SELECT count(*) FROM app.score_sets")).scalar_one()
+
+    rc, out = cli(env, accounts, "operator", "competition", "status")
+    assert rc in (0, 1) and "development:" in out and "beta:" in out, out
+    assert "official: not started" in out and PASSWORD not in out
+    rc, out = cli(env, accounts, "operator", "competition", "verify")
+    assert rc in (0, 1) and "development" in out, out
+    before = score_sets()
+    rc, out = cli(env, accounts, "operator", "competition", "backfill", "--preview-only")
+    assert rc == 0 and "Backfill preview" in out and "Preview only; nothing changed" in out, out
+    assert score_sets() == before
+    token = re.search(r"confirmation token:\s+([0-9a-f]{16})", out).group(1)
+    rc, out = cli(env, accounts, "operator", "competition", "backfill", "--token", "0" * 16)
+    assert rc == 2 and "changed since the preview" in out
+    rc, out = cli(env, accounts, "operator", "competition", "backfill", "--token", token)
+    assert rc == 0 and "Backfill complete" in out, out
+    with transaction(engine) as conn:
+        assert conn.execute(text("SELECT count(*) FROM app.audit_log WHERE action = "
+                                 "'competition.backfill'")).scalar_one() >= 1  # fmt: skip

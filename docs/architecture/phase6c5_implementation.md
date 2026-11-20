@@ -195,3 +195,162 @@ collide at 20,000 users.
   - slot reservation in deadline order;
   - naming from the first associated round's SAST publication date.
 * Stage C was authorised; Stage D needs separate approval.
+
+## 3. Stage C: championship lifecycle, membership, persistence and standings (20 Nov 2026)
+
+### 3.1 Baseline
+* Branch `feature/phase-6c5-leaderboards` at `5cbffd9`: the Stage B approval
+  recorded on top of the accepted `ccd7c4e`.
+* Fingerprint `88bcd717deca6c1c…` verified.
+* Accepted Stage B baseline: 1,522 of 1,522.
+* Work done in the dedicated worktree; the odds-trial checkout was not touched.
+
+### 3.2 Delivered (no schema change: the `app_0007` tables are sufficient)
+
+| Area | Files |
+|---|---|
+| Lifecycle, membership, naming, standings, integrity | `backend/services/championships.py` |
+| Operator services: stream status, backfill | `backend/services/competition_ops.py` |
+| Read services | `backend/services/leaderboards.py`: `championship_board`, `championship_list`; `weekly_board` gains `championship` and `championship_status` |
+| Integration | `services/rounds.py` (publication and lock), `services/competition.py` (end of `publish_finalised`): one call each, in the same transaction |
+| Operator commands | `settlement_cli.py`, `cli.py`: `competition status \| verify \| backfill` (password per command, S-07) |
+| Tools | `tools/phase6c5_perf_championships.py` |
+
+**Streams (CH-01):**
+* A development round always belongs to the `development` stream; otherwise the
+  stream is the series (`beta` / `official`).
+* Streams never share championships, counters or points.
+* The official stream is processed only once `championship_series.official.started_at`
+  is set; nothing in Stage C sets it (D-29, D-38).
+* Development championships are readable only with development rounds enabled.
+
+**Membership (CH-02)** in `process_stream`, under a per-stream advisory lock taken
+after the caller's round row lock:
+1. Outcomes of pending members are applied: practice at the lock (releases the
+   slot); counted or void at the first official publication.
+2. Unassigned rounds are assigned in deadline order. A round joins the open
+   championship while commitment (counted plus pending) is below ten. When the
+   open championship has ten counted rounds, the next round creates the next
+   championship and fixes the previous boundary. Otherwise the round waits, and so
+   do all later rounds.
+3. Each touched championship is refreshed: slots, counter, status and, when
+   anything changed, a new insert-only version with materialised standings.
+
+Membership is immutable from assignment (database guard). Empty rounds lock as
+practice, so they release their slot at once; a published round later postponed
+is `void`. Neither can reserve a slot indefinitely.
+
+**Naming (CH-03):**
+* `Championship MMM-YY` from the SAST publication date of the first associated
+  round, even if it later becomes practice or void, including after a delayed
+  assignment.
+* Same-month collisions get ` (2)`, ` (3)`, …
+* Created once, under the stream lock; immutable.
+
+**Standings:**
+* `scoring.aggregate_championship` (unchanged) over the counted rounds' latest
+  competitive score sets, with participants as users. Refunded entries are not
+  counted; refunded-only participants are not listed.
+* The engine's weekly points must equal the published ones, or the transaction is
+  refused (integrity).
+* Champions are rank-1 participants with points above zero, and only once the
+  championship is completed; joint champions are supported; when everyone has zero
+  points there is no champion.
+* Display names come from the latest counted entry's name at lock, resolved at read
+  time, so retroactive anonymity applies to every version.
+
+**Versions:**
+* `round_assigned`: creation, empty and upcoming.
+* `round_published` / `round_republished`: standings changed.
+* `backfill`.
+
+A version is written only when the status, the counted rounds or the standings
+hash change. Every version is audited; completion writes a domain event.
+
+**Read services:**
+* The current championship is the latest of the stream; any other is chosen by
+  display name.
+* `championship_board` returns:
+  - status, progress (n of 10) and indicators: under review (`reopened`,
+    `recalculation_pending`), corrected after completion, D-30a disclosure;
+  - champions or `no_champion`, and the stream's pending assignments;
+  - 50-row pages and the personal row (independent of the page), with
+    `me_status` ∈ ranked / refunded_only / awaiting_results / practice_only /
+    not_entered;
+  - the selector list.
+* Rows hold names and statistics only. Reads are READ ONLY, REPEATABLE READ and
+  write nothing.
+
+**Backfill:**
+* The preview does all the work in a rolled-back transaction.
+* Execution needs an operator principal and the preview token, and refuses if
+  anything changed.
+* It works in deadline order, one transaction per round: round lock, then weekly
+  publication, then stream processing. It then processes every stream and writes
+  an audit record.
+* Excluded with a reason (never assigned):
+  - development rounds without a result mode, or real rounds without the real
+    mode;
+  - unknown series;
+  - official rounds while the series has not started;
+  - a missing final settlement version or a provisional designation;
+  - any publication refusal.
+
+**Integrity (`verify_stream`, Stage C foundations):**
+* Membership within the stream; counter equal to the counted members and at most
+  ten; slots 1..n in deadline order; status.
+* Standings recomputed and compared by hash, with the row count.
+* Boundaries fixed before a successor; no development rounds in beta or official.
+* Re-finalised rounds awaiting Stage D.
+* Repair is Stage D.
+
+### 3.3 Stage C boundary (Stage D dependencies)
+* A determined member whose outcome changes on a re-finalisation (counted → void,
+  or void → valid) keeps its role and the last published standings. The
+  championship shows *under review: recalculation pending*, and `verify` reports
+  it. Not yet applied: D-30a, L-32, L-33, CH-05 capacity restoration.
+* A counted round re-finalised as still valid is re-aggregated from its latest
+  valid score set (the same recomputation).
+* Repair, property-based correction sequences and owner-facing correction flows
+  are Stage D.
+* No command starts the official series (a launch decision, D-38).
+
+### 3.4 Tests
+| Suite | Result |
+|---|---|
+| `tests/test_championship_lifecycle.py` (pure) | 14: SAST naming and month boundaries, collisions, roles, deadline-order assignment, reservation and waiting, practice and void releasing slots, the last slot becoming counted or void, a later round finalising first, naming from a practice first round, more than ten weeks, idempotent planning; engine tie-breakers (equal points split by recoveries, then by top tens, then shared) and joint champions |
+| `tests/backend/test_backend_championships.py` (own database, 14 rounds) | 7: assignment at lock with reservation; completion after ten valid rounds with practice and void not counted; C11 final before C10 waits, then starts championship 2; slots; standings (mid-championship joiner, one-round participant, refunded-only and practice-only excluded, shared ranks); champion; versions and history; restart and repeated processing change nothing; boards (pagination, personal row, statuses, hidden development, no identifiers); recomputation equality |
+| `tests/backend/test_backend_championship_edges.py` (own database, two-round championships) | 8: practice first round names "Oct-26" (23:30 SAST) and the next "Nov-26" (00:30 SAST); no champion when all zero; joint champions and the `(2)` suffix; reserved last slot released by a void round with the later round final first; concurrent finalisations and processing (no deadlock, no duplicates); failure injection rolls back weekly and championship publication, then a retry succeeds; consistent reads (never mixed versions); official stream gated |
+| `tests/backend/test_backend_championship_backfill.py` (two own databases) | 7: legacy rounds unpublished; preview writes nothing and needs an operator; wrong token refused; interrupted run resumes; repeated run is a no-op (audit only); backfill equals normal processing on a twin database; unclassifiable rounds reported; Stage D containment of a counted round re-finalised as void |
+| `tests/backend/test_backend_operator_cli.py` | +2 genuine (pty, real Supabase Auth): participant refused; wrong password; no terminal; status, verify, backfill preview, wrong token, confirmed backfill |
+| Existing tests adjusted | `test_championship_tables_protect_identity_and_membership` now uses a draft round (processing assigns published rounds itself). `settle_helpers.make_settlement_round` gained an optional `published_at` |
+
+### 3.5 Performance (measured on this machine)
+
+**1,000 participants entering 11 development rounds:**
+
+| Measurement | Result |
+|---|---|
+| Stage B weekly publication | 87–144 ms per round |
+| Stage C championship processing | 115 ms (round 1) rising to 395 ms (round 10); standings are rebuilt from every counted round |
+| Finalisation | 620–920 ms |
+| Rollover (round 11) | 2.4 s, measured with 4 reader threads in the same process; 281 reads, 0 errors, p95 68 ms |
+| Cumulative standings, 10 rounds × 1,000 | 292 ms |
+| Championship page 1 / last page / page plus my position | 21.8 / 22.7 / 22.2 ms median |
+| Backfill of 2 rounds | preview 0.5 s; run 1.1 s (including its preview) |
+| Integrity check after the run | consistent |
+
+**10,000 participants, 3 rounds (stretch):**
+
+| Measurement | Result |
+|---|---|
+| Weekly publication | 1.2–1.3 s |
+| Championship processing | 0.9–1.9 s |
+| Finalisation | 6.2–7.1 s (settlement included) |
+| Standings, 3 rounds | 1.0 s |
+| Pages | 27–34 ms |
+| Backfill of 1 round | preview 2.9 s; run 6.2 s |
+| Integrity check | consistent |
+
+Championship processing scales with counted rounds × participants, because every
+change re-aggregates from scratch (no incremental points, by design).

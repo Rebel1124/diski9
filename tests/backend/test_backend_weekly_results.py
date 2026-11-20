@@ -541,13 +541,18 @@ def test_reopening_keeps_the_last_published_results_until_refinalised(engine, op
 
 
 # ------------------------------------------------------------------ championship tables (Stage C)
-def test_championship_tables_protect_identity_and_membership(engine, worlds):
+def test_championship_tables_protect_identity_and_membership(engine):
     """Stage B creates the Stage C tables only; their database guards are checked
     here (identity, name and membership can never change or be deleted)."""
-    w = worlds["practice"]
     with transaction(engine) as conn:
         sid = conn.execute(sa.text("SELECT id FROM app.championship_series WHERE code='beta'")
                            ).scalar_one()  # fmt: skip
+        # a draft round: never part of any stream, so processing never touches it
+        draft = conn.execute(sa.text(
+            "INSERT INTO app.rounds (code, schedule_id, series_id, window_start_at, "
+            "window_end_at) SELECT :c, id, series_id, now(), now() + interval '1 day' "
+            "FROM app.round_schedules ORDER BY id LIMIT 1 RETURNING id"),
+            {"c": f"draft-{uuid.uuid4().hex[:8]}"}).scalar_one()  # fmt: skip
         cid = conn.execute(sa.text(
             "INSERT INTO app.championships (stream, series_id, ordinal, start_date, display_name) "
             "VALUES ('development', :s, 900001, '2026-11-28', 'Championship Nov-26 (99)') "
@@ -557,7 +562,7 @@ def test_championship_tables_protect_identity_and_membership(engine, worlds):
                 "INSERT INTO app.championship_rounds (round_id, championship_id, "
                 "role) VALUES (:r, :c, 'practice')"
             ),
-            {"r": w["round"], "c": cid},
+            {"r": draft, "c": cid},
         )
         conn.execute(sa.text("UPDATE app.championships SET status='in_progress' WHERE id=:c"),
                      {"c": cid})  # status may change (publication only)  # fmt: skip

@@ -348,6 +348,16 @@ Stage B services:
   official weekly standings, paginated, with privacy-safe names
   (`auth/accounts.leaderboard_names`).
 
+Stage C services:
+* `services/championships.py`: streams, deadline-order membership with slot
+  reservation, naming, versioned standings and the integrity check. Called at
+  round publication and lock (`services/rounds.py`) and inside
+  `publish_finalised`.
+* `services/competition_ops.py`: stream status and the safeguarded backfill.
+* `leaderboards.championship_board` / `championship_list`: read-only standings,
+  personal position and the round assignment status.
+* Operator commands: `competition status | verify | backfill`.
+
 Ranks and points come from the unchanged `challenge/scoring.py`. Specification:
 `docs/architecture/phase6c5_design_specification.md`; record:
 `docs/architecture/phase6c5_implementation.md`.

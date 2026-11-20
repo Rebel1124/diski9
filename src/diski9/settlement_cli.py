@@ -190,6 +190,21 @@ def add_parsers(sub) -> None:
     p.add_argument("--participant", metavar="EMAIL", help="the test participant's email")
     p.add_argument("--variant", type=int, default=0, help="portfolio variant (0, 1, 2 ...)")
 
+    s = sub.add_parser(
+        "competition", help="championships: status, integrity check, historical backfill"
+    )
+    cs = s.add_subparsers(dest="action", required=True)
+    p = cs.add_parser("status", help="each stream's current championship and waiting rounds")
+    _operator_args(p)
+    p = cs.add_parser("verify", help="read-only integrity check of every championship")
+    _operator_args(p)
+    p = cs.add_parser(
+        "backfill",
+        help="publish official results of rounds finalised before app_0007 (preview first)",
+    )
+    _operator_args(p)
+    _confirm_args(p)
+
 
 def add_round_arguments(p: argparse.ArgumentParser) -> None:
     """Extra ``round`` options for invalidate / finalise / finalise-check / reopen."""
@@ -513,6 +528,63 @@ def _dev(args, engine) -> int:
     return 2
 
 
+def _competition(args, engine) -> int:
+    from diski9.backend.services import competition_ops as cops
+
+    p = _principal(engine, args.operator)
+    if args.action in ("status", "verify"):
+        problems = 0
+        for st in cops.stream_status(engine, p):
+            if not st.open:
+                print(f"{st.stream}: not started (official series, D-38)")
+                continue
+            if args.action == "status":
+                cur = (
+                    f"{st.current} ({st.status.replace('_', ' ')}, {st.counted_rounds} of "
+                    f"{st.rounds_required} rounds)"
+                    if st.current
+                    else "no championship yet"
+                )
+                print(f"{st.stream}: {cur}; {st.championships} championship(s)")
+                if st.waiting_rounds:
+                    print(f"  championship assignment pending: {', '.join(st.waiting_rounds)}")
+                if st.unpublished_final:
+                    print(
+                        f"  final without official results (backfill): "
+                        f"{', '.join(st.unpublished_final)}"
+                    )
+            for prob in st.problems:
+                print(f"  problem: {prob}")
+            problems += len(st.problems)
+            if args.action == "verify" and not st.problems:
+                print(f"{st.stream}: consistent")
+        return 1 if problems else 0
+    plan = cops.preview_backfill(engine, p)
+    print("Backfill preview (nothing has changed yet)")
+    for i in plan.items:
+        extra = f" [{i.kind}]" if i.kind else (f": {i.reason}" if i.reason else "")
+        print(f"  {i.stream:12} {i.round_code:24} {i.action.replace('_', ' ')}{extra}")
+    print(f"  rounds to publish:        {plan.to_publish}")
+    print(f"  championships created:    {', '.join(plan.championships_created) or 'none'}")
+    print(f"  rounds assigned:          {plan.rounds_assigned}")
+    print(f"  assignment still pending: {plan.waiting}")
+    print(f"  confirmation token:       {plan.token}")
+    if args.preview_only:
+        print("Preview only; nothing changed. Confirm later with --token " + plan.token)
+        return 0
+    token = args.token
+    if not token:
+        if not _interactive():
+            raise _Usage("confirm with --token TOKEN (from a preview) or run interactively")
+        if input("Type backfill to apply it, or press Enter to stop: ").strip() != "backfill":
+            print("Not confirmed; nothing changed.")
+            return 0
+        token = plan.token
+    done = cops.run_backfill(engine, p, confirmation=token)
+    print(f"Backfill complete: {done.to_publish} round(s) published (audited).")
+    return 0
+
+
 def _round(args, engine) -> int:
     from diski9.backend.services import corrections as co
     from diski9.backend.services import settlement_ops as ops
@@ -572,7 +644,13 @@ def _round(args, engine) -> int:
     return 2
 
 
-HANDLERS = {"results": _results, "settle": _settle, "dev-results": _dev, "round": _round}
+HANDLERS = {
+    "results": _results,
+    "settle": _settle,
+    "dev-results": _dev,
+    "round": _round,
+    "competition": _competition,
+}
 
 AUTH_MESSAGES = {
     RecentAuthenticationRequired: "Your password check is too old for this change. "

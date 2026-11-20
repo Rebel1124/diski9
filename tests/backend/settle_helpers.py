@@ -55,7 +55,10 @@ def make_settlement_round(
     deadline_in=timedelta(seconds=3),
     cutoff_after=timedelta(seconds=3),
     development: bool = False,
+    published_at=None,
 ):
+    """``published_at`` (default: now) may be set in the past, e.g. to test SAST
+    month boundaries of championship names."""
     now = db_now(conn)
     code = unique("dev-s-" if development else "2026-W48-s")
     rid = conn.execute(
@@ -108,7 +111,7 @@ def make_settlement_round(
         rid,
         "open",
         reason="test publish",
-        published_at=now,
+        published_at=published_at or now,
         deadline_at=deadline,
         settle_cutoff_at=deadline + cutoff_after,
         config_version="broad60-432-v1",

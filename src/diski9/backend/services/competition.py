@@ -22,14 +22,15 @@ Specification: ``docs/architecture/phase6c5_design_specification.md`` §6, §7.2
 **Weekly points versus championship contribution.** A score set records the points
 the approved methodology gives each entry in that round ("weekly points"). Whether
 and where they count toward a championship is decided by championship membership
-(Stage C, decisions CH-02 and CH-05); nothing here writes championship tables.
+(``championships``, decisions CH-02 and CH-05), processed at the end of the
+publication in the same transaction.
 Because ``score_round`` requires a championship identifier for competitive rounds,
 the adapter passes the neutral placeholder ``UNASSIGNED``, which only labels the
 calculation and never reaches storage.
 
 Dependency direction: ``corrections`` imports this module; this module imports
-only the schema, the operations repository and ``challenge.scoring`` (never
-``settlement`` or ``corrections``).
+only the schema, the operations repository, ``challenge.scoring`` and
+``championships`` (never ``settlement`` or ``corrections``).
 """
 
 from __future__ import annotations
@@ -190,7 +191,12 @@ class Publication:
 
 
 def publish_finalised(
-    conn: Connection, round_id: UUID, settlement_version_id: int, *, actor: UUID | None
+    conn: Connection,
+    round_id: UUID,
+    settlement_version_id: int,
+    *,
+    actor: UUID | None,
+    championship_cause: str = "round_published",
 ) -> Publication:
     """Publish the official weekly results of a round that has **just** been
     finalised, inside the finalisation transaction (the caller holds the round row
@@ -296,8 +302,13 @@ def publish_finalised(
                "settlement_version_id": settlement_version_id, "entries": len(rows),
                "scoring_version": score.scoring_version},
     )  # fmt: skip
-    # Stage C will assign the round to its championship here (CH-02), in this same
-    # transaction and under the series lock.
+    # Championship membership and standings (Stage C, CH-02), in this same
+    # transaction: round row lock (held by the caller), then the stream lock.
+    from . import championships
+
+    championships.on_round_event(
+        conn, round_id, actor=actor, cause=championship_cause, cause_score_set_id=set_id
+    )
     return Publication(set_id, round_id, revision, kind, settlement_version_id, len(rows), True)
 
 
