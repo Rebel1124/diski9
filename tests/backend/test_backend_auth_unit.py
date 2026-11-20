@@ -147,6 +147,7 @@ def test_operators_cannot_manage_roles_or_reopen_championships():
         Capability.MANAGE_ROLES,
         Capability.MANAGE_ENTITLEMENTS,
         Capability.REOPEN_CHAMPIONSHIP,
+        Capability.REOPEN_ROUND,  # finalised rounds: owner only (S-06)
     ):
         assert not can(principal(("operator",)), cap)
 

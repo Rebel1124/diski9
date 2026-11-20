@@ -127,8 +127,9 @@ Summary of the approved rules (the documents above take precedence):
   alerted, never invented.
 * **Fixed cutoff (D-08):** latest `kickoff_at_publish` on the round sheet + 48 h,
   computed once at publish (already stored by 6C.3); later kickoff changes never
-  move it. "Completed by the cutoff" = a final-played status with a 90-minute
-  score **and actual kickoff at or before the cutoff**.
+  move it. "Completed by the cutoff" = reliable evidence that the match
+  **genuinely completed at or before the cutoff** (amended 19 Nov 2026, register
+  S-03; this digest originally quoted the superseded kickoff-based wording).
 * **Statuses (settle/v1 §1):** not started `TBD`, `NS`; in play `1H`, `HT`, `2H`,
   `ET`, `BT`, `P`, `LIVE`; interrupted `SUSP`, `INT`; final played `FT`, `AET`,
   `PEN`; final not played `PST`, `CANC`, `ABD`, `AWD`, `WO`. **Unknown codes →
@@ -251,6 +252,11 @@ No conflicting policy interpretations were found between the authoritative
 documents beyond item 11.
 
 ## 10. Resuming
+
+**Phase 6C.4 has started** with Stage A (assessment only):
+[`phase6c4_implementation.md`](phase6c4_implementation.md) on branch
+`feature/phase-6c4-settlement`. It addresses the questions in §9 (item 3 resolved,
+item 10 fixed in Stage A; the rest carried into its §19 decisions).
 
 Environment commands (cloud container) are in
 [`phase6c3_implementation_handover.md`](phase6c3_implementation_handover.md) §8.

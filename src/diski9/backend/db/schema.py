@@ -270,6 +270,10 @@ result_observations = Table(
     Column("original_values", JSONB, nullable=True),
     Column("actor_user_id", UUID(as_uuid=True), nullable=True),
     Column("reason", Text, nullable=True),
+    Column("scope_round_id", UUID(as_uuid=True), nullable=True),
+    Column("provider_first_half_at", DateTime(timezone=True), nullable=True),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+    Column("evidence", Text, nullable=True),
 )
 
 round_evaluations = Table(
@@ -374,6 +378,8 @@ rounds = Table(
     Column("valid_entries", Integer, nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False),
     Column("is_development", Boolean, nullable=False, server_default=text("false")),
+    Column("correction_window_hours", Integer, nullable=True),
+    Column("result_mode", Text, nullable=True),
 )
 
 score_sets = Table(
@@ -403,6 +409,9 @@ selection_verdicts = Table(
     Column("result_observation_id", BigInteger, nullable=True),
     Column("revision", Integer, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("rule", Text, nullable=True),
+    Column("evidence", JSONB, nullable=True),
+    Column("material", Boolean, nullable=False, server_default=text("true")),
 )
 
 settlement_runs = Table(
@@ -419,6 +428,55 @@ settlement_runs = Table(
     Column("changed_verdicts", Integer, nullable=False),
     Column("changed_entries", Integer, nullable=False),
     Column("error", Text, nullable=True),
+    Column("evaluated_at", DateTime(timezone=True), nullable=True),
+    Column("phase", Text, nullable=True),
+    Column("time_override", Boolean, nullable=False, server_default=text("false")),
+    Column("actor_user_id", UUID(as_uuid=True), nullable=True),
+    Column("manifest", JSONB, nullable=True),
+    Column("evidence_through_id", BigInteger, nullable=True),
+    Column("material", Boolean, nullable=False, server_default=text("false")),
+)
+
+settlement_versions = Table(
+    "settlement_versions",
+    metadata,
+    Column("id", BigInteger, primary_key=True),
+    Column("round_id", UUID(as_uuid=True), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("run_id", BigInteger, nullable=True),
+    Column("kind", Text, nullable=False),
+    Column("material", Boolean, nullable=False),
+    Column("effective_at", DateTime(timezone=True), nullable=False),
+    Column("actor_user_id", UUID(as_uuid=True), nullable=True),
+    Column("reason", Text, nullable=True),
+    Column("evidence", Text, nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+
+settlement_alerts = Table(
+    "settlement_alerts",
+    metadata,
+    Column("id", BigInteger, primary_key=True),
+    Column("round_id", UUID(as_uuid=True), nullable=False),
+    Column("fixture_id", BigInteger, nullable=True),
+    Column("run_id", BigInteger, nullable=True),
+    Column("code", Text, nullable=False),
+    Column("blocking", Boolean, nullable=False),
+    Column("fingerprint", Text, nullable=False),
+    Column("detail", JSONB, nullable=False),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+
+settlement_alert_resolutions = Table(
+    "settlement_alert_resolutions",
+    metadata,
+    Column("id", BigInteger, primary_key=True),
+    Column("alert_id", BigInteger, nullable=False),
+    Column("resolution", Text, nullable=False),
+    Column("actor_user_id", UUID(as_uuid=True), nullable=True),
+    Column("reason", Text, nullable=False),
+    Column("observation_id", BigInteger, nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
 )
 
 snapshot_fixtures = Table(
@@ -594,6 +652,9 @@ HISTORY = frozenset(
         "round_status_history",
         "score_sets",
         "selection_verdicts",
+        "settlement_alert_resolutions",
+        "settlement_alerts",
+        "settlement_versions",
         "snapshot_fixtures",
         "snapshot_offers",
         "submission_selections",

@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 onwards not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A approved (decisions S-01 to S-11), Stages B–D implemented and accepted at the owner checkpoint, and Stages E–G implemented; **6C.4 formally accepted by the owner on 20 Nov 2026 and released as v4.2.0** (closure: `docs/architecture/phase6c4_closure_handover.md`; release notes: `docs/releases/v4.2.0.md`); **6C.5 (leaderboards and championships) is next**, not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -153,7 +153,10 @@ References: [technical architecture](../architecture/phase6c_architecture_consid
 * **Modules and files:** `services/settlement.py` (pure verdict and payout
   functions in `challenge/settle.py`, a new pure module reusing D-15 rounding),
   `jobs/results.py`, `jobs/settle.py`, `services/admin.py`.
-* **Database changes:** none structural.
+* **Database changes:** none structural. *Stage A assessment (19 Nov 2026): a small
+  additive migration is proposed (`app_0006`, §10 of
+  `docs/architecture/phase6c4_implementation.md`) for evidence, synthetic-data
+  isolation and frozen windows; awaiting owner approval.*
 * **Acceptance criteria:** settlement payouts equal the engine's eight-state
   values for every verdict combination; void codes follow `settle/v1` exactly;
   reruns with no new information insert only a run record; D-32b examples
@@ -315,6 +318,47 @@ ordering, migration `app_0005`) and Stage G (real-browser journeys A–G,
 regression, performance, documentation). Record:
 [`phase6c3_implementation.md`](../architecture/phase6c3_implementation.md);
 handover: [`phase6c3_implementation_handover.md`](../architecture/phase6c3_implementation_handover.md).
+
+## Implementation notes (6C.4, Stages B–D)
+
+Stage A approved with decisions S-01 to S-11 (completion-based cutoff, no grace
+period). Stages B–D on `feature/phase-6c4-settlement`: migration `app_0006`
+(evidence, development result modes, verdict rules, run manifests, settlement
+versions, alerts), pure `settle/v1` resolution, provider by-ID fetch boundary,
+round settlement through the unchanged engine, D-32b, corrections, alert
+resolution, operator invalidation, finalisation and owner-only reopening.
+**Database changes:** one additive migration (the plan's "none structural" was
+revised by S-10). Record: `docs/architecture/phase6c4_implementation.md` §23.
+Stages E (CLI), F (My Challenge) and G (acceptance) need separate authorisation.
+
+## Implementation notes (6C.4, Stages E–G)
+
+Authorised 20 Nov 2026 after the B–D checkpoint. **E:** operator commands with an
+interactive Supabase password check per command (S-07), previews and typed or token
+confirmation for material changes, read-only status and evidence reports,
+development-only result modes, scenarios (a prompt timeline; `entry-all-void` added
+so an individual D-33 refund can be seen in a valid round) and test entries
+confirmed with each participant's own password. **F:** My Challenge shows the
+participant's own settlement (status, credits, counts, recovery, the four
+accumulators, each prediction's 90-minute score and verdict, correction, refund and
+finalisation notices) in the existing cards; Portfolio Analysis unchanged. **G:**
+full regression, genuine CLI tests in a pseudo-terminal, browser journeys, a
+controlled live check of the by-ID fetch (3 provider requests), performance and the
+owner's Mac guide. For 6C.6: the scheduled finalisation job should run a full
+relevant-fixture re-check (`results import --full`) before finalising. Record:
+`docs/architecture/phase6c4_implementation.md` §24. Accepted by the owner on 20 Nov
+2026 (§25) and released as v4.2.0.
+
+## Deferred backlog accepted at the 6C.4 closure (20 Nov 2026)
+
+| Item | Target |
+|---|---|
+| S-07 follow-up: password check for the 6C.3 `round create / publish / lock / dev-open` commands | 6C.6 |
+| Production scheduling (publish, lock, `results import --full`, settle, finalise), monitoring, alerting, admin interface | 6C.6 |
+| `settle run` without `--confirm` (deliberate, idempotent) | documented; revisit in 6C.6 if wanted |
+| Development time override only for settle and finalise (database clock elsewhere) | documented limitation |
+| Hosted Supabase acceptance | Phase 10 |
+| Championship recalculation after an owner reopening (S-06) | 6C.5 |
 
 ## Deferred backlog accepted at the 6C.3 closure (19 Nov 2026)
 

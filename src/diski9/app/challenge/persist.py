@@ -90,8 +90,8 @@ class Backend:
             return RoundAvailability(
                 RoundStatus.LOCKED,
                 "Round locked",
-                "The deadline has passed and entries are locked. Results come with "
-                "settlement, which is not available yet.",
+                "The deadline has passed and entries are locked. Results appear on My "
+                "Challenge as the matches are settled.",
                 avail.report,
             )
         if avail.status is RoundStatus.LOCKED:
@@ -406,8 +406,8 @@ def withdraw(service, state: dict) -> tuple[dict, dict]:
     fresh = hydrate(service, state, force=True) or state
     fresh.update(confirm=None, stage="build")
     return fresh, {
-        "text": "Your entry was withdrawn. Your saved portfolio is still here; you can confirm "
-        "again before the deadline.",
+        "text": "Your entry was withdrawn and its predictions were cleared. You can build and "
+        "confirm a new portfolio before the deadline.",
         "kind": "ok",
     }
 
@@ -439,6 +439,7 @@ def most_recent_locked(service, exclude_round_id: UUID | None = None) -> dict | 
     if rec is None:
         return None
     rec.update(
+        round_uuid=str(view.id),
         round_status=view.status,
         entry_locked=e.locked,
         deadline=view.deadline_at.astimezone(UTC).isoformat() if view.deadline_at else None,

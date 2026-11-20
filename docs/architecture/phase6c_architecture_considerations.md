@@ -106,7 +106,7 @@ This document supersedes the Phase 6C discussion paper previously at this path.
 ## 5. Server-authoritative rounds and the portfolio lifecycle
 
 * Rounds come from versioned **round schedules** (D-11): weekend rounds,
-  Thursday 08:00 SAST publication, 15-minute deadline buffer (D-06), 48-hour
+  Friday 08:00 SAST publication (D-11 revised 19 Nov 2026; originally Thursday), 15-minute deadline buffer (D-06), 48-hour
   cutoff (D-08), 24-hour correction window (R-14), eligible leagues and series
   (beta or official, D-38). Midweek and European schedules are new schedule
   versions, not code changes.
@@ -130,8 +130,8 @@ This document supersedes the Phase 6C discussion paper previously at this path.
 
 | Job | Default timing (SAST) | Effect |
 |---|---|---|
-| `refresh-data --with-odds` (existing) | Thursday 07:15 | Football store refreshed before publish |
-| `challenge publish` | Thursday 08:00 | Snapshot, opening checks, round opened or postponed |
+| `refresh-data --with-odds` (existing) | Friday 07:15 | Football store refreshed before publish |
+| `challenge publish` | Friday 08:00 | Snapshot, opening checks, round opened or postponed |
 | `challenge lock` | Every 5 minutes; acts after a deadline | Round locked, locked set stamped, base designation written |
 | `challenge results` | Hourly during match windows; daily until the cutoff | Result observations copied in |
 | `challenge settle` | After each results run | Verdicts, settlements, D-32b, scores |

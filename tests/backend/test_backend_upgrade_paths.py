@@ -18,30 +18,9 @@ import json
 import pytest
 from pg_helpers import confirm, make_round, make_user
 from sqlalchemy import create_engine, pool, text
-from sqlalchemy.engine import make_url
 from sqlalchemy.exc import DBAPIError
 
 from diski9.backend.db import migrate
-
-
-@pytest.fixture
-def fresh_url(pg_url):
-    url = make_url(pg_url)
-    name = "diski9_upgrade_test"
-    admin = create_engine(url.set(database="postgres"), poolclass=pool.NullPool,
-                          isolation_level="AUTOCOMMIT")  # fmt: skip
-    try:
-        with admin.connect() as conn:
-            conn.execute(text(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
-            conn.execute(text(f"CREATE DATABASE {name}"))
-    except DBAPIError as exc:  # e.g. no CREATEDB privilege on this server
-        admin.dispose()
-        pytest.skip(f"cannot create the separate upgrade-test database: {exc.orig}")
-    target = url.set(database=name).render_as_string(hide_password=False)
-    yield target
-    with admin.connect() as conn:
-        conn.execute(text(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)"))
-    admin.dispose()
 
 
 def _eng(url):
@@ -62,7 +41,7 @@ def _counts(url):
 
 def test_fresh_installation_reaches_head(fresh_url):
     migrate.upgrade(fresh_url)
-    assert migrate.current(fresh_url) == migrate.head() == "app_0005"
+    assert migrate.current(fresh_url) == migrate.head() == "app_0006"
     with _eng(fresh_url).connect() as conn:
         rule = conn.execute(
             text(
@@ -84,7 +63,7 @@ def test_upgrade_from_phase_6c2_keeps_accounts_and_your_view(fresh_url):
             {"u": uid, "s": json.dumps(STATE)},
         )  # fmt: skip
     migrate.upgrade(fresh_url)
-    assert migrate.current(fresh_url) == "app_0005"
+    assert migrate.current(fresh_url) == "app_0006"
     with eng.connect() as conn:
         row = conn.execute(
             text("SELECT context_kind, snapshot_id, version, model_context, state "
@@ -168,3 +147,40 @@ def test_upgrade_from_stage_d_checkpoint_keeps_rounds_drafts_and_entries(fresh_u
             == 4
         )
     eng2.dispose()
+
+
+def test_upgrade_to_settlement_schema_backfills_and_downgrade_is_honest(fresh_url):
+    """Phase 6C.4 (app_0006): a published round from app_0005 gains its frozen
+    correction window and real result mode; down/up with no settlement data
+    restores app_0005 exactly; once settlement data exists the downgrade refuses
+    and changes nothing (settlement history is never discarded silently)."""
+    migrate.upgrade(fresh_url, "app_0005")
+    eng = _eng(fresh_url)
+    with eng.begin() as conn:
+        uid = make_user(conn)
+        rid, snap_id, fids = make_round(conn)
+        confirm(conn, rid, snap_id, fids, uid)
+    before = _counts(fresh_url)
+    migrate.upgrade(fresh_url)
+    with eng.connect() as conn:
+        row = conn.execute(
+            text("SELECT correction_window_hours, result_mode FROM app.rounds WHERE id=:r"),
+            {"r": rid},
+        ).one()
+    assert tuple(row) == (24, "real") and _counts(fresh_url) == before
+    migrate.downgrade(fresh_url, "app_0005")
+    assert migrate.current(fresh_url) == "app_0005" and _counts(fresh_url) == before
+    migrate.upgrade(fresh_url)
+    with eng.begin() as conn:  # settlement data now exists
+        conn.execute(
+            text("INSERT INTO app.result_observations (fixture_id, observed_at, source, "
+                 "status_short, raw_hash) VALUES (:f, now(), 'api-football', 'NS', :h), "
+                 "(:f, now(), 'api-football', 'NS', :h)"),
+            {"f": fids[0], "h": "d" * 64},
+        )  # fmt: skip
+    with pytest.raises(DBAPIError, match="downgrade refused"):
+        migrate.downgrade(fresh_url, "app_0005")
+    assert migrate.current(fresh_url) == "app_0006"
+    with eng.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM app.result_observations")).scalar_one() == 2
+    eng.dispose()
