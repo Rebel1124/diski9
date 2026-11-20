@@ -846,3 +846,52 @@ local acceptance Checkpoints 1 to 3.
   scratch copy `diski9_6c5_acceptance`.
 * **Status:** local owner acceptance concluded. Formal Stage D closure is recorded
   only on the owner's explicit confirmation. Stage E is not authorised.
+
+### 4.12 Owner approval and formal closure of Stage D (20 Nov 2026)
+**Stage D: complete, owner-approved and formally closed.** Stage E is awaiting
+authorisation.
+
+**Accepted baseline:**
+* Code and commits on `feature/phase-6c5-leaderboards`:
+  - implementation `5dd74ff`;
+  - interim correction `d1287c9`;
+  - test fix `29ff049`;
+  - authorised acceptance fixes `65a1440`;
+  - acceptance documentation `13adf00`;
+  - local acceptance record `d4f6e24`.
+* Evidence:
+  - full regression suite 1,603 passed, 0 failed, 0 skipped (on `65a1440`);
+  - GitHub CI run 63 passed (`13adf00`);
+  - the owner's local lifecycle tests: 68 passed, 0 failed, 0 skipped, in 30.93 s.
+* Unchanged: fingerprint `88bcd717deca6c1c…`, the scoring engine and the settlement
+  methodology. Migration head `app_0007`, with no Stage D migration.
+* Interpretations I-1 to I-5 and the structural membership verification deviation
+  remain approved (§4.7, §4.9).
+* The two acceptance fixes are accepted, with their tests and documentation
+  (§4.10):
+  - integrity-review containment of championships with inconsistent membership;
+  - clearer operator status, verify and backfill output.
+
+**Evidence by kind:**
+
+| Kind | Scope |
+|---|---|
+| Automated regression (development environment and CI) | All Stage B, C and D behaviour, including corrections, restoration, historical invalidation (D-30a), capacity and reserved slots, concurrency, failure injection, property-based sequences, audited repair and its safeguards, privacy, genuine-terminal authentication |
+| Local owner acceptance, completed and passed: Checkpoints 1 to 4 | 1, environment and Git verification. 2, backup (verified) and isolated scratch database. 3, `app_0007` migration of the scratch copy with data preserved, historical backfill, idempotency, development and beta stream isolation, status and verify. 4, the 68 lifecycle tests, then development round `dev-6c5-p1`: publication and automatic championship assignment, two authenticated participant entries, practice classification at the lock, synthetic results, settlement and validity evaluation, finalisation to settlement version 3, the official practice weekly result (revision 1) with correct ranking and recovery, no championship points, no counter advance, audit records and a final consistent `verify` |
+| Owner-waived manual acceptance, not executed and not recorded as passed | Checkpoint 5 (corrections and restoration) and Checkpoint 6 (repair and final verification), waived by the owner. Those behaviours rely on the automated evidence above, a distinction the owner accepted |
+
+**Owner's database:**
+* The owner's original database stays at `app_0006`, unmodified.
+* No authorisation exists to migrate it, backfill it or change its data.
+* The scratch database `diski9_6c5_acceptance` and the backup
+  `diski9-before-6c5.dump` are retained, unless the owner asks for their removal.
+
+**Limitations and deferrals carried forward:**
+* the operator-invalidation reversal limitation;
+* structural rather than full-replay membership verification;
+* same-process reader contention;
+* deployment-representative multi-process testing (Stage F);
+* the unexecuted 10,000-participant Stage D stretch benchmark;
+* D-29, D-36, S-07, hosted Supabase acceptance and the 6C.3 backlog.
+
+Private mini-leagues remain excluded from the MVP.
