@@ -354,3 +354,25 @@ hash change. Every version is audited; completion writes a domain event.
 
 Championship processing scales with counted rounds × participants, because every
 change re-aggregates from scratch (no incremental points, by design).
+
+### 3.6 Regression and verification
+* Full suite on the committed Stage C code (`9a74d13`): **1,560 passed, 0 failed,
+  0 skipped** (real PostgreSQL, local Supabase Auth, browser tests). That is the
+  1,522 baseline plus 38 new tests.
+* Fingerprint `88bcd717deca6c1c…` unchanged. No change since v4.2.0 under
+  `challenge/`, `ingestion/`, `api_football/`, `app/` or `screener/`. Lint and
+  formatting clean.
+
+### 3.7 Deviations from the specification (technical, no business change)
+* Per-stream advisory lock instead of the series row lock: a development stream
+  spans series, and the lock is narrower. Lock order is unchanged: round row, then
+  stream.
+* A version is written only when the status, the counted rounds or the standings
+  change (assignments alone are recorded in `championship_rounds` with
+  `assigned_at`).
+* The development stream uses the beta series' configuration (rounds per
+  championship, scoring version).
+* Championships are selected by display name (unique per stream); no identifiers
+  are exposed.
+* A counted round re-finalised as still valid is re-aggregated in Stage C;
+  role-changing transitions are contained for Stage D (§3.3).
