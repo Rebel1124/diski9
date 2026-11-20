@@ -64,11 +64,11 @@ def main(url: str, sizes: list[int]) -> None:
     migrate.upgrade(target)
     engine = make_app_engine(BackendDatabaseSettings(environment="test"), url=target)
 
-    from settle_helpers import DEFAULT_ENTRY, settlement_worlds, shifted
     import itertools
     import uuid
 
     import settle_helpers
+    from settle_helpers import DEFAULT_ENTRY, settlement_worlds, shifted
 
     from diski9.backend.repositories import accounts as accounts_repo
 
