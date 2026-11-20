@@ -41,7 +41,7 @@ def _counts(url):
 
 def test_fresh_installation_reaches_head(fresh_url):
     migrate.upgrade(fresh_url)
-    assert migrate.current(fresh_url) == migrate.head() == "app_0006"
+    assert migrate.current(fresh_url) == migrate.head() == "app_0007"
     with _eng(fresh_url).connect() as conn:
         rule = conn.execute(
             text(
@@ -63,7 +63,7 @@ def test_upgrade_from_phase_6c2_keeps_accounts_and_your_view(fresh_url):
             {"u": uid, "s": json.dumps(STATE)},
         )  # fmt: skip
     migrate.upgrade(fresh_url)
-    assert migrate.current(fresh_url) == "app_0006"
+    assert migrate.current(fresh_url) == "app_0007"
     with eng.connect() as conn:
         row = conn.execute(
             text("SELECT context_kind, snapshot_id, version, model_context, state "
@@ -183,4 +183,86 @@ def test_upgrade_to_settlement_schema_backfills_and_downgrade_is_honest(fresh_ur
     assert migrate.current(fresh_url) == "app_0006"
     with eng.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM app.result_observations")).scalar_one() == 2
+    eng.dispose()
+
+
+def _app_counts(url):
+    with _eng(url).connect() as conn:
+        return {
+            t: conn.execute(text(f"SELECT count(*) FROM app.{t}")).scalar_one()
+            for t in ("users", "profiles", "rounds", "entries", "submissions", "entry_events",
+                      "round_snapshots", "designations", "result_observations", "audit_log")
+        }  # fmt: skip
+
+
+def test_upgrade_to_competition_results_keeps_data_and_downgrade_is_honest(fresh_url):
+    """Phase 6C.5 (app_0007): existing rounds, entries and settlement evidence are
+    unchanged by the upgrade; with no official results the downgrade restores
+    app_0006; once results exist it refuses and changes nothing."""
+    migrate.upgrade(fresh_url, "app_0006")
+    eng = _eng(fresh_url)
+    with eng.begin() as conn:
+        uid = make_user(conn)
+        rid, snap_id, fids = make_round(conn)
+        confirm(conn, rid, snap_id, fids, uid)
+        conn.execute(
+            text("INSERT INTO app.result_observations (fixture_id, observed_at, source, "
+                 "status_short, raw_hash) VALUES (:f, now(), 'api-football', 'NS', :h)"),
+            {"f": fids[0], "h": "e" * 64},
+        )  # fmt: skip
+    before = _app_counts(fresh_url)
+    with eng.connect() as conn:
+        rows_before = conn.execute(text("SELECT * FROM app.entries ORDER BY id")).all()
+    migrate.upgrade(fresh_url)
+    assert migrate.current(fresh_url) == "app_0007" and _app_counts(fresh_url) == before
+    with eng.connect() as conn:
+        assert conn.execute(text("SELECT * FROM app.entries ORDER BY id")).all() == rows_before
+        tables = set(
+            conn.execute(
+                text("SELECT table_name FROM information_schema.tables WHERE table_schema='app'")
+            ).scalars()
+        )
+        cols = set(conn.execute(text(
+            "SELECT column_name FROM information_schema.columns WHERE table_schema='app' "
+            "AND table_name='score_sets'")).scalars())  # fmt: skip
+        idx = set(conn.execute(text(
+            "SELECT indexname FROM pg_indexes WHERE schemaname='app'")).scalars())  # fmt: skip
+    assert "championship_freezes" not in tables
+    assert {"championships", "championship_rounds", "championship_versions",
+            "championship_standings"} <= tables  # fmt: skip
+    assert {"settlement_version_id", "scoring_version", "published_at"} <= cols
+    assert {"ix_round_scores_user", "ix_score_sets_round", "ix_championship_rounds",
+            "ix_championship_standings_user", "score_sets_settlement_version_key",
+            "round_scores_display_order_key"} <= idx  # fmt: skip
+    migrate.downgrade(fresh_url, "app_0006")
+    assert migrate.current(fresh_url) == "app_0006" and _app_counts(fresh_url) == before
+    migrate.upgrade(fresh_url)
+    with eng.begin() as conn:  # an official competition record now exists
+        conn.execute(text(
+            "INSERT INTO app.championships (stream, series_id, ordinal, start_date, display_name) "
+            "SELECT 'beta', id, 1, '2026-11-27', 'Championship Nov-26' "
+            "FROM app.championship_series WHERE code='beta'"))  # fmt: skip
+    with pytest.raises(DBAPIError, match="downgrade refused"):
+        migrate.downgrade(fresh_url, "app_0006")
+    assert migrate.current(fresh_url) == "app_0007"
+    with eng.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM app.championships")).scalar_one() == 1
+    eng.dispose()
+
+
+def test_upgrade_refuses_unexpected_rows_in_the_placeholder_tables(fresh_url):
+    """``championship_freezes`` is dropped only when it is empty (it was never
+    written); otherwise nothing changes."""
+    migrate.upgrade(fresh_url, "app_0006")
+    eng = _eng(fresh_url)
+    with eng.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO app.championship_freezes (series_id, number, round_ids, standings, "
+            "champions, content_hash) SELECT id, 1, '{}', '[]', '[]', :h "
+            "FROM app.championship_series WHERE code='beta'"), {"h": "a" * 64})  # fmt: skip
+    with pytest.raises(DBAPIError, match="upgrade refused"):
+        migrate.upgrade(fresh_url)
+    assert migrate.current(fresh_url) == "app_0006"
+    with eng.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM app.championship_freezes")).scalar_one() == 1
     eng.dispose()

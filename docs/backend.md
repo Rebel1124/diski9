@@ -330,3 +330,24 @@ Challenge (`services/participant_results.py`, `app/challenge/results_ui.py`).
 Owner acceptance: `docs/phase6c4_local_acceptance_mac.md`. Record:
 `docs/architecture/phase6c4_implementation.md` §23–§24.
 
+
+## Weekly results and championships (Phase 6C.5)
+
+Migration `app_0007` makes `score_sets` / `round_scores` the official weekly results
+(one score set per published final settlement version; `display_order`; status
+`round_void`), creates the championship tables (`championships`,
+`championship_rounds`, `championship_versions`, `championship_standings`; written
+from Stage C) and drops the never-written `championship_freezes`. Its downgrade is
+refused once any official result or championship exists.
+
+Stage B services:
+* `services/competition.py`: the settlement-to-scoring adapter and
+  `publish_finalised`, called by `corrections.finalise_round` in the same
+  transaction, so a round is never final without its official weekly results.
+* `services/leaderboards.py`: `weekly_board`, the read-only provisional and
+  official weekly standings, paginated, with privacy-safe names
+  (`auth/accounts.leaderboard_names`).
+
+Ranks and points come from the unchanged `challenge/scoring.py`. Specification:
+`docs/architecture/phase6c5_design_specification.md`; record:
+`docs/architecture/phase6c5_implementation.md`.

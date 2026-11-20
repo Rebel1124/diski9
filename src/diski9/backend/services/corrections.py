@@ -37,6 +37,7 @@ from ..db.schema import designations, settlement_alerts, settlement_versions, sn
 from ..repositories import ops
 from ..repositories import results as results_repo
 from ..repositories import rounds as rounds_repo
+from . import competition
 from . import settlement as st
 from .common import NotFound, ServiceError
 from .results import actor_id, snapshot_id_of
@@ -501,12 +502,15 @@ def finalise_round(
         fields = {} if r.finalised_at is not None else {"finalised_at": at}
         rounds_repo.set_status(conn, round_id, "final", reason="finalised", actor=uid, **fields)
         version = (_version_number(conn, round_id) or 0) + 1
-        conn.execute(
+        version_id = conn.execute(
             insert(settlement_versions).values(
                 round_id=round_id, version=version, run_id=run_id, kind="final",
                 material=False, effective_at=at, actor_user_id=uid,
-            )
-        )  # fmt: skip
+            ).returning(settlement_versions.c.id)
+        ).scalar_one()  # fmt: skip
+        # Phase 6C.5: the official weekly results are published atomically with the
+        # final settlement version; a failure rolls the finalisation back.
+        competition.publish_finalised(conn, round_id, version_id, actor=uid)
         ops.record_audit(
             conn, action="round.finalise", target_type="round", target_id=str(round_id),
             actor=uid, actor_role="system" if uid is None else "operator",

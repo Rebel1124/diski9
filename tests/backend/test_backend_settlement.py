@@ -239,8 +239,10 @@ def test_runs_are_serialised_and_never_duplicate_versions(engine, op, life):
     assert not errors
     assert sum(1 for r in results if r.version is not None) == 1
     with transaction(engine) as conn:
+        # in insertion order (id): without ORDER BY PostgreSQL may return any order
         versions = conn.execute(sa.select(settlement_versions.c.version).where(
-            settlement_versions.c.round_id == life["round"])).scalars().all()  # fmt: skip
+            settlement_versions.c.round_id == life["round"])
+            .order_by(settlement_versions.c.id)).scalars().all()  # fmt: skip
     assert versions == sorted(set(versions)) == list(range(1, len(versions) + 1))
 
 

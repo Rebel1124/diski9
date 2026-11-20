@@ -410,3 +410,57 @@ def leaderboard_name(
         )
     ).scalar()
     return alias if hidden else public_name_at_lock
+
+
+@dataclass(frozen=True)
+class LockedName:
+    """What a leaderboard row needs to choose its display name (no name is stored
+    with published results, so later anonymity choices always apply)."""
+
+    user_id: UUID
+    locked_at: datetime
+    public_name_at_lock: str
+    privacy_mode_at_lock: str
+
+
+def leaderboard_names(conn: Connection, items: list[LockedName]) -> list[str]:
+    """``leaderboard_name`` for many rows with two queries (a page of a leaderboard).
+    Same rules, same result: the name recorded at lock, or the alias when the entry
+    was anonymous at lock, anonymity was later applied retroactively, or the account
+    is deleted. Never an email address or an internal ID."""
+    if not items:
+        return []
+    ids = list({i.user_id for i in items})
+    accounts = {
+        r.id: (r.anonymous_alias or "Former participant", r.status)
+        for r in conn.execute(
+            select(users.c.id, users.c.status, profiles.c.anonymous_alias)
+            .select_from(users)
+            .outerjoin(profiles, profiles.c.user_id == users.c.id)
+            .where(users.c.id.in_(ids))
+        )
+    }
+    latest_retro = dict(
+        conn.execute(
+            select(privacy_history.c.user_id, func.max(privacy_history.c.effective_at))
+            .where(
+                privacy_history.c.user_id.in_(ids),
+                privacy_history.c.privacy_mode == "anonymous",
+                privacy_history.c.retroactive.is_(True),
+            )
+            .group_by(privacy_history.c.user_id)
+        ).all()
+    )
+    out = []
+    for i in items:
+        alias, status = accounts[i.user_id]
+        hidden_since = latest_retro.get(i.user_id)
+        if (
+            status == "deleted"
+            or i.privacy_mode_at_lock == "anonymous"
+            or (hidden_since is not None and hidden_since >= i.locked_at)
+        ):
+            out.append(alias)
+        else:
+            out.append(i.public_name_at_lock)
+    return out

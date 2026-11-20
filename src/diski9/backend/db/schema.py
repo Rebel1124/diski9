@@ -16,6 +16,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    Date,
     DateTime,
     Double,
     Integer,
@@ -80,20 +81,67 @@ audit_log = Table(
     Column("job_run_id", BigInteger, nullable=True),
 )
 
-championship_freezes = Table(
-    "championship_freezes",
+championships = Table(
+    "championships",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")),
+    Column("stream", Text, nullable=False),
+    Column("series_id", BigInteger, nullable=False),
+    Column("ordinal", Integer, nullable=False),
+    Column("start_date", Date, nullable=False),
+    Column("display_name", Text, nullable=False),
+    Column("status", Text, nullable=False),
+    Column("rounds_required", SmallInteger, nullable=False),
+    Column("counted_rounds", SmallInteger, nullable=False),
+    Column("boundary_fixed_at", DateTime(timezone=True), nullable=True),
+    Column("completed_at", DateTime(timezone=True), nullable=True),
+    Column("corrected_after_completion", Boolean, nullable=False),
+    Column("current_version", Integer, nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+
+championship_rounds = Table(
+    "championship_rounds",
+    metadata,
+    Column("round_id", UUID(as_uuid=True), primary_key=True),
+    Column("championship_id", UUID(as_uuid=True), nullable=False),
+    Column("role", Text, nullable=False),
+    Column("slot", SmallInteger, nullable=True),
+    Column("assigned_at", DateTime(timezone=True), nullable=False),
+)
+
+championship_versions = Table(
+    "championship_versions",
     metadata,
     Column("id", BigInteger, primary_key=True),
-    Column("series_id", BigInteger, nullable=False),
-    Column("number", Integer, nullable=False),
-    Column("frozen_at", DateTime(timezone=True), nullable=False),
+    Column("championship_id", UUID(as_uuid=True), nullable=False),
+    Column("version", Integer, nullable=False),
+    Column("cause", Text, nullable=False),
+    Column("cause_round_id", UUID(as_uuid=True), nullable=True),
+    Column("cause_score_set_id", BigInteger, nullable=True),
+    Column("status", Text, nullable=False),
+    Column("counted_rounds", SmallInteger, nullable=False),
     Column("round_ids", ARRAY(UUID(as_uuid=True)), nullable=False),
-    Column("standings", JSONB, nullable=False),
-    Column("champions", JSONB, nullable=False),
+    Column("champion_count", Integer, nullable=False),
+    Column("scoring_version", Text, nullable=False),
     Column("content_hash", Text, nullable=False),
-    Column("reopened_from_id", BigInteger, nullable=True),
     Column("actor_user_id", UUID(as_uuid=True), nullable=True),
     Column("reason", Text, nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
+)
+
+championship_standings = Table(
+    "championship_standings",
+    metadata,
+    Column("version_id", BigInteger, primary_key=True),
+    Column("user_id", UUID(as_uuid=True), primary_key=True),
+    Column("rank", Integer, nullable=False),
+    Column("points", Integer, nullable=False),
+    Column("rounds_played", SmallInteger, nullable=False),
+    Column("recoveries", SmallInteger, nullable=False),
+    Column("qualifying_top10", SmallInteger, nullable=False),
+    Column("display_order", Integer, nullable=False),
+    Column("name_entry_id", UUID(as_uuid=True), nullable=False),
 )
 
 championship_series = Table(
@@ -327,6 +375,7 @@ round_scores = Table(
     Column("recovered", Boolean, nullable=False),
     Column("qualifying_top10", Boolean, nullable=False),
     Column("status", Text, nullable=False),
+    Column("display_order", Integer, nullable=False),
 )
 
 round_snapshots = Table(
@@ -393,6 +442,10 @@ score_sets = Table(
     Column("kind", Text, nullable=False),
     Column("final", Boolean, nullable=False),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    Column("settlement_version_id", BigInteger, nullable=False),
+    Column("scoring_version", Text, nullable=False),
+    Column("published_at", DateTime(timezone=True), nullable=False),
+    Column("actor_user_id", UUID(as_uuid=True), nullable=True),
 )
 
 selection_verdicts = Table(
@@ -639,7 +692,8 @@ your_view_adjustments = Table(
 HISTORY = frozenset(
     [
         "audit_log",
-        "championship_freezes",
+        "championship_standings",
+        "championship_versions",
         "designations",
         "domain_events",
         "entry_events",
@@ -662,7 +716,16 @@ HISTORY = frozenset(
         "terms_acceptances",
     ]
 )
-GUARDED = frozenset(["entitlement_grants", "job_runs", "settlement_runs", "username_history"])
+GUARDED = frozenset(
+    [
+        "championship_rounds",
+        "championships",
+        "entitlement_grants",
+        "job_runs",
+        "settlement_runs",
+        "username_history",
+    ]
+)
 # appended and purged (never updated): authentication rate-limit events
 APPEND_PURGE = frozenset({"auth_rate_events"})
 PROJECTION = frozenset(t.name for t in metadata.sorted_tables) - HISTORY - GUARDED - APPEND_PURGE

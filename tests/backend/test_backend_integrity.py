@@ -634,20 +634,46 @@ def test_points_must_come_from_the_approved_schedule(engine, world):
             .values(round_id=world["round"], designation="championship", basis="deadline")
             .returning(designations.c.id)
         ).scalar_one()
+        # since app_0007 a score set publishes a final settlement version of its run
+        last = conn.execute(
+            text(
+                "SELECT version, kind FROM app.settlement_versions WHERE round_id = :r "
+                "ORDER BY version DESC LIMIT 1"
+            ),
+            {"r": world["round"]},
+        ).one_or_none()
+        n = last.version if last else 0
+        if last is not None and last.kind == "final":
+            n += 1
+            conn.execute(
+                text(
+                    "INSERT INTO app.settlement_versions (round_id, version, kind, material, "
+                    "effective_at) VALUES (:r, :n, 'reopened', false, now())"
+                ),
+                {"r": world["round"], "n": n},
+            )
+        ver = conn.execute(
+            text(
+                "INSERT INTO app.settlement_versions (round_id, version, run_id, kind, material, "
+                "effective_at) VALUES (:r, :n, :run, 'final', false, now()) RETURNING id"
+            ),
+            {"r": world["round"], "n": n + 1, "run": run},
+        ).scalar_one()
         sset = conn.execute(
             text(
-                "INSERT INTO app.score_sets (round_id, revision, run_id, designation_id, kind) "
-                "VALUES (:r, 1, :run, :d, 'championship') RETURNING id"
+                "INSERT INTO app.score_sets (round_id, revision, run_id, designation_id, kind, "
+                "settlement_version_id, scoring_version) "
+                "VALUES (:r, 1, :run, :d, 'championship', :v, 'points-150-75-v2') RETURNING id"
             ),
-            {"r": world["round"], "run": run, "d": des},
+            {"r": world["round"], "run": run, "d": des, "v": ver},
         ).scalar_one()
 
     def score(points, gross="150.00", rank=1, recovered=True, top=True):
         return lambda c: c.execute(
             text(
                 "INSERT INTO app.round_scores (score_set_id, kind, entry_id, user_id, gross, rank,"
-                " points, recovered, qualifying_top10, status) VALUES (:s, 'championship', :e,"
-                " :u, :g, :rk, :p, :rec, :top, 'ranked')"
+                " points, recovered, qualifying_top10, status, display_order) VALUES (:s,"
+                " 'championship', :e, :u, :g, :rk, :p, :rec, :top, 'ranked', 1)"
             ),
             {
                 "s": sset,

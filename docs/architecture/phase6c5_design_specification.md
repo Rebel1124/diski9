@@ -343,6 +343,8 @@ This is preferable to a final round with inconsistent standings.
 | `published_at timestamptz NOT NULL DEFAULT clock_timestamp()` | **add** |
 | `revision` | meaning: publication number of the round (1, then 2 after a re-finalisation, …) |
 | `final` | always true (kept; provisional results are not stored) |
+| `actor_user_id uuid NULL` | **add** (Stage B): who finalised (audit) |
+| guard trigger `score_sets_publishes_final` | **add** (Stage B): the settlement version must be a `final` version of the same round and run; `final` defaults to true and a CHECK allows only final sets |
 | `kind` | `championship` (competitive), `practice`, `void` (unchanged) |
 
 **`round_scores`** [H] (one per locked entry per publication):
@@ -398,7 +400,7 @@ round assigned to a championship (competitive, practice or void).
 | Column | Notes |
 |---|---|
 | `id bigint PK`, `championship_id`, `version integer` | `UNIQUE (championship_id, version)` |
-| `cause text` | `round_published`, `round_republished`, `round_invalidated`, `round_restored`, `backfill`, `repair` |
+| `cause text` | `round_assigned`, `round_published`, `round_republished`, `round_invalidated`, `round_restored`, `backfill`, `repair` |
 | `cause_round_id uuid`, `cause_score_set_id bigint` | the publication that caused it |
 | `status`, `counted_rounds`, `round_ids uuid[]` | state after this version |
 | `champion_count integer NOT NULL` | 0 while incomplete or when everyone has zero (LT-12) |
@@ -413,6 +415,13 @@ round assigned to a championship (competitive, practice or void).
 | `rank`, `points`, `rounds_played`, `recoveries`, `qualifying_top10`, `display_order` | from `scoring.aggregate_championship`; CHECK `points ≤ 150 × rounds_played` |
 | `name_entry_id uuid FK entries` | the participant's latest counted entry in the championship; its name at lock is shown, resolved at read time so retroactive anonymity also applies to old versions (Q-7) |
 | index | `(version_id, display_order)` |
+
+**Protection (Stage B):** `championships` and `championship_rounds` are
+*guarded* tables:
+- the runtime role may select, insert and update them, but never delete;
+- guard triggers keep identity, stream, ordinal, start date, name, fixed
+  boundaries and round membership immutable;
+- `championship_versions` and `championship_standings` are insert-only.
 
 ### 7.4 Dropped
 
