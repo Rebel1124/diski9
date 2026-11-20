@@ -1,5 +1,15 @@
 # Diski 9 Weekly Challenge — Decision Register (revised, Phase 6C.2)
 
+**Phase 6C.5 Stage A (20 Nov 2026, for owner review):** the owner's Phase 6C.5
+business requirements (L-01 to L-37) and twelve open questions (Q-1 to Q-12, with
+recommendations) are in
+[`docs/architecture/phase6c5_design_specification.md`](../architecture/phase6c5_design_specification.md).
+No decision below is changed by Stage A. Once the specification is approved, the
+answers will be recorded here as decisions, together with the proposed **D-30a**
+(the owner's exceptional rule for a completed championship that loses a round after
+the next championship has started, Q-11). Private mini-leagues are removed from the
+MVP roadmap.
+
 **Phase 6C.4 Stage A review (owner approval, 19 Nov 2026):** decisions S-01 to S-11
 below (the assessment's Q-1 to Q-13, as finally approved) and the amendment of
 `settle/v1` to a completion-based cutoff. Detail and rationale:

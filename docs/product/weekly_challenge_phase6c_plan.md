@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A approved (decisions S-01 to S-11), Stages B–D implemented and accepted at the owner checkpoint, and Stages E–G implemented; **6C.4 formally accepted by the owner on 20 Nov 2026 and released as v4.2.0** (closure: `docs/architecture/phase6c4_closure_handover.md`; release notes: `docs/releases/v4.2.0.md`); **6C.5 (leaderboards and championships) is next**, not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A approved (decisions S-01 to S-11), Stages B–D implemented and accepted at the owner checkpoint, and Stages E–G implemented; **6C.4 formally accepted by the owner on 20 Nov 2026 and released as v4.2.0** (closure: `docs/architecture/phase6c4_closure_handover.md`; release notes: `docs/releases/v4.2.0.md`); **6C.5 (leaderboards and championships): Stage A design and specification delivered for owner review on 20 Nov 2026** ([`../architecture/phase6c5_design_specification.md`](../architecture/phase6c5_design_specification.md)); implementation (Stages B–G) not started. Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -173,6 +173,21 @@ References: [technical architecture](../architecture/phase6c_architecture_consid
   labelled).
 
 ## 6C.5 — Leaderboards, championship progression, history
+
+**Stage A (20 Nov 2026, for owner review):** the owner's business requirements
+(L-01 to L-37), the verified settlement rules, the architecture, the `app_0007`
+schema, the championship lifecycle, the correction methodology, the UI, privacy,
+performance targets, the test strategy, the refined Stages B–G and twelve owner
+decisions (Q-1 to Q-12) are in
+[`../architecture/phase6c5_design_specification.md`](../architecture/phase6c5_design_specification.md).
+That document supersedes the outline below where they differ. In particular,
+championship membership is stored ("sticky", in deadline order) instead of the
+derived `championship_rounds` view, and `championship_freezes` is replaced by
+versioned standings. **Private mini-leagues are removed from the MVP roadmap**
+(owner, 20 Nov 2026); they will be reconsidered only after launch, with active
+users and concrete feedback.
+
+*Original outline (Phase 6C planning):*
 
 * **Objectives:** score sets via `challenge.scoring`; weekly leaderboards with
   privacy rules; derived championship membership and standings (D-27, D-30);
@@ -374,6 +389,11 @@ relevant-fixture re-check (`results import --full`) before finalising. Record:
 Outstanding requirements, not blocking 6C.4: D-29 (validation on 6–8 real pools,
 before Official Championship 1) and D-36 (retention policy, before launch).
 
-Roadmap after 6C: 6D integration, optimisation and comprehensive testing; 7 Lucy
-and LiveKit; 8 European competition expansion; 9 badges and achievements;
-10 deployment and private beta; 11 public launch and YouTube.
+Roadmap (updated 20 Nov 2026): 6C.5 leaderboards and championships (Stage A
+delivered) → 6C.6 administration, scheduling and monitoring → 6D integration
+testing and release → 7 Lucy AI football analyst and LiveKit → 8 European
+competition coverage → 9 community badges and achievements → 10 production
+deployment and private beta → 11 public launch and YouTube → 12 advanced
+quantitative enhancements → 13 commercialisation and monetisation. **Private
+mini-leagues are not on the MVP roadmap** (removed by the owner on 20 Nov 2026);
+they may be reconsidered after launch, based on active users and feedback.

@@ -104,6 +104,12 @@ comprehensive testing · 7 Lucy and LiveKit · 8 European competition expansion 
 9 badges and achievements · 10 deployment and private beta · 11 public launch and
 YouTube.
 
+*Update (20 Nov 2026):* the Phase 6C.5 Stage A design and specification is in
+[`phase6c5_design_specification.md`](phase6c5_design_specification.md) (for owner
+review). The roadmap continues with 12 advanced quantitative enhancements and 13
+commercialisation and monetisation. **Private mini-leagues are removed from the MVP
+roadmap** by the owner.
+
 ## 7. Independent processes (not modified by this work)
 
 | Process | Status (20 Nov 2026) |
