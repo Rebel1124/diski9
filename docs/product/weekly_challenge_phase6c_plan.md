@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A approved (decisions S-01 to S-11), Stages B–D implemented and accepted at the owner checkpoint, and Stages E–G implemented on branch `feature/phase-6c4-settlement` (`docs/architecture/phase6c4_implementation.md` §22–§24), awaiting the owner's local acceptance (`docs/phase6c4_local_acceptance_mac.md`); later phases not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A approved (decisions S-01 to S-11), Stages B–D implemented and accepted at the owner checkpoint, and Stages E–G implemented; **6C.4 formally accepted by the owner on 20 Nov 2026 and released as v4.2.0** (closure: `docs/architecture/phase6c4_closure_handover.md`; release notes: `docs/releases/v4.2.0.md`); **6C.5 (leaderboards and championships) is next**, not started (see the implementation notes at the end). Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -346,8 +346,19 @@ full regression, genuine CLI tests in a pseudo-terminal, browser journeys, a
 controlled live check of the by-ID fetch (3 provider requests), performance and the
 owner's Mac guide. For 6C.6: the scheduled finalisation job should run a full
 relevant-fixture re-check (`results import --full`) before finalising. Record:
-`docs/architecture/phase6c4_implementation.md` §24. Release, merge and 6C.5 wait for
-the owner's local acceptance.
+`docs/architecture/phase6c4_implementation.md` §24. Accepted by the owner on 20 Nov
+2026 (§25) and released as v4.2.0.
+
+## Deferred backlog accepted at the 6C.4 closure (20 Nov 2026)
+
+| Item | Target |
+|---|---|
+| S-07 follow-up: password check for the 6C.3 `round create / publish / lock / dev-open` commands | 6C.6 |
+| Production scheduling (publish, lock, `results import --full`, settle, finalise), monitoring, alerting, admin interface | 6C.6 |
+| `settle run` without `--confirm` (deliberate, idempotent) | documented; revisit in 6C.6 if wanted |
+| Development time override only for settle and finalise (database clock elsewhere) | documented limitation |
+| Hosted Supabase acceptance | Phase 10 |
+| Championship recalculation after an owner reopening (S-06) | 6C.5 |
 
 ## Deferred backlog accepted at the 6C.3 closure (19 Nov 2026)
 

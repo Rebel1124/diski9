@@ -9,8 +9,9 @@ by the product owner on 19 Nov 2026 with the decisions in §22**, which supersed
 the Stage A proposals where they differ (notably: completion-based cutoff, no
 closing window, owner-only reopening, explicit development result modes).
 **Stages B–D implemented** (record in §23) and accepted at the owner checkpoint.
-**Stages E–G implemented** (record in §24); awaiting the owner's local acceptance
-(`docs/phase6c4_local_acceptance_mac.md`) before any release, merge or 6C.5 work.
+**Stages E–G implemented** (record in §24). **Formally accepted by the product owner
+on 20 Nov 2026 (Stages A–G; §25)** and released as v4.2.0. Closure handover:
+[`phase6c4_closure_handover.md`](phase6c4_closure_handover.md).
 
 **Precedence:** the decision register (D-, T-, R- series) and the approved policy
 notes (`settle/v1`, D-32b) over this document. This document separates three kinds
@@ -1093,6 +1094,20 @@ withdrawn submission stays in the history); the message says the predictions wer
 cleared. Tests: the re-entry test now saves a new portfolio after withdrawing, and
 a page-level test checks the builder and a fresh page load are empty.
 
-### 24.12 Outstanding before release
+### 24.12 Outstanding before release (since done: §25)
 Owner's local acceptance on the Mac (`docs/phase6c4_local_acceptance_mac.md`);
 then release preparation, merge and tag only when separately authorised.
+
+---
+
+## 25. Owner acceptance (20 Nov 2026)
+
+After local acceptance testing on the Mac (`docs/phase6c4_local_acceptance_mac.md`:
+upgrade with backup, operator password checks, confirm / lock, partial and complete
+settlement, correction, finalisation, owner reopening, operator invalidation), the
+product owner confirmed the results are logically consistent and **formally
+approved Phase 6C.4 — Settlement, Voids and Corrections, Stages A–G**, with any
+later issues to be addressed along the roadmap, and authorised closure and release
+(merge into `main`, tag). Two issues raised during the acceptance were fixed first
+(§24.11). Outstanding and deferred items are preserved in the closure handover (§5).
+Phase 6C.5 is next and not started.
