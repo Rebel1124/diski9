@@ -437,3 +437,46 @@ database:
 ### 15.5 When you finish
 Stop the app with Ctrl-C and close that terminal. Your own database was never used.
 Keep the scratch copy and the backup unless you decide otherwise.
+
+### 15.6 After the owner-requested refinements
+Pull and restart the app. No migration, backfill or data change is needed, and the
+same scratch copy is used.
+
+**15.6.1 Terminal A (repository folder):**
+```bash
+cd ~/Desktop/diski9
+```
+```bash
+git pull --ff-only
+```
+```bash
+git log -1 --oneline
+```
+The commit shown should match the refinement checkpoint report.
+
+**15.6.2 Terminal B:** set `DISKI9_APP_DATABASE_URL` and check the masked address and
+the revision exactly as in §15.2 (`/diski9_6c5_acceptance`, `app_0007`). Then:
+```bash
+DISKI9_SHOW_DEVELOPMENT_ROUNDS=1 uv run diski9 serve
+```
+Reload http://127.0.0.1:8050 with a hard refresh (Cmd-Shift-R) so the new styles load.
+
+**15.6.3 What to look at:**
+1. **Leaderboards.** The tabs and selectors sit together. Rounds are named by their
+   dates, with the code shown small. In the tables, numbers sit under their headers.
+2. **Championship.** The progress bar is larger.
+3. **My Challenge, History.**
+   - Six statistics cards with coloured headers, like the Build Portfolio cards. Net
+     is green when positive and red when negative.
+   - "How your statistics are calculated" opens the full definitions.
+   - With fewer than three eligible rounds (as in your scratch copy), each chart shows
+     "Your … chart will become available after 3 eligible rounds" instead of an
+     almost-empty chart.
+4. **Phone widths (390 px and 320 px)** in your browser's responsive mode:
+   - the four page links form a 2 × 2 grid;
+   - leaderboard cards show the position, the name and the points on one line;
+   - nothing is cut off.
+
+Populated competitive states (points, podium, both charts) are in
+`docs/screenshots/phase6c5/refined/` (index in its `README.md`), including
+before/after comparisons (`compare_*.png`).

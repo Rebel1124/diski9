@@ -1508,3 +1508,16 @@ Details are in `phase6c5_implementation.md` §5:
 * **Phones** use labelled cards.
 * **Prototype mode** (no competition database) keeps the labelled demonstration
   pages.
+
+**Owner-requested refinements (20 Nov 2026; implementation record §5.12).** These
+are presentation only and change no business rule:
+* **Chart threshold:** each chart in My Challenge History is shown only from three
+  eligible rounds. Chart 1 counts the counted competitive rounds played in the scope.
+  Chart 2 counts the counted rounds played in its one championship. Below three, a
+  compact placeholder shows the progress.
+* **Statistics cards** follow the Build Portfolio card style, with category-coloured
+  headers. Performance colour (green, red or neutral) appears only on Net and the
+  return on allocation.
+* **Round labels:** rounds are labelled by their SAST match window, and the code
+  remains the identity.
+* **Phones:** compact cards, and a 2 × 2 main navigation at 480 px or below.

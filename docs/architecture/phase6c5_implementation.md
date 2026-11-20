@@ -1096,3 +1096,110 @@ Multi-process testing remains Stage F.
   championship processing, authentication, migrations, ingestion, odds, API
   clients, the screener or Portfolio Analysis.
 * **Lint and formatting** clean.
+
+### 5.12 Owner-requested refinements (20 Nov 2026; Stage E not yet closed)
+The owner and ChatGPT reviewed the Stage E screenshots. They kept the functionality
+and asked for presentation and responsive refinements before formal acceptance.
+Nothing below changes a business rule, a calculation, the schema, authentication or
+an operator command. Build Portfolio's Foundation, Balanced and Challenger cards are
+unchanged.
+
+**Owner feedback and what changed**
+
+| Feedback | Change |
+|---|---|
+| Table values not aligned with headers | Cause: the rules list's class `lb-points` (`columns: 2`) was also on the Points cells, so each Points value was split into two CSS columns and pushed left of its header. Rules list renamed `lb-points-list`; cells use `lb-pts`. Alignment convention: rank centred in a compact column, name left, numbers right (tabular figures), text left; numeric and text columns size to content, the name column takes the rest; the leaderboard column is capped at 880 px so values stay near the names. True minus sign (U+2212) so signs align |
+| Statistics cards: use the Build Portfolio cards as reference | `history_ui.stat_card`: the `.ch-out` structure (surface-2 card, 1 px border, 3 px left edge in the category colour, 8 px radius), plus a tinted header in the `.ch-tag` style (category text on the category's dim tint). Header colours come only from existing tokens: Rounds played slate (#a3b1c2), Recoveries teal (`--accent`), Top-10 finishes amber (`--b-chal`), Allocated violet (`--b-nine`), Returned green (`--b-found`), Net blue (`--b-bal`). Category colour stays in the header; performance colour (`--win` green, `--loss` red, neutral at zero) goes on the Net value and the return on allocation only. Bucket names are not used |
+| Podium too wide, labels too muted | Compact podium (`c.podium(value_label=…)`): cards from 230 px wide, one "Returned" label per card, bright tabular values next to the names. Shared-rank rules unchanged (1, 1, 3 shows 1st and 3rd, no 2nd) |
+| Controls far apart | Tabs, stream and round selectors form one left-aligned group. The stream selector still shows only with more than one eligible stream (unchanged rule); defaults and development restrictions unchanged |
+| Codes as headings | Rounds are named by their SAST match window ("Round · 19–23 Nov 2026"); the code stays visible, de-emphasised, as the identity. Read services gained a display-only `window` field (`leaderboards.window_label`) on rounds, weekly boards, history rows and chart points. Charts number rounds 1…n, with window and code on hover |
+| Mobile clipping (nav, history cards) and loose cards | Navigation at ≤ 480 px: the four links in a 2 × 2 grid of 36 px targets (481–600 px: wrapping row); account name truncates with its full name as a tooltip. Leaderboard cards: fixed 2.6 rem position area, then the name (16 px), then points ("150 pts") on the first line; the other values under the name in one row (two rows of two below 380 px for championship and provisional cards). History cards (≤ 900 px, so tablets no longer scroll sideways): round heading, championship on its own line, then three values per line (two below 400 px). Entry details: tighter accumulator cells below 420 px instead of a sideways scroll |
+| Charts need three rounds | `CHART_MIN_ROUNDS = 3`, applied to each chart separately (below) |
+| Long methodology text | Summary line stays visible; full definitions under "How your statistics are calculated". The Under-review notice moved above the cards |
+| Progress bar small | Ten wide segments (12 px high, up to 380 px). A completed championship with fewer rounds (D-30a) shows "Completed with 9 valid rounds" with its unused segments dashed, so it never looks as if it is waiting |
+| Wording | "1 round played", "2 recoveries", "1 top-10 finish" (`leaderboards_ui.plural`); "Top 10s" column |
+
+**Chart threshold (owner decision)**
+* **Chart 1** (cumulative allocation and return) appears when the participant has at
+  least three distinct counted competitive rounds in the selected scope.
+  - The count is `PersonalStats.allocation_rounds`, the chart's own series: ranked
+    entries in counted rounds, using the last published values for a round under
+    review.
+  - Refunded entries, practice, void, missed, uncounted restorations and unresolved
+    entries never count. A counted round the participant did not recover does count.
+* **Chart 2** (cumulative championship points) appears when the participant played at
+  least three counted rounds of the championship it shows.
+  - That championship is the selected one, or for "All championships" the most recent
+    one; points are never added across championships.
+  - The count is `PersonalStats.points_rounds`: the series points marked `eligible`.
+  - Missed and refunded rounds are still plotted when the chart shows, but never count
+    toward the threshold.
+* **Below three rounds**, a compact placeholder appears instead: "Your … chart will
+  become available after 3 eligible rounds", with three progress segments and "n of 3
+  eligible rounds completed".
+  - If only one chart qualifies, it appears alongside the other chart's placeholder.
+  - The statistics cards and the entry list never depend on the threshold.
+
+**Tests**
+* `tests/test_stage_e_ui.py`: 22 tests.
+  - The charts test was replaced by threshold tests: 0, 1, 2, 3 and 5 rounds; missed
+    or refunded rounds not counting; one chart unlocked without the other.
+  - Assertions were added for six coloured cards, the methodology disclosure and
+    natural plurals.
+  - Three existing assertions were updated because the approved wording changed
+    ("Top 10s"; the standings line now puts the name in bold; return on allocation is
+    a separately coloured value). No assertion was removed.
+* `tests/backend/test_backend_stage_e_history.py`: 9 tests (PostgreSQL). Two are new:
+  - the threshold counts per chart and scope, with practice, refunded and missed
+    rounds excluded and a failed counted round included, plus the friendly labels;
+  - a correction (invalidation of R5) that lowers both counts, with the entry still in
+    the history.
+* `tools/e2e_6c5/refined.js` (real browser, real app, local Supabase Auth):
+  - **Widths:** 1360, 768, 430, 390, 360 and 320 px.
+  - **Coverage:** 108 page checks, guest and signed in. They span every weekly state;
+    in-progress and corrected, under-review championships; My Challenge Current;
+    History for all championships and for one; the entry details; and a second viewer
+    with a 24-character account name, negative net and both charts locked.
+  - **Element-level checks:** nothing outside the viewport; no text overflowing its
+    box; no card cell outside its card or overlapping another; no table scrolling
+    sideways; touch targets at least 32 px.
+  - **Stress pass:** a 24-character name, seven-figure values and the maximum points
+    are injected into the rendered page, then the checks repeat.
+  - **Result:** 0 problems.
+
+  The first run of these checks found real problems, all fixed before the final run:
+  - 31 px pager and Details buttons;
+  - text overflowing in provisional and practice cards;
+  - the history table scrolling sideways on tablets;
+  - the accumulator table scrolling on phones;
+  - overlaps with seven-figure values.
+
+**Screenshots**
+* `docs/screenshots/phase6c5/refined/` holds the refined captures and six before/after
+  comparisons (`compare_*.png`). The index is in that folder's `README.md`.
+* The original Stage E captures are kept for comparison.
+* The zero-net card is a styling specimen: the showcase data has no zero-net
+  participant, so the value was set in the rendered page. This is labelled in the
+  index.
+
+**Regression**
+* **Full suite on the refinement code: 1,632 passed and 0 failed.**
+  - That is 1,629 + 1 from §5.11, plus two net new UI tests.
+  - The intermittent Match Lab browser test
+    (`test_browser_section_b_alignment_and_bookmaker_layout`) passed in this run. It
+    remains recorded as intermittent and is carried forward to Stage F.
+* **The two new PostgreSQL tests** were added after that run started. They were run
+  with the Stage E files: 31 passed.
+* **Fingerprint** `88bcd717deca6c1c…` unchanged.
+* **Protected areas:** no diff in scoring, settlement, corrections, publication,
+  championship processing, schema, authentication, operator commands, ingestion,
+  odds, the screener, Match Lab or Portfolio Analysis.
+  - The only shared change is a `title` (tooltip) on the account menu summary in
+    `app.py`, plus navigation CSS scoped to 600 px and below.
+* **Lint and formatting** clean.
+
+**Limitations**
+* Names locked into entries cannot change (set once in the database). The long-name
+  checks on leaderboard rows therefore inject the name into the rendered page, while
+  the long account name in the navigation is real.
+* The 10,000-participant stretch run is still not executed (unchanged).

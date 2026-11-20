@@ -31,3 +31,22 @@ It covers the guest and signed-in views at desktop (1360), tablet (768) and mobi
 - that page loads wrote nothing (row counts before and after).
 
 It writes screenshots to `docs/screenshots/phase6c5/`.
+
+## `refined.js` (owner-requested refinements)
+`NODE_PATH=$(npm root -g) node tools/e2e_6c5/refined.js`
+
+It runs at 1360, 768, 430, 390, 360 and 320 px. Its checks are element-level, so they
+do not rely on the page's scroll width alone:
+- elements outside the viewport;
+- text overflowing its box;
+- card cells outside their card or overlapping another cell;
+- tables that scroll sideways;
+- touch targets under 32 px.
+
+It also repeats the guest prompt, privacy and read-only checks above. A stress pass
+injects a 24-character name, seven-figure values and the maximum points, then repeats
+the element checks.
+
+It writes screenshots to `docs/screenshots/phase6c5/refined/` and its results to the
+git-ignored `tmp/e2e_6c5/refined_results.json`. The second viewer (`pat`) has a
+24-character account name in the showcase database.
