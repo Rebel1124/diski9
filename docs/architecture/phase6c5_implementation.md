@@ -408,3 +408,272 @@ change re-aggregates from scratch (no incremental points, by design).
   The trial continues until 21 Nov 2026 15:00 UTC.
 * Deferred, unchanged: D-29, D-36, S-07, hosted Supabase acceptance and the 6C.3
   backlog. Private mini-leagues remain excluded.
+
+---
+
+## 4. Stage D: corrections, reopening and championship recalculation (20 Nov 2026)
+
+### 4.1 Baseline
+* Branch `feature/phase-6c5-leaderboards` at `d0502ce` (Stage C closure), equal to
+  the remote.
+* Fingerprint `88bcd717deca6c1c…` verified.
+* Pre-implementation suite on a clean detached copy of `d0502ce`: **1,560
+  passed, 0 failed, 0 skipped**.
+* Work done in the dedicated worktree. The odds-trial checkout stayed clean at
+  `43a1773` and was not used for any sync, setup or harness operation.
+
+### 4.2 Delivered (no schema change: `app_0007` already had the causes `round_invalidated`, `round_restored` and `repair`, the role `not_counted`, `reason` and `corrected_after_completion`)
+
+| Area | Files |
+|---|---|
+| Role resolution (pure), status rule, versioned role changes, integrity inspection | `backend/services/championships.py` (`resolve_roles`, `expected_status`, `_refresh`, `inspect_stream`) |
+| Audited repair; status with findings and notes | `backend/services/competition_ops.py` (`preview_repair`, `run_repair`) |
+| Read services | `backend/services/leaderboards.py`: review rounds, `version=` on `championship_board`, `championship_versions_list`, disclosures, `not_counted_rounds`, `counts_toward_championship` and `championship_note` on the weekly board, `my_round_result` |
+| Operator command | `settlement_cli.py`: `competition repair`; `status` / `verify` print notes, repairable and material findings |
+| Tools | `tools/phase6c5_perf_corrections.py` |
+
+**Role changes (applied under the stream lock, in the finalisation transaction).**
+A member's role follows its latest official publication. A reopened round keeps its
+last published role until re-finalisation, so reopening never changes standings.
+
+| Before | Authoritative outcome | After | Rule |
+|---|---|---|---|
+| pending | practice / void / valid | practice / void / counted (its reserved slot) | Stage C |
+| counted | void | void: contribution removed, counter −1 | L-32; L-33 when completed without a successor (back to in progress); L-34 / D-30a when the boundary is fixed (stays completed) |
+| void, not_counted | valid | counted if `counted + pending < required`, else not_counted | CH-05, §23.5 |
+| not_counted | void | void | — |
+| practice | anything | practice | fixed at the lock |
+
+Restored and `not_counted` members of a championship are reconsidered in deadline
+order before any waiting round is assigned (§23.5 rule 4). Pending members keep
+their reservations, so a restored round never takes a reserved slot or displaces a
+counted round. Membership never changes (database guard). More than ten counted
+rounds is an integrity error.
+
+**Status:**
+* fixed boundary → completed (D-30a, possibly with fewer rounds, even zero);
+* otherwise completed at ten counted, in progress below;
+* upcoming only if the championship has never published a counted round.
+
+`completed_at` keeps the first completion (database guard): the audit record of
+the original completion.
+
+**Versions:**
+* Every correction role change (invalidated, restored, not counted) writes a new
+  version, even when the standings are unchanged (§23.5 rule 5).
+* Causes are `round_invalidated`, `round_restored`, `round_republished` and
+  `repair`.
+* Each version has a plain-language `reason` (for example "Round X was invalidated;
+  the championship returned to in progress with 9 of 10 counted rounds (L-33)").
+* The audit record lists the role changes.
+* `corrected_after_completion` is set by any correction version after the first
+  completion.
+* Domain events: `championship_reopened` (L-33) and `championship_corrected`, in
+  addition to `championship_completed`.
+* A pending member's first outcome is versioned only if it changes the standings,
+  as in Stage C.
+
+**Read services (for Stage E):**
+* `under_review` with `review_reasons` (`reopened`; `recalculation_pending` only on
+  unrepaired data) and `review_rounds` (codes); `definitive`.
+* `version=` for any earlier published version, and `championship_versions_list`.
+  Names are resolved at read time, so retroactive anonymity covers every version.
+* `reopened_after_completion` (L-33), `corrected_with_fewer_rounds` (D-30a) and
+  `disclosure`, the approved sentence of §23.4, which never implies a missing
+  round.
+* `not_counted_rounds`; on the weekly board, `counts_toward_championship` and
+  `championship_note`, with the approved CH-05 sentence or the pending-assignment
+  sentence "confirmed when Round N is final".
+* `my_round_result`: the last published rank, weekly points and the championship
+  points that count, next to the current settlement (CH-10); `under_review` while
+  reopened.
+* Personal statuses `not_counted_only` and `invalidated_only` (CH-08).
+* All reads remain READ ONLY at REPEATABLE READ and write nothing.
+
+**Integrity (`inspect_stream`; `verify_stream` returns its findings).**
+
+*Repairable* (derived data):
+* a re-finalised round without official results;
+* roles behind authoritative outcomes;
+* counter, slots, status, missing version, standings hash or rows, version round
+  list or champion count;
+* a boundary not fixed;
+* rounds assignable but unassigned.
+
+*Material* (investigate; repair refuses the stream):
+* published weekly results that differ from a re-scoring of the settlement;
+* results that do not reference a final version;
+* a member outside the stream, or a development round in beta or official;
+* name or start date not matching the first associated round;
+* more than ten counted rounds;
+* a counted round without a competitive score set;
+* engine points that differ from the published points.
+
+*Notes* (legitimate, not faults): `under_review`, `pending_assignment`,
+`historical_correction`, `not_counted`, `reopened_after_completion` and
+`backfill_needed`.
+
+Processing and inspection use the same rules (`resolve_roles`, `expected_status`,
+`_started`), so repair and verify agree.
+
+**Repair (`competition repair`).**
+* *What it does:* republishes a re-finalised round's missing results
+  (`publish_finalised`, idempotent per settlement version), then runs
+  `process_stream(refresh_all=True, cause='repair')`.
+* *What it never does:* edit history, move a membership, set points or winners, or
+  touch settlement, evidence or football results.
+* *Safeguards:*
+  - an operator (owners included) with a password check (S-07);
+  - the password re-entered within 15 minutes for the write;
+  - a reason;
+  - the preview's token, refused if stale;
+  - one transaction per round (round lock, then stream lock), then one per stream;
+  - an audit record `competition.repair` with the before and after of each
+    championship.
+* *Preview:* the work in a transaction that is rolled back. It reports findings,
+  rounds to publish, each championship's before and after, standings and leader
+  changes, boundary implications and unrepairable findings.
+
+### 4.3 Atomicity, locking and concurrency
+* **Lock order is unchanged:** round row, then stream. Repair and backfill use it
+  per round, and stream processing takes only the stream lock.
+* **No operation holds two round locks.** Processing changes other rounds'
+  membership rows only under the stream lock, reading their committed
+  authoritative state.
+* **Atomicity:** a re-finalisation (settlement version, weekly score set, role
+  changes, standings version, audit) is one transaction. Failure injection in
+  championship processing rolls back the whole finalisation, including the weekly
+  results, and a retry succeeds.
+* **Concurrent restorations** are serialised by the stream lock:
+  - capacity is never exceeded;
+  - restorations processed in the same step are resolved in deadline order;
+  - across separate commits, the outcome is the deterministic function of the
+    commit sequence that §23.5 specifies.
+
+  A round already counted is never displaced by a later restoration.
+
+### 4.4 Tests (new: 43)
+
+| Suite | Tests |
+|---|---|
+| `tests/test_championship_corrections.py` (pure) | 13: invalidation; L-33 / D-30a status; reopened round keeps its role; restoration with and without capacity; reserved slots not taken; several restorations in deadline order (independent of input order); `not_counted` taking freed capacity; re-invalidation; practice fixed; more than ten refused. **Hypothesis state machine:** 500 derandomised sequences of up to 70 legitimate operations (publish, lock practice, finalise valid or void, re-finalise void, restore D-32b voids, operator invalidation). Invariants after every step: maximum ten, no duplicate membership, roles match outcomes, `not_counted` only at full commitment, fixed boundaries, no premature completion, immutable membership, deadline-ordered championships, waiting only at full commitment, idempotent reprocessing. Coverage measured: about 4,500 restorations, 6,300 invalidations, 530 not counted and 2,600 D-30a states. A restoration-ordering permutation test with 200 examples |
+| `tests/backend/test_backend_championship_corrections.py` (own database) | 10: joint champions; two reopened rounds (no writes, published standings kept, last published personal result next to the corrected settlement); one review resolving while the other stays; valid-to-valid recalculation (whole round re-ranked, champion changes from joint to sole, shared rank removed, earlier version readable); L-33 (back to in progress, original `completed_at` kept, domain event, reason) and the replacement round recompleting it; restoration without capacity (versioned, explained); successor commencing; failure injection and retry; D-30a (`not_counted` member taking the slot, winner change, one round, then zero rounds, no champion, successor untouched); historical restoration; valid-to-valid correction to zero points; operator invalidation not restorable, with a replacement round; privacy across versions (retroactive alias, no identifiers or emails, development hidden, guest gets nothing personal, no writes, no provider client); restart and idempotent reprocessing |
+| `tests/backend/test_backend_championship_capacity.py` (own database) | 6: a waiting round finalised first (published, unassigned, "confirmed when Round N is final"); invalidation releasing a slot to the waiting round; restoration refused a reserved slot; the released reservation going to the restored round before rollover in the same transaction; concurrent restorations with one slot (exactly one counts; readers never see mixed versions); concurrent invalidations with stream processing (no deadlock, `not_counted` reconsidered, L-33, fixed championship unaffected) |
+| `tests/backend/test_backend_championship_repair.py` (own database) | 9: a skipped republication reported as repairable; the preview writes nothing, needs an operator and is the same for an owner; safeguards (reason, stale token, password recency, participant, unknown stream); interruption leaves nothing partial and the retry succeeds (audited, cause `repair`); a repeated repair is a no-op; a tampered counter repaired without touching membership; concurrent repair and processing; material tampering refused and reported; a membership row outside the stream never blocks processing and is reported as material |
+| `tests/backend/test_backend_championship_sequences.py` (PostgreSQL) | 4 seeds (20261120, 7, 42, 2026) × 30 operations through the real services, chosen only among legitimate ones: finalisation, invalidation, restoration, valid-to-valid correction, operator invalidation, repeated finalisation (refused), failed re-finalisation and retry, reconciliation. After every operation: no finding, at most two counted, immutable membership, no champion without points, operator voids never restored, fixed championships untouched, reads write nothing. 120 operations; every operation type exercised (26 finalisations, 17 invalidations, 25 restorations, 9 corrections, 8 operator invalidations, 7 failed and retried, 17 refused repeats, 11 reconciliations). No defect found |
+| `tests/backend/test_backend_operator_cli.py` | +1 genuine (pty, real Supabase Auth): repair refused for a participant; wrong password; verify reports the tampered status; preview only (no writes, no password echo); missing reason; stale token; confirmed repair (audited actor and reason, membership unchanged) |
+| Existing test changed | `test_championship_tables_protect_identity_and_membership` (Stage B/C guard test) deliberately inserts an inconsistent championship whose member is a draft round. It now places it in the **official** stream, which is never processed or inspected before launch, instead of the development stream that other tests share. The assertions are unchanged |
+| Existing test changed | `test_refinalised_round_changing_role_is_contained_until_stage_d` documented the temporary Stage C containment. It is replaced by `test_refinalised_round_becoming_void_is_recalculated`, which asserts the approved L-32 behaviour on the same scenario |
+
+### 4.5 Performance (measured on this machine; 1,000 participants, 11 development rounds, ten-round championships)
+
+| Measurement | Result |
+|---|---|
+| Re-finalisation, valid-to-valid, historical championship (10 rounds re-aggregated) | 1,074 ms |
+| Re-finalisation, valid-to-void after the successor commenced (D-30a), with 4 reader threads | 2,419 ms; reads 119, 0 errors, median 55 ms, p95 320 ms (same process) |
+| Re-finalisation, void-to-valid restoration (counted again) | 949 ms |
+| Re-finalisation, valid-to-void in the active championship (pending reprocessing) | 649 ms |
+| Stream processing with nothing to change | 5 ms |
+| `competition verify` (11 rounds re-scored and 2 championships recomputed) | 619 ms |
+| Repair preview / run of a tampered counter (the run includes its preview) | 1.8 s / 2.7 s |
+
+These are in line with Stage C: re-finalisation re-aggregates the whole championship
+from scratch, by design. The same-process reader contention observed in Stage C is
+visible here too. Multi-process measurements remain Stage F.
+
+### 4.6 Regression and verification
+* Full suite (real PostgreSQL, local Supabase Auth, browser tests) on clean
+  detached copies of each commit:
+  - `5dd74ff`: 1,600 passed, **2 failed**. Both failures came from the shared test
+    database: a Stage C guard test leaves a deliberately inconsistent membership
+    row, and the first Stage D processing refused it. Fixed in `d1287c9` (§4.7).
+  - `d1287c9`: 1,602 passed, 1 failed. The new repair CLI test assumed the dev
+    round was assigned, but in the shared database it legitimately waits behind
+    other tests' unresolved rounds. Test fixed in `29ff049`.
+  - `29ff049`: 1,602 passed and 1 failed in one run. The failure was an unchanged
+    Match Lab browser layout test (`tests/test_match_context.py`), outside Stage D,
+    which passed 3 of 3 times when rerun alone. The **confirming run passed 1,603
+    of 1,603, with 0 failed and 0 skipped** (the 1,560 baseline plus 43 new tests).
+* GitHub CI run 60 (`29ff049`) passed.
+* Fingerprint `88bcd717deca6c1c…` unchanged.
+* Unchanged since Stage C: `challenge/` (scoring engine), settlement and correction
+  services, `competition.py`, `rounds.py`, authentication, migrations and the app.
+  Unchanged since v4.2.0: `ingestion/`, `api_football/`, `app/` and `screener/`.
+* Lint and formatting clean.
+* **10,000-participant stretch:** not run in Stage D. The tool supports it
+  (`tools/phase6c5_perf_corrections.py URL 10000 11`). Stage C's 10,000-participant
+  results (§3.5) remain the reference; the corrections run the same recomputation.
+  Deployment-representative scale testing is Stage F.
+
+### 4.7 Interpretations and technical deviations (no approved rule changed; recorded for owner review)
+
+**I-1: freed capacity in a fixed championship.**
+* *Situation:* a `not_counted` member of a championship whose boundary is fixed,
+  when a later invalidation frees a slot there.
+* *What Stage D does:* the member is reconsidered and counts, applying §23.5 rule 4
+  uniformly.
+* *Why it fits:*
+  - the round is already that championship's own member, so nothing moves;
+  - the successor is unaffected;
+  - L-34's "no replacement rounds" concerns new assignments, and none occurs.
+* *Test:* exercised in the D-30a test.
+
+**I-2: concurrent restorations.**
+* Capacity is never exceeded.
+* Within one processing step, deadline order decides.
+* Across separate commits, the outcome follows the commit sequence, as §23.5
+  specifies ("depends only on the sequence of committed publications").
+* A counted round is never displaced afterwards.
+* A race can therefore decide which of two simultaneously restored rounds counts.
+  It can never produce an invalid or over-capacity state.
+
+**I-3: review indicator.** It also covers a reopened **void** member, whose
+re-finalisation could restore it and change the standings. §8.1 named counted
+members only.
+
+**I-4: every counted round invalidated after commencement.**
+* The championship stays completed with zero counted rounds, no standings and no
+  champion, with the D-30a disclosure.
+* This follows L-34 ("recalculate with the remaining valid rounds"), applied to
+  none remaining.
+* Stage E only needs suitable wording.
+
+**I-5: no return to upcoming.** A championship that has published a counted round
+never returns to `upcoming`; it shows `in_progress` with zero rounds.
+
+**I-6: first completion time kept.** `completed_at` remains the first completion
+time when L-33 reopens and then recompletes a championship (database guard).
+
+**Data written outside the services.** A championship holding a member that is not a round of its stream is left untouched by processing, as in Stage C. It is reported as a material finding, and repair refuses that stream. It never blocks publication elsewhere in the stream. The first full run found this case: an earlier version raised an error, which stopped later publications in the shared test database. Fixed in `d1287c9`.
+
+**Technical deviations from the specification:**
+* **Membership verification.** Spec §11.6 asks `competition verify` to replay the
+  assignment queue over the whole history. Stage D verifies structural invariants
+  instead:
+  - names and start dates against the first associated round;
+  - deadline-ordered assignment of waiting rounds;
+  - roles against authoritative outcomes;
+  - membership in the stream.
+
+  The reason: with corrections, the history of role changes legitimately
+  influences membership, so a replay from current state alone would report false
+  differences. The pure and PostgreSQL property-based sequences verify membership
+  immutability and deadline order across histories instead.
+* **Repair recency.** Repair uses the operator capability (`RUN_JOBS`, as backfill)
+  plus an explicit 15-minute password recency for the write. No new capability or
+  role was added.
+
+### 4.8 Known limitations and deferred items
+* **Operator invalidation cannot be reversed** (6C.4 limitation, unchanged): a later
+  correction re-finalises the round still void, and its role stays `void`.
+* **The Stage C containment is fully replaced.** Every approved validity change
+  (counted → void, void → counted, void → not counted, not counted → counted or
+  void) is now applied; nothing remains contained.
+  - `recalculation_pending` and the corresponding repairable finding can now arise
+    only from data written outside the services, for example a database from a
+    pre-Stage D build or a manual intervention. `competition repair` resolves them.
+* **10,000-participant stretch:** not run in Stage D (§4.6).
+* **No participant-facing UI** (Stage E).
+* **Multi-process performance** is Stage F.
+* **Unchanged deferrals:** D-29, D-36, S-07, hosted Supabase acceptance and the
+  6C.3 backlog. Private mini-leagues remain excluded.

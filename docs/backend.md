@@ -358,6 +358,20 @@ Stage C services:
   personal position and the round assignment status.
 * Operator commands: `competition status | verify | backfill`.
 
+Stage D (corrections, reopening and recalculation):
+* `championships.resolve_roles` (pure) applies re-finalisation outcomes under the
+  stream lock: invalidation (L-32 / L-33 / L-34, D-30a) and restoration within
+  capacity (CH-05; reserved slots never taken; deadline order). Every correction
+  role change is a new version with a cause, reason and audit record.
+* `championships.inspect_stream`: repairable / material findings and notes on
+  legitimate states (review, pending assignment, D-30a, `not_counted`).
+* `competition_ops.preview_repair` / `run_repair`: audited repair of derived
+  records; operator command `competition repair`.
+* `leaderboards`: review rounds, historical versions
+  (`championship_board(version=…)`, `championship_versions_list`), correction
+  disclosures, restored-round explanations and `my_round_result` (last published
+  result next to the current settlement, CH-10).
+
 Ranks and points come from the unchanged `challenge/scoring.py`. Specification:
 `docs/architecture/phase6c5_design_specification.md`; record:
 `docs/architecture/phase6c5_implementation.md`.
