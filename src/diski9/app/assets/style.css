@@ -1311,76 +1311,243 @@ table.results td.value-cell { white-space: nowrap; }
   .ch-res-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ch-res-table th:nth-child(3), .ch-res-table td:nth-child(3) { display: none; }
 }
-
 /* ---------------------------------------------------------------- Phase 6C.5 Stage E:
-   Leaderboards (Weekly, Championship) and My Challenge History */
-.lb-top { align-items: flex-start; }
+   Leaderboards (Weekly, Championship) and My Challenge History, with the owner-requested
+   refinements (compact controls, aligned tables, Build Portfolio-style statistics cards,
+   compact podium, mobile cards and navigation). */
+.lb-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; margin: 2px 0 12px; }
 .lb-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-width: 0; }
-.lb-select { min-width: 260px; max-width: 100%; }
-.lb-stream-select { min-width: 150px; }
-.lb-head { margin: 4px 0 12px; }
-.lb-head-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
-.lb-head-line strong { font-size: 17px; }
+.lb-select { min-width: 250px; max-width: 100%; }
+.lb-stream-select { min-width: 140px; }
+.lb-main { max-width: 880px; }           /* one compact column: header, podium and table align */
+.lb-head { margin: 0 0 10px; }
+.lb-head-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-bottom: 4px; }
+.lb-head-line .lb-title, .lb-head-line > strong { font-size: 18px; }
+.lb-code { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .lb-head-champ { color: var(--text); }
 .lb-stream.beta { color: var(--info); border-color: var(--info); }
 .lb-stream.development { color: var(--warn); border-color: rgba(242,184,75,.5); }
 .lb-stream.official { color: var(--accent); border-color: var(--accent); }
 .lb-state { margin-bottom: 8px; }
+.lb-you { align-items: center; padding: 8px 14px; }
 .lb-you .ch-you-rank { font-size: 20px; }
 .lb-you-tag { color: var(--accent); font-weight: 600; }
 .lb-name { overflow-wrap: anywhere; }
-.lb-progress { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 6px 0; }
-.lb-segs { display: grid; grid-template-columns: repeat(10, 18px); gap: 3px; }
-.lb-seg { height: 8px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--border); }
+.lb-champion { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+/* championship progress: ten wide segments (valid counted rounds, never calendar weeks) */
+.lb-progress { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; margin: 8px 0 4px; }
+.lb-segs { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 4px; width: min(100%, 380px); }
+.lb-seg { height: 12px; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--border); }
 .lb-seg.on { background: var(--accent); border-color: var(--accent); }
-.lb-champion { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.lb-seg.na { background: transparent; border-style: dashed; opacity: .55; }
+.lb-progress-text { font-size: 14px; font-weight: 650; color: var(--text); white-space: nowrap; }
 .lb-pager { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; }
 .lb-pager-buttons { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .lb-pager-buttons .ch-btn[disabled] { opacity: .45; cursor: not-allowed; }
 .lb-rules { margin-top: 10px; }
-.lb-points { columns: 2; margin: 4px 0 8px; padding-left: 18px; }
+.lb-points-list { columns: 2; margin: 4px 0 8px; padding-left: 18px; }
+
+/* tables: rank centred, names left, numbers right (tabular), descriptive text left.
+   Numeric and text columns size to their content; the name column takes the rest. */
+.ch-table.lb th, .ch-table.lb td { padding: 8px 12px; vertical-align: middle; }
+.ch-table.lb th.rank, .ch-table.lb td.rank { width: 4.5rem; text-align: center; white-space: nowrap; }
+.ch-table.lb td.rank .rank-wrap { justify-content: center; }
+.ch-table.lb th.num, .ch-table.lb td.num { width: 1%; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ch-table.lb th.txt, .ch-table.lb td.txt { text-align: left; }
+.ch-table.lb-weekly th.txt, .ch-table.lb-weekly td.txt, .ch-table.lb-champ td.txt { width: 1%; white-space: nowrap; }
+.ch-table.lb th.c, .ch-table.lb td.c { width: 1%; text-align: center; }
+.ch-table.lb td.lb-name-cell { min-width: 0; }
+.ch-table.lb td.lb-pts { color: var(--text); }
+.ch-table.me-hist-table td.rank, .ch-table.me-hist-table th.rank { width: 3.5rem; }
+/* comfortable touch targets for the Stage E pager and Details buttons */
+.lb-pager .ch-btn, .me-hist-table .ch-btn { min-height: 36px; }
+.pos-val { color: var(--win); }
+.neg-val { color: var(--loss); }
+.me-round { font-weight: 650; display: block; white-space: nowrap; }
+.me-round-cell .lb-code { display: block; font-size: 11.5px; white-space: nowrap; }
+.ch-table.me-hist-table td:nth-child(2) { white-space: nowrap; }
+
+/* compact podium: content-width cards, one "Returned" label per card */
+.ch-podium.compact { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.ch-pod.compact { align-content: start; grid-template-columns: minmax(0, 1fr) auto; column-gap: 16px; row-gap: 4px; padding: 8px 12px 10px; align-items: baseline; }
+.ch-pod.compact .ch-pod-rank { grid-column: 1; }
+.ch-pod-col { grid-column: 2; justify-self: end; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #aab5c0; font-weight: 600; }
+.ch-pod.compact .ch-pod-name { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 16px; align-items: baseline; }
+.ch-pod.compact .ch-pod-name strong { overflow-wrap: anywhere; font-weight: 600; }
+.ch-pod-val { color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* My Challenge */
 .me-tabs { margin-bottom: 4px; }
 .me-champ a, .lb-page a { color: var(--accent); }
 .me-hist-controls { margin-bottom: 12px; }
-.ch-metrics.six { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .me-standings { margin: 0 0 10px; padding-left: 18px; }
+.me-standings li { overflow-wrap: anywhere; }
+.me-summary .ch-ribbon { margin: 0 0 10px; }
+/* statistics cards in the Build Portfolio card style (.ch-out / .ch-tag): surface-2 card,
+   3px left edge and a tinted header in the metric's category colour (existing bucket and
+   accent tokens). The header identifies the metric; performance colour is on the value. */
+.me-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin: 0 0 8px; }
+.me-stat { --cat: var(--muted); --cat-dim: rgba(139, 152, 165, 0.14);
+  background: var(--surface-2); border: 1px solid var(--border); border-left: 3px solid var(--cat);
+  border-radius: 8px; display: flex; flex-direction: column; min-width: 0; }
+.me-stat.cat-slate { --cat: #a3b1c2; --cat-dim: rgba(163, 177, 194, 0.13); }
+.me-stat.cat-teal { --cat: var(--accent); --cat-dim: var(--accent-dim); }
+.me-stat.cat-gold { --cat: var(--b-chal); --cat-dim: var(--b-chal-dim); }
+.me-stat.cat-violet { --cat: var(--b-nine); --cat-dim: var(--b-nine-dim); }
+.me-stat.cat-green { --cat: var(--b-found); --cat-dim: var(--b-found-dim); }
+.me-stat.cat-blue { --cat: var(--b-bal); --cat-dim: var(--b-bal-dim); }
+.me-stat-head { background: var(--cat-dim); color: var(--cat); border-bottom: 1px solid var(--border);
+  border-radius: 0 7px 0 0; padding: 5px 10px; font-size: 11.5px; font-weight: 650;
+  letter-spacing: .05em; text-transform: uppercase; line-height: 1.35; overflow-wrap: anywhere; }
+.me-stat-body { padding: 7px 10px 9px; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.me-stat-val { font-size: 22px; font-weight: 750; line-height: 1.2; color: var(--text);
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.me-stat-sub { font-size: 12px; color: #aab5c0; overflow-wrap: anywhere; }
+.me-stat-val.pos-val, .me-stat-sub .pos-val { color: var(--win); }
+.me-stat-val.neg-val, .me-stat-sub .neg-val { color: var(--loss); }
+.me-stat-val.zero { color: var(--text); }
+.me-stats-note { margin: 0 0 6px; }
+.me-method { margin-top: 2px; }
+.me-method p { margin: 6px 0 2px; max-width: 90ch; }
 .me-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .me-chart { width: 100%; }
+.me-chart-card { margin-bottom: 12px; min-width: 0; }
+.me-chart-card.locked { align-self: start; }
+.me-chart-locked { display: grid; gap: 6px; padding: 4px 0 2px; }
+.me-chart-locked p { margin: 0; }
+.me-lock-segs { display: grid; grid-template-columns: repeat(3, 28px); gap: 4px; }
+.me-lock-seg { height: 8px; border-radius: 2px; background: var(--surface-2); border: 1px solid var(--border); }
+.me-lock-seg.on { background: var(--accent); border-color: var(--accent); }
 .small-h { font-size: 14px; margin-bottom: 6px; }
-.me-hist-detail { margin-top: 6px; }
+.me-hist-detail { margin-top: 6px; overflow-wrap: anywhere; }
 .me-hist-empty { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 td.warn { color: var(--warn); }
 
 @media (max-width: 1100px) {
-  .ch-metrics.six { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .me-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
-  .ch-table.lb .lb-rate { display: none; }  /* optional statistic; recoveries and played remain */
   .me-charts { grid-template-columns: minmax(0, 1fr); }
 }
-/* phones: every row becomes a labelled card, so no column is lost and nothing scrolls sideways */
+/* My Challenge History up to tablet width: each entry becomes a labelled card (round
+   heading, championship on its own line, then three values per line), so its eleven
+   columns never scroll sideways */
+@media (max-width: 900px) {
+  .ch-table.me-hist-table thead { display: none; }
+  .ch-table.me-hist-table, .ch-table.me-hist-table tbody { display: block; width: 100%; }
+  .ch-table.lb-cards.me-hist-table tr { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: 10px; row-gap: 6px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; }
+  .ch-table.lb.lb-cards.me-hist-table td { display: flex; flex-direction: column; border: 0; padding: 0;
+    text-align: left; width: auto; min-width: 0; white-space: normal; overflow-wrap: break-word;
+    grid-row: auto; grid-column: auto; font-size: 14px; }
+  .ch-table.lb.lb-cards.me-hist-table td::before { content: attr(data-label); color: #9aa6b2;
+    font-size: 11.5px; font-weight: 600; line-height: 1.25; }
+  .ch-table.lb.lb-cards.me-hist-table td.me-round-cell { grid-column: 1 / -1; flex-direction: row;
+    flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 15px; }
+  .ch-table.lb.lb-cards.me-hist-table td.me-round-cell::before { content: none; }
+  .ch-table.lb.lb-cards.me-hist-table td.me-round-cell .lb-code { display: inline; }
+  .ch-table.lb.lb-cards.me-hist-table td.me-champ-cell { grid-column: 1 / -1; }
+  .ch-table.lb.lb-cards.me-hist-table td.c { justify-content: flex-end; align-items: flex-end; align-self: end; }
+  .ch-table.lb.lb-cards.me-hist-table td.c::before { content: none; }
+  .ch-table.lb.lb-cards.me-hist-table td.rank { align-items: flex-start; }
+}
+/* phones: every row becomes a compact labelled card, so no column is lost and nothing
+   scrolls sideways. Position and name share the first line (a fixed-width position area
+   keeps names aligned); points sit on that line where they exist; the remaining values
+   follow in a row of labelled cells aligned with the name. */
 @media (max-width: 640px) {
+  .lb-top { gap: 8px; }
   .lb-select, .lb-stream-select { min-width: 0; width: 100%; }
   .lb-controls { width: 100%; }
   .lb-controls > * { flex: 1 1 100%; }
-  .ch-metrics.six { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .me-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .me-stat-val { font-size: clamp(17px, 4.8vw, 21px); }
   .ch-table.lb-cards thead { display: none; }
-  .ch-table.lb-cards, .ch-table.lb-cards tbody, .ch-table.lb-cards tr { display: block; width: 100%; }
-  .ch-table.lb-cards tr { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 2px 12px; border: 1px solid var(--border); border-radius: var(--radius); padding: 6px 10px; margin-bottom: 6px; }
-  .ch-table.lb-cards td { grid-column: span 2; display: flex; justify-content: space-between; gap: 8px; border: 0; padding: 2px 0; text-align: right; min-width: 0; }
-  .ch-table.lb-cards td::before { content: attr(data-label); color: var(--muted); font-size: 12px; text-align: left; }
-  .ch-table.lb-cards td.rank { grid-column: span 1; justify-content: flex-start; }
-  .ch-table.lb-cards td.rank::before { content: none; }
-  .ch-table.lb-cards td.lb-name-cell { grid-column: span 3; justify-content: flex-start; text-align: left; font-weight: 600; font-size: 15px; }
-  .ch-table.lb-cards td.lb-name-cell::before { content: none; }
-  .ch-table.lb-cards.me-hist-table td:first-child { grid-column: span 4; justify-content: flex-start; font-size: 15px; }
-  .ch-table.lb-cards.me-hist-table td:first-child::before { content: none; }
-  .ch-table.lb-cards.me-hist-table td.c { grid-column: span 4; justify-content: flex-end; }
+  .ch-table.lb-cards, .ch-table.lb-cards tbody { display: block; width: 100%; }
+  .ch-table.lb-cards tr { display: grid;
+    grid-template-columns: 2.6rem minmax(auto, 1fr) minmax(auto, 1fr) minmax(auto, 1fr);
+    column-gap: 8px; row-gap: 4px; align-items: start; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px 8px; margin-bottom: 6px; }
+  .ch-table.lb-cards td { display: flex; flex-direction: column; gap: 0; border: 0; padding: 0;
+    text-align: left; min-width: 0; width: auto; white-space: normal; overflow-wrap: break-word;
+    font-size: 14px; grid-row: 2; }
+  /* undo the desktop column sizing (width: 1%) inside cards */
+  .ch-table.lb.lb-cards td.num, .ch-table.lb.lb-cards td.txt, .ch-table.lb.lb-cards td.c,
+  .ch-table.lb.lb-cards td.rank { width: auto; }
+  .ch-table.lb-cards td.num { text-align: left; white-space: nowrap; min-width: max-content; }
+  .ch-table.lb.lb-cards td.txt { white-space: normal; }
+  .ch-table.lb-cards td::before { content: attr(data-label); color: #9aa6b2; font-size: 11.5px;
+    font-weight: 600; font-style: normal; white-space: normal; line-height: 1.25; }
+  .ch-table.lb-cards td.rank { grid-column: 1; grid-row: 1; flex-direction: row; align-items: center;
+    width: auto; font-weight: 650; font-variant-numeric: tabular-nums; align-self: center; }
+  .ch-table.lb-cards td.rank .rank-wrap { justify-content: flex-start; gap: 3px; }
+  .ch-table.lb-cards td.rank::before, .ch-table.lb-cards td.lb-name-cell::before { content: none; }
+  .ch-table.lb-cards td.lb-name-cell { grid-column: 2 / span 2; grid-row: 1; display: block;
+    font-size: 16px; font-weight: 600; align-self: center; }
+  .ch-table.lb-cards tr:not(:has(td.lb-pts)) td.lb-name-cell { grid-column: 2 / -1; }
+  /* points on the name line, right-aligned: "150 pts" */
+  .ch-table.lb-cards td.lb-pts { grid-column: 4; grid-row: 1; justify-self: end; align-self: center;
+    flex-direction: row-reverse; align-items: baseline; gap: 4px; text-align: right;
+    font-size: 17px; color: var(--accent); }
+  .ch-table.lb-cards td.lb-pts::before { content: "pts"; text-transform: none; letter-spacing: 0;
+    font-size: 12px; color: #9aa6b2; font-weight: 500; }
+  /* weekly (final): Returned, Net, Recovery under the name */
+  .ch-table.lb-weekly tr > td:nth-child(3) { grid-column: 2; }
+  .ch-table.lb-weekly tr > td:nth-child(4) { grid-column: 3; }
+  .ch-table.lb-weekly tr > td:nth-child(5) { grid-column: 4; }
+  /* championship and provisional cards: four values on the second line */
+  .ch-table.lb-champ tr, .ch-table.lb-prov tr {
+    grid-template-columns: 2.6rem repeat(4, minmax(auto, 1fr)); }
+  .ch-table.lb-champ td.lb-name-cell { grid-column: 2 / span 3; }
+  .ch-table.lb-champ td.lb-pts { grid-column: 5; }
+  .ch-table.lb-champ tr > td:nth-child(3), .ch-table.lb-prov tr > td:nth-child(3) { grid-column: 2; }
+  .ch-table.lb-champ tr > td:nth-child(4), .ch-table.lb-prov tr > td:nth-child(4) { grid-column: 3; }
+  .ch-table.lb-champ tr > td:nth-child(5), .ch-table.lb-prov tr > td:nth-child(5) { grid-column: 4; }
+  .ch-table.lb-champ tr > td:nth-child(7), .ch-table.lb-prov tr > td:nth-child(6) { grid-column: 5; }
   .ch-table.lb-cards .lb-rate { display: flex; }
-  .ch-table.lb-cards tr.me { background: var(--accent-dim); border-color: rgba(45,212,191,.45); }
+  .ch-table.lb-cards tr.me { background: var(--accent-dim); border-color: rgba(45,212,191,.5); }
   .ch-table.lb-cards tr.me td { background: transparent; }
   .lb-pager { flex-direction: column; align-items: stretch; }
   .lb-pager-buttons { justify-content: space-between; }
   .lb-pager-buttons .ch-btn { flex: 1 1 auto; }
-  .lb-points { columns: 1; }
+  .lb-points-list { columns: 1; }
+  .ch-podium.compact { grid-template-columns: minmax(0, 1fr); }
+}
+/* entry details (the 6C.4 results panel) on narrow phones: tighter cells instead of a
+   sideways-scrolling accumulator table */
+@media (max-width: 420px) {
+  .ch-res-table th, .ch-res-table td { padding: 6px 4px; }
+  .ch-res-table th { font-size: 10.5px; letter-spacing: .02em; }
+  .ch-res-table td { font-size: 12.5px; }
+  .ch-res-table .ch-legs { flex-wrap: wrap; }
+  .ch-res-table td .bchip, .ch-res-table td .ch-verdict { white-space: normal; }
+}
+/* the narrowest phones: championship cards show their four values two per line (under the
+   name); history cards two values per line, Details on its own line */
+@media (max-width: 380px) {
+  .ch-table.lb-champ tr > td:nth-child(3) { grid-column: 2 / span 2; grid-row: 2; }
+  .ch-table.lb-champ tr > td:nth-child(4) { grid-column: 4 / span 2; grid-row: 2; }
+  .ch-table.lb-champ tr > td:nth-child(5) { grid-column: 2 / span 2; grid-row: 3; }
+  .ch-table.lb-champ tr > td:nth-child(7) { grid-column: 4 / span 2; grid-row: 3; }
+  .ch-table.lb-prov tr > td:nth-child(3) { grid-column: 2 / span 2; grid-row: 2; }
+  .ch-table.lb-prov tr > td:nth-child(4) { grid-column: 4 / span 2; grid-row: 2; }
+  .ch-table.lb-prov tr > td:nth-child(5) { grid-column: 2 / span 2; grid-row: 3; }
+  .ch-table.lb-prov tr > td:nth-child(6) { grid-column: 4 / span 2; grid-row: 3; }
+}
+@media (max-width: 400px) {
+  .ch-table.lb-cards.me-hist-table tr { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ch-table.lb.lb-cards.me-hist-table td.c { grid-column: 1 / -1; }
+}
+/* main navigation on phones: the four page links in a 2 x 2 grid below the brand and
+   account, so none is clipped or hidden behind a sideways scroll */
+@media (max-width: 480px) {
+  .nav-inner > .nav-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px; overflow: visible; }
+  .nav-inner > .nav-links .nav-link { text-align: center; padding: 8px 6px; min-height: 36px;
+    white-space: nowrap; overflow-wrap: normal; background: var(--surface); border: 1px solid var(--border); }
+  .nav-inner > .nav-links .nav-link.on { background: var(--accent-dim); border-color: rgba(45,212,191,.45); }
+}
+@media (min-width: 481px) and (max-width: 600px) {
+  .nav-inner > .nav-links { flex-wrap: wrap; overflow: visible; }
 }

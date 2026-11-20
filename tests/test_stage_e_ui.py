@@ -172,7 +172,8 @@ def champ(cb) -> str:
 def test_in_progress_championship():
     t = champ(cboard())
     assert "In progress" in t and "4 of 10 valid rounds" in t and "Champion:" not in t
-    assert "#7" in t and "300 pts" in t and "Top tens" in t and not UUID.search(t)
+    assert "#7" in t and "300 pts" in t and "Top 10s" in t and not UUID.search(t)
+    assert "1 round played" not in t and "round(s)" not in t and "finish(es)" not in t
     assert t.count("lb-seg on") == 4
 
 
@@ -267,9 +268,11 @@ def stats(**kw) -> ch.PersonalStats:
 def test_summary_metrics_and_population_note():
     t = text(hu.summary(stats()))
     assert "3 of 4" in t and "missed 1" in t and "recovery rate 100.0%" in t
-    assert "return on allocation 37.5%" in t and "Competitive population" in t
+    assert "return on allocation " in t and "37.5%" in t and "Competitive population" in t
     assert "Practice: 1 entry" in t and "Refunded (all void): 1" in t
-    assert "Championship Nov-26: #7 · 300 pts" in t
+    assert "Championship Nov-26" in t and "#7 · 300 pts" in t
+    assert "How your statistics are calculated" in t  # methodology behind a disclosure
+    assert t.count("me-stat-head") == 6 and "cat-teal" in t and "pos-val" in t
     t = text(hu.summary(stats(played=0, recoveries=0, recovery_rate=None, roi=None,
                               allocated=Decimal("0.00"), returned=Decimal("0.00"),
                               net=Decimal("0.00"), standings=())))  # fmt: skip
@@ -277,15 +280,44 @@ def test_summary_metrics_and_population_note():
         "Competitive population")[0].replace("return on allocation", "")  # fmt: skip
 
 
-def test_charts_handle_empty_one_round_and_many():
-    assert "No counted competitive rounds" in text(hu.allocation_chart(stats()))
-    assert "No counted rounds in this championship" in text(hu.points_chart(stats()))
-    one = (ch.SeriesPoint("W48", AT, Decimal("100.00"), Decimal("131.40"), "131.40 returned"),)
-    t = text(hu.allocation_chart(stats(allocation_series=one)))
-    assert "Allocated" in t and "Returned" in t and "W48" in t
-    pts = (
-        ch.SeriesPoint("W48", AT, Decimal(75), None, "75 points"),
-        ch.SeriesPoint("W49", AT, Decimal(75), None, "not entered"),
-    )
-    t = text(hu.points_chart(stats(points_championship="Championship Nov-26", points_series=pts)))
+def series(n, eligible=True, start=0):
+    return tuple(
+        ch.SeriesPoint(f"W{48 + start + k}", AT, Decimal(100 * (k + 1)), Decimal(120 * (k + 1)),
+                       "120.00 returned", f"{19 + k}–23 Nov 2026", eligible)
+        for k in range(n)
+    )  # fmt: skip
+
+
+def test_charts_wait_for_three_eligible_rounds():
+    """Owner refinement: each chart appears only after three eligible rounds; below that
+    a compact placeholder shows the progress, never a near-empty chart."""
+    for n in (0, 1, 2):
+        t = text(hu.allocation_chart(stats(allocation_series=series(n))))
+        assert "will become available after 3 eligible rounds" in t
+        assert f"{n} of 3 eligible rounds completed" in t and "Scatter" not in t
+    t = text(hu.allocation_chart(stats(allocation_series=series(3))))
+    assert "Allocated" in t and "Returned" in t and "will become available" not in t
+    t = text(hu.allocation_chart(stats(allocation_series=series(5))))
+    assert "19–23 Nov 2026 · W48" in t  # friendly label on hover; codes are not axis labels
+    assert '"type": "linear"' in t or "linear" in t
+
+
+def test_points_chart_threshold_counts_only_played_rounds():
+    # missed (not entered) and refunded rounds are plotted but never unlock the chart
+    pts = series(2) + series(3, eligible=False, start=2)
+    s = stats(points_championship="Championship Nov-26", points_series=pts)
+    assert s.points_rounds == 2
+    t = text(hu.points_chart(s))
+    assert "championship points chart will become available" in t and "2 of 3" in t
+    s = stats(points_championship="Championship Nov-26", points_series=series(3))
+    t = text(hu.points_chart(s))
     assert "Championship Nov-26" in t and '"hv"' in t and "never carry" in t
+
+
+def test_one_chart_can_unlock_before_the_other():
+    s = stats(allocation_series=series(4), points_championship="Championship Nov-26",
+              points_series=series(1))  # fmt: skip
+    a, p = text(hu.allocation_chart(s)), text(hu.points_chart(s))
+    assert "will become available" not in a and "will become available" in p
+    # statistics cards are shown regardless of the charts
+    assert text(hu.summary(s)).count("me-stat-head") == 6

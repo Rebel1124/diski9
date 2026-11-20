@@ -47,6 +47,7 @@ from ..auth.permissions import Principal
 from . import championships as championships_svc
 from .common import NotFound, ValidationFailed
 from .leaderboards import _snapshot, _viewer, _visible
+from .leaderboards import window_label as lb_window
 
 ALLOCATION = Decimal("100.00")
 HISTORY_PAGE_SIZE = 20
@@ -78,6 +79,7 @@ class HistoryRow:
     counts_toward_championship: bool | None
     current_gross: Decimal | None  # current settlement (provisional or under review)
     current_complete: bool | None
+    window: str = ""  # friendly label: the round's SAST match window (presentation)
 
 
 @dataclass(frozen=True)
@@ -101,7 +103,7 @@ def _championship_filter(stream: str, championship: str | None) -> tuple[str, di
 
 
 _HISTORY = """
-SELECT r.code, r.deadline_at, r.status AS round_status,
+SELECT r.code, r.deadline_at, r.status AS round_status, r.window_start_at, r.window_end_at,
        (SELECT d.designation FROM app.designations d
          WHERE d.round_id = r.id AND d.basis = 'deadline') AS base,
        cur.designation AS cur_designation, cur.basis AS cur_basis,
@@ -168,6 +170,7 @@ def _history_row(x, stream: str) -> HistoryRow:
         championship=x.champ, championship_role=x.champ_role, counts_toward_championship=counts,
         current_gross=x.cur_gross if state in ("provisional", "under_review", "locked") else None,
         current_complete=x.cur_complete if state in ("provisional", "under_review") else None,
+        window=lb_window(x.window_start_at, x.window_end_at),
     )  # fmt: skip
 
 
@@ -265,6 +268,10 @@ class SeriesPoint:
     value_a: Decimal  # chart 1: cumulative allocated; chart 2: cumulative points
     value_b: Decimal | None  # chart 1: cumulative returned; chart 2: None
     detail: str  # the round's own contribution, in words
+    window: str = ""  # friendly label: the round's SAST match window (presentation)
+    # chart 2: True when the viewer has a ranked (played) entry in this counted round;
+    # missed and refunded rounds are plotted but never count toward the chart threshold
+    eligible: bool = True
 
 
 @dataclass(frozen=True)
@@ -293,10 +300,20 @@ class PersonalStats:
     points_championship: str | None  # the championship chart 2 shows
     points_series: tuple[SeriesPoint, ...]
 
+    @property
+    def allocation_rounds(self) -> int:
+        """Distinct counted competitive rounds behind chart 1 (its threshold, §9.4)."""
+        return len(self.allocation_series)
+
+    @property
+    def points_rounds(self) -> int:
+        """Counted rounds of chart 2's championship that the viewer played."""
+        return sum(1 for p in self.points_series if p.eligible)
+
 
 _COUNTED = """
 SELECT c.display_name AS champ, c.ordinal, r.id AS round_id, r.code, r.deadline_at,
-       r.status AS round_status,
+       r.status AS round_status, r.window_start_at, r.window_end_at,
        (SELECT x.id FROM app.score_sets x WHERE x.round_id = r.id AND x.kind = 'championship'
          ORDER BY x.revision DESC LIMIT 1) AS set_id,
        EXISTS (SELECT 1 FROM app.entries e WHERE e.round_id = r.id AND e.user_id = :me
@@ -381,6 +398,7 @@ def my_statistics(
         alloc_series.append(SeriesPoint(
             x.code, x.deadline_at, allocated, returned,
             f"{row.gross:,.2f} returned of 100.00",
+            lb_window(x.window_start_at, x.window_end_at),
         ))  # fmt: skip
     missed = sum(1 for x in counted if not x.entered)
     practice = [o for o in others if o.base == "practice" and o.set_kind == "practice"]
@@ -446,7 +464,9 @@ def _points_series(counted, mine, championship, standings):
         total += pts
         what = ("not entered" if not x.entered else "refunded" if row is not None
                 and row.status == "void_refunded" else f"{pts} points")  # fmt: skip
-        out.append(SeriesPoint(x.code, x.deadline_at, Decimal(total), None, what))
+        played = row is not None and row.status != "void_refunded"  # as in `played` above
+        out.append(SeriesPoint(x.code, x.deadline_at, Decimal(total), None, what,
+                               lb_window(x.window_start_at, x.window_end_at), played))  # fmt: skip
     return name, tuple(out)
 
 

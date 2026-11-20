@@ -2002,8 +2002,10 @@ def current_championship_card(service, rv) -> html.Div | None:
     elif cb.me is not None:
         m = cb.me
         main = f"#{m.position}" + (" (shared)" if m.shared else "")
-        line = (f"{m.points} pts · {m.rounds_played} round(s) played · {m.recoveries} "
-                f"recoveries · {m.qualifying_top10} top-ten finish(es)")  # fmt: skip
+        line = (f"{m.points:,} pts · {lbu.plural(m.rounds_played, 'round')} played · "
+                f"{lbu.plural(m.recoveries, 'recovery', 'recoveries')} · "
+                f"{lbu.plural(m.qualifying_top10, 'top-10 finish', 'top-10 finishes')}"
+                )  # fmt: skip
     else:
         main = None
         line = lbu.NOT_RANKED_TEXT.get(cb.me_status, "No ranked round in this championship yet.")
@@ -2013,15 +2015,12 @@ def current_championship_card(service, rv) -> html.Div | None:
                 [
                     html.H2(cb.name or "Championship", className="ch-h2"),
                     lbu.stream_badge(stream),
-                    html.Span(
-                        f"{cb.counted_rounds} of {cb.rounds_required} valid rounds",
-                        className="muted small",
-                    )
-                    if cb.name
-                    else None,
                 ],  # fmt: skip
                 className="ch-row-between",
             ),
+            lbu.progress(cb.counted_rounds, cb.rounds_required, cb.status == "completed")
+            if cb.name
+            else None,
             lbu.you_box(
                 "Your championship" + (" (last published)" if cb.under_review else ""), main, line
             ),  # fmt: skip

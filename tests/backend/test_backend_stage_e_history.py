@@ -25,6 +25,7 @@ from champ_helpers import (
     drop,
     finalise,
     fresh,
+    invalidate,
     isolated_engine,
     lose,
     operator,
@@ -223,3 +224,38 @@ def test_reopened_round_is_marked_under_review_with_published_values(world):
     s = ch.my_statistics(eng, me(world), stream="development", include_development=True)
     assert s.under_review and s.played == 2  # published values still used
     finalise(eng, fresh(eng, op), world["w"][4])
+
+
+def test_chart_threshold_counts_and_friendly_labels(world):
+    """Owner refinement (charts from three eligible rounds): the counts behind each chart
+    come from the same population as the chart. Chart 1: ranked entries in counted rounds
+    (R1, R5; the refund in R3 is excluded). Chart 2: rounds of its championship the viewer
+    played (B: R5 only; the missed R6 is plotted but does not count)."""
+    eng = world["engine"]
+    s = ch.my_statistics(eng, me(world), stream="development", include_development=True)
+    assert s.allocation_rounds == 2 and s.points_championship == B and s.points_rounds == 1
+    assert [p.eligible for p in s.points_series] == [True, False]
+    a = ch.my_statistics(eng, me(world), stream="development", championship=A,
+                         include_development=True)  # fmt: skip
+    assert a.allocation_rounds == 1 and a.points_rounds == 1  # R3 refunded, R2 practice
+    # friendly labels: the SAST match window, never a replacement for the round code
+    assert all(p.window and "20" in p.window for p in s.allocation_series)
+    h = ch.my_history(eng, me(world), stream="development", include_development=True)
+    assert all(r.window for r in h.rows) and h.rows[0].round_code == world["codes"][4]
+    rounds = lb.round_list(eng, stream="development", include_development=True)
+    assert all(r.window and r.label.startswith(r.window) and r.label.endswith(r.code)
+               for r in rounds)  # fmt: skip
+    wb = lb.weekly_board(eng, world["w"][0]["round"], include_development=True)
+    assert wb.window == rounds[-1].window
+
+
+def test_a_correction_changes_the_eligible_round_count(world):
+    """Invalidating R5 (D-32b at re-finalisation) removes it from the competitive
+    population, so both charts lose an eligible round; the entry stays in the history."""
+    eng, op = world["engine"], world["op"]
+    invalidate(eng, fresh(eng, owner(eng)), fresh(eng, op), world["w"][4])
+    s = ch.my_statistics(eng, me(world), stream="development", include_development=True)
+    assert s.allocation_rounds == 1 and s.played == 1
+    assert sum(p.eligible for p in s.points_series if p.round_code == world["codes"][4]) == 0
+    h = ch.my_history(eng, me(world), stream="development", include_development=True)
+    assert world["codes"][4] in [r.round_code for r in h.rows]

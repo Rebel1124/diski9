@@ -986,10 +986,11 @@ def rank_cell(rank: int, shared: bool):
     return html.Span([ic, html.Span(label)], className="rank-wrap", title=title)
 
 
-def podium(rows) -> html.Div | None:
+def podium(rows, value_label: str | None = None) -> html.Div | None:
     """Top three *positions* by competition rank. Tied players share their position;
     nobody is reordered or split to force three places (ranks 1, 1, 3 show 1st with
-    two players and 3rd, with no 2nd)."""
+    two players and 3rd, with no 2nd). With ``value_label`` each row's detail is a bare
+    value, labelled once per card (compact podium, Phase 6C.5 Stage E)."""
     places = {}
     for rank, name, detail in rows:
         if rank in MEDAL:
@@ -1009,15 +1010,25 @@ def podium(rows) -> html.Div | None:
                         ],
                         className="ch-pod-rank",
                     ),
+                    html.Span(value_label, className="ch-pod-col") if value_label else None,
                     *[
                         html.Div(
-                            [html.Strong(n), html.Span(d, className="muted small")],
+                            [
+                                html.Strong(n),
+                                html.Span(
+                                    d, className="ch-pod-val" if value_label else "muted small"
+                                ),
+                            ],
                             className="ch-pod-name",
                         )
                         for n, d in places[rank]
-                    ],
+                    ],  # fmt: skip
                 ],
-                className=f"ch-pod {cls}",
+                className=f"ch-pod {cls}" + (" compact" if value_label else ""),
             )
         )
-    return html.Div(cols, className="ch-podium", **{"aria-label": "Top three positions"})
+    return html.Div(
+        cols,
+        className="ch-podium" + (" compact" if value_label else ""),
+        **{"aria-label": "Top three positions"},
+    )

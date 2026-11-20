@@ -19,6 +19,7 @@ from . import components as c
 from . import leaderboards_ui as lbu
 
 ALL = "__all__"
+CHART_MIN_ROUNDS = 3  # owner decision (Stage E refinement): charts from three eligible rounds
 
 
 def _empty(text: str) -> html.Div:
@@ -143,32 +144,34 @@ def summary(s) -> html.Div:
     for st in s.standings:
         status = lbu.STATUS_LABEL.get(st.status, st.status)
         if st.rank is not None:
-            text = (f"{st.name}: #{st.rank}" + (" (shared)" if st.shared else "")
-                    + f" · {st.points} pts · {status}")  # fmt: skip
+            text = [html.Strong(st.name), f" #{st.rank}" + (" (shared)" if st.shared else "")
+                    + f" · {st.points:,} pts · {status}"]  # fmt: skip
         else:
-            text = f"{st.name}: no ranked round yet · {status}"
+            text = [html.Strong(st.name), f" · no ranked round yet · {status}"]
         standing_lines.append(html.Li(text))
     if not standing_lines:
         standing_lines = [html.Li("No championship entries yet in this view.")]
     note = (
         "Competitive population: your ranked entries in rounds that counted toward a "
         "championship. Refunded entries, practice and void rounds, rounds restored without "
-        "championship points and rounds awaiting results are not included; they are listed "
-        "below. Return on allocation = net ÷ allocated."
+        "championship points and rounds awaiting results are not included; they are counted "
+        "separately. Recovery rate = recoveries ÷ rounds played. Return on allocation = total "
+        "net ÷ total allocated (never an average of per-round percentages). Points are shown "
+        "per championship and never added across championships or streams. All amounts are "
+        "virtual credits."
     )
     others = []
     if s.practice_entries:
-        word = "entry" if s.practice_entries == 1 else "entries"
-        others.append(f"Practice: {s.practice_entries} {word}, "
-                      f"{s.practice_recoveries} recovered")  # fmt: skip
+        others.append(f"Practice: {lbu.plural(s.practice_entries, 'entry', 'entries')}, "
+                      f"{s.practice_recoveries:,} recovered")  # fmt: skip
     if s.refunded_entries:
-        others.append(f"Refunded (all void): {s.refunded_entries}")
+        others.append(f"Refunded (all void): {s.refunded_entries:,}")
     if s.void_rounds:
-        others.append(f"Void rounds: {s.void_rounds}")
+        others.append(f"Void rounds: {s.void_rounds:,}")
     if s.not_counted_entries:
-        others.append(f"Restored without championship points: {s.not_counted_entries}")
+        others.append(f"Restored without championship points: {s.not_counted_entries:,}")
     if s.awaiting_results:
-        others.append(f"Awaiting official results: {s.awaiting_results}")
+        others.append(f"Awaiting official results: {s.awaiting_results:,}")
     return html.Div(
         [
             html.Div(
@@ -180,33 +183,6 @@ def summary(s) -> html.Div:
                 className="ch-row-between",
             ),  # fmt: skip
             html.Ul(standing_lines, className="me-standings small"),
-            html.Div(
-                [
-                    c.metric(
-                        "Rounds played", f"{s.played} of {s.counted_rounds}", f"missed {s.missed}"
-                    ),
-                    c.metric(
-                        "Recoveries",
-                        str(s.recoveries),
-                        f"recovery rate {_pct(s.recovery_rate)}"
-                        if s.played
-                        else "no rounds played yet",
-                    ),
-                    c.metric("Top-ten finishes", str(s.qualifying_top10), "with a recovery"),
-                    c.metric("Allocated", c.credits(s.allocated), "virtual credits"),
-                    c.metric("Returned", c.credits(s.returned), "virtual credits"),
-                    c.metric(
-                        "Net",
-                        f"{s.net:+,.2f}",
-                        f"return on allocation {_pct(s.roi)}"
-                        if s.roi is not None
-                        else "nothing allocated yet",
-                    ),
-                ],  # fmt: skip
-                className="ch-metrics six me-metrics",
-            ),
-            html.P(note, className="muted small"),
-            html.P(" · ".join(others), className="muted small") if others else None,
             html.P(
                 "Includes a round under review: the last published values are used until "
                 "it is republished.",
@@ -214,8 +190,76 @@ def summary(s) -> html.Div:
             )
             if s.under_review
             else None,
+            html.Div(
+                [
+                    stat_card(
+                        "Rounds played",
+                        "slate",
+                        f"{s.played:,} of {s.counted_rounds:,}",
+                        f"missed {s.missed:,}",
+                    ),
+                    stat_card(
+                        "Recoveries",
+                        "teal",
+                        f"{s.recoveries:,}",
+                        f"recovery rate {_pct(s.recovery_rate)}"
+                        if s.played
+                        else "no rounds played yet",
+                    ),
+                    stat_card(
+                        "Top-10 finishes", "gold", f"{s.qualifying_top10:,}", "with a recovery"
+                    ),
+                    stat_card("Allocated", "violet", c.credits(s.allocated), "virtual credits"),
+                    stat_card("Returned", "green", c.credits(s.returned), "virtual credits"),
+                    stat_card(
+                        "Net",
+                        "blue",
+                        lbu.signed(s.net),
+                        [
+                            html.Span("return on allocation "),
+                            html.Span(_pct(s.roi), className=lbu.tone(s.roi)),
+                        ]
+                        if s.roi is not None
+                        else "nothing allocated yet",
+                        value_cls=lbu.tone(s.net),
+                    ),
+                ],  # fmt: skip
+                className="me-stats",
+            ),
+            html.P(
+                f"Based on {lbu.plural(s.played, 'counted competitive round')} you played"
+                + (f" · {' · '.join(others)}" if others else "")
+                + ".",
+                className="muted small me-stats-note",
+            ),
+            html.Details(
+                [
+                    html.Summary("How your statistics are calculated"),
+                    html.P(note, className="muted small"),
+                ],
+                className="ch-details me-method",
+            ),  # fmt: skip
         ],  # fmt: skip
         className="ch-card me-summary",
+    )
+
+
+def stat_card(label: str, category: str, value: str, sub, value_cls: str = "") -> html.Div:
+    """A statistics card in the Build Portfolio card style (coloured category header,
+    value and supporting line in the body). The category colour identifies the metric;
+    a performance colour (``value_cls``) is applied to the value only, never the header."""
+    return html.Div(
+        [
+            html.Div(label, className="me-stat-head"),
+            html.Div(
+                [
+                    html.Span(value, className=f"me-stat-val {value_cls}".strip()),
+                    html.Span(sub, className="me-stat-sub"),
+                ],
+                className="me-stat-body",
+            ),  # fmt: skip
+        ],
+        className=f"me-stat cat-{category}",
     )
 
 
@@ -235,8 +279,41 @@ def _figure(height: int = 220) -> go.Figure:
 
 
 def _ticks(fig, n: int) -> None:
-    """Round codes on the axis only while they fit; otherwise on hover only."""
-    fig.update_xaxes(showticklabels=n <= 6, tickangle=0)
+    """Rounds numbered 1..n on the axis (thinned when many); the match window and code
+    appear on hover, so no technical identifier is shown as an axis label."""
+    fig.update_xaxes(type="linear", tickmode="auto" if n > 12 else "linear", dtick=1,
+                     tick0=1, nticks=min(n, 12), tickformat="d",
+                     title={"text": "Counted round", "font": {"color": charts.MUTED,
+                                                               "size": 10}})  # fmt: skip
+
+
+def _hover(p) -> str:
+    return f"{p.window} · {p.round_code}" if p.window else p.round_code
+
+
+def locked_chart(title, have: int, what: str) -> html.Div:
+    """The compact placeholder shown until a chart has three eligible rounds."""
+    have = min(have, CHART_MIN_ROUNDS)
+    return html.Div(
+        [
+            title,
+            html.Div(
+                [
+                    html.P(f"Your {what} chart will become available after {CHART_MIN_ROUNDS} "
+                           "eligible rounds.", className="small"),
+                    html.Div(
+                        [html.Span(className="me-lock-seg on" if i < have else "me-lock-seg")
+                         for i in range(CHART_MIN_ROUNDS)],
+                        className="me-lock-segs", **{"aria-hidden": "true"},
+                    ),
+                    html.Span(f"{have} of {CHART_MIN_ROUNDS} eligible rounds completed",
+                              className="muted small"),
+                ],
+                className="me-chart-locked",
+            ),
+        ],
+        className="ch-card me-chart-card locked",
+    )  # fmt: skip
 
 
 def _graph(fig, label: str) -> html.Div:
@@ -250,12 +327,10 @@ def _graph(fig, label: str) -> html.Div:
 
 def allocation_chart(s) -> html.Div:
     title = html.Div("Cumulative virtual allocation and return", className="ch-h2 small-h")
-    if not s.allocation_series:
-        return html.Div(
-            [title, html.P("No counted competitive rounds played yet.", className="muted small")],
-            className="ch-card",
-        )
-    xs = [p.round_code for p in s.allocation_series]
+    if s.allocation_rounds < CHART_MIN_ROUNDS:
+        return locked_chart(title, s.allocation_rounds, "allocation and return")
+    xs = list(range(1, len(s.allocation_series) + 1))
+    hover = [_hover(p) for p in s.allocation_series]
     fig = _figure()
     _ticks(fig, len(xs))
     fig.add_trace(
@@ -265,7 +340,8 @@ def allocation_chart(s) -> html.Div:
             name="Allocated",
             mode="lines+markers",
             line={"color": charts.MUTED, "dash": "dash"},
-            hovertemplate="%{x}<br>Allocated %{y:,.2f}<extra></extra>",
+            customdata=hover,
+            hovertemplate="%{customdata}<br>Allocated %{y:,.2f}<extra></extra>",
         )
     )
     fig.add_trace(
@@ -275,15 +351,16 @@ def allocation_chart(s) -> html.Div:
             name="Returned",
             mode="lines+markers",
             line={"color": charts.TEAL},
-            customdata=[p.detail for p in s.allocation_series],
-            hovertemplate="%{x}<br>Returned %{y:,.2f}<br>%{customdata}<extra></extra>",
+            customdata=[[h, p.detail] for h, p in zip(hover, s.allocation_series, strict=True)],
+            hovertemplate="%{customdata[0]}<br>Returned %{y:,.2f}<br>%{customdata[1]}"
+            "<extra></extra>",
         )
     )
     return html.Div(
         [title, _graph(fig, "Cumulative virtual credits allocated and returned by round"),
          html.P("Counted competitive rounds you played, oldest first. Virtual credits.",
                 className="muted small")],
-        className="ch-card",
+        className="ch-card me-chart-card",
     )  # fmt: skip
 
 
@@ -291,23 +368,20 @@ def points_chart(s) -> html.Div:
     name = s.points_championship
     title = html.Div("Cumulative championship points" + (f" · {name}" if name else ""),
                      className="ch-h2 small-h")  # fmt: skip
-    if not s.points_series:
-        return html.Div(
-            [title, html.P("No counted rounds in this championship yet.", className="muted small")],
-            className="ch-card",
-        )
+    if s.points_rounds < CHART_MIN_ROUNDS:
+        return locked_chart(title, s.points_rounds, "championship points")
     fig = _figure()
     fig.update_layout(showlegend=False)
     _ticks(fig, len(s.points_series))
     fig.add_trace(
         go.Scatter(
-            x=[p.round_code for p in s.points_series],
+            x=list(range(1, len(s.points_series) + 1)),
             y=[float(p.value_a) for p in s.points_series],
             mode="lines+markers",
             line={"color": charts.AMBER, "shape": "hv"},
             name="Points",
-            customdata=[p.detail for p in s.points_series],
-            hovertemplate="%{x}<br>%{y:.0f} pts<br>%{customdata}<extra></extra>",
+            customdata=[[_hover(p), p.detail] for p in s.points_series],
+            hovertemplate="%{customdata[0]}<br>%{y:.0f} pts<br>%{customdata[1]}<extra></extra>",
         )
     )
     note = (
@@ -322,7 +396,7 @@ def points_chart(s) -> html.Div:
             _graph(fig, f"Cumulative championship points in {name}"),
             html.P(note, className="muted small"),
         ],
-        className="ch-card",
+        className="ch-card me-chart-card",
     )
 
 
@@ -361,24 +435,29 @@ def history_table(hist, local) -> html.Div:
             pts = str(r.weekly_points) + ("" if r.counts_toward_championship
                                           else " (not counted)")  # fmt: skip
         rank = "—" if r.rank is None else ("=" if r.shared else "") + f"{r.rank}"
+        rnd = [
+            html.Span(r.window or r.round_code, className="me-round"),
+            html.Span(r.round_code, className="lb-code") if r.window else None,
+        ]
         rows.append(html.Tr([
-            lbu.cell(r.round_code, "Round", "strong"),
-            lbu.cell(f"{local(r.deadline_at.isoformat())}", "Deadline", "small"),
-            lbu.cell(championship_text(r), "Championship", "small"),
+            lbu.cell(rnd, "Round", "me-round-cell"),
+            lbu.cell(f"{local(r.deadline_at.isoformat())}", "Deadline", "txt small"),
+            lbu.cell(championship_text(r), "Championship", "txt small me-champ-cell"),
             lbu.cell({"competitive": "Competitive", "practice": "Practice"}.get(
-                r.classification or "", "—"), "Type"),
-            lbu.cell(status_text(r), "Status", "warn" if r.state == "under_review" else ""),
+                r.classification or "", "—"), "Type", "txt"),
+            lbu.cell(status_text(r), "Status", "txt warn" if r.state == "under_review"
+                     else "txt"),
             lbu.cell(returned, "Returned", "num strong"),
-            lbu.cell(lbu.signed(r.net), "Net", "num"),
-            lbu.cell(lbu.RECOVERY_TEXT.get(r.recovery or "", "—"), "Recovery"),
-            lbu.cell(rank, "Rank", "num"),
+            lbu.cell(lbu.signed(r.net), "Net", "num " + lbu.tone(r.net)),
+            lbu.cell(lbu.RECOVERY_TEXT.get(r.recovery or "", "—"), "Recovery", "txt"),
+            lbu.cell(rank, "Rank", "rank"),
             lbu.cell(pts, "Points", "num strong"),
             lbu.cell(html.Button("Details", id={"t": "hist-open", "i": r.round_code},
                                  className="ch-btn ghost small"), "", "c"),
         ]))  # fmt: skip
     head = ["Round", "Deadline", "Championship", "Type", "Status", "Returned", "Net",
             "Recovery", "Rank", "Points", ""]  # fmt: skip
-    numeric = {"Returned", "Net", "Rank", "Points"}
+    numeric = {"Returned", "Net", "Points"}
     return html.Div(
         [
             html.H2("Your entries", className="ch-h2"),
@@ -387,7 +466,19 @@ def history_table(hist, local) -> html.Div:
                     [
                         html.Thead(
                             html.Tr(
-                                [html.Th(h, className="num" if h in numeric else "") for h in head]
+                                [
+                                    html.Th(
+                                        h,
+                                        className="num"
+                                        if h in numeric
+                                        else "rank"
+                                        if h == "Rank"
+                                        else "c"
+                                        if not h
+                                        else "txt",
+                                    )
+                                    for h in head
+                                ]  # fmt: skip
                             )
                         ),
                         html.Tbody(rows),
@@ -426,7 +517,7 @@ def detail(service, local, stream: str, code: str) -> html.Div:
     except Exception:  # noqa: BLE001
         return html.Div("This entry's details are temporarily unavailable.",
                         className="ch-ribbon warn")  # fmt: skip
-    head = [html.H2(f"Round {code}", className="ch-h2")]
+    head = [html.H2(lbu.round_title(_window_of(b, rid), code), className="ch-h2")]
     if official is not None and official.published:
         rank = "—" if official.rank is None else f"#{official.rank}" + (
             " (shared)" if official.shared else "")  # fmt: skip
@@ -456,6 +547,18 @@ def detail(service, local, stream: str, code: str) -> html.Div:
     panel = results_ui.panel(res, rec, local) if res is not None else [
         html.P("No settlement for this entry yet.", className="muted small")]  # fmt: skip
     return html.Div([*head, *panel], className="me-hist-detail")
+
+
+def _window_of(b, rid) -> str:
+    """The round's friendly label for the drill-down heading (presentation only)."""
+    from diski9.backend.services import leaderboards as lb
+    from diski9.backend.services import rounds as rsvc
+
+    try:
+        v = rsvc.get_round(b.engine, rid)
+        return lb.window_label(v.window_start_at, v.window_end_at)
+    except Exception:  # noqa: BLE001 - the round code is shown instead
+        return ""
 
 
 def _record(service, b, p, rid):

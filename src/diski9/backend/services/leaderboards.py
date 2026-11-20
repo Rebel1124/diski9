@@ -92,6 +92,7 @@ class WeeklyBoard:
     championship_note: str | None = None  # plain-language explanation (CH-05, CH-02)
     championship_round: int | None = None  # its counted-round number (slot), once counted
     championship_rounds_required: int | None = None
+    window: str = ""  # friendly round label: its SAST match window, e.g. "19–23 Nov 2026"
 
 
 @contextmanager
@@ -302,6 +303,7 @@ def weekly_board(
             "championship": champ_name, "championship_status": champ_status,
             "counts_toward_championship": counts, "championship_note": note,
             "championship_round": slot, "championship_rounds_required": required,
+            "window": window_label(r.window_start_at, r.window_end_at),
         }  # fmt: skip
         if r.status == "open":
             return _empty(common, "open", page_size, entries=0, me_status=None)
@@ -503,17 +505,25 @@ def _round_championship(conn: Connection, round_id: UUID, stream: str) -> tuple:
 @dataclass(frozen=True)
 class RoundSummary:
     code: str  # the authoritative round code (selector value)
-    label: str  # human-readable: code and its SAST match window
+    label: str  # human-readable: its SAST match window first, then the code
     status: str  # open | locked | settling | final
     deadline_at: datetime
     has_results: bool  # official results published
+    window: str = ""  # friendly label: the SAST match window, e.g. "19–23 Nov 2026"
 
 
-def _window_label(start: datetime, end: datetime) -> str:
+def window_label(start: datetime | None, end: datetime | None) -> str:
+    """A round's friendly label: its match window in SAST (presentation only; the
+    round code stays the identity)."""
+    if start is None or end is None:
+        return ""
     a, b = start.astimezone(championships_svc.SAST), end.astimezone(championships_svc.SAST)
+    if a.year != b.year:
+        return f"{a.day} {a:%b %Y} – {b.day} {b:%b %Y}"
     if a.month == b.month:
-        return f"{a.day}–{b.day} {b:%b}" if a.day != b.day else f"{b.day} {b:%b}"
-    return f"{a.day} {a:%b} – {b.day} {b:%b}"
+        return (f"{a.day}–{b.day} {b:%b %Y}" if a.day != b.day
+                else f"{b.day} {b:%b %Y}")  # fmt: skip
+    return f"{a.day} {a:%b} – {b.day} {b:%b %Y}"
 
 
 def round_list(
@@ -536,8 +546,9 @@ def round_list(
             params | {"n": limit},
         ).all()
     return tuple(
-        RoundSummary(r.code, f"{r.code} · {_window_label(r.window_start_at, r.window_end_at)}",
-                     r.status, r.deadline_at, r.has_results)
+        RoundSummary(r.code, f"{window_label(r.window_start_at, r.window_end_at)} · {r.code}",
+                     r.status, r.deadline_at, r.has_results,
+                     window_label(r.window_start_at, r.window_end_at))
         for r in rows
     )  # fmt: skip
 
@@ -1032,4 +1043,5 @@ __all__ = [
     "stream_options",
     "my_round_result",
     "weekly_board",
+    "window_label",
 ]

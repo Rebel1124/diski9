@@ -327,7 +327,7 @@ def account_menu() -> list:
         html.Div(
             [
                 html.Details(
-                    [html.Summary(summary), html.Div(items, className="acct-panel")],
+                    [html.Summary(summary, title=label), html.Div(items, className="acct-panel")],
                     className="acct-menu",
                 ),
                 marker,

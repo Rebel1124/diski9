@@ -100,7 +100,18 @@ def num(value) -> str:
 
 
 def signed(value) -> str:
-    return "—" if value is None else f"{value:+,.2f}"
+    """A signed amount with a true minus sign (U+2212), which aligns with "+" in tables."""
+    return "—" if value is None else f"{value:+,.2f}".replace("-", "\u2212")
+
+
+def plural(n: int, one: str, many: str | None = None) -> str:
+    """ "1 round played", "2 rounds played": natural counts instead of "round(s)"."""
+    return f"{n:,} {one if n == 1 else (many or one + 's')}"
+
+
+def round_title(window: str, code: str) -> str:
+    """A round's user-facing name: its match window (the code is shown de-emphasised)."""
+    return f"Round · {window}" if window else f"Round {code}"
 
 
 def cell(value, label: str, cls: str = "") -> html.Td:
@@ -129,7 +140,7 @@ def rules() -> html.Details:
                         f"{cfg.recovery_target:.0f} virtual credits:",
                         className="small",
                     ),
-                    html.Ul(items, className="lb-points small"),
+                    html.Ul(items, className="lb-points-list small"),
                     html.P(
                         "An entry that does not recover its credits receives 0 points. Shared "
                         "positions all receive that position's full points. Refunded entries, "
@@ -261,13 +272,20 @@ def page(service) -> html.Div:
                         className="lb-controls",
                     ),
                 ],
-                className="ch-row-between lb-top",
+                className="lb-top",
             ),
-            dcc.Loading(
-                html.Div(id=c.T("lb-body"), children=body(service, "weekly", stream, value, 1)),
-                type="dot",
-            ),
-            rules(),
+            html.Div(
+                [
+                    dcc.Loading(
+                        html.Div(
+                            id=c.T("lb-body"), children=body(service, "weekly", stream, value, 1)
+                        ),
+                        type="dot",
+                    ),
+                    rules(),
+                ],
+                className="lb-main",
+            ),  # fmt: skip
         ],
         className="ch-page lb-page",
     )
@@ -354,9 +372,12 @@ def weekly_header(wb, stream: str) -> html.Div:
         [
             html.Div(
                 [
-                    html.Strong(f"Round {wb.round_code}"),
+                    html.Strong(round_title(wb.window, wb.round_code), className="lb-title"),
                     stream_badge(stream),
                     html.Span(kind, className="ch-pill"),
+                    html.Span(wb.round_code, className="lb-code", title="Round code")
+                    if wb.window
+                    else None,
                 ],
                 className="lb-head-line",
             ),
@@ -466,10 +487,10 @@ def weekly_podium(wb):
         per_place.setdefault(r.position, []).append(r)
     for place, items in per_place.items():  # at most three names per place
         for r in items[:3]:
-            rows.append((place, r.name, f"returned {num(r.returned)}"))
+            rows.append((place, r.name, num(r.returned)))
         if len(items) > 3:
             rows.append((place, f"and {len(items) - 3} others", ""))
-    return c.podium(rows)
+    return c.podium(rows, value_label="Returned")
 
 
 def weekly_table(wb):
@@ -484,29 +505,31 @@ def weekly_table(wb):
     else:
         head = ["Rank", "Name", "Returned", "Net", "Recovery"] + (["Points"] if competitive
                                                                     else [])  # fmt: skip
-    numeric = {"Position", "Rank", "Returned so far", "Settled", "Pending", "Returned", "Net",
-               "Points"}  # fmt: skip
+    numeric = {"Returned so far", "Settled", "Pending", "Returned", "Net", "Points"}
+    head_cls = {"Position": "rank", "Rank": "rank", "Name": "lb-name-cell", "Net": "num lb-net",
+                "Points": "num lb-pts"}  # fmt: skip
     rows = []
     for r in wb.rows:
         rank = c.rank_cell(r.position, r.shared) if r.position is not None else "—"
         name = [html.Span("You · ", className="lb-you-tag") if r.is_me else None,
                 html.Span(r.name, className="lb-name")]  # fmt: skip
         if provisional:
-            cells = [cell(rank, "Position", "num rank"), cell(name, "Name", "lb-name-cell"),
+            cells = [cell(rank, "Position", "rank"), cell(name, "Name", "lb-name-cell"),
                      cell(num(r.returned), "Returned so far", "num strong"),
-                     cell(str(r.settled), "Settled", "num"), cell(str(r.pending), "Pending", "num"),
-                     cell(STATUS_TEXT.get(r.status, r.status), "Status")]  # fmt: skip
+                     cell(f"{r.settled:,}", "Settled", "num"),
+                     cell(f"{r.pending:,}", "Pending", "num"),
+                     cell(STATUS_TEXT.get(r.status, r.status), "Status", "txt")]  # fmt: skip
         else:
             cells = [
-                cell(rank, "Rank", "num rank"), cell(name, "Name", "lb-name-cell"),
+                cell(rank, "Rank", "rank"), cell(name, "Name", "lb-name-cell"),
                 cell(num(r.returned), "Returned", "num strong"),
-                cell(signed(r.net), "Net", "num lb-net"),
+                cell(signed(r.net), "Net", "num lb-net " + tone(r.net)),
                 cell(RECOVERY_TEXT.get(r.recovery, r.recovery),
-                     "Recovery", "ok" if r.recovery == "recovered" else "muted"),
+                     "Recovery", "txt ok" if r.recovery == "recovered" else "txt muted"),
             ]  # fmt: skip
             if competitive:
-                cells.append(cell("—" if r.points is None else str(r.points), "Points",
-                                  "num strong lb-points"))  # fmt: skip
+                cells.append(cell("—" if r.points is None else f"{r.points:,}", "Points",
+                                  "num strong lb-pts"))  # fmt: skip
         cls = " ".join(
             x
             for x in ("me" if r.is_me else "", "refund" if r.recovery in ("refunded",) else "")
@@ -521,7 +544,7 @@ def weekly_table(wb):
                         [
                             html.Th(
                                 h,
-                                className="num" if h in numeric else "",
+                                className=head_cls.get(h, "num" if h in numeric else "txt"),
                                 **({"data-col": "net"} if h == "Net" else {}),
                             )
                             for h in head
@@ -530,24 +553,38 @@ def weekly_table(wb):
                 ),
                 html.Tbody(rows),
             ],
-            className="ch-table lb lb-cards",
+            className="ch-table lb lb-cards " + ("lb-prov" if provisional else "lb-weekly"),
         ),  # fmt: skip
         className="ch-table-wrap",
     )
+
+
+def tone(value) -> str:
+    """Performance colour for a signed amount (always also written with its sign)."""
+    if value is None or value == 0:
+        return "zero"
+    return "pos-val" if value > 0 else "neg-val"
 
 
 # ------------------------------------------------------------------ championship
 STATUS_LABEL = {"upcoming": "Upcoming", "in_progress": "In progress", "completed": "Completed"}
 
 
-def progress(counted: int, required: int) -> html.Div:
-    segs = [html.Span(className="lb-seg on" if i < counted else "lb-seg") for i in
-            range(required)]  # fmt: skip
+def progress(counted: int, required: int, completed: bool = False) -> html.Div:
+    """Valid counted rounds out of the normal ten. A completed championship that kept
+    fewer rounds (D-30a) is not shown as waiting: its unused segments are marked as not
+    applicable and the text says it is complete."""
+    short = completed and counted < required
+    segs = [html.Span(className="lb-seg on" if i < counted else
+                      "lb-seg na" if short else "lb-seg") for i in range(required)]  # fmt: skip
+    text = (f"Completed with {counted} valid rounds" if short
+            else f"{counted} of {required} valid rounds")  # fmt: skip
     return html.Div(
         [html.Div(segs, className="lb-segs", **{"aria-hidden": "true"}),
-         html.Span(f"{counted} of {required} valid rounds", className="small strong")],
+         html.Span(text, className="lb-progress-text")],
         className="lb-progress", role="img",
-        **{"aria-label": f"{counted} of {required} valid competitive rounds counted"},
+        **{"aria-label": text if short else
+           f"{counted} of {required} valid competitive rounds counted"},
     )  # fmt: skip
 
 
@@ -598,10 +635,10 @@ def championship_header(cb, stream: str) -> html.Div:
             html.Div(
                 [html.Strong(cb.name), stream_badge(stream), *pills], className="lb-head-line"
             ),  # fmt: skip
-            progress(cb.counted_rounds, cb.rounds_required),
+            progress(cb.counted_rounds, cb.rounds_required, cb.status == "completed"),
             champion,
             html.Div(
-                f"{cb.pending_assignment} published round(s) waiting for their "
+                f"{plural(cb.pending_assignment, 'published round')} waiting for "
                 "championship assignment.",
                 className="muted small",
             )
@@ -647,8 +684,9 @@ def championship_you(cb):
         return you_box(
             title,
             rank_label(m),
-            f"{m.points} pts · {m.rounds_played} round(s) played · {m.recoveries} recoveries · "
-            f"{m.qualifying_top10} top-ten finish(es){rate}",
+            f"{m.points:,} pts · {plural(m.rounds_played, 'round')} played · "
+            f"{plural(m.recoveries, 'recovery', 'recoveries')} · "
+            f"{plural(m.qualifying_top10, 'top-10 finish', 'top-10 finishes')}{rate}",
         )
     return you_box(
         "Your championship",
@@ -662,14 +700,15 @@ def championship_table(cb):
         if cb.status != "upcoming" and not (cb.status == "completed" and cb.counted_rounds == 0):
             return html.P("No ranked participants yet.", className="muted small")
         return None
-    head = [("Rank", "num"), ("Name", ""), ("Played", "num"), ("Recoveries", "num"),
-            ("Top tens", "num"), ("Points", "num"), ("Rate", "num lb-rate")]  # fmt: skip
+    head = [("Rank", "rank"), ("Name", "lb-name-cell"), ("Played", "num"),
+            ("Recoveries", "num"), ("Top 10s", "num"), ("Points", "num lb-pts"),
+            ("Rate", "num lb-rate")]  # fmt: skip
     rows = []
     for r in cb.rows:
         rows.append(
             html.Tr(
                 [
-                    cell(c.rank_cell(r.position, r.shared), "Rank", "num rank"),
+                    cell(c.rank_cell(r.position, r.shared), "Rank", "rank"),
                     cell(
                         [
                             html.Span("You · ", className="lb-you-tag") if r.is_me else None,
@@ -678,11 +717,11 @@ def championship_table(cb):
                         "Name",
                         "lb-name-cell",
                     ),
-                    cell(str(r.rounds_played), "Played", "num"),
-                    cell(str(r.recoveries), "Recoveries", "num"),
-                    cell(str(r.qualifying_top10), "Top tens", "num"),
-                    cell(str(r.points), "Points", "num strong lb-points"),
-                    cell(f"{r.recovery_rate:.0%}", "Recovery rate", "num lb-rate"),
+                    cell(f"{r.rounds_played:,}", "Played", "num"),
+                    cell(f"{r.recoveries:,}", "Recoveries", "num"),
+                    cell(f"{r.qualifying_top10:,}", "Top 10s", "num"),
+                    cell(f"{r.points:,}", "Points", "num strong lb-pts"),
+                    cell(f"{r.recovery_rate:.0%}", "Rate", "num lb-rate"),
                 ],  # fmt: skip
                 className="me" if r.is_me else "",
             )
@@ -695,7 +734,7 @@ def championship_table(cb):
                         html.Thead(html.Tr([html.Th(h, className=k) for h, k in head])),
                         html.Tbody(rows),
                     ],
-                    className="ch-table lb lb-cards",
+                    className="ch-table lb lb-cards lb-champ",
                 ),  # fmt: skip
                 className="ch-table-wrap",
             ),
