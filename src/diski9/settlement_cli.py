@@ -18,7 +18,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from diski9.backend.auth.operator_cli import (
@@ -53,6 +53,17 @@ def _fmt(v: Any) -> str:
     if isinstance(v, datetime):
         return v.strftime("%Y-%m-%d %H:%M:%S UTC") if v.utcoffset() is not None else str(v)
     return str(v)
+
+
+def _print_earliest(moment) -> None:
+    """The earliest finalisation time, plus (development rounds) the ``--as-of``
+    value to use: rounded up to the next whole second, so it is never early."""
+    print(f"  earliest finalisation:  {_fmt(moment)}")
+    if moment is not None:
+        up = moment.replace(microsecond=0)
+        if up < moment:
+            up += timedelta(seconds=1)
+        print(f"    (development rounds: --as-of {up.astimezone(UTC).isoformat()})")
 
 
 def _operator_args(p: argparse.ArgumentParser) -> None:
@@ -286,7 +297,7 @@ def _print_settlement(res) -> None:
     print(f"  designation:            {res.designation}")
     print(f"  new alerts:             {len(res.new_alerts)}")
     print(f"  open blocking alerts:   {res.open_blocking_alerts}")
-    print(f"  earliest finalisation:  {_fmt(res.earliest_finalisation)}")
+    _print_earliest(res.earliest_finalisation)
     if res.post_final_change:
         print("  The round is final: a material difference raised a post_final_change alert.")
 
@@ -445,7 +456,7 @@ def _settle(args, engine) -> int:
             "  unsettled evidence:     "
             + ("material" if r.material_unsettled else "yes" if r.unsettled_changes else "none")
         )
-        print(f"  earliest finalisation:  {_fmt(r.earliest_finalisation)}")
+        _print_earliest(r.earliest_finalisation)
         print(f"  can finalise now:       {'yes' if r.eligible_to_finalise else 'no'}")
         for why in r.reasons:
             print(f"    - {why}")
@@ -511,7 +522,7 @@ def _round(args, engine) -> int:
     if args.action == "finalise-check":
         r = ops.round_report(engine, p, rid, as_of=args.as_of)
         print(f"{r.code}: can finalise {'now' if r.eligible_to_finalise else 'not yet'}")
-        print(f"  earliest finalisation:  {_fmt(r.earliest_finalisation)}")
+        _print_earliest(r.earliest_finalisation)
         for why in r.reasons:
             print(f"    - {why}")
         return 0
@@ -521,7 +532,7 @@ def _round(args, engine) -> int:
             print(f"Finalised: settlement version {res.version} (final).")
             return 0
         print(f"Not finalised: {res.reason}")
-        print(f"  earliest finalisation:  {_fmt(res.earliest_finalisation)}")
+        _print_earliest(res.earliest_finalisation)
         return 1
     if args.action == "invalidate":
         if not args.reason:

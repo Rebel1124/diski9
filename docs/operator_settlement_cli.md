@@ -108,6 +108,8 @@ uv run diski9 round reopen         --code CODE --operator OWNER_EMAIL --reason "
 * Finalisation needs: status `settling`, nothing relevant pending, no open blocking
   alert, round validity evaluated, and the database clock at or after
   max(cutoff, last material change) + the round's frozen correction window (24 h).
+  The printed earliest time is followed by the exact `--as-of` value for development
+  rounds (rounded up to the whole second, so it is never a fraction too early).
   A final settlement run is made first; if it changes anything material, the
   window restarts and nothing is finalised.
 * Reopening is owner-only, with reason, evidence, preview and confirmation; the

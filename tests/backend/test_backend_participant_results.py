@@ -242,3 +242,17 @@ def test_panel_wording_for_refunds(engine):
     body = texts(ui.panel(r, {"picks": []}, local))
     assert "Void · refunded" in body and "Refund (not a recovery)" in body
     assert "Recovered 100+" not in body and "Refunded" in body
+
+
+def test_void_round_shows_no_accumulator_returns(engine):
+    from diski9.app.challenge import results_ui as ui
+
+    w = settlement_world(engine, **PRAC)
+    op, _ = scenario(engine, w, "all-correct")
+    imp = co.preview_invalidation(engine, op, w["round"], reason="pitch")
+    co.invalidate_round(engine, op, w["round"], reason="pitch", confirmation=imp.token)
+    r = my_settlement(engine, me(engine, w), w["round"])
+    accs = texts(ui.accumulators(r))
+    assert "Not paid" in accs and "Successful" not in accs
+    body = texts(ui.panel(r, {"picks": []}, local))
+    assert "Round void" in body and "Refund (not a recovery)" in body

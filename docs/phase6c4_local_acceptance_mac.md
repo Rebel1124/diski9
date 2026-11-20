@@ -333,9 +333,9 @@ uv run diski9 round finalise-check --code dev-6c4-b --operator bravo@example.tes
 ```
 
 "can finalise not yet ... The correction window has not ended yet" with the
-earliest finalisation time. Development rounds may finalise at that time without
-waiting 24 hours; copy it in ISO form, for example `2026-11-28T14:05:00+00:00`
-(the time printed in UTC):
+earliest finalisation time and, below it, the exact value to use, for example
+`(development rounds: --as-of 2026-11-28T14:05:08+00:00)`. Development rounds may
+finalise at that time without waiting 24 hours; copy that value:
 
 ```bash
 uv run diski9 round finalise --code dev-6c4-b --as-of <EARLIEST_FINALISATION> --operator bravo@example.test
@@ -411,6 +411,8 @@ uv run diski9 round invalidate --code dev-6c4-d --reason "floodlight failure acr
 
 Preview, type the code. My Challenge: **Round void**, "An operator invalidated this
 round. Every entry is refunded its 100 credits. A refund is not a recovery."
+The Accumulators card says **Not paid** (no accumulator returns in a void round);
+the prediction results are shown for information only.
 
 (The D-32b automatic invalidation: `scenario --name round-invalid-majority` on a
 fresh round gives **Round void** with the D-32b explanation.)

@@ -208,6 +208,22 @@ def summary(res, local) -> html.Div:
 def accumulators(res) -> html.Div | None:
     if not res.settled:
         return None
+    if res.round_void:  # nothing is paid on accumulators; every entry gets 100.00 back
+        return html.Div(
+            [
+                html.H3("Accumulators", className="ch-h3"),
+                html.P(
+                    [
+                        _verdict_tag("refunded", ACCUMULATOR),
+                        " Not paid: the round is void, so instead of accumulator returns every "
+                        "entry receives its 100 credits back. Your predictions' results below "
+                        "are shown for information only.",
+                    ],
+                    className="small",
+                ),
+            ],
+            className="ch-card ch-compact ch-res-accs",
+        )
     rows = []
     for a in res.accumulators:
         legs = html.Span(
