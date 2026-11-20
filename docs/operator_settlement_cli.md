@@ -124,6 +124,18 @@ uv run diski9 round reopen         --code CODE --operator OWNER_EMAIL --reason "
 | `diski9 competition backfill --operator EMAIL [--preview-only \| --token T]` | Publishes the official weekly results of rounds finalised before `app_0007`, in deadline order and one transaction per round, then assigns rounds to championships. The preview does the real work in a transaction that is rolled back. Execution needs the preview's token (or typing `backfill`) and refuses if anything changed. Rounds that cannot be classified reliably are listed as excluded and never assigned. Resumable and idempotent; audited |
 | `diski9 competition repair --operator EMAIL [--stream S] [--reason TEXT] [--preview-only \| --token T]` | Stage D, audited. Rebuilds **derived** competition records from authoritative settlement and published weekly results through the normal services: publishes a re-finalised round's missing official results, applies outstanding role changes, assigns rounds that can be assigned and writes a new championship version (cause `repair`) only where the standings, status or counter differ. It never edits history, moves a membership, sets points or winners, or touches settlement or football results. The preview (work rolled back) lists findings, rounds to publish, each championship's before and after (status, rounds, version), standings and leader changes, boundary implications and anything that cannot be repaired. A stream with a material finding is refused. Applying needs `--reason`, the preview's token (or typing `repair`), a password entered within the last 15 minutes, and refuses if anything changed since the preview. One transaction per round, then per stream; resumable and idempotent |
 
+**Membership verification limitation.** `competition verify` checks membership structurally:
+* every member belongs to the stream;
+* names and start dates match the first associated round;
+* roles match authoritative outcomes;
+* waiting rounds that could be assigned are reported.
+
+It does not replay the full assignment history: membership depends on chronological lifecycle and correction events, so a replay from the current state alone would report false differences. To investigate a membership decision, use the recorded history:
+* `championship_rounds.assigned_at`;
+* the `championship_created` domain events;
+* the insert-only `championship_versions` (cause, reason, actor, round list);
+* the `championship.version` audit records.
+
 Normal operation needs no command. Official weekly results and championship
 processing happen inside `round finalise`, and rounds are assigned at publication
 and lock. **Do not run a material backfill on a real database without the owner's

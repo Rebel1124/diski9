@@ -677,3 +677,95 @@ time when L-33 reopens and then recompletes a championship (database guard).
 * **Multi-process performance** is Stage F.
 * **Unchanged deferrals:** D-29, D-36, S-07, hosted Supabase acceptance and the
   6C.3 backlog. Private mini-leagues remain excluded.
+
+### 4.9 Owner review of Stage D (20 Nov 2026): accepted in principle, local owner acceptance pending
+**Status:** implementation complete, local owner acceptance pending. Stage D is
+**not** yet formally accepted or closed, and Stage E is not authorised.
+
+**Accepted baseline:**
+* Commits: implementation `5dd74ff`, defect correction `d1287c9`, final tested
+  code `29ff049`, checkpoint record `68445f5`.
+* Full local suite 1,603 of 1,603 (43 new tests); CI run 60 passed.
+* `app_0007`, with no Stage D migration.
+* Fingerprint, scoring engine and settlement methodology unchanged.
+* Nothing run on the owner's or any production database.
+
+**Interpretations I-1 to I-5 (§4.7): all approved, with these clarifications.**
+
+*I-1, historical restoration capacity.*
+* A restored `not_counted` round may take capacity released by an invalidation in
+  its own historical championship.
+* Membership, identity and boundaries stay unchanged; counted rounds and reserved
+  capacity are protected; never more than ten; successors are unaffected.
+* When the championship returns to ten counted rounds, the reduced-round
+  disclosure is withdrawn while the correction record and the
+  corrected-after-completion indicator remain. This is implemented: the disclosure
+  is derived from the current count, and versions are insert-only.
+
+*I-2, concurrent restorations.*
+* Independently committed restorations follow the commit-sequence rule (§23.5).
+  Restorations resolved in one operation follow deadline order.
+* Processing is deterministic over the **recorded** event history (the committed
+  publications in order). It does not claim independence from transaction arrival
+  or commit timing.
+* Counted contributions and reserved capacity are protected; never more than ten.
+* A retry preserves the recorded outcome: roles are persisted, and reprocessing is
+  idempotent.
+* The explanation is kept. Each role change is a version with a reason (for
+  example "restored after the championship already had 10 counted rounds (or
+  reserved slots), so its points do not count"), and the audit record lists the
+  role changes.
+* No priority queue or scheduler is added.
+
+*I-3, reopened void rounds.* A reopened void member puts its championship Under
+Review until authoritative re-finalisation. The published standings and points stay
+current, and nothing speculative is published.
+
+*I-4, all counted rounds invalidated.*
+* The historical championship stays Completed, with identity, name, start date,
+  boundaries, memberships, earlier versions and audit history preserved; it has no
+  standings and no champion. Successors are unaffected.
+* Stage E wording (not implemented now): "All previously counted rounds were
+  subsequently invalidated. No official standings or champion remain for this
+  championship. Subsequent championships are unaffected."
+
+*I-5, no return to Upcoming.*
+* Once a championship has had a counted round it has commenced and never returns
+  to Upcoming.
+* An unfrozen completed championship may return to In Progress (L-33); a frozen
+  one follows D-30a.
+* Current counted-round totals are distinct from commencement. Commencement is
+  derived from the version history: any version with a counted round.
+
+**Accepted technical deviation.** Verification checks structural membership rules
+rather than replaying the full assignment history: membership depends on
+chronological lifecycle and correction events, so a replay from current state
+alone would report false differences. Membership decisions can be investigated
+from the recorded history:
+* `championship_rounds.assigned_at`;
+* `championship_created` and `weekly_results_published` domain events;
+* insert-only score sets per settlement version;
+* insert-only championship versions with cause, reason, actor and round list;
+* `championship.version` audit records listing role changes.
+
+No replay subsystem is introduced. This limitation is also recorded in
+`docs/operator_settlement_cli.md`.
+
+**Review of the `d1287c9` safeguards (requested by the owner).**
+
+| Safeguard | Status | Evidence |
+|---|---|---|
+| An inconsistent membership row does not block healthy championships | Confirmed | `test_member_outside_the_stream_never_blocks_processing` (repair module): processing succeeds. The full suite (`test_frozen_context_and_no_effect_on_the_competition` publishing into the shared database) failed before `d1287c9` and passes after it |
+| `verify` reports the affected championship as material | Confirmed | Same test: a material finding "member round(s) are not in the development stream" |
+| Repair refuses non-authoritative or membership-changing work | Confirmed | Any material finding refuses the stream (`_repair_work`); `test_material_inconsistency_is_refused_and_reported`. Repair never writes membership except normal deadline-order assignment |
+| The affected championship cannot silently show misleading definitive standings | **Gap** | Processing writes no new version for it, but the read service still shows its last published version with `definitive = True` and no indicator |
+| No unsafe membership or contribution change | **Gap** | If the affected championship is the stream's open championship, waiting rounds can still be assigned into it, because assignment is planned over all championships. Those memberships are then permanent, while its counter and standings stay stale |
+
+Both gaps are reachable only through data written outside the services, such as a
+manual database edit. They were reported to the owner before local acceptance. A
+minimal correction is proposed and awaits authorisation:
+* assign no waiting rounds while the open championship is inconsistent (their
+  weekly results still publish);
+* mark such a championship Under Review with the reason `integrity_review`
+  (`definitive = False`) in the read services;
+* add tests for both.

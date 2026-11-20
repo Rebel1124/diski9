@@ -1482,3 +1482,19 @@ An invalidated practice round shows the void state only.
   reported as measured, never as achieved targets.
 * **Private mini-leagues:** remain removed from the MVP roadmap, with no
   architectural foundations.
+
+### 23.11 Stage D interpretations approved (20 Nov 2026)
+The owner approved interpretations I-1 to I-5 and the structural membership
+verification. Details and clarifications are in
+`phase6c5_implementation.md` §4.7 and §4.9. In summary:
+* **I-1:** a restored `not_counted` round may take capacity freed by an
+  invalidation in its own historical championship, under the §23.5 safeguards.
+* **I-2:** commit-sequence rule across independent commits, deadline order within
+  one operation; the outcome is explained in versions and audit records.
+* **I-3:** a reopened void member puts its championship Under Review.
+* **I-4:** a historical championship with every counted round invalidated stays
+  Completed with no standings and no champion.
+* **I-5:** a championship that has had a counted round never returns to Upcoming.
+
+The §11.6 membership replay is replaced by structural checks over the recorded
+history.
