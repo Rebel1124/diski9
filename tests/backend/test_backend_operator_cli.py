@@ -400,3 +400,60 @@ def test_competition_status_verify_and_backfill_through_the_cli(engine, env, acc
     with transaction(engine) as conn:
         assert conn.execute(text("SELECT count(*) FROM app.audit_log WHERE action = "
                                  "'competition.backfill'")).scalar_one() >= 1  # fmt: skip
+
+
+# ------------------------------------------------------------------ Phase 6C.5 Stage D
+def test_competition_repair_through_the_cli(engine, env, accounts, dev_round):
+    """Genuine terminal, real Supabase Auth: participant refused, wrong password,
+    preview only (nothing written), stale token, missing reason, confirmed repair
+    of a tampered derived record (audited, membership untouched)."""
+    with transaction(engine) as conn:
+        cid = conn.execute(text(
+            "SELECT championship_id FROM app.championship_rounds WHERE round_id = :r"),
+            {"r": dev_round["round"]}).scalar_one()  # fmt: skip
+        members = conn.execute(text("SELECT round_id, championship_id FROM "
+                                    "app.championship_rounds ORDER BY round_id")).all()  # fmt: skip
+        conn.execute(text("UPDATE app.championships SET status = 'in_progress' WHERE id = :c "
+                          "AND status = 'upcoming'"), {"c": cid})  # fmt: skip
+    rc, out = cli(env, accounts, "participant", "competition", "repair", "--preview-only")
+    assert rc == 3 and "does not have permission" in out
+    rc, out = cli(env, accounts, "operator", "competition", "repair", "--preview-only",
+                  password="Wrong-Password-1")  # fmt: skip
+    assert rc == 3 and "Wrong-Password-1" not in out
+    rc, out = cli(env, accounts, "operator", "competition", "verify")
+    assert rc == 1 and "repairable:" in out and "status in_progress != upcoming" in out, out
+
+    def versions():
+        with transaction(engine) as conn:
+            return conn.execute(text("SELECT count(*) FROM app.championship_versions")).scalar()
+
+    before = versions()
+    rc, out = cli(env, accounts, "operator", "competition", "repair", "--stream", "development",
+                  "--preview-only")  # fmt: skip
+    assert rc == 0 and "Repair preview" in out and "Preview only; nothing changed" in out, out
+    assert versions() == before and PASSWORD not in out
+    token = re.search(r"confirmation token:\s+([0-9a-f]{16})", out).group(1)
+    rc, out = cli(env, accounts, "operator", "competition", "repair", "--stream", "development",
+                  "--token", token)  # fmt: skip
+    assert rc == 2 and "--reason is required" in out
+    rc, out = cli(env, accounts, "operator", "competition", "repair", "--stream", "development",
+                  "--token", "0" * 16, "--reason", "manual edit undone")  # fmt: skip
+    assert rc == 2 and "changed since the preview" in out
+    rc, out = cli(env, accounts, "operator", "competition", "repair", "--stream", "development",
+                  "--token", token, "--reason", "manual edit undone")  # fmt: skip
+    assert rc == 0 and "Repair complete" in out, out
+    with transaction(engine) as conn:
+        assert conn.execute(text("SELECT status FROM app.championships WHERE id = :c"),
+                            {"c": cid}).scalar() == "upcoming"  # fmt: skip
+        assert (
+            conn.execute(
+                text(
+                    "SELECT round_id, championship_id FROM "
+                    "app.championship_rounds ORDER BY round_id"
+                )
+            ).all()
+            == members
+        )
+        a = conn.execute(text("SELECT actor_user_id, reason FROM app.audit_log WHERE action = "
+                              "'competition.repair' ORDER BY id DESC LIMIT 1")).one()  # fmt: skip
+    assert a.actor_user_id == accounts["operator"][1] and a.reason == "manual edit undone"

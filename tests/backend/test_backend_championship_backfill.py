@@ -212,10 +212,10 @@ def test_unclassifiable_rounds_are_reported_not_assigned(twins):
             assert why in cops._exclusion(conn, SimpleNamespace(**(base | change)))
 
 
-def test_refinalised_round_changing_role_is_contained_until_stage_d(twins):
-    """A counted round re-finalised as void (owner reopening + corrections) keeps
-    its counted role and the last published standings; the championship is marked
-    under review (pending recalculation) instead of being changed (Stage D)."""
+def test_refinalised_round_becoming_void_is_recalculated(twins):
+    """Stage D (L-32) replaces the Stage C containment: a counted round re-finalised
+    as void (owner reopening + corrections) loses its contribution at once; the
+    counter falls, the standings are rebuilt and the review clears."""
     b, op, _, w = twins["b"]
     owner = fresh(b, principal(b, role="owner"))
     rid, fids = w["C3"]["round"], w["C3"]["fixtures"]
@@ -233,11 +233,10 @@ def test_refinalised_round_changing_role_is_contained_until_stage_d(twins):
     before = lb.championship_board(b, stream="development", include_development=True)
     finalise(b, op, w["C3"])
     after = lb.championship_board(b, stream="development", include_development=True)
-    assert after.counted_rounds == before.counted_rounds == 3  # not changed in Stage C
-    assert after.rows == before.rows and after.version == before.version
-    assert after.under_review and after.review_reasons == ("recalculation_pending",)
+    assert before.counted_rounds == 3 and after.counted_rounds == 2
+    assert after.version == before.version + 1 and not after.under_review
+    assert after.status == "in_progress" and after.rows != before.rows
     wk = lb.weekly_board(b, rid, include_development=True)
-    assert wk.round_void and wk.revision == 2  # the weekly result itself is republished
+    assert wk.round_void and wk.revision == 2 and wk.championship_status == "void"
     with transaction(b) as conn:
-        problems = ch.verify_stream(conn, "development")
-    assert len(problems) == 1 and "Stage D" in problems[0]
+        assert ch.verify_stream(conn, "development") == []

@@ -191,7 +191,8 @@ def add_parsers(sub) -> None:
     p.add_argument("--variant", type=int, default=0, help="portfolio variant (0, 1, 2 ...)")
 
     s = sub.add_parser(
-        "competition", help="championships: status, integrity check, historical backfill"
+        "competition",
+        help="championships: status, integrity check, historical backfill, audited repair",
     )
     cs = s.add_subparsers(dest="action", required=True)
     p = cs.add_parser("status", help="each stream's current championship and waiting rounds")
@@ -203,6 +204,15 @@ def add_parsers(sub) -> None:
         help="publish official results of rounds finalised before app_0007 (preview first)",
     )
     _operator_args(p)
+    _confirm_args(p)
+    p = cs.add_parser(
+        "repair",
+        help="rebuild derived championship records from authoritative results (preview first)",
+    )
+    _operator_args(p)
+    p.add_argument("--stream", choices=("development", "beta", "official"),
+                   help="limit the repair to one stream (default: every stream)")  # fmt: skip
+    p.add_argument("--reason", help="why the repair is needed (required to apply; audited)")
     _confirm_args(p)
 
 
@@ -553,12 +563,18 @@ def _competition(args, engine) -> int:
                         f"  final without official results (backfill): "
                         f"{', '.join(st.unpublished_final)}"
                     )
-            for prob in st.problems:
-                print(f"  problem: {prob}")
+            for note in st.notes:
+                print(f"  note: {note}")
+            for prob in st.repairable:
+                print(f"  repairable: {prob}")
+            for prob in st.material:
+                print(f"  needs investigation: {prob}")
             problems += len(st.problems)
             if args.action == "verify" and not st.problems:
                 print(f"{st.stream}: consistent")
         return 1 if problems else 0
+    if args.action == "repair":
+        return _repair(args, engine, p, cops)
     plan = cops.preview_backfill(engine, p)
     print("Backfill preview (nothing has changed yet)")
     for i in plan.items:
@@ -582,6 +598,57 @@ def _competition(args, engine) -> int:
         token = plan.token
     done = cops.run_backfill(engine, p, confirmation=token)
     print(f"Backfill complete: {done.to_publish} round(s) published (audited).")
+    return 0
+
+
+def _repair(args, engine, p, cops) -> int:
+    plan = cops.preview_repair(engine, p, stream=args.stream)
+    print("Repair preview (nothing has changed yet)")
+    for f in plan.repairable:
+        print(f"  found:              {f}")
+    for code in plan.republish:
+        print(f"  publish results:    round {code} (latest final settlement version)")
+    for c in plan.changes:
+        before = (
+            "new"
+            if c.before is None
+            else (f"{c.before[0].replace('_', ' ')}, {c.before[1]} rounds, v{c.before[2]}")
+        )
+        after = f"{c.after[0].replace('_', ' ')}, {c.after[1]} rounds, v{c.after[2]}"
+        flags = []
+        if c.standings_changed:
+            flags.append("standings change")
+        if c.winners_changed:
+            flags.append("leaders or champions change")
+        if c.note:
+            flags.append(c.note)
+        print(f"  {c.stream:12} {c.name}: {before} -> {after}"
+              + (f" ({'; '.join(flags)})" if flags else ""))  # fmt: skip
+    for f in plan.unrepairable:
+        print(f"  not repaired (investigate separately): {f}")
+    for f in plan.remaining:
+        print(f"  would remain:       {f}")
+    if not plan.material_change:
+        print("Nothing to repair.")
+        return 1 if plan.unrepairable else 0
+    print(f"  confirmation token: {plan.token}")
+    if args.preview_only:
+        print("Preview only; nothing changed. Confirm later with --token " + plan.token)
+        return 0
+    if not args.reason:
+        raise _Usage("--reason is required to apply a repair")
+    token = args.token
+    if not token:
+        if not _interactive():
+            raise _Usage("confirm with --token TOKEN (from a preview) or run interactively")
+        if input("Type repair to apply it, or press Enter to stop: ").strip() != "repair":
+            print("Not confirmed; nothing changed.")
+            return 0
+        token = plan.token
+    done = cops.run_repair(engine, refresh_clock(engine, p), confirmation=token, reason=args.reason,
+                           stream=args.stream)  # fmt: skip
+    print(f"Repair complete: {len(done.changes)} championship(s), {len(done.republish)} "
+          "round(s) republished (audited).")  # fmt: skip
     return 0
 
 

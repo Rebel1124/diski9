@@ -86,6 +86,10 @@ class WeeklyBoard:
     championship: str | None = None  # display name once assigned
     # assigned | practice | void | not_counted | pending_assignment | not_applicable
     championship_status: str | None = None
+    # True: its weekly points count toward the championship; False: they do not
+    # (practice, void, restored without capacity); None: not decided yet
+    counts_toward_championship: bool | None = None
+    championship_note: str | None = None  # plain-language explanation (CH-05, CH-02)
 
 
 @contextmanager
@@ -287,11 +291,12 @@ def weekly_board(
             ),
             {"r": round_id},
         ).scalar_one()
-        champ_name, champ_status = _round_championship(conn, round_id, stream)
+        champ_name, champ_status, counts, note = _round_championship(conn, round_id, stream)
         common = {
             "round_code": r.code, "stream": stream, "classification": classification,
             "round_void": round_void, "void_basis": void_basis, "entries": entries_n,
             "championship": champ_name, "championship_status": champ_status,
+            "counts_toward_championship": counts, "championship_note": note,
         }  # fmt: skip
         if r.status == "open":
             return _empty(common, "open", page_size, entries=0, me_status=None)
@@ -436,22 +441,57 @@ def _provisional_board(conn, common, data, me_id, page, page_size) -> WeeklyBoar
     )  # fmt: skip
 
 
+NOT_COUNTED_FULL = (
+    "This round was restored after its championship had already reached "
+    "{n} counted rounds, so its points do not count toward the championship."
+)
+NOT_COUNTED_RESERVED = (
+    "This round was restored while the championship's remaining slots "
+    "were reserved by unresolved rounds, so its points do not count toward "
+    "the championship unless a slot becomes available."
+)
+
+
 def _round_championship(conn: Connection, round_id: UUID, stream: str) -> tuple:
-    """(championship display name, status) of a round; no name until the round is
-    actually assigned, so nothing speculative is ever shown."""
+    """(championship display name, status, counts, note) of a round; no name until
+    the round is actually assigned, so nothing speculative is ever shown."""
     row = conn.execute(
         text(
-            "SELECT c.display_name, cr.role FROM app.championship_rounds cr "
+            "SELECT c.id, c.display_name, c.counted_rounds, c.rounds_required, cr.role "
+            "FROM app.championship_rounds cr "
             "JOIN app.championships c ON c.id = cr.championship_id WHERE cr.round_id = :r"
         ),
         {"r": round_id},
     ).one_or_none()
     if row is not None:
         status = {"pending": "assigned", "counted": "assigned"}.get(row.role, row.role)
-        return row.display_name, status
+        counts = {"counted": True, "pending": None}.get(row.role, False)
+        note = None
+        if row.role == "not_counted":
+            full = row.counted_rounds >= row.rounds_required
+            note = (NOT_COUNTED_FULL.format(n=row.rounds_required) if full
+                    else NOT_COUNTED_RESERVED)  # fmt: skip
+        elif row.role == "void":
+            note = "This round was invalidated, so it does not count toward the championship."
+        elif row.role == "practice":
+            note = "Practice round: not eligible for championship points."
+        return row.display_name, status, counts, note
     if not championships_svc.stream_open(conn, stream):
-        return None, "not_applicable"
-    return None, "pending_assignment"
+        return None, "not_applicable", False, None
+    blocking = conn.execute(
+        text(
+            "SELECT r.code FROM app.championship_rounds cr JOIN app.rounds r ON r.id = cr.round_id "
+            "WHERE cr.role = 'pending' AND cr.championship_id = (SELECT id FROM app.championships "
+            "WHERE stream = :s ORDER BY ordinal DESC LIMIT 1) ORDER BY r.deadline_at, r.id"
+        ),
+        {"s": stream},
+    ).scalars().all()  # fmt: skip
+    note = None
+    if blocking:
+        which = " and ".join(f"Round {c}" for c in blocking)
+        verb = "is" if len(blocking) == 1 else "are"
+        note = f"The championship this round counts toward is confirmed when {which} {verb} final."
+    return None, "pending_assignment", None, note
 
 
 # ------------------------------------------------------------------ championships
@@ -487,11 +527,11 @@ class ChampionshipBoard:
     start_date: date | None
     counted_rounds: int
     rounds_required: int
-    under_review: bool  # a member round is reopened or awaits Stage D recalculation
-    review_reasons: tuple[str, ...]
+    under_review: bool  # a member round is reopened (or, on unrepaired data, out of date)
+    review_reasons: tuple[str, ...]  # reopened | recalculation_pending
     corrected_after_completion: bool
     corrected_with_fewer_rounds: bool  # D-30a disclosure (never "Short")
-    version: int | None
+    version: int | None  # the version shown (the latest published unless one was chosen)
     published_at: datetime | None
     champions: tuple[str, ...]  # completed and at least one point
     no_champion: bool  # completed and every participant has zero points
@@ -506,6 +546,26 @@ class ChampionshipBoard:
     me_status: str | None  # None for guests; ranked | refunded_only | practice_only |
     # awaiting_results | not_entered
     championships: tuple[ChampionshipSummary, ...]  # for the selector, newest first
+    # Stage D (corrections): review details, versions and disclosures
+    review_rounds: tuple[str, ...] = ()  # codes of the rounds under review
+    latest_version: int | None = None  # the current published version
+    definitive: bool = True  # False while under review or when an older version is shown
+    reopened_after_completion: bool = False  # L-33: completed once, needs more rounds again
+    not_counted_rounds: tuple[str, ...] = ()  # restored without capacity (CH-05)
+    disclosure: str | None = None  # plain-language correction explanation
+
+
+@dataclass(frozen=True)
+class ChampionshipVersionSummary:
+    version: int
+    cause: str  # round_assigned | round_published | round_republished | round_invalidated
+    # | round_restored | backfill | repair
+    status: str
+    counted_rounds: int
+    champion_count: int
+    published_at: datetime
+    reason: str | None
+    current: bool
 
 
 def _visible(stream: str, include_development: bool) -> None:
@@ -537,26 +597,75 @@ def championship_list(
         return _summaries(conn, stream)
 
 
-def _review(conn: Connection, champ_id) -> tuple[str, ...]:
+def _review(conn: Connection, champ_id) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """(reasons, round codes). ``reopened``: a counted or void member is reopened
+    (its re-finalisation may change the standings). ``recalculation_pending``: a
+    member's role disagrees with its latest publication, which normal processing
+    never leaves behind (only unrepaired data; ``competition verify`` reports it)."""
     rows = conn.execute(
         text(
-            "SELECT cr.role, r.status, ss.kind FROM app.championship_rounds cr "
+            "SELECT r.code, cr.role, r.status, ss.kind FROM app.championship_rounds cr "
             "JOIN app.rounds r ON r.id = cr.round_id LEFT JOIN LATERAL ("
             "  SELECT kind FROM app.score_sets WHERE round_id = r.id "
             "  ORDER BY revision DESC LIMIT 1) ss ON true "
-            "WHERE cr.championship_id = :c AND cr.role IN ('counted', 'void')"
+            "WHERE cr.championship_id = :c AND cr.role IN ('counted', 'void', 'not_counted') "
+            "ORDER BY r.deadline_at, r.id"
         ),
         {"c": champ_id},
     ).all()
-    reasons = set()
+    reasons, codes = set(), []
     for x in rows:
-        if x.status == "settling":
+        if x.status == "settling" and x.role in ("counted", "void"):
             reasons.add("reopened")
-        elif (x.role == "counted" and x.kind != "championship") or (
-            x.role == "void" and x.kind == "championship"
+            codes.append(x.code)
+        elif x.status != "settling" and (
+            (x.role == "counted" and x.kind != "championship")
+            or (x.role == "void" and x.kind == "championship")
+            or (x.role == "not_counted" and x.kind == "void")
         ):
             reasons.add("recalculation_pending")
-    return tuple(sorted(reasons))
+            codes.append(x.code)
+    return tuple(sorted(reasons)), tuple(codes)
+
+
+def _disclosure(c, counted: int, invalidated: int) -> str | None:
+    if c.status == "completed" and c.boundary_fixed_at is not None and counted < c.rounds_required:
+        n = invalidated or (c.rounds_required - counted)
+        rounds_txt = "One previously counted round was" if n == 1 else \
+            f"{n} previously counted rounds were"  # fmt: skip
+        return (f"This championship was corrected after completion. {rounds_txt} "
+                "invalidated and the final standings were recalculated.")  # fmt: skip
+    if c.status == "in_progress" and c.completed_at is not None:
+        return ("A previously counted round was invalidated after this championship was "
+                "completed, so it continues until it has "
+                f"{c.rounds_required} valid counted rounds.")  # fmt: skip
+    if c.corrected_after_completion and c.status == "completed":
+        return "This championship was corrected after completion."
+    return None
+
+
+def championship_versions_list(
+    engine: Engine, *, stream: str = "beta", name: str, include_development: bool = False
+) -> tuple[ChampionshipVersionSummary, ...]:
+    """Every published version of one championship, newest first (read-only)."""
+    _visible(stream, include_development)
+    with _snapshot(engine) as conn:
+        c = conn.execute(select(championships).where(
+            championships.c.stream == stream, championships.c.display_name == name)
+        ).one_or_none()  # fmt: skip
+        if c is None:
+            raise NotFound("No such championship.")
+        rows = conn.execute(
+            select(championship_versions)
+            .where(championship_versions.c.championship_id == c.id)
+            .order_by(championship_versions.c.version.desc())
+        ).all()
+        return tuple(
+            ChampionshipVersionSummary(v.version, v.cause, v.status, v.counted_rounds,
+                                       v.champion_count, v.created_at, v.reason,
+                                       v.version == c.current_version)
+            for v in rows
+        )  # fmt: skip
 
 
 def championship_board(
@@ -568,9 +677,12 @@ def championship_board(
     page: int = 1,
     page_size: int = DEFAULT_PAGE_SIZE,
     include_development: bool = False,
+    version: int | None = None,
 ) -> ChampionshipBoard:
     """Official standings of one championship (the current one by default), one page
-    at a time, from its latest published version (read-only)."""
+    at a time, from its latest published version or, with ``version``, an earlier
+    published one (read-only; names are resolved now, so retroactive anonymity
+    applies to every version)."""
     _visible(stream, include_development)
     if not 1 <= page_size <= MAX_PAGE_SIZE:
         raise ValidationFailed("Invalid page size.", [{"field": "page_size"}])
@@ -591,13 +703,16 @@ def championship_board(
                 None if me_id is None else "not_entered", summaries,
             )  # fmt: skip
         v = None
-        if c.current_version is not None:
+        shown = c.current_version if version is None else version
+        if shown is not None:
             v = conn.execute(
                 select(championship_versions).where(
                     championship_versions.c.championship_id == c.id,
-                    championship_versions.c.version == c.current_version,
+                    championship_versions.c.version == shown,
                 )
-            ).one()
+            ).one_or_none()
+            if v is None:
+                raise NotFound("No such championship version.")
         total = 0 if v is None else conn.execute(
             text("SELECT count(*) FROM app.championship_standings WHERE version_id = :v"),
             {"v": v.id},
@@ -614,7 +729,8 @@ def championship_board(
                 "OR (:done AND rank = 1 AND points > 0) "
                 "ORDER BY display_order"
             ),
-            {"v": v.id, "lo": lo, "hi": hi, "me": me_id, "done": c.status == "completed"},
+            {"v": v.id, "lo": lo, "hi": hi, "me": me_id,
+             "done": v.status == "completed"},
         ).all()  # fmt: skip
         names = leaderboard_names(
             conn,
@@ -622,7 +738,9 @@ def championship_board(
              for x in rows],
         )  # fmt: skip
         page_rows, me, me_page, champions = [], None, None, []
-        completed = c.status == "completed"
+        status = v.status if v is not None else c.status
+        counted_rounds = v.counted_rounds if v is not None else c.counted_rounds
+        completed = status == "completed"
         for x, nm in zip(rows, names, strict=True):
             row = ChampionshipRow(
                 x.rank, x.same_rank > 1, nm, x.rounds_played, x.recoveries, x.qualifying_top10,
@@ -638,19 +756,109 @@ def championship_board(
         me_status = None
         if me_id is not None:
             me_status = "ranked" if me is not None else _not_ranked(conn, c.id, me_id)
-        reasons = _review(conn, c.id)
+        reasons, review_rounds = _review(conn, c.id)
+        roles = conn.execute(
+            text(
+                "SELECT r.code, cr.role FROM app.championship_rounds cr JOIN app.rounds r "
+                "ON r.id = cr.round_id WHERE cr.championship_id = :c ORDER BY r.deadline_at, r.id"
+            ),
+            {"c": c.id},
+        ).all()
+        invalidated = conn.execute(
+            text(
+                "SELECT count(DISTINCT x) FROM app.championship_versions v, unnest(v.round_ids) x "
+                "WHERE v.championship_id = :c "
+                "AND NOT x = ANY(coalesce(CAST(:cur AS uuid[]), '{}'::uuid[]))"
+            ),
+            {"c": c.id, "cur": None if v is None else list(v.round_ids)},
+        ).scalar_one()  # fmt: skip
+        current = version is None or version == c.current_version
         return ChampionshipBoard(
-            stream=stream, name=c.display_name, status=c.status, start_date=c.start_date,
-            counted_rounds=c.counted_rounds, rounds_required=c.rounds_required,
+            stream=stream, name=c.display_name, status=status, start_date=c.start_date,
+            counted_rounds=counted_rounds, rounds_required=c.rounds_required,
             under_review=bool(reasons), review_reasons=reasons,
             corrected_after_completion=c.corrected_after_completion,
             corrected_with_fewer_rounds=(completed and c.boundary_fixed_at is not None
-                                         and c.counted_rounds < c.rounds_required),
-            version=c.current_version, published_at=v.created_at if v else None,
+                                         and counted_rounds < c.rounds_required),
+            version=shown, published_at=v.created_at if v else None,
             champions=tuple(champions), no_champion=completed and not champions,
             pending_assignment=waiting if c.ordinal == _max_ordinal(conn, stream) else 0,
             rows=tuple(page_rows), total=total, page=page, pages=pages, page_size=page_size,
             me=me, me_page=me_page, me_status=me_status, championships=summaries,
+            review_rounds=review_rounds, latest_version=c.current_version,
+            definitive=current and not reasons,
+            reopened_after_completion=c.status == "in_progress" and c.completed_at is not None,
+            not_counted_rounds=tuple(x.code for x in roles if x.role == "not_counted"),
+            disclosure=_disclosure(c, c.counted_rounds, invalidated) if current else None,
+        )  # fmt: skip
+
+
+# ------------------------------------------------------------------ personal result
+@dataclass(frozen=True)
+class PersonalRoundResult:
+    """A participant's own official result in one round next to its current
+    settlement (CH-10): during a review the last published values stay visible and
+    are labelled as no longer definitive; no provisional championship points."""
+
+    round_code: str
+    published: bool  # official results exist
+    under_review: bool  # reopened: the published values are no longer definitive
+    revision: int | None
+    rank: int | None
+    shared: bool
+    gross: Decimal | None
+    weekly_points: int | None  # points under the weekly methodology
+    status: str | None  # ranked | void_refunded | round_void
+    championship: str | None
+    counts_toward_championship: bool | None
+    championship_points: int | None  # weekly points that count (0 if they do not)
+    championship_note: str | None
+    current: object | None  # participant_results.ParticipantSettlement (current settlement)
+
+
+def my_round_result(
+    engine: Engine, viewer: Principal, round_id: UUID, *, include_development: bool = False
+) -> PersonalRoundResult | None:
+    """The viewer's own last published result and current settlement for a round;
+    ``None`` for guests or without a confirmed entry (participant-scoped)."""
+    from .participant_results import my_settlement
+
+    me_id = _viewer(viewer)
+    if me_id is None:
+        return None
+    current = my_settlement(engine, viewer, round_id)
+    if current is None or (current.is_development and not include_development):
+        return None
+    with _snapshot(engine) as conn:
+        r = conn.execute(select(rounds).where(rounds.c.id == round_id)).one()
+        series = conn.execute(
+            select(championship_series.c.code).where(championship_series.c.id == r.series_id)
+        ).scalar_one()
+        name, _status, counts, note = _round_championship(
+            conn, round_id, stream_of(r.is_development, series)
+        )
+        row = conn.execute(
+            text(
+                "SELECT s.revision, rs.rank, rs.gross, rs.points, rs.status, "
+                "(SELECT count(*) FROM app.round_scores x WHERE x.score_set_id = s.id "
+                "AND x.rank = rs.rank) AS same_rank "
+                "FROM app.score_sets s JOIN app.round_scores rs ON rs.score_set_id = s.id "
+                "WHERE s.round_id = :r AND rs.user_id = :u ORDER BY s.revision DESC LIMIT 1"
+            ),
+            {"r": round_id, "u": me_id},
+        ).one_or_none()
+        if row is None:
+            return PersonalRoundResult(r.code, False, False, None, None, False, None, None,
+                                       None, name, counts, None, note, current)  # fmt: skip
+        champ_points = None
+        if counts is True:
+            champ_points = row.points
+        elif counts is False:
+            champ_points = 0
+        return PersonalRoundResult(
+            r.code, True, r.status == "settling", row.revision, row.rank,
+            row.rank is not None and row.same_rank > 1, row.gross, row.points, row.status,
+            name, counts, champ_points, note, current,
         )  # fmt: skip
 
 
@@ -693,6 +901,10 @@ def _not_ranked(conn, champ_id, user_id) -> str:
         return "refunded_only"  # entered counted rounds but every entry was refunded
     if "pending" in roles:
         return "awaiting_results"
+    if "not_counted" in roles:
+        return "not_counted_only"  # only restored rounds that do not count (CH-05)
+    if "void" in roles:
+        return "invalidated_only"  # only rounds later invalidated: refunded, no standing
     if "practice" in roles:
         return "practice_only"
     return "not_entered"
@@ -703,10 +915,14 @@ __all__ = [
     "ChampionshipBoard",
     "ChampionshipRow",
     "ChampionshipSummary",
+    "ChampionshipVersionSummary",
+    "PersonalRoundResult",
     "WeeklyBoard",
     "WeeklyRow",
     "championship_board",
     "championship_list",
+    "championship_versions_list",
     "clear_cache",
+    "my_round_result",
     "weekly_board",
 ]

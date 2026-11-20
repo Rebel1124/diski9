@@ -1,5 +1,5 @@
-"""Operator services for competitions (Phase 6C.5 Stage C): stream status, the
-integrity check and the historical backfill.
+"""Operator services for competitions (Phase 6C.5 Stages C and D): stream status,
+the integrity check, the historical backfill and the audited repair.
 
 **Backfill** publishes the official weekly results of rounds that were finalised
 before migration ``app_0007``, then assigns rounds to championships. It does so
@@ -17,6 +17,22 @@ Safeguards:
 * everything is audited;
 * rounds that cannot be classified reliably are reported and left alone, never
   assigned to a stream.
+
+**Repair** (Stage D, spec §11.6) rebuilds *derived* competition records from the
+authoritative settlement and published weekly results, through the same services:
+it publishes a re-finalised round's missing official results
+(``publish_finalised``) and re-runs championship processing for every
+championship of the stream (``process_stream`` with cause ``repair``), which
+applies outstanding role changes, assigns rounds that can be assigned and writes a
+new version only where the standings, status or counter differ. It never edits
+history, never moves a membership, never sets points or winners by hand and never
+touches settlement or football results. A stream with a *material* finding
+(ambiguous or non-authoritative data) is refused and reported for separate
+investigation. Safeguards: a read-only preview (work rolled back), an operator
+with a password check (S-07) re-entered within 15 minutes for the write, a
+reason, the preview's confirmation token (refused if anything changed), one
+transaction per round then per stream (round lock, then stream lock), idempotent,
+audited.
 """
 
 from __future__ import annotations
@@ -24,12 +40,13 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import timedelta
 from uuid import UUID
 
 from sqlalchemy import Engine, text
 
 from ...challenge import scoring
-from ..auth.permissions import Capability, Principal, authorize
+from ..auth.permissions import Capability, Principal, RecentAuthenticationRequired, authorize
 from ..db import read_only, transaction
 from ..repositories import ops
 from ..repositories import rounds as rounds_repo
@@ -38,6 +55,10 @@ from .common import ServiceError
 
 
 class BackfillRefused(ServiceError):
+    pass
+
+
+class RepairRefused(ServiceError):
     pass
 
 
@@ -209,7 +230,10 @@ class StreamStatus:
     championships: int
     waiting_rounds: tuple[str, ...]  # unassigned published rounds, deadline order
     unpublished_final: tuple[str, ...]  # final rounds without official results
-    problems: tuple[str, ...]
+    problems: tuple[str, ...]  # repairable and material findings
+    repairable: tuple[str, ...] = ()
+    material: tuple[str, ...] = ()
+    notes: tuple[str, ...] = ()  # legitimate states: review, pending assignment, D-30a ...
 
 
 def stream_status(engine: Engine, actor: Principal) -> tuple[StreamStatus, ...]:
@@ -240,21 +264,217 @@ def stream_status(engine: Engine, actor: Principal) -> tuple[StreamStatus, ...]:
             waiting = tuple(r.code for r in facts if r.id not in assigned) if is_open else ()
             unpublished = tuple(r.code for r in facts if r.status == "final" and r.latest_set
                                 is None)  # fmt: skip
+            ins = championships.inspect_stream(conn, stream) if is_open else None
             out.append(StreamStatus(
                 stream, is_open, cur.display_name if cur else None, cur.status if cur else None,
                 cur.counted_rounds if cur else 0, cur.rounds_required if cur else 10,
                 cur.n if cur else 0, waiting, unpublished,
-                tuple(championships.verify_stream(conn, stream)) if is_open else (),
+                tuple(str(f) for f in ins.findings) if ins else (),
+                tuple(str(f) for f in ins.repairable) if ins else (),
+                tuple(str(f) for f in ins.material) if ins else (),
+                tuple(f"[{n.kind}] {n}" for n in ins.notes) if ins else (),
             ))  # fmt: skip
     return tuple(out)
+
+
+# ------------------------------------------------------------------ repair (Stage D)
+@dataclass(frozen=True)
+class ChampionshipChange:
+    stream: str
+    name: str
+    before: tuple  # (status, counted rounds, version, champion count) or None if new
+    after: tuple
+    standings_changed: bool
+    winners_changed: bool
+    note: str | None = None  # boundary implication / review / D-30a
+
+
+@dataclass(frozen=True)
+class RepairPlan:
+    streams: tuple[str, ...]
+    republish: tuple[str, ...]  # rounds whose missing official results are published
+    changes: tuple[ChampionshipChange, ...]
+    repairable: tuple[str, ...]  # findings before the repair
+    unrepairable: tuple[str, ...]  # material findings: refused, investigate separately
+    remaining: tuple[str, ...]  # findings that would remain after the repair
+    token: str
+
+    @property
+    def material_change(self) -> bool:
+        return bool(self.republish or self.changes)
+
+
+def _state(conn, stream: str) -> dict:
+    rows = conn.execute(
+        text(
+            "SELECT c.display_name, c.status, c.counted_rounds, c.current_version, "
+            "c.boundary_fixed_at IS NOT NULL AS fixed, v.content_hash, v.champion_count, "
+            "(SELECT array_agg(s.user_id ORDER BY s.user_id) FROM app.championship_standings s "
+            " WHERE s.version_id = v.id AND s.rank = 1 AND s.points > 0) AS leaders "
+            "FROM app.championships c LEFT JOIN app.championship_versions v "
+            "ON v.championship_id = c.id AND v.version = c.current_version WHERE c.stream = :s"
+        ),
+        {"s": stream},
+    ).all()
+    return {r.display_name: r for r in rows}
+
+
+def _repair_work(conn, actor_id, scope: tuple[str, ...], reason: str | None):
+    """The repair in ``conn`` (the caller commits or rolls back, or uses
+    per-round transactions via ``run_repair``). Returns the plan's content."""
+    republish, changes, repairable, unrepairable, remaining = [], [], [], [], []
+    streams = []
+    for stream in scope:
+        if not championships.stream_open(conn, stream):
+            continue
+        ins = championships.inspect_stream(conn, stream)
+        repairable += [f"{stream}: {f}" for f in ins.repairable]
+        if ins.material:
+            unrepairable += [f"{stream}: {f}" for f in ins.material]
+            continue
+        if not ins.findings:
+            continue
+        streams.append(stream)
+        before = _state(conn, stream)
+        for rid, version in ins.republish:
+            code = conn.execute(text("SELECT code FROM app.rounds WHERE id = :r"),
+                                {"r": rid}).scalar_one()  # fmt: skip
+            competition.publish_finalised(conn, rid, version, actor=actor_id,
+                                          championship_cause="repair")  # fmt: skip
+            republish.append(code)
+        championships.process_stream(conn, stream, actor=actor_id, cause="repair",
+                                     refresh_all=True, reason=reason)  # fmt: skip
+        after = _state(conn, stream)
+        for name, a in after.items():
+            b = before.get(name)
+            if b is not None and (b.status, b.counted_rounds, b.current_version, b.fixed) == (
+                a.status,
+                a.counted_rounds,
+                a.current_version,
+                a.fixed,
+            ):
+                continue
+            note = None
+            if b is not None and not b.fixed and a.fixed:
+                note = "boundary fixed (its successor has commenced)"
+            elif a.status == "completed" and a.fixed and a.counted_rounds < 10:
+                note = "completed with fewer than ten counted rounds (D-30a)"
+            elif b is not None and b.status == "completed" and a.status == "in_progress":
+                note = "returns to in progress (L-33)"
+            changes.append(ChampionshipChange(
+                stream, name,
+                None if b is None else (b.status, b.counted_rounds, b.current_version,
+                                        b.champion_count),
+                (a.status, a.counted_rounds, a.current_version, a.champion_count),
+                b is None or b.content_hash != a.content_hash,
+                b is None or (b.leaders or []) != (a.leaders or []), note,
+            ))  # fmt: skip
+        remaining += [f"{stream}: {f}" for f in championships.inspect_stream(conn, stream).findings]
+    return streams, republish, changes, repairable, unrepairable, remaining
+
+
+def _repair_token(streams, republish, changes, repairable, unrepairable) -> str:
+    doc = [list(streams), list(republish),
+           [[c.stream, c.name, list(c.before or ()), list(c.after), c.standings_changed]
+            for c in changes], list(repairable), list(unrepairable)]  # fmt: skip
+    return hashlib.sha256(json.dumps(doc, default=str).encode()).hexdigest()[:16]
+
+
+def _scope(stream: str | None) -> tuple[str, ...]:
+    if stream is None:
+        return championships.STREAMS
+    if stream not in championships.STREAMS:
+        raise RepairRefused(f"Unknown stream {stream!r}.")
+    return (stream,)
+
+
+def preview_repair(engine: Engine, actor: Principal, *, stream: str | None = None) -> RepairPlan:
+    """Read-only: what ``run_repair`` would change, done and rolled back."""
+    authorize(actor, Capability.RUN_JOBS)
+    scope = _scope(stream)
+    with engine.connect() as conn:
+        trans = conn.begin()
+        try:
+            streams, rep, changes, repairable, unrepairable, remaining = _repair_work(
+                conn, actor.user_id, scope, None
+            )
+        finally:
+            trans.rollback()
+    return RepairPlan(tuple(streams), tuple(rep), tuple(changes), tuple(repairable),
+                      tuple(unrepairable), tuple(remaining),
+                      _repair_token(streams, rep, changes, repairable, unrepairable))  # fmt: skip
+
+
+def _require_recent_password(actor: Principal) -> None:
+    """The write needs the password re-entered within 15 minutes (as other
+    sensitive operator changes), so an old preview cannot be confirmed later."""
+    minutes = actor.extra.get("sensitive_recency_minutes", 15)
+    if (
+        actor.reauthenticated_at is None
+        or actor.now is None
+        or actor.now - actor.reauthenticated_at > timedelta(minutes=minutes)
+    ):
+        raise RecentAuthenticationRequired("reauthentication_required")
+
+
+def run_repair(
+    engine: Engine,
+    actor: Principal,
+    *,
+    confirmation: str,
+    reason: str,
+    stream: str | None = None,
+) -> RepairPlan:
+    """Execute a previewed repair (token required; refused if anything changed)."""
+    authorize(actor, Capability.RUN_JOBS)
+    _require_recent_password(actor)
+    if not reason or not reason.strip():
+        raise RepairRefused("A reason is required for a competition repair.")
+    plan = preview_repair(engine, actor, stream=stream)
+    if plan.token != confirmation:
+        raise RepairRefused("The data changed since the preview. Preview again.")
+    if not plan.material_change:
+        raise RepairRefused("Nothing to repair.")
+    for stream_ in plan.streams:
+        with read_only(engine) as conn:
+            todo = championships.inspect_stream(conn, stream_).republish
+        for rid, version in todo:  # one transaction per round: round lock, then stream lock
+            with transaction(engine) as conn:
+                rounds_repo.lock_round_for_change(conn, rid)
+                # idempotent per settlement version (a retry publishes nothing twice)
+                competition.publish_finalised(conn, rid, version, actor=actor.user_id,
+                                              championship_cause="repair")  # fmt: skip
+        with transaction(engine) as conn:
+            championships.process_stream(conn, stream_, actor=actor.user_id, cause="repair",
+                                         refresh_all=True, reason=reason.strip())  # fmt: skip
+    with transaction(engine) as conn:
+        ops.record_audit(
+            conn, action="competition.repair", target_type="competition",
+            target_id=stream or "all", actor=actor.user_id, actor_role="operator",
+            reason=reason.strip(),
+            after={"token": plan.token, "streams": list(plan.streams),
+                   "republished": list(plan.republish),
+                   "championships": [{"stream": c.stream, "name": c.name,
+                                      "before": list(c.before or ()), "after": list(c.after),
+                                      "standings_changed": c.standings_changed,
+                                      "winners_changed": c.winners_changed}
+                                     for c in plan.changes],
+                   "unrepairable": list(plan.unrepairable)},
+        )  # fmt: skip
+    return plan
 
 
 __all__ = [
     "BackfillItem",
     "BackfillPlan",
     "BackfillRefused",
+    "ChampionshipChange",
+    "RepairPlan",
+    "RepairRefused",
     "StreamStatus",
     "preview_backfill",
+    "preview_repair",
     "run_backfill",
+    "run_repair",
     "stream_status",
 ]

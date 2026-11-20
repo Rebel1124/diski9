@@ -135,3 +135,72 @@ def finalise(engine, op, w):
     out = co.finalise_round(engine, op, w["round"], as_of=earliest)
     assert out.finalised, out.reason
     return out
+
+
+# ------------------------------------------------------------------ Stage D corrections
+def owner(engine):
+    return fresh(engine, principal(engine, role="owner"))
+
+
+def two_all(i):
+    """Every bucket loses (nobody recovers): 2-2 on fixtures 0..8."""
+    return "CANC" if i >= 9 else (2, 2)
+
+
+def reopen_correct(engine, own, op, w, corrections, reason="league correction"):
+    """Owner reopening (S-06) with the first correction, then operator corrections."""
+    first, *rest = corrections
+    own, op = fresh(engine, own), fresh(engine, op)
+    imp = co.preview_reopen(engine, own, w["round"], correction=first)
+    co.reopen_round(engine, own, w["round"], reason=reason, evidence="league statement",
+                    confirmation=imp.token, correction=first)  # fmt: skip
+    for c in rest:
+        imp = co.preview_correction(engine, op, w["round"], c)
+        co.correct_result(engine, op, w["round"], c, reason=reason,
+                          evidence="league statement", confirmation=imp.token)  # fmt: skip
+
+
+def invalidate(engine, own, op, w):
+    """Six of nine matches cancelled: the round fails D-32b at re-finalisation."""
+    reopen_correct(engine, own, op, w, [co.CorrectionInput(f, "CANC") for f in w["fixtures"][:6]])
+    return finalise(engine, fresh(engine, op), w)
+
+
+def restore(engine, own, op, w, result_of=None):
+    """Fixtures 0..5 played again (the round passes D-32b): restored by the owner's
+    reopening and corrections; ``result_of`` gives the corrected scores."""
+    reopen_correct(engine, own, op, w, played(w, result_of))
+    return finalise(engine, fresh(engine, op), w)
+
+
+def played(w, result_of=None, n=6):
+    """FT corrections for fixtures 0..n-1 with the evidence times (a fixture first
+    observed as cancelled needs its actual kickoff and completion to settle)."""
+    result_of = result_of or winner
+    ko = w["deadline"] + timedelta(seconds=1)
+    return [co.CorrectionInput(f, "FT", *result_of(i), completed_at=ko + timedelta(seconds=1),
+                               actual_kickoff_at=ko)
+            for i, f in enumerate(w["fixtures"][:n])]  # fmt: skip
+
+
+def correct_all(engine, own, op, w, result_of):
+    """Valid-to-valid correction of all nine results, then re-finalisation."""
+    reopen_correct(engine, own, op, w, [co.CorrectionInput(f, "FT", *result_of(i))
+                                        for i, f in enumerate(w["fixtures"][:9])])  # fmt: skip
+    return finalise(engine, fresh(engine, op), w)
+
+
+def set_required(engine, n: int) -> None:
+    with transaction(engine) as conn:
+        conn.execute(text("UPDATE app.championship_series SET rounds_per_championship = :n "
+                          "WHERE code = 'beta'"), {"n": n})  # fmt: skip
+
+
+def prepare(engine, op, made, result_of=winner):
+    """Results and settlement for freshly built rounds (``result_of`` per round or
+    one function for all)."""
+    fns = result_of if isinstance(result_of, list) else [result_of] * len(made)
+    for w, fn in zip(made, fns, strict=True):
+        results(engine, op, w, fn)
+    for w in made:
+        settle(engine, op, w)
