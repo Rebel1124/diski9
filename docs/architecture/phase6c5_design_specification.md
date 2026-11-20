@@ -1,9 +1,12 @@
 # Phase 6C.5 — Leaderboards and Championships: Stage A design and specification
 
-**Status:** Stage A deliverable for owner review (20 Nov 2026). **Nothing in this
-document is implemented.** No migration has been written or run; no application
-code, settlement rule, engine or configuration has changed. Stages B–G wait for
-the owner's explicit approval of this specification and of the decisions in §20.
+**Status:** **Stage A formally approved by the owner on 20 Nov 2026**, with all
+twelve decisions (Q-1 to Q-12) resolved and the clarifications recorded in §23.
+This document is the authoritative Phase 6C.5 specification: where §23 and an
+earlier section differ, §23 governs, and the earlier sections have been updated
+to match. **Stage B (weekly results and publication) is authorised**; Stages C–G
+each need the owner's approval. The implementation record is in
+[`phase6c5_implementation.md`](phase6c5_implementation.md).
 
 **Baseline:** v4.2.0 (`main` at `06a9a6a`, tag `v4.2.0`), migrations
 `app_0001`–`app_0006`, quantitative fingerprint `88bcd717deca6c1c…`.
@@ -17,7 +20,7 @@ the owner's explicit approval of this specification and of the decisions in §20
 | **[6C.4]** / **[REG]** | Existing authoritative behaviour (v4.2.0 code, or an approved decision in the [decision register](../product/weekly_challenge_decisions.md)) |
 | **[PROPOSED]** | Claude's technical design, IDs `LT-xx`; adopted unless the owner objects |
 | **[ASSUMPTION]** | A new assumption; listed again in §20.3 |
-| **[DECISION]** | Outstanding owner decision, IDs `Q-xx`, each with a recommendation (§20) |
+| **[DECISION]** | Owner decision, IDs `Q-xx`: **all resolved on 20 Nov 2026** (§20.1, §23), recorded in the register as CH-01 to CH-12 |
 
 ---
 
@@ -75,8 +78,8 @@ The main findings of the review:
      fixtures.
 
    Details are in §4.4.
-7. **Twelve owner decisions** are listed in §20 with recommendations. Five of
-   them block Stage C; none blocks Stage B.
+7. **Twelve owner decisions** (§20) were **resolved on 20 Nov 2026** (§23).
+   None remains open.
 
 ---
 
@@ -212,8 +215,8 @@ confirmation (§20).
 | 1 | "strictly more than 50% qualifying **fixture** completion" | Strictly more than 50% of **prediction instances** across the locked valid entries were **played** (won or lost); fixtures are not deduplicated (D-32b clarification) | Wording only; implementation unchanged |
 | 2 | "five confirmed eligible participants … at lock" | Five **valid entries** at the deadline (locked, valid final submission; withdrawals excluded; all-void entries *do* count, D-33) | Consistent; the nuance is recorded |
 | 3 | Practice rounds "settle normally" (implicit) | Practice rounds are also subject to the majority rule and can become void (D-32b-Q1) | A void practice round shows "Round void", not a practice table |
-| 4 | L-34: a historical championship may end with **fewer than ten** valid rounds | D-30: a championship "is always ten … never shortened … no champion is crowned early" | **Amendment to D-30 required** (Q-11). The brief explicitly approves it as an exceptional rule; it is recorded as **D-30a** once Stage A is approved |
-| 5 | Continuous championships named "Championship MMM-YY" | D-38: beta rounds are unofficial; **Official Championship 1** begins only after D-29 validation and launch approval; every current schedule is `beta` | The brief does not mention the series. Q-1 recommends beta championships now (badged "Beta") and official ones later. The D-29 target "before Official Championship 1" becomes "before the first official championship" |
+| 4 | L-34: a historical championship may end with **fewer than ten** valid rounds | D-30: a championship "is always ten … never shortened … no champion is crowned early" | **Resolved:** recorded as **D-30a** (Q-11, approved 20 Nov 2026) |
+| 5 | Continuous championships named "Championship MMM-YY" | D-38: beta rounds are unofficial; **Official Championship 1** begins only after D-29 validation and launch approval; every current schedule is `beta` | **Resolved (Q-1):** three isolated streams (development, beta, official); D-38 unchanged; D-29 gates the official series only |
 | 6 | Hybrid persistence | Database design §7.2/§7.3: membership **derived** by a view grouping rounds in tens; `championship_freezes` with sequential `number` | **Superseded technically** (LT-06); the new owner rules need stored, versioned membership (§7.6) |
 | 7 | Rank by **gross** | C-07/C-21 say "net" | Equivalent, because allocation is always 100 (net = gross − 100) |
 | 8 | Brief 8.2: "the next Weekly Challenge begins the next championship" | Rounds overlap: round N+1 can be published while round N is still in its correction window (cutoff 48 h + window 24 h) | A round in flight while the previous championship's tenth round is unresolved belongs to whichever championship has room when it is processed (§8.3) |
@@ -363,32 +366,32 @@ only by publication]:
 | Column | Notes |
 |---|---|
 | `id uuid PK` | immutable internal identity, never shown |
-| `series_id bigint FK championship_series` | `beta` or `official` |
-| `is_development boolean NOT NULL` | development stream, isolated (LT-09) |
-| `ordinal integer NOT NULL` | internal order within `(series, is_development)`; `UNIQUE (series_id, is_development, ordinal)`; never the participant-facing name |
-| `start_date date NULL` | SAST date of the start (L-13, Q-3); set once |
-| `display_name text NULL` | e.g. `Championship Nov-26`; set once together with `start_date`; `UNIQUE (series_id, is_development, display_name)`; CHECK pattern |
+| `stream text NOT NULL` | `development`, `beta` or `official` (Q-1); a development round is always in the development stream, otherwise the stream is its series code |
+| `series_id bigint FK championship_series` | the series whose scoring configuration applies |
+| `ordinal integer NOT NULL` | internal order within the stream; `UNIQUE (stream, ordinal)`; never the participant-facing name |
+| `start_date date NOT NULL` | SAST publication date of the first associated round (Q-3); set at creation |
+| `display_name text NOT NULL` | `Championship MMM-YY`, with ` (n)` for a same-month collision; set at creation; `UNIQUE (stream, display_name)`; CHECK pattern |
 | `status text NOT NULL` | `upcoming`, `in_progress`, `completed` (§8) |
 | `rounds_required smallint NOT NULL DEFAULT 10` | from the series |
-| `counted_rounds smallint NOT NULL` | valid finalised rounds counted (the counter) |
-| `boundary_fixed_at timestamptz NULL` | set when the next championship starts (§8.4); after that no rounds join |
+| `counted_rounds smallint NOT NULL DEFAULT 0` | valid finalised rounds counted (the counter); CHECK `0 ≤ counted ≤ required` |
+| `boundary_fixed_at timestamptz NULL` | set when the next championship commences (§8.4); after that no new round is assigned to it |
 | `completed_at timestamptz NULL` | first completion |
 | `corrected_after_completion boolean NOT NULL DEFAULT false` | disclosure flag (L-21, L-34) |
 | `current_version integer NULL` | pointer to the latest `championship_versions.version` |
 | `created_at` | |
-| Trigger | `id`, `series_id`, `is_development`, `ordinal`, and `start_date` / `display_name` once non-null, can never change |
+| Trigger | `id`, `stream`, `series_id`, `ordinal`, `start_date` and `display_name` can never change |
 
 **`championship_rounds`** [projection plus history in versions]: one row per
-competitive round processed into a championship.
+round assigned to a championship (competitive, practice or void).
 
 | Column | Notes |
 |---|---|
-| `round_id uuid PK FK rounds` | a round belongs to at most one championship, **forever** (sticky, LT-05) |
-| `championship_id uuid FK championships` | |
-| `counted boolean NOT NULL` | true while the round's current published result is valid competitive |
-| `slot smallint NULL` | 1–10 order of counted rounds by deadline (recomputed on change; display only) |
-| `assigned_at timestamptz NOT NULL`, `assigned_version_id bigint` | audit |
-| index | `(championship_id, counted)` |
+| `round_id uuid PK FK rounds` | a round belongs to at most one championship, **forever** (sticky, Q-2) |
+| `championship_id uuid FK championships` | immutable (trigger) |
+| `role text NOT NULL` | `pending` (published, outcome not yet known; reserves a slot), `counted`, `practice`, `void`, `not_counted` (valid but no capacity, Q-5) |
+| `slot smallint NULL` | 1–10 order of counted rounds by deadline (display only) |
+| `assigned_at timestamptz NOT NULL` | audit |
+| index | `(championship_id, role)` |
 
 **`championship_versions`** [H]: one per publication affecting a championship.
 
@@ -408,7 +411,7 @@ competitive round processed into a championship.
 |---|---|
 | `version_id bigint FK championship_versions`, `user_id uuid` | `PK (version_id, user_id)` |
 | `rank`, `points`, `rounds_played`, `recoveries`, `qualifying_top10`, `display_order` | from `scoring.aggregate_championship`; CHECK `points ≤ 150 × rounds_played` |
-| `name_entry_id uuid FK entries` | the entry whose name at lock is shown (Q-7) |
+| `name_entry_id uuid FK entries` | the participant's latest counted entry in the championship; its name at lock is shown, resolved at read time so retroactive anonymity also applies to old versions (Q-7) |
 | index | `(version_id, display_order)` |
 
 ### 7.4 Dropped
@@ -487,7 +490,7 @@ rather than a fourth state:
 | **Status** | `upcoming` → `in_progress` → `completed` | stored, changed only by publication |
 | **Under Review** indicator | yes or no | derived on read: at least one counted round is currently reopened (`rounds.status = 'settling'` with a published score set) |
 | **Corrected** indicator | yes or no | a version after the first completion exists (`corrected_after_completion`) |
-| **Short** disclosure | yes or no | `completed`, boundary fixed and `counted_rounds < 10` (L-34 only) |
+| **Historical correction** disclosure | yes or no | `completed`, boundary fixed and `counted_rounds < 10` (D-30a only); shown as an explanatory sentence (§12.3), never as "Short" |
 
 Why not a separate Under Review state? A reopened round can sit in a championship
 that is in progress *or* completed, and several rounds can be under review at
@@ -497,84 +500,131 @@ As an indicator it is exact and needs no transitions.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> upcoming: previous championship completed<br/>(or first publication in an empty series)
-    upcoming --> in_progress: first counted round published<br/>(name and start date fixed; previous boundary fixed)
+    [*] --> upcoming: first round associated (published)<br/>(name and start date fixed; previous boundary fixed)
+    upcoming --> in_progress: first counted round published
     in_progress --> in_progress: valid round published (counter +1)<br/>counted round invalidated (counter −1, L-32)
     in_progress --> completed: counter reaches 10
     completed --> in_progress: counted round invalidated<br/>and next championship not started (L-33)
     completed --> completed: correction or invalidation<br/>after next started (fixed boundary; L-21, L-34)
     note right of completed
-      Under Review, Corrected and Short
+      Under Review, Corrected and the D-30a
+      historical-correction disclosure
       are indicators, not states
     end note
 ```
 
-A championship with `status = upcoming` has no name yet (Q-3). An empty series
-shows "The first championship begins with the first valid competitive round".
+An `upcoming` championship already has its name and start date: it exists from its
+first associated round (Q-3) until its first counted round is published. A stream
+with no championship shows "The first championship begins with the next Weekly
+Challenge".
 
 ### 8.2 Championship streams
 
-A **stream** is `(series, is_development)`:
-- `beta` / real: today's competition;
-- `official` / real: after launch (D-38);
-- `beta` / development: the development rounds only (LT-09).
+Three isolated **streams** (Q-1): **development** (every round with
+`is_development`, hidden from public users), **beta** (genuine pre-launch rounds;
+every current schedule) and **official** (after launch, behind the existing D-29 and
+D-38 gates). Streams never share championships, counters, standings or titles;
+beta results stay in participants' history but never carry over into the official
+series. Beta championships use identical mechanics and always show a **Beta**
+indicator.
 
-Streams never share championships, counters or standings.
+### 8.3 Championship membership (Q-2, approved with clarification)
 
-### 8.3 Round assignment (LT-05, Q-2)
+**Terms.**
+* A **stream round** is a published round of the stream; rounds postponed before
+  publication never take part.
+* A round assigned to a championship is a **member**. Its **role** is `pending` (outcome
+  not yet known), `practice` (base designation fixed at the lock), `counted` (final and
+  valid competitive), `void` (final and invalid), or `not_counted` (valid, but the
+  championship had no capacity; Q-5).
+* The **open championship** of a stream is its latest championship without a fixed
+  boundary.
+* Its **commitment** = counted members + pending members. A pending member
+  **reserves** a slot, because it may still become a counted round.
 
-**Rule.** Every competitively classified round of a stream is processed in **deadline
-order** (`deadline_at`, then `id`). A round is processed when it is **final** and
-every earlier competitive round of the stream has been processed. Processing:
-1. **Valid** (current designation `championship`): the round is assigned to the
-   **open** championship (the earliest one not completed and without a fixed
-   boundary; created as `upcoming` if none exists) and counted. The counter
-   increases; at ten the championship becomes `completed`.
-2. **Void** (current designation `void`): the round is assigned to the open
-   championship with `counted = false`. It is shown in that championship's timeline
-   as "void, did not count".
-3. **Practice rounds** are never assigned and never block. History shows them as
-   practice, with no championship.
+**Assignment rule.**
+* Stream rounds are assigned strictly in **deadline order** (`deadline_at`, then
+  `id`). A round is assigned at the first event (publication, lock, finalisation or
+  re-finalisation) at which every earlier stream round is already assigned and its
+  target is determined:
+  1. **Open championship has room** (commitment < 10): the round joins it as
+     `pending`. In the normal weekly rhythm this happens **at publication**.
+  2. **Open championship complete** (10 counted): the round is the first member of
+     a **new** championship. That championship is created now, takes its name and
+     start date from this round's publication (§8.4), and the previous boundary is
+     fixed.
+  3. **Commitment full but not complete** (some reserved slots still pending): the
+     target is undetermined, so the round **waits** unassigned. Its outcome
+     depends on the pending earlier rounds: if any becomes practice or void, the
+     waiting round joins the open championship; if all become counted, it starts the
+     next one.
+* **Settlement completion order never decides membership.** A waiting round can
+  finalise first: its **weekly** official result is published at once, and its
+  championship contribution waits until it is assigned.
 
-**Assignments never change afterwards (sticky).** Only `counted` (and therefore
-the counter and standings) can change, through re-finalisation.
+**Immutability.** Membership is immutable **from the moment of assignment**
+(trigger-enforced). Afterwards only the role changes, through lock, finalisation or
+re-finalisation; a round never moves to another championship.
 
-**Out-of-order finalisation.** If round N+1 is finalised while competitive round N
-(earlier deadline) is still settling:
-- round N+1's **weekly** official results are published immediately (they are
-  round-local);
-- its **championship** processing waits until round N is final;
-- then both are processed in deadline order in that transaction.
+**Overlapping rounds.** Round N+1 is normally published before round N is final.
+- If the open championship has room for both, both join at publication.
+- If round N holds the last reserved slot, round N+1 waits (rule 3) until round N's
+  outcome is known.
+- The weekly pages state what a waiting round counts toward: "the championship it
+  counts toward is confirmed when Round N is final".
 
-Meanwhile, the weekly view shows "Final · counts toward the championship once Round
-N is final". This keeps every championship's rounds contiguous by date and never
-lets a later round take a slot that an earlier round might need.
+**Unresolved earlier rounds.**
+- An assigned round's points enter the standings when **it** is final and valid.
+  Earlier members that are still pending do not delay it, because their slots were
+  already reserved.
+- Only an **unassigned** (waiting) round's contribution waits.
+- An active championship is never treated as completed while pending members exist
+  (Q-4): it completes only at ten counted rounds.
 
-### 8.4 Start, naming and boundaries (L-13, Q-3, Q-4)
+**Practice and invalidated rounds around boundaries.**
+- Practice and void rounds are members like any other: they can be a championship's
+  first member (and so name it, Q-3).
+- They never count and never advance the counter. Becoming practice (at the lock) or
+  void (at finalisation) releases the reserved slot.
+- Neither renames a championship.
 
-* **Start:** a championship *starts* when its **first counted round is
-  published**. At that moment:
-  - `start_date` = the SAST calendar date (`Africa/Johannesburg`, as T-19) of
-    that round's **publication** (`rounds.published_at`), the opening date of
-    the Weekly Challenge, as the owner preferred;
-  - `display_name` = `Championship ` + `MMM-YY` of `start_date` (English month
-    abbreviation, two-digit year: `Championship Nov-26`);
-  - both are written once and protected by a trigger;
-  - the **previous** championship's boundary is fixed (`boundary_fixed_at`):
-    from then on no round can join it (L-34).
-* Why the first *counted* round and not the first assigned round? A void round
-  can precede the first valid one; naming the championship after a round that never
-  counted would be confusing. Once established, the name never changes, even if
-  that first round is later invalidated (L-13).
-* **Collision:** two championships of a stream starting in the same month (only
-  possible with future midweek rounds or exceptional reopenings) get a suffix:
-  `Championship Nov-26 (2)`. The suffix is derived from `ordinal`, is unique by
-  constraint and never changes.
-* **Series badge:** beta championships display a small "Beta" badge next to the
-  same name; development ones display "Development" and are visible only when
-  development rounds are enabled (Q-1).
-* **Selectors** show display names, or "Next championship" for an `upcoming` one.
-  They never show IDs or ordinals.
+**Rollover.** When the open championship's tenth round is counted, every waiting
+round (published, locked or already final) is assigned in deadline order in the same
+transaction. The first one creates and names the next championship and fixes the
+previous boundary. Rounds already published or locked therefore never need to move.
+
+**Reconciliation with the historical correction rules (L-32 to L-34, D-30a).**
+Commencement of the next championship = its first member's assignment (§8.4).
+- **L-32:** a counted member becoming void in an active championship reduces the
+  counter and frees capacity for the next assignment.
+- **L-33:** a completed championship whose successor has not commenced (no member
+  yet) returns to `in_progress`; the next assigned round joins it.
+- **L-34 / D-30a:** after the successor has commenced, the boundary is fixed and the
+  championship may exceptionally keep fewer than ten rounds.
+
+### 8.4 Start date, naming and commencement (Q-3 approved with amendment, Q-4)
+
+* **Start date:** the SAST (`Africa/Johannesburg`, as T-19) calendar date of the
+  `published_at` of the championship's **first associated round**: its first member,
+  whatever that round later becomes (practice, void, counted). Example: the first
+  associated round is published on 28 Nov 2026 and becomes practice; the first valid
+  competitive round is in December; the championship is **Championship Nov-26**.
+* **Display name:** `Championship ` + `MMM-YY` of the start date (English month
+  abbreviation, two-digit year). It is established **when the championship is
+  created**, at its first member's assignment, which is the round's publication in
+  the normal rhythm (§8.3 rule 1 or 2), or the end of a wait (rule 3). It always uses
+  that round's publication date.
+* **Immutable:** identity, start date and name never change (trigger); practice
+  rounds, invalidations, postponements and historical corrections never rename it.
+* **Same-month collision:** ` (2)`, ` (3)`, … in creation order, unique per stream
+  (approved).
+* **Commencement:** a championship commences at its creation (first member). At that
+  moment the previous championship's boundary is fixed (`boundary_fixed_at`). This is
+  the point after which D-30a applies.
+* **Badges:** beta championships show **Beta**. Development championships show
+  **Development** and are visible only when development rounds are enabled, never
+  to public users.
+* **Selectors** show display names, never IDs or ordinals.
 
 ### 8.5 Completion and champions (L-08, LT-12)
 
@@ -590,7 +640,7 @@ lets a later round take a slot that an earlier round might need.
 |---|---|
 | Empty series | No championship rows. The page shows the explanatory state |
 | A round whose valid entries are all refunded | Impossible as a counted round: D-32b requires ≥ 5 ranked entries |
-| Participant with only refunded entries in a championship | Not in the standings, since they have no rankable participation (Q-8). Their personal summary shows "No ranked round in this championship yet" and their history shows the refunds |
+| Participant with only refunded entries in a championship | Not in the standings (Q-8). Their personal summary explains: "Your entries in this championship were refunded (all predictions void), so you have no official ranking yet" |
 | Participant who entered, never recovered | Listed with 0 points, ranked (L-08) |
 | Mid-championship joiner | Points from their first round; earlier rounds count as missed opportunities in their statistics, not as unsuccessful entries |
 | Username change | Each weekly row shows the name at lock. The championship row shows the name at lock of the participant's latest counted entry in that championship (Q-7). Retroactive anonymity applies everywhere (D-05) |
@@ -598,7 +648,8 @@ lets a later round take a slot that an earlier round might need.
 | Account suspended | Results stand; the name is shown as recorded (no rule changes results retroactively) |
 | Round postponed before publication | Never classified, never assigned |
 | Round voided at its first finalisation | Assigned as void; does not advance the counter (L-09) |
-| A void round later restored to valid by a re-finalisation | Counted if its championship has room (< 10 counted) and no fixed boundary; otherwise it gets weekly official results but is **not counted**, with a disclosure. Never moved, never exceeds ten (Q-5) |
+| A void round later restored to valid by a re-finalisation (Q-5) | Weekly official results republished. The round keeps its championship and counts if capacity remains (§23.5); otherwise role `not_counted`, with an explanation. Never moved, never displaces a counted round, never more than ten. Only D-32b voids can be restored; an operator invalidation has no undo path in 6C.4 (§23.5) |
+| Participant categories (Q-8) | Rankable with recovery; rankable without recovery (listed, 0 points); valid entries plus refunded entries (listed on the valid ones); refunded only (not listed; summary explains); practice only (not in championship standings); not entered |
 
 ---
 
@@ -695,8 +746,8 @@ All corrections use the 6C.4 mechanisms (`correct_result`, `invalidate_round`,
 | Owner **reopens** a final round (L-19) | Latest score set stays current; "Under Review: last published results, no longer definitive" | Last published version stays current; Under Review indicator; points are not removed |
 | Reopened round **re-finalised, still valid** (L-20, L-21) | New score set (revision + 1), whole round re-scored | New version: whole championship re-aggregated (ranks, points, tie-breakers, champion); `corrected_after_completion` if it was completed; later championships untouched |
 | Re-finalised **void**, championship in progress (L-32) | New score set, kind `void` | Round stays assigned with `counted = false`; counter −1; the next processed valid round fills the slot |
-| Re-finalised void, championship completed, **next not started** (L-33) | as above | Status back to `in_progress` (9/10); the next processed valid round joins it; audit records "championship reopened by invalidation of Round X" |
-| Re-finalised void, **next already started** (L-34) | as above | Boundary fixed: recalculated on the remaining rounds; stays `completed` with fewer than ten rounds; Short and Corrected disclosed; identity, name, start and membership unchanged; nothing transferred; the active championship is untouched |
+| Re-finalised void, championship completed, **next not commenced** (L-33) | as above | Status back to `in_progress` (9/10); the next assigned round joins it; audit records "championship reopened by invalidation of Round X" |
+| Re-finalised void, **next already commenced** (L-34, D-30a) | as above | Boundary fixed: recalculated on the remaining rounds; stays `completed` with fewer than ten rounds; the historical correction is explained (§12.3) and Corrected shown; identity, name, start and membership unchanged; nothing transferred; the active championship is untouched |
 | Several rounds under review | each independent | Recalculated at each re-finalisation; indicator while any remain reopened |
 | A later round settles while an earlier one is under review | Published normally | Processed normally: the reopened round keeps its published contribution (Q-4) |
 
@@ -706,10 +757,12 @@ points. Each publication rebuilds the round's full score set and the championshi
 full standings from scratch (the scoring engine is pure). There are no incremental
 point adjustments.
 
-**Q-4: should the next championship wait while a completed championship is under
-review?** Recommendation: **no.** Waiting could block the live competition for as
-long as an investigation takes. If the reopened round is then invalidated, L-34
-already defines the outcome (a fixed, shorter, disclosed championship).
+**Q-4 (approved with clarification):** a completed championship under review never
+stops the next championship from commencing or progressing, and corrections stay
+contained within the affected championship. If the reopened round is then
+invalidated, D-30a defines the outcome. This is distinct from an **active**
+championship with unresolved (pending) members, which is never treated as complete
+before ten counted rounds (§8.3).
 
 ---
 
@@ -731,12 +784,13 @@ competition.publish_finalised(conn, round_id, settlement_version_id, actor=uid)
    Insert the score set and its rows.
 3. Lock the stream's series row (`SELECT … FROM championship_series WHERE id = …
    FOR UPDATE`).
-4. If the round is already assigned (re-finalisation): update `counted`, recompute
-   slots and the counter, apply §10, insert a new championship version and its
-   standings, and update the projection.
-5. Otherwise run the **processing queue** (§8.3) from the earliest unprocessed
-   competitive round of the stream: process every round that is now processable,
-   in deadline order.
+4. If the round is already assigned, update its role (and, for restored rounds,
+   apply the capacity rule of §23.5), recompute slots and the counter, apply §10,
+   insert a new championship version and its standings, and update the projection.
+5. Then run the **assignment rule** (§8.3) for waiting rounds of the stream, in
+   deadline order. The same step also runs at publication and at lock, so that
+   rounds normally join at publication and practice designations release
+   reservations at once.
 6. Record domain events (`round_published`, `championship_completed`) and an audit
    row.
 
@@ -862,9 +916,10 @@ Championship Nov-26 ▾  [Beta]   In progress · 4 of 10 rounds   [Under review]
 
 * **Completed:** "Completed · 10 of 10 rounds · Champion: lindiwe" (or "Joint
   champions: …", or "No champion: no participant scored points").
-* **Short (L-34):** "Completed with 9 valid rounds: Round 2026-W51 was invalidated
-  after the next championship had started (corrected 14 Feb)". No "remaining
-  rounds" wording.
+* **Corrected after completion with fewer than ten rounds (D-30a):** "This
+  championship was corrected after completion. One previously counted round was
+  invalidated and the final standings were recalculated." The word "Short" is never
+  shown, and there is no "remaining rounds" wording.
 * **Upcoming:** "Next championship: starts with the next valid competitive round.
   Everyone starts at zero."
 * **Selector:** the current championship first, then completed ones, newest first.
@@ -1198,26 +1253,24 @@ official weekly results.
 
 ## 20. Outstanding decisions, risks and assumptions
 
-### 20.1 Owner decisions (each with a recommendation)
+### 20.1 Owner decisions: all resolved (20 Nov 2026)
 
-**Blocking Stage C:** Q-1, Q-2, Q-3, Q-6, Q-11. **Needed before Stage E:** Q-7,
-Q-9, Q-10, Q-12. The others can be confirmed at any point before Stage D. **None
-blocks Stage B.**
+| ID | Decision | Register |
+|---|---|---|
+| Q-1 | **Approved:** three isolated streams (development hidden; beta with indicator; official after launch gates); D-38 unchanged; no carry-over from beta | CH-01 |
+| Q-2 | **Approved with clarification:** deadline-order membership, immutable at assignment, overlapping and waiting rounds as in §8.3 | CH-02 |
+| Q-3 | **Approved with amendment:** start date = SAST publication date of the **first associated round** (not the first counted); collision suffix approved (§8.4) | CH-03 |
+| Q-4 | **Approved with clarification:** a completed championship under review never blocks the next; an active championship is not complete until ten counted rounds | CH-04 |
+| Q-5 | **Approved with safeguards:** restoration within capacity only; verified against 6C.4 (§23.5) | CH-05 |
+| Q-6 | **Approved:** Under Review, Corrected and historical-correction indicators; lifecycle Upcoming / In Progress / Completed; no unexplained "Short" | CH-06 |
+| Q-7 | **Approved:** name at lock of the latest counted entry; privacy rules take precedence, including for historical versions | CH-07 |
+| Q-8 | **Approved:** refunded-only participants not listed; the six participant categories distinguished | CH-08 |
+| Q-9 | **Approved:** public standings for guests as in 6C.2; no personal, private or development data | CH-09 |
+| Q-10 | **Approved:** My Challenge shows both the last published result and the current settlement, clearly labelled | CH-10 |
+| Q-11 | **Approved:** D-30a recorded in the register | D-30a |
+| Q-12 | **Approved:** labelled practice-round weekly leaderboard, no points | CH-12 |
 
-| ID | Question | Options | Recommendation |
-|---|---|---|---|
-| **Q-1** | How do beta championships relate to D-38's official series? | (a) Run beta championships now with identical mechanics and names plus a "Beta" badge; official championships begin when a schedule version points to the `official` series after D-29 and launch approval. (b) No championships until official start | **(a)**: lets the full lifecycle run in beta as D-28's clarification anticipated; D-38 stays intact. Development rounds form a separate, hidden stream |
-| **Q-2** | When does a round join a championship? | (a) Deadline order, processed when final and all earlier competitive rounds are processed; sticky. (b) Order of finalisation, no waiting | **(a)**: contiguous, chronological championships; no round ever moves; a later round's championship standing waits only while an earlier round is unresolved (its weekly result is published at once) |
-| **Q-3** | Championship start date and when the name is fixed | (a) SAST publication date of the first **counted** round, fixed when that round is first published; "Next championship" until then. (b) Publication date of the first assigned round, even if void. (c) Creation date of the championship record | **(a)**: matches "opening date of the first Weekly Challenge"; never names a championship after a round that didn't count; immutable once set. Collisions get " (2)" |
-| **Q-4** | Should the next championship wait while the previous completed one has a round under review? | wait / don't wait | **Don't wait** (L-34 already covers the outcome) |
-| **Q-5** | A void round later restored to valid (reverse of L-32) | (a) Counts if its championship has room and no fixed boundary, otherwise weekly results only and disclosed. (b) Always counts, possibly 11 rounds. (c) Move later rounds | **(a)**: never exceeds ten, never moves rounds |
-| **Q-6** | Under Review as a state or an indicator | state / indicator | **Indicator**, with the status Upcoming / In Progress / Completed (§8.1) |
-| **Q-7** | Which display name appears in a championship table? | name at lock of the latest counted entry in that championship / current name | **Name at lock of the latest counted entry** (D-05 consistency); retroactive anonymity respected |
-| **Q-8** | Participants whose only entries in a championship were refunded | listed with 0 / not listed | **Not listed**, since they have no rankable participation; their personal summary explains why |
-| **Q-9** | Leaderboard access for guests | public (as the 6C.2 access table) / signed-in only | **Public**, as already approved; personal views signed-in only |
-| **Q-10** | My Challenge during a review | show current recalculated settlement (labelled under review) plus last published rank and points / show only the published version | **Both, clearly labelled**: 6C.4 already shows the participant's current settlement; hiding it would be a regression |
-| **Q-11** | Record the L-34 exception as an amendment to D-30 | approve wording "D-30a: a completed championship whose boundaries are fixed because the next championship has started may, exceptionally, end with fewer than ten valid rounds after a later invalidation; it is disclosed as corrected after completion" | **Approve** (already approved in substance in the brief; this only records it) |
-| **Q-12** | Practice rounds in the Weekly view | labelled table without points (D-28 "shows results and a weekly table") / explanatory state only | **Labelled table without points**, as D-28 |
+No Stage A business decision remains open.
 
 ### 20.2 Risks
 
@@ -1280,3 +1333,143 @@ This Stage A changed **documentation only**. The following are untouched:
 - the `claude/gifted-newton-h6o5hk` and `research/weekly-pools` branches.
 
 No live API request was made.
+
+---
+
+## 23. Owner approval of Stage A (20 Nov 2026) and recorded clarifications
+
+**Approval.** The owner formally approved Stage A on 20 Nov 2026, with the decisions
+and clarifications below, and authorised Stage B (weekly results and publication,
+including `app_0007`). Stage C needs explicit owner approval. All twelve decisions
+are resolved; the register records them as **CH-01 to CH-12** and **D-30a**. The
+sections above have been updated to match; this section summarises what was
+approved.
+
+### 23.1 Streams (Q-1)
+Three isolated streams: development (synthetic testing, hidden from public users),
+beta (genuine pre-launch participation, visibly labelled Beta) and official (after
+launch and the existing gates). D-38 is unchanged and D-29 gates the official series
+only. Beta history stays available to participants, but beta points, standings and
+titles never carry over into the official series.
+
+### 23.2 Membership (Q-2)
+Deadline-order assignment, immutable once assigned, never decided by settlement
+completion order (§8.3). Documented in §8.3:
+- when membership becomes immutable (at assignment);
+- overlapping rounds (reservation and waiting);
+- unresolved earlier rounds (only unassigned rounds wait);
+- practice and invalidated rounds at boundaries (members that release their slot,
+  never counting or renaming);
+- rollover with rounds already published or locked (assigned in deadline order at
+  rollover, never moved).
+
+**No unresolved boundary case requires a change to an approved business rule.**
+
+### 23.3 Naming (Q-3, amended)
+`Championship MMM-YY` from the SAST publication date of the **first associated
+round**, even if that round later becomes practice or void. Established when the
+championship is created at its first member's assignment (normally the round's
+publication). The identity, start date and name are immutable; same-month
+collisions get ` (2)`, ` (3)`, … (approved).
+
+### 23.4 Review and completion (Q-4, Q-6)
+A completed championship under review does not block the next one. An active
+championship with pending members is not complete. Under Review, Corrected and the
+D-30a historical-correction disclosure are indicators, not states. Participant-facing
+wording explains the correction ("This championship was corrected after completion.
+One previously counted round was invalidated and the final standings were
+recalculated.") and never implies a missing round.
+
+### 23.5 Restored rounds (Q-5): verification and deterministic capacity
+**Verification against v4.2.0 (done in Stage A closure):**
+- **D-32b voids can be restored.** Each settlement run re-evaluates D-32b and, when
+  the outcome becomes `pass`, writes a designation restoring the base designation
+  (`settlement.compute`, basis `d32b`). For a final round this needs the existing
+  owner reopening (S-06, T-14), a correction and a re-finalisation. No new
+  transition is introduced.
+- **An operator invalidation (basis `operator`) cannot be restored.** 6C.4 has no
+  withdrawal of an operator invalidation, and re-evaluation is skipped while it is
+  current. This is a documented limitation: such rounds stay void, and Q-5 applies
+  to D-32b voids only.
+
+**Rule:**
+1. A restored round always republishes its weekly results and keeps its original
+   championship.
+2. It becomes `counted` only if the championship has capacity: `counted + pending <
+   10`. Pending members keep their reserved slots, so a restored round never
+   displaces a counted or reserved round.
+3. Otherwise its role is `not_counted`, and the weekly and history pages explain:
+   "This round was restored after its championship had already reached ten counted
+   rounds, so its points do not count toward the championship."
+4. **Several restored rounds competing for capacity:** whenever capacity is
+   evaluated (at any publication in the stream, under the series lock), `not_counted`
+   members are reconsidered in deadline order **before** any new round is assigned.
+   The earliest-deadline restored round takes freed capacity first. The result
+   depends only on the sequence of committed publications.
+5. Every role change is recorded in a new championship version (cause
+   `round_restored`) with its actor and reason.
+
+### 23.6 Names and privacy (Q-7, Q-9)
+- Championship rows show the name at lock of the latest counted entry. Weekly rows
+  show their own name at lock.
+- Retroactive anonymity and pseudonymisation take precedence everywhere, including
+  historical versions: names are never stored in published rows and are resolved at
+  read time.
+- Guests see public weekly and championship standings, including historical ones,
+  with beta clearly identified. They never see personal summaries, history,
+  settlement details, predictions, portfolio construction, account data or
+  development rounds and championships.
+
+### 23.7 Participant categories (Q-8)
+- Rankable with recovery, and rankable without recovery (listed with 0 points).
+- Valid entries plus refunded entries (listed on the strength of the valid entries).
+- Refunded only (not listed; the summary explains).
+- Practice only (no championship standing).
+- Not entered.
+
+Refunded entries are neither successful nor unsuccessful recovery observations.
+
+### 23.8 My Challenge during review (Q-10)
+The page shows the last published return, weekly rank and championship points,
+alongside the current (provisional or unresolved) settlement, each clearly labelled.
+It also says the published points remain in the standings until the corrected round
+is finalised and republished. No provisional championship points are shown.
+
+### 23.9 Practice-round leaderboards (Q-12)
+A valid practice round has a weekly leaderboard labelled **Practice Round**:
+- it explains that the round is ineligible for championship points;
+- it shows returns and practice ranks, with no points;
+- it never advances the counter, enters standings or affects competitive recovery
+  statistics.
+
+An invalidated practice round shows the void state only.
+
+### 23.10 Additional clarifications
+* **Validity terminology (2.1):** the "strictly more than 50%" rule is over played
+  **prediction instances** across all locked valid entries, not unique fixtures. All
+  6C.4 rules are unchanged, and 6C.4 remains the sole authority on settlement and
+  round validity.
+* **Scoring engine (2.2):** `scoring.py` is reused unchanged through an adapter. The
+  lifecycle exceptions (no champion at zero points, D-30a short completion, practice
+  treatment, restored rounds without capacity) live outside the engine.
+* **Publication (2.3):** the hybrid architecture is approved. Official weekly results
+  are never published from incomplete or non-authoritative settlement: only from a
+  successful finalisation.
+* **Weekly points versus championship contribution (Stage B brief 4.3):** a score
+  set records the points the methodology gives each entry in that round. A
+  round's points enter championship standings only when the round is an assigned,
+  `counted` member (Stage C). Until then they are labelled "weekly points".
+* **Backfill (2.4):**
+  - preview first; operator role with an independent password; explicit
+    confirmation; deterministic order; idempotent; audited; stream-correct;
+    competitive, practice, void and refunded records handled correctly;
+  - development records never enter beta or official competitions;
+  - rounds that cannot be reliably classified are reported and left unassigned;
+  - tested only on isolated databases, and never run against the owner's database
+    without approval.
+
+  It needs the Stage C membership services, so it is implemented in Stage C (§18).
+* **Performance (2.5):** the targets are engineering targets. Measured results are
+  reported as measured, never as achieved targets.
+* **Private mini-leagues:** remain removed from the MVP roadmap, with no
+  architectural foundations.

@@ -382,6 +382,11 @@ erDiagram
   * current designation = latest row.
 
 ### 6.7 `score_sets` [H] and `round_scores` [H]
+
+> *Phase 6C.5 (`app_0007`):* score sets are written only at finalisation (one per
+> published final settlement version, `settlement_version_id` UNIQUE); `round_scores`
+> gains `display_order` and the status `round_void`. See the 6C.5 specification §7.2.
+
 * **Purpose:** weekly ranks and points (D-26, D-31) per settlement revision.
 * **`score_sets`:** `id`, `round_id`, `revision`, `run_id`, `designation_id`,
   `kind` (`championship`, `practice`, `void`), `final boolean`.
@@ -403,6 +408,16 @@ erDiagram
   and launch approval (D-38).
 
 ### 7.2 Derived championship membership
+
+> **Superseded (owner approval of Phase 6C.5 Stage A, 20 Nov 2026).** Membership is
+> **stored** and immutable from assignment (`championship_rounds`, CH-02), standings
+> are versioned (`championship_versions`, `championship_standings`) and
+> `championship_freezes` is dropped by `app_0007`. The derived view and the freeze
+> table below could not express the approved retained-results, fixed-boundary and
+> D-30a rules. See
+> [`phase6c5_design_specification.md`](phase6c5_design_specification.md) §7–§8.
+> The original text is kept for history.
+
 * Not stored as editable rows. A query orders a series' rounds whose **current**
   designation is `championship` by `deadline_at`, after the last frozen boundary,
   and groups them in tens: rounds 1–10 are championship *n*, and so on. The
