@@ -376,3 +376,35 @@ change re-aggregates from scratch (no incremental points, by design).
   are exposed.
 * A counted round re-finalised as still valid is re-aggregated in Stage C;
   role-changing transitions are contained for Stage D (§3.3).
+
+### 3.8 Owner approval of Stage C (20 Nov 2026)
+* Stage C was formally approved by the owner at `3999974` (implementation
+  `9a74d13`; Stage B closure `5cbffd9`; migration `app_0007`, with no further
+  schema change).
+  - Full local suite: 1,560 of 1,560 (38 new tests).
+  - CI run 57 passed.
+  - Fingerprint, scoring engine and protected areas unchanged.
+  - No migration or backfill was run on the owner's or any production database.
+* The implementation decisions in §3.2 and the deviations in §3.7 were accepted:
+  per-stream locks, conditional version creation, development stream settings,
+  and selection by display name.
+* The performance results in §3.5 were accepted with no further optimisation.
+  Two items carry over to Stage F, which also covers multi-process concurrency
+  testing:
+  - the same-process reader-thread contention;
+  - the uncached provisional page.
+* **Stage D dependencies (preserved):**
+  - valid-to-valid re-finalisation already re-aggregates;
+  - validity changes stay contained (under review: recalculation pending);
+  - still to build: D-30a, L-32, L-33 and CH-05 restoration; full historical
+    invalidation and restoration; audited repair; property-based correction
+    sequences;
+  - interactions between historical corrections, reserved slots, pending
+    assignments and rollover;
+  - the operator-invalidation reversal limitation is unchanged.
+* **Operational observation:** the 09:14 UTC odds-trial firing arrived while this
+  session was busy and ran at 09:45:49 UTC (11:45:49 SAST): EPL 20 fixtures,
+  1,136 quotes, PSL 0, 3 requests, 7,485 remaining, no errors, commit `43a1773`.
+  The trial continues until 21 Nov 2026 15:00 UTC.
+* Deferred, unchanged: D-29, D-36, S-07, hosted Supabase acceptance and the 6C.3
+  backlog. Private mini-leagues remain excluded.
