@@ -31,7 +31,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import Connection, Engine, func, select, text
+from sqlalchemy import Connection, Engine, func, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import NoResultFound
 
@@ -390,6 +390,25 @@ def withdraw_entry(
             raise VersionConflict("Your entry changed while saving.", None)  # pragma: no cover
         repo.add_event(
             conn, e.id, "withdrawn", previous_submission_id=e.current_submission_id, actor=uid
+        )
+        # A withdrawal starts the participant afresh (as in the browser-only flow): the
+        # saved predictions are cleared in the same transaction, so the withdrawn
+        # portfolio is never shown as selected or resubmitted. The draft row and its
+        # version remain (a version number is never reused); the withdrawn submission
+        # itself stays in the entry history.
+        conn.execute(
+            update(portfolio_drafts)
+            .where(
+                portfolio_drafts.c.user_id == uid,
+                portfolio_drafts.c.round_id == round_id,
+                portfolio_drafts.c.selections != text("'[]'::jsonb"),
+            )
+            .values(
+                selections=[],
+                version=portfolio_drafts.c.version + 1,
+                writer_tab=None,
+                writer_seq=None,
+            )
         )
         return _entry_view(conn, round_id, uid)
 

@@ -1083,6 +1083,16 @@ pending**; net, like recovery, stays "Not final yet" until the round's validity 
 known; the returned figure is labelled "before the round check". Regression test
 added. No settlement data or rule changed.
 
+Also raised by the owner during acceptance: after withdrawing a confirmed entry
+the builder still showed the withdrawn portfolio's predictions as selected,
+because the 6C.3 signed-in withdrawal kept the saved draft (the browser-only flow
+from 6B.2 already cleared it). Changed at the owner's request (T-09 clarified):
+`entries.withdraw_entry` now clears the saved predictions in the same transaction
+(the draft row and its version remain, so no version number is reused; the
+withdrawn submission stays in the history); the message says the predictions were
+cleared. Tests: the re-entry test now saves a new portfolio after withdrawing, and
+a page-level test checks the builder and a fresh page load are empty.
+
 ### 24.12 Outstanding before release
 Owner's local acceptance on the Mac (`docs/phase6c4_local_acceptance_mac.md`);
 then release preparation, merge and tag only when separately authorised.

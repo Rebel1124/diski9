@@ -216,7 +216,13 @@ def test_withdrawal_and_re_entry(engine, rnd):
     assert count(engine, submissions, entry_id=e1.entry_id) == 1  # history kept
     with pytest.raises(ValidationFailed):
         es.withdraw_entry(engine, p, view.id, expected_entry_version=w.version)
-    e2 = confirm(engine, p, view, d, version=w.version)
+    # the withdrawal cleared the saved predictions (a fresh start, never resubmitted)
+    after = drafts.get_draft(engine, p, view.id)
+    assert after.selections == () and after.version == d.version + 1
+    with pytest.raises((VersionConflict, ValidationFailed)):
+        confirm(engine, p, view, d, version=w.version)  # the withdrawn portfolio
+    d2 = drafts.save_draft(engine, p, view.id, valid_keys(snap), expected_version=after.version)
+    e2 = confirm(engine, p, view, d2, version=w.version)
     assert e2.active and e2.current.version == 2
     assert [h.kind for h in e2.history] == ["confirmed", "withdrawn", "confirmed"]
 

@@ -123,6 +123,26 @@ def test_unsaved_changes_survive_navigation_and_saved_work_is_restored(engine, r
     assert persist.hydrate(service, s)["selections"] == keys_of(snap, 4)
 
 
+def test_withdrawal_clears_the_selections_in_the_builder(engine, rnd, as_user):
+    """After withdrawing, the builder starts clean: the withdrawn portfolio's
+    predictions are neither shown as selected nor kept in the saved draft."""
+    view, snap = rnd
+    p = principal(engine)
+    service = make_service(engine, view.id)
+    as_user(p)
+    s = persist.hydrate(service, {})
+    s["selections"] = keys_of(snap, 9)
+    s, _ = persist.save_selections(service, s)
+    s, flash = persist.confirm(service, s)
+    assert s["submitted"] is not None
+    s, flash = persist.withdraw(service, s)
+    assert flash["kind"] == "ok" and "cleared" in flash["text"]
+    assert s["selections"] == [] and s["submitted"] is None and s["withdrawn"]
+    # a new page load (another tab or device) shows the same clean draft
+    fresh = persist.hydrate(service, {})
+    assert fresh["selections"] == [] and drafts.get_draft(engine, p, view.id).selections == ()
+
+
 def test_stale_device_gets_a_conflict_and_never_silently_takes_the_other_draft(
     engine, rnd, as_user
 ):

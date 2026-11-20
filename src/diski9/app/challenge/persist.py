@@ -406,8 +406,8 @@ def withdraw(service, state: dict) -> tuple[dict, dict]:
     fresh = hydrate(service, state, force=True) or state
     fresh.update(confirm=None, stage="build")
     return fresh, {
-        "text": "Your entry was withdrawn. Your saved portfolio is still here; you can confirm "
-        "again before the deadline.",
+        "text": "Your entry was withdrawn and its predictions were cleared. You can build and "
+        "confirm a new portfolio before the deadline.",
         "kind": "ok",
     }
 
