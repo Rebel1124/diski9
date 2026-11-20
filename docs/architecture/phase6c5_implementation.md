@@ -895,3 +895,204 @@ authorisation.
 * D-29, D-36, S-07, hosted Supabase acceptance and the 6C.3 backlog.
 
 Private mini-leagues remain excluded from the MVP.
+
+---
+
+## 5. Stage E: Leaderboards and historical performance UI (20 Nov 2026)
+
+### 5.1 Baseline
+* `feature/phase-6c5-leaderboards` at `ea17406` (formal Stage D closure; code
+  `65a1440`), equal to the remote.
+* Accepted suite: 1,603 of 1,603; CI run 63 passed. Fingerprint `88bcd717deca6c1c…`.
+* Local acceptance Checkpoints 1–4 were passed; 5–6 were owner-waived. This
+  distinction is preserved: the waived checkpoints were not executed.
+
+### 5.2 Interfaces
+
+**Leaderboards** (`/leaderboards`, `app/challenge/leaderboards_ui.py`)
+
+The page shows a **Weekly | Championship** control, a stream selector (Beta;
+Development only with development rounds enabled; Official only once the official
+series has started) and a round or championship selector. Selectors carry round
+codes and display names. The server resolves them within the selected stream, so a
+code from another stream resolves to nothing.
+
+*Weekly:*
+* **Default round:** the newest round whose standings are official or provisional,
+  else the newest locked round, else the newest open one. It is never chosen by
+  insertion time.
+* **Header:** the round, its stream badge, its classification, and its
+  championship link: counted round n of 10, practice, void, not counted
+  (restored), or assignment pending with its explanation. A championship name is
+  never invented.
+* **Personal summary:** shown above the table, independent of the page.
+* **State banners (§12.2)**, with these additions:
+  - a provisionally void round is worded as provisional ("Nothing is final yet");
+  - the "Final · published …" line is replaced by "Corrected · version n" after a
+    correction.
+* **Podium:** final and under-review rounds, page 1, at most three names per place
+  ("and N others").
+* **Table:** rank (shared shown as "=n"), name, returned, net, recovery, and points
+  for competitive official rounds only. Practice shows no points column. Provisional
+  shows returned so far, settled, pending and status.
+* **Pagination:** 50 rows per page from the service, with Previous, Next and "Go to
+  my position".
+
+*Championship:*
+* **Header:** name, stream badge, lifecycle pill, *Under review* and *Corrected*
+  pills, and ten-segment progress of valid counted rounds.
+* **Completion:** the champion or joint champions (trophy icon), or "No champion: no
+  participant scored points".
+* **Review reasons** in plain words: reopened, recalculation pending, integrity
+  review (`integrity_review` is never shown as definitive).
+* **Disclosures:**
+  - the D-30a sentence plus "Subsequent championships are unaffected";
+  - the approved I-4 sentence when no counted round remains;
+  - the L-33 continuation sentence;
+  - restored rounds that do not count.
+* **Upcoming:** "Everyone starts at zero".
+* **Personal summary:** the rank, or the reason there is none (not entered,
+  awaiting results, refunded only, practice only, not counted only, invalidated
+  only).
+* **Table:** rank, name, played, recoveries, top tens, points, and a rate column
+  hidden below 900 px.
+
+*Rules:* "How points works" is built from the engine's own `POINTS_150_75_V2`
+configuration, so there is no second copy of the schedule.
+
+**My Challenge** (`/challenge/me`)
+
+*Current | History* are separate containers, so the existing 6C.3 and 6C.4 Current
+callbacks are untouched. *Current* is unchanged except that, with the competition
+database, the illustrative championship block is replaced by the real championship
+summary for the current round's stream.
+
+*History* (`app/challenge/history_ui.py`):
+* stream and scope selectors (all championships, or one);
+* the statistics card;
+* the two charts;
+* the entry list, 20 per page, newest first, with every entry type included;
+* **Details:** loads one entry on demand, with the last published official result
+  (labelled "under review, no longer definitive" while reopened) above the reused
+  6C.4 `results_ui.panel` (nine predictions, four accumulators, frozen odds,
+  scores, verdicts, void reasons and refunds).
+
+**Prototype mode:** with no competition database, the Phase 6B demonstration pages
+and their ribbon remain.
+
+### 5.3 Read services
+* **New:** `backend/services/challenge_history.py` (read-only, participant-scoped
+  from the server-side principal; guests get `None`):
+  - `my_history`: bounded pages with one joined query and no per-row reads;
+  - `my_statistics`: §9.4;
+  - `my_round_code_visible`: resolves a drill-down only for the viewer's own entry
+    in that stream.
+* **Extended:**
+  - `leaderboards.round_list`, `default_round`, `round_id_for` and `stream_options`;
+  - `weekly_board.championship_round` and `championship_rounds_required`;
+  - `my_round_result`, which already existed, is used by the drill-down.
+
+No migration and no write path were added. All reads remain READ ONLY at
+REPEATABLE READ.
+
+### 5.4 Personal statistics (§9.4, as implemented)
+* **Competitive population:** ranked entries in counted rounds of the scope. It
+  gives played, recoveries, the recovery rate (recoveries ÷ played; none when
+  nothing was played), qualifying top tens, allocated (100 per played entry),
+  returned, net, and ROI as aggregate net ÷ allocated, never an average; none when
+  nothing was allocated.
+* **Missed:** counted rounds not entered at all. A missed round is never an
+  unsuccessful entry.
+* **Separate counts, never mixed in:** practice entries (with recoveries), refunded
+  entries, void rounds, not-counted (restored) entries, and entries awaiting
+  official results.
+* **Standings:** listed per championship from its current published version.
+  Points are never added across championships or streams.
+* **Reopened rounds** keep their published values; the card says so.
+* **Chart 1:** cumulative allocation and return over the competitive population.
+* **Chart 2:** cumulative published points for exactly one championship (the
+  selected one, or the most recent with participation). Missed and refunded rounds
+  add 0.
+
+### 5.5 Privacy and security
+* Public rows carry display names (name at lock, with retroactive anonymity at read
+  time) and approved statistics only.
+* The browser checks found no e-mail address and no UUID in any page text or element
+  id.
+* History and drill-downs are scoped to the signed-in participant. Codes of other
+  participants' entries, or of another stream, resolve to nothing.
+* Development data needs the existing `DISKI9_SHOW_DEVELOPMENT_ROUNDS`, which is
+  refused in production.
+* No authentication or operator safeguard changed.
+
+### 5.6 Responsive design
+* **Desktop:** full league tables.
+* **≤ 900 px:** the optional rate column is hidden and the charts stack.
+* **≤ 640 px:** every table row becomes a labelled card. The rank and name share a
+  line, followed by two label–value pairs per line, so no field is lost. Selectors
+  and the pager go full width.
+* No page-wide horizontal overflow at 1360, 768 or 390 px.
+
+### 5.7 Tests
+| Suite | Tests |
+|---|---|
+| `tests/backend/test_backend_stage_e_history.py` (PostgreSQL) | 7: §9.4 definitions (recovery denominator excludes refunds; missed; aggregate ROI; separate practice and void counts; read-only); one-championship scope; zero denominators give no percentage; history of every entry type, newest first, paginated; privacy (guest, other participant, stream isolation, drill-down codes); the weekly selector (order, default, stream-bound codes, stream options, counted-round number); a reopened round under review with published values |
+| `tests/test_stage_e_ui.py` (render) | 20: every weekly state (final, corrected, under review, provisional, provisionally void, final void, practice, refunded, not entered, guest, pending assignment, open, locked); podium cap; pager and rules; championship (in progress, joint champions, no champion, D-30a, all invalidated, review reasons including integrity review, non-ranked reasons, upcoming); history status texts, table values, summary and population note with zero denominators, and charts (empty, one round, many) |
+| `tools/e2e_6c5/shots.js` (real browser, real app, real Supabase Auth) | 35 checks at three widths: guest and signed-in weekly; provisional, final, corrected, under review, practice, void and refunded states; pagination to page 2; current and historical championships (joint champions, D-30a, under review); My Challenge Current and History; championship scope; drill-down of a reopened round. Each page is checked for overflow, console errors, identifiers and e-mails, and no writes. **0 problems** |
+| Existing UI suites | `test_challenge_ui`, `test_playtest_refinement`, `test_challenge_state`, `test_your_view_persistence` and weekly results: 97 passed, unchanged (prototype mode keeps the demonstration pages) |
+
+### 5.8 Performance (1,000 participants, 11 rounds; this machine; `tools/phase6c5_perf_stage_e.py`)
+| Read | Median | SQL statements |
+|---|---|---|
+| Weekly round selector | 2.5 ms | 2 |
+| Weekly board, page 1 plus viewer row | 18.0 ms | 12 |
+| Weekly board, last page | 15.0 ms | 12 |
+| Championship list | 2.6 ms | 2 |
+| Championship board (completed, 10 rounds) | 26.8 ms | 16 |
+| My statistics: all championships / one championship | 5.7 / 6.3 ms | 5 / 6 |
+| My history, page of 20 | 5.3 ms | 3 |
+| Drill-down (`my_round_result` plus `my_settlement`) | 10.6 ms | 15 |
+
+The statement counts do not grow with the page size or the number of participants:
+there is no N+1 pattern. These are service timings, not end-to-end page times.
+Multi-process testing remains Stage F.
+
+### 5.9 Deviations and decisions (technical; no business rule changed)
+* **Chart 1** is a cumulative allocation versus return line, as the Stage E
+  instruction asks, instead of the grouped per-round bars sketched in spec §12.5.
+* **Tablet** keeps the Net column (spec §12.2 suggested hiding it), because the
+  Stage E instruction asks that no approved information be omitted at narrow widths.
+* **Default stream** is Beta, or Official once started. With no current round, the
+  My Challenge summary uses the development stream in development mode.
+* **Prototype mode** keeps the demonstration leaderboards and illustrative My
+  Challenge blocks, labelled, and they are removed whenever the competition
+  database is configured (spec §12.1).
+* **Weekly selector label:** round code plus its SAST match window. The code remains
+  the authoritative value.
+* **History scope:** stream plus all championships or one. No date filter, to keep
+  one simple control.
+
+### 5.10 Known limitations
+* No dedicated "Development" toggle on My Challenge Current. It follows the current
+  round's stream.
+* Charts label rounds by code. With more than six rounds the axis labels are hidden
+  and the code appears on hover.
+* Rounds of the same weekend share their window label; the codes distinguish them.
+* The browser checks run against a seeded development database, not the owner's
+  data. The owner's visual acceptance covers that (`docs/phase6c5_local_acceptance_mac.md`, §15).
+
+### 5.11 Regression and verification
+* **Full suite** on a clean copy of `b983bba`: **1,629 passed and 1 failed**. That
+  is 1,603 plus 27 new tests, less one that ran but failed.
+  - The failure is `tests/test_match_context.py::test_browser_section_b_alignment_and_bookmaker_layout`,
+    an unchanged Match Lab browser test that is timing-sensitive. Neither it nor the
+    Match Lab code changed in Stage E.
+  - It also failed once at `29ff049`, before Stage E existed. Rerun alone, it passed
+    2 of 3 times, failing on a different assertion each time (a value read before it
+    updated).
+  - It is reported as intermittent and pre-existing, not as a Stage E failure.
+* **Fingerprint** `88bcd717deca6c1c…` unchanged.
+* **No change** to scoring, settlement, corrections, competition publication,
+  championship processing, authentication, migrations, ingestion, odds, API
+  clients, the screener or Portfolio Analysis.
+* **Lint and formatting** clean.

@@ -341,3 +341,99 @@ Never use `docker compose down -v`.
 | Possible now | Waits for Stage E |
 |---|---|
 | Migration and backfill on a scratch copy; status and verify; corrections, restoration, D-30a and repair through the commands and the scenario tests; standings and versions via the read services | The Leaderboards (Weekly / Championship) pages, personal summaries, My Challenge history and charts, and the browser journeys |
+
+---
+
+## 15. Stage E visual acceptance (Leaderboards and My Challenge History)
+
+This reuses your **scratch copy** `diski9_6c5_acceptance` from §3. It is already at
+`app_0007` and holds the results from Checkpoints 3 and 4, including the practice
+round `dev-6c5-p1`. Your own `diski9` database is neither needed nor touched. No
+migration or backfill is run.
+
+### 15.1 Update the code (changes your working files only)
+
+```bash
+cd ~/Desktop/diski9
+```
+
+```bash
+git pull
+```
+
+```bash
+git log -1 --oneline
+```
+
+```bash
+uv sync
+```
+
+`git log` shows the Stage E commit named in the checkpoint report.
+
+### 15.2 Point a terminal at the scratch copy (read-only check first)
+
+In a new terminal (the app keeps running in it):
+
+```bash
+cd ~/Desktop/diski9
+```
+
+```bash
+export DISKI9_APP_DATABASE_URL="$(grep '^DISKI9_APP_DATABASE_URL=' .env | cut -d= -f2- | sed -E 's#/diski9$#/diski9_6c5_acceptance#')"
+```
+
+```bash
+echo "$DISKI9_APP_DATABASE_URL" | sed -E 's#//[^@]*@#//***@#'
+```
+
+It must end in `/diski9_6c5_acceptance`. **If it does not, stop.**
+
+```bash
+uv run diski9 app-db current
+```
+
+It should say `current app_0007; head app_0007`. If it shows `app_0006`, you are
+pointing at your own database: stop.
+
+### 15.3 Start the app on the scratch copy (sign-ins record sessions in the scratch copy only)
+
+```bash
+DISKI9_SHOW_DEVELOPMENT_ROUNDS=1 uv run diski9 serve
+```
+
+Open http://127.0.0.1:8050 and sign in with your owner account.
+
+### 15.4 What to look at
+1. **Leaderboards, Weekly.**
+   - Choose **Development** in the stream selector and round `dev-6c5-p1`.
+   - Expect "Practice round", positions and names at lock, Returned, Net and
+     Recovery, with **no points column**.
+   - Expect "Practice: no championship points" in the header, and your summary
+     above the table if you entered.
+   - Choose **Beta**: `2026-W47-weekend` is open, so it says "Entries are revealed
+     after the deadline".
+2. **Leaderboards, Championship.** Development `Championship Nov-26` is
+   **Upcoming**, at 0 of 10 valid rounds, with "Everyone starts at zero" and the
+   ten-segment progress empty.
+3. **My Challenge, Current.** It is the 6C.4 page you know, with the
+   **Championship** card now showing your real standing, or why there is none,
+   instead of the illustrative block.
+4. **My Challenge, History.**
+   - Choose **Development**.
+   - Expect your statistics with the population note, the two charts (they say
+     so when no counted competitive round exists yet), and your entries newest
+     first.
+   - Press **Details** on an entry for the nine predictions and four accumulators.
+5. **Phone and tablet widths.** Use your browser's responsive mode at 390 and
+   768 px. Tables become labelled cards with no sideways scrolling.
+
+Your scratch copy has no competitive (five-entry) round, so the competitive
+states are best reviewed in the screenshots, which come from a seeded development
+database:
+- points, champions, D-30a, Under Review, corrections and pagination;
+- see `docs/screenshots/phase6c5/README.md`.
+
+### 15.5 When you finish
+Stop the app with Ctrl-C and close that terminal. Your own database was never used.
+Keep the scratch copy and the backup unless you decide otherwise.

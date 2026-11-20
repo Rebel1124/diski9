@@ -1498,3 +1498,13 @@ verification. Details and clarifications are in
 
 The §11.6 membership replay is replaced by structural checks over the recorded
 history.
+
+### 23.12 Stage E implementation notes (20 Nov 2026)
+Details are in `phase6c5_implementation.md` §5:
+* **Chart 1** of §12.5 is drawn as cumulative allocation versus return, following
+  the Stage E instruction, instead of grouped bars.
+* **Tablet** keeps the Net column (no approved information is omitted at narrow
+  widths).
+* **Phones** use labelled cards.
+* **Prototype mode** (no competition database) keeps the labelled demonstration
+  pages.

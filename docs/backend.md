@@ -372,6 +372,13 @@ Stage D (corrections, reopening and recalculation):
   disclosures, restored-round explanations and `my_round_result` (last published
   result next to the current settlement, CH-10).
 
+Stage E (read services for the Leaderboards and My Challenge History pages):
+* `services/challenge_history.py`: `my_history`, `my_statistics` (§9.4) and
+  `my_round_code_visible`. Read-only and participant-scoped.
+* `leaderboards.round_list`, `default_round`, `round_id_for` and
+  `stream_options`; `weekly_board.championship_round`.
+* UI: `app/challenge/leaderboards_ui.py` and `history_ui.py`.
+
 Ranks and points come from the unchanged `challenge/scoring.py`. Specification:
 `docs/architecture/phase6c5_design_specification.md`; record:
 `docs/architecture/phase6c5_implementation.md`.
