@@ -51,6 +51,22 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   finalisation; Official unreachable; no live provider calls in development or
   tests; no new migration unless separately justified. Stages D–G not authorised.
 
+**Phase 6C.6 Stage C formal acceptance and Stage D authorisation (21 Nov 2026):**
+* **Stage C formally accepted** (candidate `f89de9d`, CI run 89: 1,750 passed, 0
+  skipped; documentation head `490f5e4`, CI run 90).
+* Provider limits accepted **provisionally as defaults only**; automated provider
+  calls stay disabled; live use needs the subscription allowance, account-wide
+  consumption, competing workloads and a safety reserve verified first; no cap
+  increase without approval.
+* Scheduler advisory lock accepted for now; behaviour under realistic hosted
+  PostgreSQL timeouts and pooling to be evidenced before hosted Beta (no timeout
+  weakening as the default answer).
+* **Stage D (monitoring, alerts and recovery) authorised:** `ops status`,
+  `ops check`, three-level severity, one disabled-by-default webhook, recovery
+  runbook, read-only job history, locking review; no real notification
+  destination, no migration without separate approval, no force-finalise, no
+  automatic alert resolution. Stages E–G not authorised.
+
 **Phase 6C.5 Stage F4 closure and Stage G owner acceptance (21 Nov 2026) — Phase 6C.5 complete:**
 * **F4 closed** at `f0ac3c2` (CI run 81; 1,682 passed, 0 failed, 0 skipped; 12
   journeys, 253 checks, 0 problems; Match Lab intermittent test corrected, 40/40

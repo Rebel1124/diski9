@@ -289,7 +289,22 @@ Commit `320e134` (separate from S-07, owner-approved quick wins).
   map and push discipline. Not done (separate approval): pytest parallelisation,
   per-worker databases, new dependencies, CI restructuring.
 
-## 4. Stage C: scheduling and lifecycle orchestration (21 Nov 2026; checkpoint)
+## 4. Stage C: scheduling and lifecycle orchestration — **formally accepted (21 Nov 2026)**
+
+**Owner acceptance (21 Nov 2026).** Stage C is formally accepted on this evidence:
+final application-code candidate `f89de9d`, GitHub CI run 89 passed (1,750 passed,
+0 failed, 0 skipped; all 13 browser tests); documentation-only head `490f5e4`, CI
+run 90 passed via the documentation-only path; migration head `app_0007`;
+fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
+`broad60-432-v1` and `points-150-75-v2`. Decisions at acceptance: the provider
+limits (10 per tick, 100 per rolling 24 hours, 60-minute refresh, 15–240-minute
+back-off) are **accepted provisionally as defaults only** — not approved for live
+Beta use; automated provider calls stay disabled until the subscription allowance,
+account-wide consumption, competing workloads and a safety reserve are verified,
+and caps may not be raised without approval. The advisory-lock approach is
+accepted for now, but evidence of safe behaviour under realistic PostgreSQL
+connection and timeout settings is required before hosted Beta (assessed in Stage
+D, §5). Stage D is authorised; Stages E–G are not.
 
 Authorised by the owner with Stage B's acceptance. Approach as approved in the
 design (§3.2): a database-driven **reconciler** run by an external cron-style
