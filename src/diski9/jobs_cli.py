@@ -54,7 +54,13 @@ def _describe(cfg) -> str:
     return (
         f"automation {state}; streams {', '.join(cfg.streams) or '(none)'}; provider calls "
         f"{'on' if cfg.provider_calls else 'off'} (cap {cfg.max_requests_per_tick}/tick, "
-        f"{cfg.max_requests_per_day}/24 h)"
+        f"{cfg.max_requests_per_day}/24 h); draft preparation "
+        + (
+            f"on ({', '.join(cfg.prepare_streams)}; readiness every "
+            f"{int(cfg.prepare_readiness_interval.total_seconds() // 60)} min)"
+            if cfg.prepare
+            else "off"
+        )  # fmt: skip
     )
 
 
@@ -160,6 +166,13 @@ def _status(args) -> int:
         return 1
     cap = cfg.max_requests_per_day if cfg else "?"
     print(f"scheduler provider requests in the last 24 h: {used}/{cap}")
+    try:
+        from diski9.backend.jobs.prepare import preparation_lines, preparation_status
+
+        for line in preparation_lines(preparation_status(engine, cfg)):
+            print(line)
+    except SQLAlchemyError as exc:
+        print(f"preparation status unavailable ({type(exc).__name__})", file=sys.stderr)
     if not rows:
         print("no scheduler runs recorded")
     for r in rows:

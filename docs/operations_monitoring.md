@@ -73,6 +73,14 @@ invented.
 | Repeated provider failures | — | 3 in a row | — |
 | Official-stream activity before activation | — | — | yes |
 | Final round without published weekly results | — | yes | — |
+| Draft preparation off while automation is on (E.1a) | yes | — | — |
+| Upcoming week has no draft (preparation on) | — | 1 h after the creation time | 6 h before the publication target |
+| Draft NOT READY | quiet until the attention window (3 h before the target); then INFO | at the target | — |
+| Draft READY, unpublished | INFO from the attention window | 2 h after the target | — |
+| Publication target missed (unpublished after target + grace) | — | if READY at the last evaluation | if NOT READY |
+| Readiness not evaluated recently (inside the attention window) | — | yes | — |
+| Preparation failing (`blocking_failure`, e.g. football store unavailable, or 3 failures in a row) | — | yes | blocked within 6 h of the target, or the step-failure critical count |
+| Draft lapsed (window ended unpublished, 7 days; or deadline passed) | — | yes | — |
 | Integrity inspection (`--deep`) | — | repairable finding | material finding |
 | Database | — | trivial query > 2 s | unreachable, wrong migration head, tables missing |
 
@@ -95,6 +103,16 @@ configurable (fail closed on invalid values):
 | `DISKI9_OPS_STEP_FAILURES_WARNING` / `_CRITICAL` | 3 / 6 |
 | `DISKI9_OPS_STUCK_MINUTES` | 30 |
 | `DISKI9_OPS_BUDGET_WARNING_PERCENT` | 80 |
+| `DISKI9_OPS_PREPARE_ATTENTION_HOURS` | 3 |
+| `DISKI9_OPS_PREPARE_PUBLISH_WARNING_HOURS` | 2 |
+
+**Preparation states (Stage E.1a)** are derived from rounds and job records (no
+state of their own) and shown in `ops status` (and `--json`, key `preparation`) and
+`jobs status`: `not_due`, `no_draft`, `draft_not_evaluated`, `draft_not_ready`,
+`draft_ready`, `target_missed`, `lapsed`, `intervention`, `published`. A draft's
+existence never means READY: READY needs a `ready` evaluation within two intervals
+plus five minutes. Before the attention window a NOT READY draft raises nothing,
+because the football store is normally refreshed shortly before publication.
 
 ## Notifications (one webhook, off by default)
 

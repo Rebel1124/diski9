@@ -6,11 +6,13 @@ scheduler). Each run reads the competition database and performs whatever
 lifecycle step is due **now**, through the existing services, then exits. It is
 not a daemon: it never loops, sleeps between rounds or schedules itself.
 
-**Beta publication stays supervised (owner decision).** The scheduler never creates
-or publishes a round, never builds a snapshot and has no switch to do so. Draft
-rounds are reported ("awaiting operator publication") and an authenticated
-operator publishes each round with `diski9 round publish --code CODE --operator
-EMAIL`, as before.
+**Beta publication stays supervised (owner decision).** The scheduler never
+publishes a round and has no switch to do so. Since Stage E.1a it can, when
+`DISKI9_JOBS_PREPARE` is on, **create the upcoming week's Beta draft** and
+**evaluate its readiness** read-only (see "Automated draft preparation" below);
+an authenticated operator still publishes each round with `diski9 round publish
+--code CODE --operator EMAIL`, which shows the exact snapshot and asks for the
+round code.
 
 ## What it does
 
@@ -31,7 +33,8 @@ Rounds are processed one at a time, oldest deadline first, each step in its own
 transaction. After every step the round is re-read and the next step decided, so
 one tick can take a round from open to settling, or from settling to final.
 
-**Never automated:** publication, round creation, corrections, alert resolution,
+**Never automated:** publication, round creation other than the scheduled Beta
+draft (Stage E.1a), corrections, alert resolution,
 withdrawal of corrections, invalidation, reopening, result-mode choice, role or
 entitlement changes. Blocking alerts are reported, never resolved.
 
@@ -92,12 +95,54 @@ invalid value is a configuration error (exit 2, nothing done).
 | `DISKI9_JOBS_SETTLE_REFRESH_MINUTES` | 60 | 5–1440 | minimum gap between routine settlement runs and finalisation attempts |
 | `DISKI9_JOBS_RETRY_BASE_MINUTES` | 15 | 1–1440 | back-off after the first failure of a step |
 | `DISKI9_JOBS_RETRY_MAX_MINUTES` | 240 | 1–10080 | longest back-off |
+| `DISKI9_JOBS_PREPARE` | off | on/off | Stage E.1a draft creation and readiness evaluation (needs `DISKI9_JOBS_ENABLED`) |
+| `DISKI9_JOBS_PREPARE_STREAMS` | (none) | `beta` | required when preparation is on; `development` and `official` are refused |
+| `DISKI9_JOBS_PREPARE_CREATE_LEAD_HOURS` | 78 | 6–78 | draft created this long before the publication target (never before the previous window ends) |
+| `DISKI9_JOBS_PREPARE_READINESS_MINUTES` | 30 | 5–240 | gap between successful readiness evaluations |
+| `DISKI9_JOBS_PREPARE_GRACE_HOURS` | 6 | 1–24 | after the target, an unpublished week becomes "target missed" |
+| `DISKI9_JOBS_PREPARE_MIN_SECONDS` | 60 | 10–600, below the tick budget | least tick time left before an evaluation starts |
 
 The development stream cannot be automated when `DISKI9_APP_ENVIRONMENT=production`.
 Development rounds never call the provider. The scheduler stores no operator
 password, session or token: there is nothing to configure for identity, because
 it acts as the explicit `SYSTEM` actor that the services accept only for lock,
-results import, settlement and finalisation.
+results import, settlement and finalisation, and (Stage E.1a) the scheduler-only
+`create_scheduled_draft`, which takes nothing but the ISO week.
+
+## Automated draft preparation (Stage E.1a)
+
+Off by default. When on, each tick — **after** the lifecycle steps, under the same
+lock, ownership checks and 240-second budget — does at most two things for the
+single upcoming Beta week:
+
+| Step | When | What |
+|---|---|---|
+| `prepare_draft` (job `scheduler.prepare_draft`) | from the draft creation time (default: the end of the previous fixture window, Tuesday 00:00 UTC, i.e. 78 h before the Friday 08:00 SAST target) while no round has the week's code | `rounds.create_scheduled_draft`: code `{ISO year}-W{week}-weekend`, window and series taken **only** from the active `weekend` schedule; Beta only; if any round already has the code (created by an operator, published, anything) nothing is written; row, status history (`created (scheduled)`) and audit `round.create` by `system` with the job link in one transaction |
+| `prepare_readiness` (job `scheduler.prepare_readiness`) | while the week's round is a draft and its window has not ended, every `DISKI9_JOBS_PREPARE_READINESS_MINUTES` since the last successful evaluation (failures retry on the normal back-off) | builds the live snapshot from the football store and runs **the same validator as `round readiness` / `round publish`**; records `ready` or `not_ready[category]` with a summary (fixtures, eligible, leagues, bucket counts, earliest kickoff, deadline, seconds) in the job row; writes nothing else; no provider call |
+
+* **The week:** every instant belongs to exactly one competition week — from the
+  end of the previous week's fixture window (Tuesday 00:00 UTC) to the end of this
+  week's (the next Tuesday 00:00 UTC). Only that week is prepared.
+* **Time budget:** an evaluation starts only if the tick has at least
+  `max(DISKI9_JOBS_PREPARE_MIN_SECONDS, 2 × the slowest of the last 10 evaluations)`
+  left; otherwise it is deferred to the next tick (never treated as ready). If an
+  evaluation ever takes longer than half of (abandonment threshold − tick budget),
+  it is refused as a blocking failure so the Stage D lock-recovery threshold stays
+  safe. Measured cost on the real football store: about 0.1–0.2 s.
+* **Cadence:** read-only evaluations run every 30 minutes from the moment the draft
+  exists. Days before the target, NOT READY usually only means the football store
+  has not been refreshed for publication yet; monitoring stays quiet until the
+  attention window (see monitoring).
+* **The football store:** the evaluation reads the same store as `round readiness`
+  (`DISKI9_DATABASE_URL`). If it is missing or not set up, the step is a blocking
+  failure (exit 4) and nothing is evaluated; the store is never created. E.1a does
+  not refresh it: run `diski9 refresh-data --with-odds` as before (automated
+  refresh is Stage E.1b).
+* **Advisory only:** a READY verdict never publishes anything and is never used as
+  approval. `round publish` builds its own snapshot once, shows it, requires the
+  round code and publishes exactly that snapshot (approved fingerprint).
+* **Never:** publication, a draft for Development or Official, a draft for any week
+  other than the upcoming one, any change to an existing round.
 
 ## Provider budget and retry policy
 

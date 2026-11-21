@@ -130,3 +130,16 @@ migrations; apply them only through the approved deployment procedure.
 ## 10. Integrity findings (`ops check --deep`)
 Repairable findings: preview with `competition repair` (authenticated, previewed,
 audited). Material findings: stop and investigate; do not repair automatically.
+
+## 11. Automated draft preparation (Stage E.1a)
+Check with `ops status` (Preparation section) or `jobs status`.
+
+| Finding | What to do |
+|---|---|
+| `prepare_no_draft` | Is `DISKI9_JOBS_PREPARE` on with `DISKI9_JOBS_PREPARE_STREAMS=beta`, and are ticks running (heartbeat)? Run `jobs tick --dry-run` to see `prepare_draft` planned, then `jobs tick`. If needed, create it yourself: `round create --week YYYY-Www --operator EMAIL` (the scheduler then leaves it alone). |
+| `prepare_not_ready` | Read the reason (`round readiness --code C`). `stale_odds` / `missing_markets`: refresh the football store (`refresh-data --with-odds`) and wait for the next evaluation (or run `round readiness`). `opening_checks` (too few fixtures or leagues, infeasible 4/3/2): a thin week such as an international break — do not publish; the week lapses. |
+| `prepare_ready_unpublished` / `prepare_target_missed` | An operator reviews `round readiness --code C` and publishes with `round publish --code C --operator EMAIL` (types the code). The scheduler never publishes. |
+| `prepare_failing` with "football store unavailable" | The store path (`DISKI9_DATABASE_URL`) is missing or not set up on the scheduler host; fix the host, then `jobs tick`. Nothing was evaluated or changed. |
+| `prepare_failing` with "too long to run safely" | An evaluation took longer than the safe limit for the abandonment threshold; evaluate by hand with `round readiness` and review the tick budget / abandonment threshold before re-enabling. |
+| `prepare_lapsed` | The week was never published; nothing to repair (the draft is inert and is not recreated). |
+| `prepare_stale_evaluation` | Ticks are deferring the evaluation (not enough tick time) or failing; check `jobs status` and the heartbeat. |

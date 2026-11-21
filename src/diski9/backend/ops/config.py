@@ -23,6 +23,10 @@ Variable                                    Default  Meaning
 ``DISKI9_OPS_STEP_FAILURES_CRITICAL``       6        ... CRITICAL
 ``DISKI9_OPS_STUCK_MINUTES``                30       a step still ``running`` after this: WARNING
 ``DISKI9_OPS_BUDGET_WARNING_PERCENT``       80       24-hour provider use at this share: WARNING
+``DISKI9_OPS_PREPARE_ATTENTION_HOURS``      3        before the publication target, a draft
+                                                     not ready becomes INFO (earlier: none)
+``DISKI9_OPS_PREPARE_PUBLISH_WARNING_HOURS`` 2       a READY draft unpublished this long after
+                                                     the target: WARNING
 ``DISKI9_OPS_NOTIFY``                       off      send notifications (``ops check --notify``)
 ``DISKI9_OPS_WEBHOOK_URL``                  (none)   https endpoint (secret; never printed)
 ``DISKI9_OPS_NOTIFY_MIN_SEVERITY``          warning  ``warning`` or ``critical``
@@ -61,6 +65,8 @@ class OpsConfig:
     step_failures_critical: int = 6
     stuck: timedelta = timedelta(minutes=30)
     budget_warning_percent: int = 80
+    prepare_attention: timedelta = timedelta(hours=3)
+    prepare_publish_warning: timedelta = timedelta(hours=2)
     notify: bool = False
     webhook_url: str | None = None  # secret: never printed or logged
     notify_min_severity: str = "warning"
@@ -117,6 +123,8 @@ def load_ops_config(env: Mapping[str, str] | None = None) -> OpsConfig:
         step_failures_critical=_int(env, "DISKI9_OPS_STEP_FAILURES_CRITICAL", 6, 1, 100),
         stuck=minutes("STUCK", 30),
         budget_warning_percent=_int(env, "DISKI9_OPS_BUDGET_WARNING_PERCENT", 80, 1, 100),
+        prepare_attention=hours("PREPARE_ATTENTION", 3, 1, 24),
+        prepare_publish_warning=hours("PREPARE_PUBLISH_WARNING", 2, 1, 24),
         notify=_flag(env, "DISKI9_OPS_NOTIFY"),
         webhook_url=_check_url(u) if (u := env.get("DISKI9_OPS_WEBHOOK_URL", "").strip()) else None,
         notify_min_severity=env.get("DISKI9_OPS_NOTIFY_MIN_SEVERITY", "warning").strip().lower()

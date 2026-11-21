@@ -21,6 +21,8 @@ KNOWN_JOBS = (
     "scheduler.results_full",
     "scheduler.settle",
     "scheduler.finalise",
+    "scheduler.prepare_draft",
+    "scheduler.prepare_readiness",
     "ops.notify",
     "lock",
     "publish",

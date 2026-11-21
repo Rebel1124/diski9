@@ -63,6 +63,8 @@ TRANSACTION_POOLER_PORTS = frozenset({6543})  # Supabase's transaction pooler
 SCHEDULER_JOBS = (
     "scheduler.tick", "scheduler.lock", "scheduler.results", "scheduler.results_full",
     "scheduler.settle", "scheduler.finalise",
+    # Stage E.1a: preparation steps get the same interruption and abandonment handling
+    "scheduler.prepare_draft", "scheduler.prepare_readiness",
 )  # fmt: skip
 
 _HELD = """

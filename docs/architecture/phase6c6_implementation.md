@@ -909,3 +909,104 @@ readiness output limited to the pinned fields with no account or credential data
   empty database, real Supabase Auth integration, lint and formatting passed. Test
   suite 26 min 11 s; job 27 min 33 s, within the 40-minute timeout.
 * Documentation after the candidate uses the documentation-only path.
+
+## 8. Stage E.1a: automated draft creation, readiness and monitoring (21 Nov 2026; checkpoint)
+
+Authorised by the owner on the approved plan
+([`phase6c6_stage_e1a_plan.md`](phase6c6_stage_e1a_plan.md); design
+[`phase6c6_stage_e1_design.md`](phase6c6_stage_e1_design.md)). Baseline `c47474f`
+(documentation CI run 103). No migration, no new dependency, **no new provider
+call**, no change to competition rules, settlement, results, corrections,
+championships or authentication.
+
+### 8.1 What was built
+| Module | Change |
+|---|---|
+| `backend/jobs/prepare.py` (new) | week calculator (`week_at`, `publication_target`), preparation steps (`plan`, `run_preparation`, `_draft_step`, `_readiness_step`), readiness record (`encode`/`decode`, categories), derived status (`preparation_status`, `preparation_lines`), default football-store snapshot builder (fails closed, never creates the store) |
+| `backend/services/rounds.py` | `create_scheduled_draft(engine, SYSTEM, *, iso_year, iso_week, job_run_id)`, `scheduled_code`; `create_round`, `publish_round`, `publication_readiness` unchanged |
+| `backend/jobs/config.py` | `prepare`, `prepare_streams` (beta only), `prepare_create_lead`, `prepare_readiness_interval`, `prepare_grace`, `prepare_min_seconds`; `PREPARABLE_STREAMS`; validation |
+| `backend/jobs/reconciler.py` | preparation after the lifecycle loop inside the same lock/budget handling; injectable `snapshot_builder`; attention notes; dry-run planning |
+| `backend/jobs/locking.py` | the two preparation jobs added to its job list (see §8.6) |
+| `backend/ops/{snapshot,checks,config,history}.py`, `ops_cli.py`, `jobs_cli.py` | preparation status in `ops status` (text and JSON) and `jobs status`; eight preparation findings; two thresholds; job history knows the new jobs |
+| docs | scheduler, monitoring, runbook §11, operator guide, `.env.example` |
+
+### 8.2 Security boundary
+`create_scheduled_draft` refuses a `Principal` (`Forbidden`), accepts only the ISO
+year and week (validated), derives code, window, schedule and series from the
+active `weekend` schedule, refuses a non-beta series, inserts with `ON CONFLICT
+(code) DO NOTHING` and writes the status history (`created (scheduled)`) and the
+audit record (`round.create`, `actor_role = 'system'`, job link) in the same
+transaction; an existing round of any status is returned untouched. The static
+guard (`test_backend_scheduler.py`) still forbids `publish_round`, `create_round`,
+operator sign-in and every human-only service in `backend/jobs`, and now asserts
+that `build_live_snapshot` and `create_scheduled_draft` appear only in `prepare.py`
+(approved ADP-06/07). Development and Official are refused by configuration and by
+the service; production refuses nothing extra because only beta is preparable.
+
+### 8.3 Owner safeguards (authorisation §3)
+* **A. Tick budget:** an evaluation starts only with
+  `max(DISKI9_JOBS_PREPARE_MIN_SECONDS (60), 2 × slowest of the last 10
+  evaluations)` of tick time left; otherwise it is `deferred` (no job row, never
+  READY). An evaluation slower than `(abandon_after − tick_budget) / 2` (480 s with
+  the defaults) is refused as a blocking failure, so a tick can never approach the
+  20-minute abandonment threshold through preparation. **Measured** on a copy of
+  the real football store (read-only): 68 fixtures in the window, 60 eligible, 420
+  outcomes — snapshot build and opening checks 0.11–0.16 s (76 fixtures, 29
+  eligible: 0.09–0.13 s); in tests the full step takes under 0.1 s.
+* **B. Cadence (reconciled):** read-only evaluations every 30 minutes from the
+  moment the draft exists (the plan's cadence; the earlier design's "delay until
+  the refresh period" is superseded). The interval counts from the last
+  *successful* evaluation; failures retry on the normal back-off. Monitoring is
+  quiet about a NOT READY draft until the attention window (3 h before the
+  target): early NOT READY usually means the store has not been refreshed yet.
+
+### 8.4 Tests
+* `tests/test_prepare_week.py` (15, no database): week mapping across Tuesday
+  00:00 UTC, every hour of seven weeks in exactly one week, ISO 2026-W53 →
+  2027-W01 and 2027-W52, European DST, create-lead bounds, readiness categories
+  from the validator's own results, record encoding within the column limit.
+* `tests/backend/test_backend_prepare.py` (23): configuration fail-closed; service
+  SYSTEM-only, schedule-derived, audited, idempotent, no caller-supplied code;
+  existing and published rounds untouched; non-beta schedule refused; concurrent
+  scheduled + manual creation → one round; disabled, paused and dry run write
+  nothing; one draft across repeated ticks, readiness in the same tick, interval
+  respected, no provider request (ledger unchanged); manual draft first evaluated,
+  not recreated; four concurrent ticks → one draft; crash before and after the
+  creation transaction; interrupted readiness recorded as abandoned and
+  recovered; lock lost during readiness → `lock_lost`, no verdict; budget deferral
+  and the safe-duration limit; football store missing → blocking, never created;
+  default builder on a real (empty) SQLite store; states and findings through a
+  week (quiet early NOT READY, INFO in the attention window, WARNING after the
+  target, READY unpublished INFO → WARNING, target missed); stale evaluation;
+  no-draft CRITICAL near the target; paused quiet; published and lapsed states;
+  the scheduler never publishes even when READY; lifecycle steps run first and
+  unchanged; `ops status --json`, `ops status`, `jobs status`, `ops jobs`; a
+  scheduled draft goes live only through `round publish` with the typed code and
+  the approved fingerprint, attributed to the operator.
+* `tests/backend/test_backend_scheduler.py`: static guard updated (§8.2).
+
+### 8.5 Verification
+* Level 1: both new files twice (38 passed each time); lint and formatting clean.
+* Level 2: recorded below (§8.7).
+* Fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
+  migration head `app_0007`; no change under `src/diski9/challenge/` or
+  `migrations_app/`.
+
+### 8.6 Deviations and risks
+| Item | Note |
+|---|---|
+| `backend/jobs/locking.py` changed (plan said no change) | its `SCHEDULER_JOBS` list drives interruption marking and abandonment classification; without the two preparation jobs an interrupted or lost preparation step would stay `running` forever. Two entries added; no logic changed; the Stage D suite passes |
+| Plan's "READY within one interval" | implemented as within two intervals plus five minutes, so a verdict is not reported stale just before the next scheduled evaluation |
+| Concurrent ticks may report `indeterminate` | pre-existing Stage D behaviour when a tick races another tick's short "busy" record; the owner of the next tick completes the work; never two drafts (tested) |
+| Football store on the scheduler host | readiness needs it; missing → blocking failure and CRITICAL near the target (fail closed). Hosting remains Q-07 |
+| Lapsed drafts | stay inert `draft` rows (ADP-04 A); reported for 7 days |
+
+### 8.7 Level 2 and Level 3
+* **Level 2** (local PostgreSQL + Supabase Auth harness): week calculator,
+  preparation, Stage E admin, rounds, S-07, operator CLI, scheduler, scheduler
+  locking, ops, results, settlement (incl. ops and security), corrections,
+  championships (incl. corrections, repair, backfill), integrity, concurrency,
+  migrations, authentication units, weekly results, accounts, runtime role,
+  scenarios, CI change scope and the API client — **529 passed, 0 failed, 0
+  skipped** (10 min 44 s).
+* **Level 3:** pending on the application-code candidate.

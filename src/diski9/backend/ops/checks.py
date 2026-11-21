@@ -19,7 +19,7 @@ S-02 earliest finalisation. Each finding has a stable fingerprint
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import UTC, timedelta
 from enum import IntEnum
 from typing import Any
 
@@ -374,6 +374,9 @@ def evaluate(snap: Snapshot, ops: OpsConfig, jobs: SchedulerConfig | None) -> li
                     f"no results import for {s} for {_age(now - since)} while matches are in play",
                 )
 
+    # ------------------------------------------------------------ preparation (E.1a)
+    _preparation(snap, ops, jobs, add)
+
     # ------------------------------------------------------------ provider
     if jobs is not None:
         if not jobs.provider_calls:
@@ -436,6 +439,107 @@ def evaluate(snap: Snapshot, ops: OpsConfig, jobs: SchedulerConfig | None) -> li
             f"final round {code} has no published weekly results (competition verify)",
         )
     return out
+
+
+def _preparation(snap: Snapshot, ops: OpsConfig, jobs: SchedulerConfig | None, add) -> None:
+    """Stage E.1a findings for the upcoming Beta week, relative to the schedule's own
+    times (draft creation time, publication target). Quiet when nothing is
+    actionable: a draft NOT READY days before the target is expected (the football
+    store is refreshed shortly before publication), so it raises nothing until the
+    attention window opens."""
+    if jobs is None or not jobs.enabled:
+        return
+    if not jobs.prepare:
+        add(Severity.INFO, "preparation", "prepare_disabled", "preparation",
+            "automated draft preparation is off (DISKI9_JOBS_PREPARE): drafts are created "
+            "with round create")  # fmt: skip
+        return
+    if snap.preparation_error:
+        add(Severity.WARNING, "preparation", "prepare_status_unavailable", "preparation",
+            f"preparation status could not be derived ({snap.preparation_error})")  # fmt: skip
+        return
+    st = snap.preparation
+    if st is None or st.week is None:
+        return
+    for code in st.lapsed_recent:
+        add(Severity.WARNING, "preparation", "prepare_lapsed", code,
+            f"draft {code} was never published; its fixture window has ended")  # fmt: skip
+    if jobs.paused:
+        return  # paused on purpose: reported as automation_paused
+    w, now, code = st.week, st.now or snap.now, st.week.code
+    attention = now >= w.target - ops.prepare_attention
+    after_target = now >= w.target
+    state = st.state
+    if state == "no_draft":
+        if now >= w.target - timedelta(hours=6):
+            add(Severity.CRITICAL, "preparation", "prepare_no_draft", code,
+                f"no draft for {code} and the publication target is {_iso_short(w.target)}; "
+                "check the scheduler or create it with round create")  # fmt: skip
+        elif now >= w.create_at + timedelta(hours=1):
+            add(
+                Severity.WARNING,
+                "preparation",
+                "prepare_no_draft",
+                code,
+                f"the draft for {code} was due at {_iso_short(w.create_at)} but does not exist",
+            )
+    elif state == "lapsed":
+        add(Severity.WARNING, "preparation", "prepare_lapsed", code,
+            f"{code} can no longer be published: the entry deadline of its fixtures has "
+            "passed")  # fmt: skip
+    elif state == "intervention":
+        near = now >= w.target - timedelta(hours=6)
+        critical = (st.blocked and near) or st.failing >= ops.step_failures_critical
+        sev = Severity.CRITICAL if critical else Severity.WARNING
+        add(
+            sev,
+            "preparation",
+            "prepare_failing",
+            code,
+            f"preparation of {code} needs an operator: {st.last_error or 'repeated failures'}",
+        )
+    elif state == "target_missed":
+        ready = st.verdict is not None and st.verdict.ready
+        add(Severity.CRITICAL if not ready else Severity.WARNING, "preparation",
+            "prepare_target_missed", code,
+            f"{code} is unpublished {_age(now - w.target)} after its publication target"
+            + ("; the draft was READY at its last evaluation" if ready else
+               f"; last evaluation NOT READY ({_verdict_text(st)})"))  # fmt: skip
+    elif state == "draft_ready" and after_target:
+        late = now - w.target
+        sev = Severity.WARNING if late >= ops.prepare_publish_warning else Severity.INFO
+        add(sev, "preparation", "prepare_ready_unpublished", code,
+            f"{code} is READY for operator review and unpublished {_age(late)} after its "
+            "publication target (round readiness, then round publish)")  # fmt: skip
+    elif state == "draft_ready" and attention:
+        add(Severity.INFO, "preparation", "prepare_ready", code,
+            f"{code} is READY for operator review (publication target "
+            f"{_iso_short(w.target)})")  # fmt: skip
+    elif state == "draft_not_ready" and attention:
+        add(Severity.WARNING if after_target else Severity.INFO, "preparation",
+            "prepare_not_ready", code,
+            f"{code} is NOT READY ({_verdict_text(st)}); publication target "
+            f"{_iso_short(w.target)}")  # fmt: skip
+    elif state == "draft_not_evaluated" and attention:
+        add(
+            Severity.WARNING,
+            "preparation",
+            "prepare_stale_evaluation",
+            code,
+            f"readiness of {code} has not been evaluated recently "
+            f"(last: {_iso_short(st.last_evaluation_at) if st.last_evaluation_at else 'never'})",
+        )
+
+
+def _iso_short(dt) -> str:
+    return dt.astimezone(UTC).strftime("%a %d %b %H:%M UTC") if dt else "-"
+
+
+def _verdict_text(st) -> str:
+    v = st.verdict
+    if v is None:
+        return "not evaluated"
+    return f"{v.category}: {(v.problem or '')[:120]}"
 
 
 def _short(text: str) -> str:

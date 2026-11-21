@@ -27,6 +27,19 @@ Variable                               Default   Meaning
 ``DISKI9_JOBS_DATABASE_URL``           (none)    direct or session-mode URL for the tick
                                                  lock (secret); default: the app URL
 ``DISKI9_JOBS_DATABASE_MODE``          direct    ``direct`` or ``session``
+``DISKI9_JOBS_PREPARE``                off       Stage E.1a: create the upcoming Beta draft
+                                                 and evaluate its readiness (no provider
+                                                 calls, never publishes)
+``DISKI9_JOBS_PREPARE_STREAMS``        (none)    ``beta`` only (required when on)
+``DISKI9_JOBS_PREPARE_CREATE_LEAD_HOURS``  78    draft created this long before the
+                                                 publication target (6–78)
+``DISKI9_JOBS_PREPARE_READINESS_MINUTES``  30    gap between readiness evaluations (5–240)
+``DISKI9_JOBS_PREPARE_GRACE_HOURS``    6         after the target, before "target missed"
+                                                 (1–24)
+``DISKI9_JOBS_PREPARE_MIN_SECONDS``    60        least tick time that must remain before a
+                                                 readiness evaluation starts (10–600); the
+                                                 scheduler also uses twice the slowest
+                                                 recent evaluation when that is larger
 =====================================  ========  ==========================================
 
 ``abandon_after`` must exceed the longest a live tick can run: the tick budget plus
@@ -47,6 +60,9 @@ from pathlib import Path
 #: cannot be added by configuration (D-38 activation is a separate, owner-approved
 #: change of code, not of an environment variable).
 AUTOMATABLE_STREAMS = frozenset({"development", "beta"})
+#: Streams whose drafts the scheduler may create (Stage E.1a): Beta only. Development
+#: rounds are opened with ``round dev-open``; Official stays disabled (D-38).
+PREPARABLE_STREAMS = frozenset({"beta"})
 KNOWN_STREAMS = frozenset({"development", "beta", "official"})
 
 _TRUE = frozenset({"1", "true", "yes", "on"})
@@ -76,6 +92,12 @@ class SchedulerConfig:
     abandon_after: timedelta = timedelta(minutes=20)
     provider_timeout_seconds: float = 10.0
     provider_max_retries: int = 1
+    prepare: bool = False
+    prepare_streams: tuple[str, ...] = ()
+    prepare_create_lead: timedelta = timedelta(hours=78)
+    prepare_readiness_interval: timedelta = timedelta(minutes=30)
+    prepare_grace: timedelta = timedelta(hours=6)
+    prepare_min_seconds: float = 60.0
 
     def __post_init__(self) -> None:
         # a second line of defence for configurations built in code (tests, tools)
@@ -88,6 +110,17 @@ class SchedulerConfig:
             raise ConfigError("the development stream cannot be automated in production")
         if self.abandon_after <= self.tick_budget:
             raise ConfigError("DISKI9_JOBS_ABANDON_AFTER_MINUTES must exceed the tick budget")
+        for s in self.prepare_streams:
+            if s not in PREPARABLE_STREAMS:
+                raise ConfigError(f"drafts cannot be prepared for the {s!r} stream (beta only)")
+        if self.prepare and not self.enabled:
+            raise ConfigError("DISKI9_JOBS_PREPARE needs DISKI9_JOBS_ENABLED")
+        if self.prepare and not self.prepare_streams:
+            raise ConfigError("DISKI9_JOBS_PREPARE_STREAMS must list beta")
+        if not timedelta(hours=6) <= self.prepare_create_lead <= timedelta(hours=78):
+            raise ConfigError("DISKI9_JOBS_PREPARE_CREATE_LEAD_HOURS must be between 6 and 78")
+        if self.prepare and self.prepare_min_seconds >= self.tick_budget.total_seconds():
+            raise ConfigError("DISKI9_JOBS_PREPARE_MIN_SECONDS must be less than the tick budget")
 
 
 def _flag(env: Mapping[str, str], name: str) -> bool:
@@ -126,6 +159,22 @@ def _streams(env: Mapping[str, str]) -> tuple[str, ...]:
             )
         if s not in KNOWN_STREAMS:
             raise ConfigError(f"unknown stream {s!r} in DISKI9_JOBS_STREAMS")
+        if s not in out:
+            out.append(s)
+    return tuple(out)
+
+
+def _prepare_streams(env: Mapping[str, str]) -> tuple[str, ...]:
+    out: list[str] = []
+    for part in env.get("DISKI9_JOBS_PREPARE_STREAMS", "").split(","):
+        s = part.strip().lower()
+        if not s:
+            continue
+        if s not in PREPARABLE_STREAMS:
+            raise ConfigError(
+                f"DISKI9_JOBS_PREPARE_STREAMS accepts only beta, not {s!r} (development "
+                "rounds use round dev-open; official stays disabled)"
+            )
         if s not in out:
             out.append(s)
     return tuple(out)
@@ -181,4 +230,14 @@ def load_config(
             _int(env, "DISKI9_JOBS_PROVIDER_TIMEOUT_SECONDS", 10, 1, 30)
         ),
         provider_max_retries=_int(env, "DISKI9_JOBS_PROVIDER_MAX_RETRIES", 1, 0, 3),
+        prepare=_flag(env, "DISKI9_JOBS_PREPARE"),
+        prepare_streams=_prepare_streams(env),
+        prepare_create_lead=timedelta(
+            hours=_int(env, "DISKI9_JOBS_PREPARE_CREATE_LEAD_HOURS", 78, 6, 78)
+        ),
+        prepare_readiness_interval=timedelta(
+            minutes=_int(env, "DISKI9_JOBS_PREPARE_READINESS_MINUTES", 30, 5, 240)
+        ),
+        prepare_grace=timedelta(hours=_int(env, "DISKI9_JOBS_PREPARE_GRACE_HOURS", 6, 1, 24)),
+        prepare_min_seconds=float(_int(env, "DISKI9_JOBS_PREPARE_MIN_SECONDS", 60, 10, 600)),
     )

@@ -28,6 +28,8 @@ SCHEDULER_JOBS = (
     "scheduler.results_full",
     "scheduler.settle",
     "scheduler.finalise",
+    "scheduler.prepare_draft",  # Stage E.1a
+    "scheduler.prepare_readiness",
 )
 STEP_JOBS = SCHEDULER_JOBS[1:]
 PROVIDER_JOBS = ("scheduler.results", "scheduler.results_full")
@@ -134,6 +136,8 @@ class Snapshot:
     active_tick: dict | None = None  # live holder of the scheduler lock, with its tick row
     orphan_ticks: list[dict] = field(default_factory=list)  # running, not the active tick
     lock_lost: list[JobRow] = field(default_factory=list)  # ticks that lost the lock (24 h)
+    preparation: Any = None  # Stage E.1a: jobs.prepare.PreparationStatus (derived)
+    preparation_error: str | None = None
 
     @property
     def last_tick(self) -> JobRow | None:
@@ -192,7 +196,23 @@ def classify(f: RoundFact, now: datetime, finalise_warning: timedelta) -> str:
     return "eligible_for_finalisation"
 
 
-def collect(engine: Engine, *, environment: str, finalise_warning: timedelta) -> Snapshot:
+def collect(
+    engine: Engine, *, environment: str, finalise_warning: timedelta, jobs: Any = None
+) -> Snapshot:
+    """Read everything the checks need. ``jobs`` (the scheduler configuration, if
+    valid) adds the derived Stage E.1a preparation status of the upcoming week."""
+    snap = _collect(engine, environment=environment, finalise_warning=finalise_warning)
+    if not snap.tables_missing:
+        from ..jobs.prepare import preparation_status
+
+        try:
+            snap.preparation = preparation_status(engine, jobs)
+        except Exception as exc:  # noqa: BLE001 - reported by the checks, never fatal here
+            snap.preparation_error = type(exc).__name__
+    return snap
+
+
+def _collect(engine: Engine, *, environment: str, finalise_warning: timedelta) -> Snapshot:
     from ..db.migrate import head
 
     t0 = time.monotonic()

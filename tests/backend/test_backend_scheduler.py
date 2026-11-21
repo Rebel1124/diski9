@@ -518,20 +518,30 @@ def test_no_publication_pathway_and_drafts_stay_drafts(db):
     assert any("2026-W49-draft" in n and "operator" in n for n in r.notes)
     # static guarantee: the scheduler package calls only the four approved services and
     # never publication, round creation, human-only services or operator sign-in
-    called, imported = set(), set()
+    called, imported, per_file = set(), set(), {}
     for path in (ROOT / "src/diski9/backend/jobs").glob("*.py"):
         tree = ast.parse(path.read_text())
+        names = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Attribute):
-                called.add(node.attr)
+                names.add(node.attr)
             if isinstance(node, ast.ImportFrom):
-                imported |= {a.name for a in node.names} | {node.module or ""}
-    forbidden = {"publish_round", "create_round", "build_live_snapshot", "correct_result",
+                names |= {a.name for a in node.names} | {node.module or ""}
+        per_file[path.name] = names
+        called |= names
+    forbidden = {"publish_round", "create_round", "correct_result",
                  "withdraw_correction", "resolve_alert", "invalidate_round", "reopen_round",
                  "set_result_mode", "authenticate_operator", "cli_principal", "getpass",
                  "grant_role", "bootstrap_owner", "as_of"}  # fmt: skip
     assert not (called | imported) & forbidden
     assert {"lock_round", "import_results", "settle_round", "finalise_round"} <= called
+    # Stage E.1a (approved, ADP-06/07): only the preparation module may build the
+    # read-only snapshot (for readiness) and create a draft, and only through the
+    # scheduler-only service; no other round-service write is reachable
+    users = {f for f, n in per_file.items() if "build_live_snapshot" in n}
+    assert users <= {"prepare.py"}
+    assert {f for f, n in per_file.items() if "create_scheduled_draft" in n} == {"prepare.py"}
+    assert "publication_readiness" in per_file["prepare.py"]
 
 
 def test_dry_run_writes_nothing_and_calls_no_provider(db):

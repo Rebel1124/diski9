@@ -119,7 +119,8 @@ def _jobs_desc(jobs) -> str:
 def _gather(ops, jobs, environment):
     from diski9.backend.ops import collect, evaluate
 
-    snap = collect(_engine(), environment=environment, finalise_warning=ops.finalise_warning)
+    snap = collect(_engine(), environment=environment, finalise_warning=ops.finalise_warning,
+                   jobs=jobs)  # fmt: skip
     return snap, evaluate(snap, ops, jobs)
 
 
@@ -164,6 +165,7 @@ def _status(args) -> int:
                 "cap_per_tick": jobs.max_requests_per_tick if jobs else None,
                 "provider_calls": bool(jobs and jobs.provider_calls),
             },
+            "preparation": snap.preparation.as_dict() if snap.preparation else None,
             "rounds": {k: [r.as_dict() for r in v] for k, v in by_cat.items()},
             "active_tick": snap.active_tick,
             "orphan_ticks": snap.orphan_ticks,
@@ -209,6 +211,11 @@ def _status(args) -> int:
         f"provider: {snap.provider_day_requests}/{cap} scheduler requests in 24 h"
         f"{f' (cap {jobs.max_requests_per_tick}/tick)' if jobs else ''}"
     )
+    if snap.preparation is not None:
+        from diski9.backend.jobs.prepare import preparation_lines
+
+        for line in preparation_lines(snap.preparation):
+            print(line)
     print("rounds:")
     for key, label in CATEGORY_LABELS:
         rs = by_cat.get(key)

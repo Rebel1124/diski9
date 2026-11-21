@@ -31,7 +31,8 @@ changed), **130** stopped with Ctrl-C (nothing changed).
 | When | What | Command |
 |---|---|---|
 | Any time | Is anything wrong? | `uv run diski9 ops check` (exit 0 healthy, 1 warning, 2 critical) |
-| Before publication | Create the draft (once per week) | `uv run diski9 round create --week 2026-W48 --operator EMAIL` |
+| Before publication | Create the draft (once per week) — automatic when `DISKI9_JOBS_PREPARE` is on (Stage E.1a; Tuesday 00:00 UTC) | `uv run diski9 round create --week 2026-W48 --operator EMAIL` (manual) |
+| Tuesday–Friday | Watch preparation: draft state and the latest readiness verdict (advisory) | `uv run diski9 ops status` / `uv run diski9 jobs status` |
 | Publication day | Check readiness (read-only, no password) | `uv run diski9 round readiness --code 2026-W48-weekend` |
 | Publication day | Publish (shows readiness again, asks you to type the code) | `uv run diski9 round publish --code 2026-W48-weekend --operator EMAIL` |
 | Deadline → final | Automatic: lock, results, settlement, S-02 finalisation, championships | scheduler (`jobs tick` on the host trigger) |
@@ -45,9 +46,12 @@ the same rules; see [`operator_settlement_cli.md`](operator_settlement_cli.md).
 ## 2. Draft preparation and publication approval
 
 The initial Beta operating model is **automated preparation and validation, then
-authenticated human approval**. Today the preparation part is the football-store
-refresh (`refresh-data`, the weekly research collector) plus `round create`; there
-is no automated draft creation (a separate decision; see the Stage E record).
+authenticated human approval**. Preparation today: the football-store refresh
+(`refresh-data --with-odds`, still manual until Stage E.1b) and — with
+`DISKI9_JOBS_PREPARE` on — automatic creation of the upcoming Beta draft and
+read-only readiness evaluations every 30 minutes (Stage E.1a; see the scheduler
+document). The scheduler's verdict is advisory; approval is always the steps
+below.
 
 `round readiness --code CODE` builds the live snapshot exactly as publication would
 (read-only, from the football store, no provider request) and runs **the same

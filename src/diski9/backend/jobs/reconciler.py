@@ -21,8 +21,10 @@ finalise        ``now >= earliest_finalisation`` (S-02), no      ``corrections.f
 It is **level-triggered**: nothing assumes an earlier tick ran, so a tick after an
 outage performs every overdue step in order. Every rule (deadline, S-02, alerts,
 voids, idempotency, locking) stays in the services, which re-check everything; the
-reconciler only decides *when to ask*. There is deliberately **no publication or
-round-creation step** (owner decision: Beta publication stays supervised).
+reconciler only decides *when to ask*. There is deliberately **no publication
+step** (owner decision: Beta publication stays supervised). Stage E.1a adds, after
+the lifecycle steps and only when ``DISKI9_JOBS_PREPARE`` is on, the creation of the
+upcoming Beta draft and read-only readiness evaluations (:mod:`.prepare`).
 
 Safety: one tick at a time (a transaction-scoped advisory lock held for the whole
 tick through :func:`ops.try_job_lock`); each service call is its own transaction;
@@ -424,6 +426,9 @@ class _Run:
     deadline: float  # time.monotonic() after which no new step starts
     provider_factory: Callable[[], Provider] | None
     provider: Provider | None = None
+    # Stage E.1a: builds the read-only live snapshot for readiness (default: the
+    # football store, exactly as ``round readiness`` / ``round publish`` do)
+    snapshot_builder: Callable[..., Any] | None = None
 
     def get_provider(self) -> Provider:
         if self.provider is None:
@@ -548,7 +553,14 @@ def _process_round_steps(run: _Run, rid: UUID, code: str, stream: str,
 def _attention(engine: Engine, cfg: SchedulerConfig) -> list[str]:
     with transaction(engine) as conn:
         rows = conn.execute(text(_DRAFTS)).all()
-    return [
+    extra: list[str] = []
+    if cfg.prepare:
+        from . import prepare
+
+        failed: list[str] = []
+        extra = _safe(lambda: prepare.attention(engine, cfg), failed, "preparation status") or []
+        extra += failed
+    return extra + [
         f"{_stream(r.is_development, r.series)} {r.code}: draft awaiting operator "
         f"publication (round publish --code {r.code} --operator EMAIL); the scheduler "
         "never publishes"
@@ -573,6 +585,7 @@ def tick(
     provider_factory: Callable[[], Provider] | None = None,
     host: str | None = None,
     lock_url: str | None = None,
+    snapshot_builder: Callable[..., Any] | None = None,
 ) -> TickReport:
     """Run one reconciliation pass and return what happened. Never raises for an
     operational problem (database unavailable, lock lost, cleanup failure): each is
@@ -634,7 +647,8 @@ def tick(
             report = TickReport("paused", tick_run_id=tick_id, detail=f"paused: {cfg.pause_reason}")
             return report
         run = _Run(engine, cfg, host, tick_id, lock, token,
-                   started + cfg.tick_budget.total_seconds(), provider_factory)  # fmt: skip
+                   started + cfg.tick_budget.total_seconds(), provider_factory,
+                   snapshot_builder=snapshot_builder)  # fmt: skip
         report = TickReport("completed", tick_run_id=tick_id)
         if n_abandoned:
             report.notes.append(f"{n_abandoned} step(s) of a tick that lost its lock more than "
@@ -649,6 +663,17 @@ def tick(
                 except Exception as exc:  # noqa: BLE001 - isolate rounds from each other
                     outcome, detail = _classify(exc)
                     report.steps.append(StepReport(code, stream, "round", outcome, detail))
+            # Stage E.1a: draft preparation after every lifecycle step, same lock and budget
+            if cfg.prepare:
+                from . import prepare
+
+                try:
+                    prepare.run_preparation(run, report)
+                except (LockLost, _BudgetSpent):
+                    raise
+                except Exception as exc:  # noqa: BLE001 - never stops the tick record
+                    outcome, detail = _classify(exc)
+                    report.steps.append(StepReport("-", "beta", "prepare", outcome, detail))
         except _BudgetSpent:
             report.steps.append(StepReport("-", "-", "tick", Outcome.DEFERRED,
                                            f"tick budget of {cfg.tick_budget} used; remaining "
@@ -713,6 +738,15 @@ def plan_tick(engine: Engine, cfg: SchedulerConfig) -> TickReport:
         want, notes = _decide(s, cfg, set(), False, False)
         report.steps.extend(StepReport(code, stream, w, Outcome.PLANNED, "due now") for w in want)
         report.steps.extend(notes)
+    if cfg.prepare:
+        from . import prepare
+
+        steps, week = prepare.plan(engine, cfg)
+        code = week.code if week else "-"
+        report.steps.extend(
+            StepReport(code, prepare.STREAM, step, Outcome.PLANNED, detail)
+            for step, detail in steps
+        )
     report.notes.extend(_attention(engine, cfg))
     report.day_requests = _day_requests(engine)
     return report

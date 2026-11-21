@@ -18,6 +18,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import Connection, Engine, func, insert, select, text, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from diski9.challenge.config import get_config
 from diski9.challenge.roundsheet import RoundSnapshot, SnapshotKind, assess_round
@@ -25,7 +26,7 @@ from diski9.challenge.scoring import RoundClassification, classify_round
 from diski9.screener.goal_model import GOAL_MODEL_VERSION
 
 from ..auth.accounts import lock_snapshot
-from ..auth.permissions import Capability, Principal, authorize
+from ..auth.permissions import Capability, Forbidden, Principal, authorize
 from ..db import db_now, read_only, transaction
 from ..db.schema import (
     championship_series,
@@ -76,7 +77,8 @@ WEEKDAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", 
 
 
 class System:
-    """The scheduled-job actor (no person): allowed only for lock."""
+    """The scheduled-job actor (no person): allowed for lock and the other scheduled
+    lifecycle steps, and (Stage E.1a) only for :func:`create_scheduled_draft`."""
 
 
 SYSTEM = System()
@@ -331,6 +333,105 @@ def create_round(
             after={"code": code, "development": development},
         )
         return _view(conn, rid)
+
+
+# ------------------------------------------------------------------ scheduled draft
+SCHEDULED_SCHEDULE = "weekend"  # the only schedule the scheduler prepares (Stage E.1a)
+SCHEDULED_SERIES = frozenset({"beta"})
+
+
+@dataclass(frozen=True)
+class ScheduledDraft:
+    created: bool
+    round: RoundView
+
+
+def scheduled_code(iso_year: int, iso_week: int) -> str:
+    """The canonical round code of a weekend-schedule week (same as ``round create``)."""
+    return f"{iso_year}-W{iso_week:02d}-{SCHEDULED_SCHEDULE}"
+
+
+def create_scheduled_draft(
+    engine: Engine,
+    actor: System,
+    *,
+    iso_year: int,
+    iso_week: int,
+    job_run_id: int | None = None,
+) -> ScheduledDraft:
+    """Create the Beta draft for one ISO week of the weekend schedule (Phase 6C.6
+    Stage E.1a, ADP-07). **Scheduler only**: the actor must be :data:`SYSTEM`; a
+    person uses :func:`create_round` (``round create``). Nothing but the ISO week is
+    taken from the caller: the code, window, schedule and series come from the
+    active schedule, which must belong to the Beta series. Idempotent: if any round
+    already has the code (draft, published, locked or final, created by anyone),
+    nothing is written and ``created`` is False. The row, its status history and the
+    audit record are written in one transaction. A draft has no snapshot, is not
+    visible to participants and is published only by a person (``round publish``)."""
+    if not isinstance(actor, System):
+        raise Forbidden("scheduled_only")
+    if isinstance(iso_year, bool) or isinstance(iso_week, bool):
+        raise ValidationFailed("Invalid ISO week.", [{"field": "week", "reason": "type"}])
+    try:
+        date.fromisocalendar(int(iso_year), int(iso_week), 1)
+    except (TypeError, ValueError):
+        raise ValidationFailed(
+            "Invalid ISO week.", [{"field": "week", "reason": "invalid"}]
+        ) from None
+    code = scheduled_code(iso_year, iso_week)
+    with transaction(engine) as conn:
+        sched = conn.execute(
+            select(round_schedules)
+            .where(round_schedules.c.code == SCHEDULED_SCHEDULE)
+            .order_by(round_schedules.c.version.desc())
+            .limit(1)
+        ).one()
+        series = conn.execute(
+            select(championship_series.c.code).where(championship_series.c.id == sched.series_id)
+        ).scalar_one()
+        if series not in SCHEDULED_SERIES:
+            raise ValidationFailed(
+                "Scheduled drafts are created only for the beta series.",
+                [{"field": "series", "reason": "not_beta"}],
+            )
+        start, end = weekly_window(sched.window_rule, iso_year, iso_week)
+        rid = conn.execute(
+            pg_insert(rounds)
+            .values(
+                code=code,
+                schedule_id=sched.id,
+                series_id=sched.series_id,
+                window_start_at=start,
+                window_end_at=end,
+                is_development=False,
+            )
+            .on_conflict_do_nothing(index_elements=["code"])
+            .returning(rounds.c.id)
+        ).scalar_one_or_none()
+        if rid is None:  # already exists: never touched
+            existing = conn.execute(select(rounds.c.id).where(rounds.c.code == code)).scalar_one()
+            return ScheduledDraft(False, _view(conn, existing))
+        conn.execute(
+            insert(round_status_history).values(
+                round_id=rid,
+                from_status=None,
+                to_status="draft",
+                actor_user_id=None,
+                job_run_id=job_run_id,
+                reason="created (scheduled)",
+            )
+        )
+        ops.record_audit(
+            conn,
+            action="round.create",
+            target_type="round",
+            target_id=str(rid),
+            actor=None,
+            actor_role="system",
+            after={"code": code, "development": False, "scheduled": True},
+            job_run_id=job_run_id,
+        )
+        return ScheduledDraft(True, _view(conn, rid))
 
 
 # ------------------------------------------------------------------ publish
