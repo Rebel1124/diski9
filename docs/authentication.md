@@ -286,6 +286,54 @@ application session, not the token, is what the browser holds.
   removed. There is no web route for any of this. Every change is audited in
   `app.audit_log` with the verified account and its role.
 
+### 6.1 Owner recovery when no owner can act (interim controls; Q-03 deferred)
+
+There is **no emergency recovery command** (owner decision Q-03, deferred: an
+environment flag is not authorisation, and a recovery-secret design awaits approval;
+see `docs/architecture/phase6c6_implementation.md` §2.2). Use the first case that
+applies:
+
+1. **Forgotten password:** the owner uses Supabase's password reset. Not a recovery
+   case; nothing in the application changes.
+2. **Owner account suspended, and an active operator can act:** the operator runs
+   `uv run diski9 account reinstate --email <owner address> --reason "<why>"
+   --operator <own address>` and enters their own password (authenticated, T-14,
+   audited). No database access is needed.
+3. **No owner role exists** (a fresh database): `account bootstrap-owner`, which
+   requires the target account's own password.
+4. **Only when none of the above can work** (for example the sole owner's sign-in
+   address is permanently lost and no operator is available): the controlled manual
+   procedure below. It is a break-glass exception, not a routine path.
+
+**Manual database-administrator procedure (case 4):**
+
+* **Authorisation:** a written instruction from the platform owner (outside the
+  application) naming the target account and the reason. Two people, where
+  possible: one performs the change and one checks it.
+* **Proof of control:** the target person signs in to the application with their own
+  password first (confirming an active, onboarded account they control); the
+  administrator never sets, receives or resets anyone's password.
+* **Backup first:** take a database backup to the administrator's secure backup
+  location (never the repository, chat, tickets or shared folders).
+* **Credentials:** connect from the database host or an approved administrator
+  workstation using the administrator's own database account. Enter the password at
+  the client's hidden prompt or keep it in a `0600` password file. Never put database
+  URLs or passwords on the command line, in environment variables of shared shells,
+  in scripts, shell history, logs, chat or documents, and never ask anyone to send
+  them.
+* **Smallest change, in one transaction:** either reactivate the existing suspended
+  owner account, or grant the `owner` role to the verified target account, and
+  nothing else (no other roles, entitlements, competition or settlement data).
+  In the same transaction, insert an `app.audit_log` row: action
+  `role.manual_recovery`, target the account, `actor_role = 'system'` (no
+  application actor exists), the written authorisation summarised in `reason`, and
+  `after` recording `{"procedure": "manual_dba_recovery", "role": "owner"}` with the
+  administrator's name, so it can never be mistaken for scheduler activity.
+* **Afterwards:** the recovered owner signs in, reviews `account list-privileged`,
+  revokes or suspends anything unexpected through the normal authenticated
+  commands, and the database logs of the session are retained with the backup.
+  Rotate the database credential if there is any doubt about who held it.
+
 ## 7. Guest and account access (Stage G)
 
 | Capability | Guest | Signed in (set-up incomplete) | Participant |

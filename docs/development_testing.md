@@ -10,9 +10,9 @@ independent full GitHub CI run before acceptance.
 | | Level 1 — development | Level 2 — implementation checkpoint | Level 3 — formal acceptance |
 |---|---|---|---|
 | When | while implementing, before each local commit | end of a coherent change; before pushing application code | every stage acceptance; the final application-code candidate |
-| Checks | `ruff check`, `ruff format --check`, the test files for the modules touched (table below) and the cross-cutting core | Level 1 plus the broader tests of the affected area, including PostgreSQL and Supabase Auth integration where relevant | the complete suite, migration up/down/up, lint, format, fingerprint, migration head — on GitHub CI against the **exact** candidate commit |
+| Checks | `ruff check`, `ruff format --check`, the test files for the modules touched (table below) and the cross-cutting core | Level 1 plus the broader tests of the affected area, including PostgreSQL and Supabase Auth integration where relevant | the complete suite **including the browser tests** (Node and the Playwright version pinned in `package-lock.json`; `DISKI9_REQUIRE_BROWSER=1` turns missing tooling into a failure), migration up/down/up, lint, format, fingerprint, migration head — on GitHub CI against the **exact** candidate commit |
 | Where | local | local (GitHub CI runs on every code push but is not waited for) | GitHub CI (mandatory); a local full run only if CI is unavailable |
-| Typical time | 1–5 min | 2–20 min, by area | ~21 min on GitHub today |
+| Typical time | 1–5 min | 2–20 min, by area | ~29 min on GitHub (browser tests included since Stage B; job timeout 40 min) |
 
 **Escalate straight to Level 3** for changes to: migrations; authentication,
 permissions or operator commands; scoring, settlement, finalisation or championship
@@ -57,9 +57,13 @@ When unsure which tests cover a change, run the whole affected directory
 `.github/workflows/ci.yml` runs `tools/ci/change_scope.py` first. When **every**
 file changed in the push (or the whole pull request since its merge base) is
 documentation that no code or test reads, the job still runs lint, formatting and a
-relative-link check of the changed Markdown, and skips the migration, Supabase Auth
-and test-suite steps. The status check (`checks`) is unchanged and always reports.
+relative-link check of the changed Markdown, and skips the migration, Supabase Auth,
+browser-tooling and test-suite steps. The status check (`checks`) is unchanged and always reports.
 
+* Browser tests locally: `npm ci` once in the repository root (installs the pinned
+  Playwright into `node_modules/`), then `npx playwright install --only-shell chromium`
+  if the browser is not already present. Without Node they skip locally; on CI they
+  cannot.
 * Documentation = Markdown outside `src/`, `tests/`, `tools/`, `migrations*/`,
   `.github/` and `scripts/`, plus `docs/screenshots/` and `docs/benchmarks/`.
 * Always full: `docs/legal/` (terms pages served by the app), `docs/research/`

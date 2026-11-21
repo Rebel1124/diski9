@@ -28,6 +28,17 @@ approval. Private mini-leagues are removed from the MVP roadmap.
 * Stage A closed; Stage B (S-07) authorised; Stage C onwards not authorised.
 * Record: [`docs/architecture/phase6c6_implementation.md`](../architecture/phase6c6_implementation.md) §1.
 
+**Phase 6C.6 Stage B (owner review, 21 Nov 2026 — provisional acceptance):**
+* S-07 remediation provisionally accepted, subject to final verification.
+* **Q-03 emergency owner recovery deferred:** no recovery command, recovery secret,
+  bypass, endpoint or migration; authenticated bootstrap retained; interim manual
+  database-administrator procedure documented (`docs/authentication.md` §6.1);
+  Q-03 remains an open security decision.
+* **Browser tests in GitHub CI approved:** Node and pinned Playwright in the full
+  CI path; the documentation-only path, the `checks` status check and protection
+  settings unchanged.
+* Stage B not yet formally accepted; Stage C not authorised.
+
 **Phase 6C.5 Stage F4 closure and Stage G owner acceptance (21 Nov 2026) — Phase 6C.5 complete:**
 * **F4 closed** at `f0ac3c2` (CI run 81; 1,682 passed, 0 failed, 0 skipped; 12
   journeys, 253 checks, 0 problems; Match Lab intermittent test corrected, 40/40

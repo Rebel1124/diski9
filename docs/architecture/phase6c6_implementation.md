@@ -29,7 +29,7 @@ decisions in its §11). Decisions are also recorded in
 * **Stage A closed** with the owner's approval of the design; Stage B (S-07) and a
   separate CI documentation-only work item are authorised; Stage C onwards is not.
 
-## 2. Stage B: S-07 operator authentication remediation (21 Nov 2026; checkpoint)
+## 2. Stage B: S-07 operator authentication remediation (21 Nov 2026; final verification checkpoint — awaiting owner acceptance)
 
 Commit `8bf4d1a` (separate from the CI work item in §3). No competition rule,
 settlement, scoring, configuration or migration change.
@@ -99,12 +99,28 @@ Related hardening found in the review:
   exists (Stage D), a P1 alert; (6) after use, the owner rotates the secret. No
   migration is needed. Residual risk: a host administrator who also holds the
   offline secret can recover — which is the intended authority.
-* **Status:** **paused for owner approval** (the recovery-secret mechanism is a new
-  authorisation design). Bootstrap hardening, which is independently safe, is
-  implemented. Until a decision, recovery when no owner can act is the documented
-  manual procedure: the database administrator restores an owner row directly and
-  records the reason; this is outside the application and is audited only by the
-  database's own logs.
+* **Status: deferred by the owner (Q-03 remains an open security decision).** No
+  recovery command, recovery secret, authentication bypass, privileged endpoint or
+  migration was introduced. Authenticated bootstrap (target's own password, refused
+  once an owner exists) is retained.
+* **Interim controls** (`docs/authentication.md` §6.1): ordered cases — password
+  reset for a forgotten password; an active operator's authenticated `reinstate` for
+  a suspended owner; `bootstrap-owner` when no owner role exists; and only otherwise
+  a controlled manual database-administrator procedure: written owner authorisation
+  and, where possible, two people; the target first proves control by signing in
+  with their own password; a backup first; the administrator's own database account
+  with the password at a hidden prompt or in a `0600` file (never on command lines,
+  in shared environment variables, scripts, history, logs, chat or documents); the
+  smallest change in one transaction with an `app.audit_log` row
+  (`role.manual_recovery`, `procedure: manual_dba_recovery`); review afterwards and
+  credential rotation if in doubt.
+* **Safeguards a future recovery mechanism must provide** (for the owner's later
+  decision): the six points above (no-active-owner restriction, offline recovery
+  secret stored only as a hash and entered at a hidden prompt, target-password
+  verification, terminal-only confirmation with a reason, a high-visibility audit
+  record and P1 alert, secret rotation after use), plus rate limiting of failed
+  attempts, tests that an environment flag alone never authorises, and no network
+  or web route.
 
 ### 2.3 Tests (`tests/backend/test_backend_s07_remediation.py`, 26 tests)
 The F2 characterisation tests were inverted into regression tests. Every case runs
@@ -150,6 +166,8 @@ design). Historical acceptance guides of closed phases are unchanged.
 * **Level 3 (GitHub CI, exact candidate `320e134`, which contains `8bf4d1a`):**
   run 84 **passed** — **1,715 passed, 13 skipped** (22 min 09 s for the suite). The
   13 skips are browser tests (`playwright for node not available`); see §2.6.
+* The S-07 commit message (`8bf4d1a`) says "25 tests"; the file has **26** (this
+  record is correct; commit messages are not rewritten).
 * Collected tests on the candidate: 1,728 = 1,682 (6C.5 baseline) − 6 (F2
   characterisation file, inverted) + 26 (S-07) + 26 (CI change scope).
 * Lint and formatting clean; migration head `app_0007` (no migration);
@@ -157,7 +175,7 @@ design). Historical acceptance guides of closed phases are unchanged.
   unchanged; no change under `src/diski9/challenge/` (rules, buckets, scoring) or
   `migrations_app/`.
 
-### 2.6 Finding: GitHub CI does not run the browser tests (pre-existing)
+### 2.6 Finding: GitHub CI did not run the browser tests (pre-existing; resolved in §2.8)
 The CI job has never installed Node Playwright, so the 13 browser tests skip
 there. Confirmed on the accepted 6C.5 closure run 82 (**1,669 passed, 13
 skipped**), so this predates Stage B. Local full runs (with Node Playwright) have
@@ -170,9 +188,55 @@ file (not run in the local Level 2 pass) on CI, and all others in both. Recommen
 install Node and the pinned Playwright Chromium in the CI job so Level 3 covers the
 browser tests too (adds roughly 1–2 minutes; a CI change, not part of S-07).
 
+### 2.8 Final verification (owner's Stage B acceptance gate, 21 Nov 2026)
+* **Browser tests in GitHub CI (owner-approved), commit `85b8608`:**
+  `package.json`/`package-lock.json` pin `playwright` 1.63.0 (the version the local
+  runs use; test tooling, not an application dependency). In the full path only:
+  `actions/setup-node` (Node 22, npm cache), `npm ci --ignore-scripts`, then
+  `playwright install --with-deps --only-shell chromium` — the Chromium headless
+  shell and its system libraries, nothing else. `DISKI9_REQUIRE_BROWSER=1` on the
+  test step; `tests/test_browser_tooling.py` fails when the tooling is required but
+  missing or Chromium cannot launch, so the browser tests cannot silently skip on
+  CI. Package files always classify as full (two added change-scope cases).
+  PostgreSQL, Supabase Auth, migration, lint and formatting steps unchanged; job
+  name `checks` unchanged; no protection setting touched.
+* **Timeout 30 → 40 min (measured):** the 13 browser tests take ~5 min locally and
+  tooling setup ~1 min, on a job that took 22 min 50 s (run 84), leaving no margin
+  at 30. Run 86 measured: tooling 45 s, test suite 22 min 58 s, job **24 min 34
+  s**. A later reduction to 35 min would still leave ~10 min of margin; 40 kept for
+  now pending the owner's view.
+* **Level 3 — GitHub CI run 86 on `85b8608` (the final application-code
+  candidate): passed.** Scope step chose **full** ("6 non-documentation paths").
+  **1,731 passed, 0 failed, 0 skipped** (1,731 collected): 1,728 previous + 2
+  change-scope cases + 1 tooling guard. All 13 previously skipped browser tests ran
+  and passed; PostgreSQL and real Supabase Auth integration suites, including the 26
+  S-07 tests, passed; migration up/down/up and `app-db check`, lint and formatting
+  passed.
+* **Local (Level 2, working evidence):** the twelve browser-test files with the
+  repository-pinned Playwright — 226 passed, 0 skipped; change-scope and tooling
+  tests 29 passed; the guard fails as intended without Node.
+* **S-07 verification outcome:** the eight acceptance points are covered by the
+  S-07 suite (§2.3) and passed on CI: Supabase password authentication for all ten
+  commands; `--by-email` changes nothing; T-12/T-14 enforced at the write against
+  database time; roles and entitlements read from the database for the verified
+  account; `SYSTEM` refused by every capability check and every human-only service;
+  bootstrap needs the target's own password; audit attribution (actor and real
+  role) checked; competition and settlement suites unchanged and passing.
+* **Integrity:** migration head `app_0007`; fingerprint
+  `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
+  `broad60-432-v1` and `points-150-75-v2` unchanged (no change under
+  `src/diski9/challenge/` or `migrations_app/` since `630e021`).
+* The D-29 odds trial ended at its 15:00 UTC cutoff; its post-cutoff firing
+  collected nothing and the scheduled task was disabled.
+
 ### 2.7 Residual risks and deferred items
-* Emergency owner recovery is not implemented (§2.2); decision needed on the
-  recovery-secret design.
+* Emergency owner recovery is not implemented (§2.2): deferred by the owner; Q-03
+  open; interim controls documented.
+* GitHub Actions warns that `actions/checkout@v4`, `setup-node@v4` and
+  `setup-uv@v6` target the deprecated Node 20 runtime (forced to Node 24 today);
+  updating action versions is a separate CI maintenance item.
+* Release gates remain open (no hosted deployment, Official activation, merge or
+  release); Stage C onwards not authorised.
 * `cli_principal` remains for development tools (non-production only).
 * Closed-stage e2e scripts that used `--by-email` no longer run non-interactively.
 * Direct database writes by anyone holding the application database credentials
