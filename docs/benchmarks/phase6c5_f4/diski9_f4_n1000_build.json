@@ -1,0 +1,170 @@
+{
+ "database": "diski9_f4_n1000",
+ "participants": 1000,
+ "accounts": 20,
+ "phases_s": {
+  "users": 1.0,
+  "entries_and_lock": 71.1,
+  "results_and_settlement": 8.7
+ },
+ "finalisations": [
+  {
+   "round": 1,
+   "entries": 883,
+   "finalisation_ms": 883.3,
+   "weekly_publication_ms": 153.9,
+   "championship_processing_ms": 135.8
+  },
+  {
+   "round": 2,
+   "entries": 872,
+   "finalisation_ms": 783.2,
+   "weekly_publication_ms": 140.3,
+   "championship_processing_ms": 116.8
+  },
+  {
+   "round": 3,
+   "entries": 886,
+   "finalisation_ms": 908.1,
+   "weekly_publication_ms": 113.0,
+   "championship_processing_ms": 209.3
+  },
+  {
+   "round": 4,
+   "entries": 871,
+   "finalisation_ms": 858.6,
+   "weekly_publication_ms": 124.3,
+   "championship_processing_ms": 164.7
+  },
+  {
+   "round": 5,
+   "entries": 851,
+   "finalisation_ms": 863.2,
+   "weekly_publication_ms": 147.2,
+   "championship_processing_ms": 220.3
+  },
+  {
+   "round": 6,
+   "entries": 872,
+   "finalisation_ms": 841.4,
+   "weekly_publication_ms": 137.5,
+   "championship_processing_ms": 299.4
+  },
+  {
+   "round": 7,
+   "entries": 892,
+   "finalisation_ms": 919.7,
+   "weekly_publication_ms": 108.0,
+   "championship_processing_ms": 363.7
+  },
+  {
+   "round": 8,
+   "entries": 890,
+   "finalisation_ms": 906.5,
+   "weekly_publication_ms": 107.0,
+   "championship_processing_ms": 442.8
+  },
+  {
+   "round": 9,
+   "entries": 869,
+   "finalisation_ms": 1087.3,
+   "weekly_publication_ms": 145.8,
+   "championship_processing_ms": 413.4
+  },
+  {
+   "round": 10,
+   "entries": 865,
+   "finalisation_ms": 1000.9,
+   "weekly_publication_ms": 130.1,
+   "championship_processing_ms": 403.7
+  },
+  {
+   "round": 11,
+   "entries": 878,
+   "finalisation_ms": 755.2,
+   "weekly_publication_ms": 130.1,
+   "championship_processing_ms": 105.8
+  }
+ ],
+ "codes": [
+  "dev-s-6fab41727a",
+  "dev-s-2e00cb43ed",
+  "dev-s-4503435178",
+  "dev-s-b1327a8b51",
+  "dev-s-0ad6a0492f",
+  "dev-s-4dc0983922",
+  "dev-s-a68201c754",
+  "dev-s-c22002a05f",
+  "dev-s-a97ae7226c",
+  "dev-s-1273b77e5e",
+  "dev-s-c409358b9a",
+  "dev-s-a5e2e11f77",
+  "dev-s-95ec22edf0"
+ ],
+ "rounds": {
+  "R12": "provisional (settled, not final)",
+  "R13": "settled, held for F3 concurrent publication"
+ },
+ "user_ids_sample": [
+  "c5b6756f-916e-4e03-abbe-69089dfed40b",
+  "be26cdf7-6878-4c30-9531-49d36d0ac404",
+  "f262d1e4-fb0c-477c-97f6-db3840727ee3",
+  "210a8180-c48f-4b48-930a-8cdc0776123b",
+  "7fb640f9-29b9-4087-9d0a-6385b895cbad",
+  "073fa4b1-2177-46b0-a7b3-52875b29e0ff",
+  "6c6cef34-a6af-4be4-a084-00a29a4706ac",
+  "e9f8d3b4-bb55-4a14-b9bf-7a515cf6d9a9",
+  "d52750a5-ae1e-4eea-9c82-d86b5efaa50a",
+  "cffb43a4-c7a1-4b85-bdc2-5208f9338b38",
+  "d56b983b-3c66-4f48-8360-5c94cf6f8fa8",
+  "27154cc0-eab9-4f99-a43e-86b6981ae604",
+  "22747695-854c-4121-af41-a4db08d2d13d",
+  "9706c873-4edb-4e04-9e3f-5f9017885778",
+  "68090f07-97a5-4245-8578-f240ff6b495c",
+  "2f703c06-6b4d-457e-8f44-e8a6c852fcbc",
+  "33eb7902-beb5-4632-b2fc-128436d403b6",
+  "a6b68cc7-622f-4188-9866-28af58fe95b1",
+  "4b6001de-29a5-4b97-9f99-4a2ca2040903",
+  "fe63d4e6-8c96-4b8b-a4f7-1388ed22af5f"
+ ],
+ "account_ids": [
+  "ed7e2e03-7984-4112-af87-3e6f71012b7e",
+  "33777586-9483-44b5-b370-7e370cad9368",
+  "31a09232-408a-489a-abe1-36223ff1654d",
+  "adec517d-983e-4217-9729-abdb7e8b7e4a",
+  "ba9c2a2e-e45f-4ac6-8757-dcd4eadfe8cf",
+  "f91468dd-b1ba-4a14-b5f2-d1b01b8cecfd",
+  "678088b0-8c21-40c1-989b-78b6855b5b5b",
+  "05c02de9-4658-4062-9dee-09da2f54ccc3",
+  "61e239a0-5b35-44ab-b0fa-ed6698c3e286",
+  "019c1a96-1b98-4669-956f-d1b616b0c6e6",
+  "1dc9d1f1-b412-430f-aea7-b46c3200c5d7",
+  "450d5f3e-d4da-4765-83f7-689525528117",
+  "ca0c93de-3afe-4f35-8df1-aeeaf991f9e6",
+  "50655798-de76-47df-95e1-4dc63562ba3e",
+  "1381bad8-6d7c-409e-8e87-5a1729d550df",
+  "f3346b5f-183b-4704-bffe-7c1a53034825",
+  "da752deb-311d-4dc3-b1ad-7590aba55c9c",
+  "4faf5c78-98af-440e-9ee2-f1cfd339fdf1",
+  "4a3307b5-0305-4342-b8fe-62f46e9bb334",
+  "e4f6f697-cefc-40bb-ac4b-d340c6206526"
+ ],
+ "integrity": {
+  "verify": "consistent",
+  "participants": 1021,
+  "entries_locked": 11381,
+  "rounds": 13,
+  "score_sets": 11,
+  "round_score_rows": 9629,
+  "championships": 2,
+  "championship_versions": 13,
+  "standing_rows": 10902,
+  "duplicate_score_sets": 0,
+  "duplicate_memberships": 0
+ },
+ "live_round": {
+  "code": "dev-t9e903abf34",
+  "entries": 20,
+  "deadline_at": "2026-11-21 23:56:18.258529+00:00"
+ }
+}

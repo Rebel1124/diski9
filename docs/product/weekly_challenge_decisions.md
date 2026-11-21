@@ -7,6 +7,19 @@ are approved, with decisions **CH-01 to CH-12** (the Stage A questions Q-1 to Q-
 and the amendment **D-30a** below. Stage B is authorised; Stage C needs separate
 approval. Private mini-leagues are removed from the MVP roadmap.
 
+**Phase 6C.5 Stage F4 (checkpoint, 21 Nov 2026; awaiting owner review):**
+* F4 changed no application code and no business rule. The intermittent Match Lab
+  browser test was a test-synchronisation fault (fixed; assertions unchanged).
+* A low-severity Match Lab defect was found and **not** fixed (a late detail rebuild
+  can restore a Match Lab adjustment after Reset or an edit); recorded as a known
+  defect for the owner's decision.
+* The guest Dash page load now measures at the 600 ms boundary; it is not claimed as
+  a pass. The signed-in miss remains the accepted limitation.
+* All release gates are carried forward unchanged (S-07, genuine Beta finalisation,
+  D-29, D-36, D-38, hosted Supabase acceptance, the 6C.3 backlog).
+* Record: [`docs/architecture/phase6c5_implementation.md`](../architecture/phase6c5_implementation.md) §9;
+  handover: [`docs/architecture/phase6c5_stage_g_handover.md`](../architecture/phase6c5_stage_g_handover.md).
+
 **Phase 6C.5 Stage F3 (owner approval and closure, 21 Nov 2026):**
 * F3 (performance, scalability and concurrency) is approved and closed at `c2583c3`
   (CI run 79; 1,682 passed). No business rule changed. F4 (final regression,

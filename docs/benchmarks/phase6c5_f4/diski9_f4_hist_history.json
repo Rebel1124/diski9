@@ -1,0 +1,67 @@
+[
+ {
+  "operation": "history list (20 rows)",
+  "population": "50 entries",
+  "target_ms": null,
+  "cold_ms": 18.5,
+  "median_ms": 4.15,
+  "p95_ms": 6.25,
+  "min_ms": 2.7,
+  "max_ms": 6.63,
+  "n": 30,
+  "statements": 3,
+  "result": null
+ },
+ {
+  "operation": "statistics (all championships)",
+  "population": "50 entries",
+  "target_ms": null,
+  "cold_ms": 22.8,
+  "median_ms": 5.55,
+  "p95_ms": 7.78,
+  "min_ms": 4.13,
+  "max_ms": 8.98,
+  "n": 30,
+  "statements": 5,
+  "result": null
+ },
+ {
+  "operation": "history list (20 rows) + statistics",
+  "population": "50 entries",
+  "target_ms": 100,
+  "cold_ms": 24.3,
+  "median_ms": 10.16,
+  "p95_ms": 11.64,
+  "min_ms": 7.12,
+  "max_ms": 11.76,
+  "n": 30,
+  "statements": 8,
+  "result": "pass"
+ },
+ {
+  "operation": "history filtered to one championship + statistics",
+  "population": "50 entries",
+  "target_ms": 100,
+  "cold_ms": 24.7,
+  "median_ms": 10.0,
+  "p95_ms": 16.15,
+  "min_ms": 6.53,
+  "max_ms": 16.84,
+  "n": 30,
+  "statements": 10,
+  "result": "pass"
+ },
+ {
+  "operation": "history last page (3 of 3)",
+  "population": "50 entries",
+  "target_ms": null,
+  "cold_ms": 17.0,
+  "median_ms": 4.97,
+  "p95_ms": 5.61,
+  "min_ms": 4.46,
+  "max_ms": 5.88,
+  "n": 30,
+  "statements": 3,
+  "result": null
+ }
+]

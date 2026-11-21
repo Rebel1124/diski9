@@ -1,0 +1,42 @@
+{
+ "database": "diski9_f4_n1000",
+ "samples": [
+  {
+   "reopen_and_corrections_ms": 12598.8,
+   "refinalisation_total_ms": 896.0,
+   "weekly_republication_ms": 135.6,
+   "championship_reaggregation_ms": 304.8,
+   "new_versions": 1
+  },
+  {
+   "reopen_and_corrections_ms": 12347.4,
+   "refinalisation_total_ms": 887.3,
+   "weekly_republication_ms": 125.8,
+   "championship_reaggregation_ms": 379.6,
+   "new_versions": 1
+  },
+  {
+   "reopen_and_corrections_ms": 12594.4,
+   "refinalisation_total_ms": 982.2,
+   "weekly_republication_ms": 131.8,
+   "championship_reaggregation_ms": 332.3,
+   "new_versions": 1
+  }
+ ],
+ "refinalisation_total_ms": {
+  "median": 896.0,
+  "p95": 982.2,
+  "min": 887.3,
+  "max": 982.2,
+  "n": 3
+ },
+ "championship_reaggregation_ms": {
+  "median": 332.3,
+  "p95": 379.6,
+  "min": 304.8,
+  "max": 379.6,
+  "n": 3
+ },
+ "duplicate_score_sets": 0,
+ "problems": "none"
+}

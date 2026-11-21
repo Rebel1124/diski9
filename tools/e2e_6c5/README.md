@@ -80,3 +80,12 @@ no-champion database) and 8056 (the same database with development rounds hidden
    `node tools/e2e_6c5/f2_current.js <state>` for `refund`, `void`, `negative`,
    `review` and `corrected` in that order (re-run `f2_expect.py` afterwards before
    repeating step 4, since the new rounds join the current championship).
+
+## Stage F4 (re-runs on isolated copies)
+The F2 databases are protected; F4 re-runs use template copies `diski9_f4_e2e` and
+`diski9_f4_e2e_nochamp` (`CREATE DATABASE ... TEMPLATE ...`), data folder `tmp/f4`,
+servers 8074 (development rounds shown), 8075 (no champion), 8076 (development
+rounds hidden). Extra environment variables: `E2E_URL` (f2_current.py), `NOCHAMP`,
+`NODEV`, `E2E_DB_NOCHAMP` and `SHOTS_DIR` (journeys.js, f2_current.js), so the F2
+evidence is not overwritten. F3 tools accept `diski9_f4_*` databases; the
+publication benchmark takes `PUB_DB`. Integrity: `tools/phase6c5_f4_integrity.py`.

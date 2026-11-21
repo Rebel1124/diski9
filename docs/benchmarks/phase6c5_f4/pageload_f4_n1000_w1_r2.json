@@ -1,0 +1,36 @@
+{
+ "participant": {
+  "shell": {
+   "median": 413,
+   "p95": 472,
+   "n": 15
+  },
+  "board": {
+   "median": 290,
+   "p95": 327,
+   "n": 15
+  },
+  "page_load": {
+   "median": 704,
+   "p95": 792,
+   "n": 15
+  }
+ },
+ "guest": {
+  "shell": {
+   "median": 380,
+   "p95": 471,
+   "n": 15
+  },
+  "board": {
+   "median": 283,
+   "p95": 323,
+   "n": 15
+  },
+  "page_load": {
+   "median": 635,
+   "p95": 748,
+   "n": 15
+  }
+ }
+}

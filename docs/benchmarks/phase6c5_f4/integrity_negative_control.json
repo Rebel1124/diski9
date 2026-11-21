@@ -1,0 +1,60 @@
+[
+ {
+  "database": "diski9_f4_negative_test",
+  "violations": {
+   "dup_score_sets": 0,
+   "dup_memberships": 0,
+   "dup_versions": 0,
+   "current_version_not_latest": 0,
+   "weekly_display_order_gaps": 0,
+   "weekly_unranked_before_ranked": 0,
+   "weekly_competition_ranking": 1,
+   "weekly_equal_rank_unequal_points": 0,
+   "champ_display_order_gaps": 0,
+   "champ_competition_ranking": 0,
+   "champ_equal_rank_unequal_points": 0,
+   "champ_points_increase_down_table": 0,
+   "refund_or_void_with_rank_or_points": 0,
+   "void_set_with_non_void_rows": 0,
+   "void_round_counted": 0,
+   "version_cites_missing_score_set": 0,
+   "version_without_standings": 0,
+   "unattributed_operator_actions": 0,
+   "operator_actions_without_actor": 0,
+   "final_score_set_without_finalise_audit": 1,
+   "development_mix": 0,
+   "official_series_started": 1,
+   "official_championships": 0,
+   "stored_standings_differ_from_hash": 1,
+   "inspect_stream_development": [
+    "Round dev-s-2b66469019: published weekly results differ from a re-scoring of the authoritative settlement"
+   ],
+   "inspect_stream_beta": [],
+   "inspect_stream_official": []
+  },
+  "facts": {
+   "rounds": 19,
+   "rounds_settling_after_final": 1,
+   "score_sets": 21,
+   "round_scores": 933,
+   "refunded_or_void_rows": 128,
+   "shared_weekly_ranks": 61,
+   "championships": 2,
+   "championship_versions": 20,
+   "standing_rows": 1100,
+   "audit_records": 147,
+   "streams": "development"
+  },
+  "result": {
+   "problems": {
+    "weekly_competition_ranking": 1,
+    "final_score_set_without_finalise_audit": 1,
+    "official_series_started": 1,
+    "stored_standings_differ_from_hash": 1,
+    "inspect_stream_development": [
+     "Round dev-s-2b66469019: published weekly results differ from a re-scoring of the authoritative settlement"
+    ]
+   }
+  }
+ }
+]

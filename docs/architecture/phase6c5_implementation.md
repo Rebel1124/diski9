@@ -2227,3 +2227,173 @@ authorised **F4 (final regression, stability and handover)** only. Stage G closu
   `tools/e2e_6c5/f3_*`) and the methodology (§8.1–§8.3) are retained.
 * No competition rule, probability bucket, scoring, settlement or championship rule
   changed.
+
+## 9. Stage F4: final regression, stability and handover (21 Nov 2026)
+Authorised by the owner with the F3 closure (§8.13). A verification stage: no feature,
+no migration, no index, no dependency, no competition-rule change. **No application
+source file changed in F4** (`git diff c2583c3 -- src/ migrations_app/` is empty); the
+changes are one test, the tools and documentation. Raw results (sanitised):
+[`docs/benchmarks/phase6c5_f4/`](../benchmarks/phase6c5_f4/). Handover:
+[`phase6c5_stage_g_handover.md`](phase6c5_stage_g_handover.md).
+
+### 9.1 Intermittent Match Lab browser test (root cause found; test fixed)
+`tests/test_match_context.py::test_browser_section_b_alignment_and_bookmaker_layout`
+failed once each at `29ff049`, Stage E (`b983bba`) and F1, on different assertions,
+and passed in F2 and F3. Neither it nor Match Lab changed in 6C.5.
+* **Reproduction.** A temporary harness (not committed) reran the test's browser
+  script against one server: idle 15/15 passed; with the four CPUs saturated by busy
+  loops **3/15 failed**, each at the same step: after typing `0.25` into Section B and
+  pressing Tab, the box still showed `0.25` (not `+0.25`) and the estimate had not
+  moved.
+* **Instrumented diagnosis** (every Dash request and response logged): the app always
+  returned `ctx-home = "+0.25"`; the input's 0.4 s debounce sent the request ~0.4 s
+  after Tab and, under load, the update arrived 0.4–1.1 s after Tab, after the test's
+  fixed 900 ms sleep. Second point: after a market change the detail rebuild
+  (`update_detail`) was dispatched up to ~2.7 s after the market callbacks, in a gap
+  with nothing in flight, so a fixed 800 ms sleep (or a "quiet network" wait) let the
+  Reset click run before it.
+* **Fix (test synchronisation only; assertions unchanged, no timeout raised).** The
+  script waits for the specific callback request a step causes and its response —
+  the request carrying the typed value (`ctx-home.value == "0.25"`), the new market
+  value with the detail rebuild (`detail.children`) and the following `adjust`
+  restore, and the Reset click (`lab-reset.n_clicks`) — then for follow-on callbacks
+  to settle. Two intermediate attempts were rejected on evidence: a generic "a
+  callback round trip" wait (a late initial-render `adjust` request, which lists every
+  input as changed, satisfied it) and a property-only match (6/30 failures).
+* **Evidence:** final fix **40/40 passed with the CPUs saturated** and 3/3 idle; the
+  full regression and CI run 80 passed with it
+  (`docs/benchmarks/phase6c5_f4/matchlab_repetitions.json`).
+* **Application finding (known defect, low severity, not fixed in F4).** The
+  diagnosis exposed a narrow last-response-wins race: `update_detail` writes
+  `lab-store` (`allow_duplicate`) from the value it held when its request was sent, so
+  a detail rebuild that is still in flight when the participant clicks Reset or edits
+  a Match Lab adjustment can, when its response arrives last, restore the previous
+  adjustment. It needs a slow server or device and an action within that window; it
+  affects only the browser-side Match Lab what-if adjustments (and their saved Your
+  View), never entries, scoring or competition data. A correct fix restructures the
+  callback writes and is outside F4's narrow-fix scope; recommended for a later
+  Match Lab maintenance item (handover §C).
+
+### 9.2 Final integrated regression
+* **Full suite on `0570220`: 1,682 passed, 0 failed, 0 skipped** (28 min 00 s; real
+  PostgreSQL 16 with `DISKI9_REQUIRE_POSTGRES=1`, local Supabase Auth with
+  `DISKI9_REQUIRE_SUPABASE_AUTH=1`, browser tests). Same count as F3 (the Match Lab
+  test was changed, not added). Coverage includes entry creation, validation, locking
+  and settlement; the `broad60-432-v1` allocation rules; practice, competitive and void
+  rounds; provisional and official weekly boards; recovery, shared ranks and points;
+  championship progression, completion, rollover, joint and no champions; Under
+  Review, corrections, re-finalisation and version consistency; D-30a; Current
+  Challenge and My Challenge; History; account access, guest visibility and privacy;
+  Match Lab and the Screener.
+* **Focused re-run** of the F3 concurrency (F3-1 backlog regression, same-round
+  finalisers, slot race, rollover readers), page-equivalence and Match Lab context
+  files: 26 passed.
+* **CI:** run 80 (`0570220`) passed.
+
+### 9.3 F2 browser acceptance journeys (repeated)
+On isolated copies `diski9_f4_e2e` and `diski9_f4_e2e_nochamp` (template copies of
+the protected F2 databases; sign-in writes rows, so the originals were not used),
+servers 8074–8076, screenshots to the git-ignored `tmp/f4/shots` (F2 evidence kept).
+* **Current result states** (refund, void, negative, under review, corrected; each
+  built through the real services on the copy): 15 checks at 1360/768/390, **0
+  problems**.
+* **Twelve journeys** after regenerating the expectations: **253 checks, 0 with
+  problems** — every journey at desktop, tablet and mobile, stream visibility,
+  navigation, crafted-callback privacy replays, browser errors and read-only page
+  loads. Server logs: 0 tracebacks, 0 HTTP 500.
+
+### 9.4 F3 performance and concurrency (re-run on the release candidate)
+Fresh `diski9_f4_n1000` (rebuilt with the same seed: identical 1,021 participants,
+11,381 locked entries, 9,629 score rows, 10,902 standing rows; 0 duplicates),
+`diski9_f4_hist`, `diski9_f4_pub`, and `diski9_f4_n10000` (template copy of the F3
+10,000 dataset). Same machine class and method as §8.1.
+
+| Operation | Population | Target | F3 median | F4 median (p95) | Result |
+|---|---|---|---|---|---|
+| Weekly publication | 1,000 entries | ≤ 400 ms | 132 ms | **124 ms** (289; one outlier in 6) | pass |
+| Championship processing (added by 6C.5) | 1,000 | — | 260 ms | 234 ms (297) | — |
+| Re-aggregation | 1,000 × 10 | ≤ 600 ms | 442 ms | **332 ms** (380) | pass |
+| Re-finalisation end to end | 1,000 × 10 | ≤ 2.5 s | 1.09 s | **0.90 s** (0.98) | pass |
+| Official weekly page | 1,000 / 10,000 | ≤ 50 / 80 ms | 10.4 / 11.1 | **9.7 / 12.0 ms** | pass |
+| Championship page (completed) | 1,000 / 10,000 | ≤ 50 / 80 ms | 13.6 / 14.7 | **14.4 / 12.2 ms** | pass |
+| Personal rank (upper bound) | 10,000 | ≤ 20 ms | 14.8 ms | **13.1 ms** (15.5) | pass |
+| Provisional page uncached / cached | 1,000 | ≤ 250 / 30 ms | 63.7 / 8.0 | **59.9 / 8.3 ms** | pass |
+| History list + statistics | 50 entries | ≤ 100 ms | 10.1 ms | **10.2 ms** | pass |
+| Leaderboards page load, signed-in | 1,000, 1 worker | ≤ 600 ms | 653 ms | **727 / 704 / 704 ms** (3 runs) | **miss — accepted limitation (§8.13)** |
+| Leaderboards page load, guest | 1,000, 1 worker | ≤ 600 ms | 594 ms | **586 / 635 / 616 ms** (3 runs) | **at the boundary; not claimed as a pass** |
+| Reads during publication | 20 readers, 4 workers | 0 errors, 0 mixed, p95 ≤ 2× | 1.36× | 0 errors, 0 unexpected, **1.63×** | pass |
+
+* **Page load:** application source is identical to F3; the competition data step
+  ("board") moved 277 → 281–290 ms, the Dash shell and Screener callbacks 395 →
+  413–443 ms. The variance is in the shell (the accepted root cause, §8.9), not the
+  competition reads. The signed-in result stays a documented miss; the guest result,
+  which passed by 1 % in F3, now straddles the target and is reported as such.
+* **Multi-worker (4 workers, 20 sessions, 60 s):** 213 req/s (F3 212), 0 errors,
+  leaderboard callbacks 163 / 313 ms (F3 145 / 324), at most 15 connections.
+* **Concurrent publication (R13):** write 861 ms; 40 responses, 0 unexpected states,
+  all 20 readers saw the change, 0 errors.
+* **Concurrent correction (R11):** reopening and corrections 16.2 s (123 responses),
+  re-finalisation 987 ms (42 responses), each the previous, Under-review or new
+  version; 0 unexpected, 0 errors; p95 1.61× idle.
+* **Cache:** previous round visible for at most **1.93 s** after commit across 4
+  workers (87 of 548 responses), within the 3 s contract; 0 errors.
+* **F3-2 retest (deadlock):** 50 boundary pairs, **100 finalisations, 0 deadlocks, 0
+  errors**, verify consistent, 0 duplicate memberships (before the fix: 2/140).
+* **F3-1 retest (backlog):** the regression test passes in the full and focused runs.
+* **10,000 reads:** all official reads 10–14 ms; the uncached provisional page 547 ms
+  and History 17 ms remain the documented stretch limitations (§8.9).
+
+### 9.5 Data integrity and audit verification
+New read-only tool `tools/phase6c5_f4_integrity.py` (one READ ONLY REPEATABLE READ
+snapshot per database): duplicates (score sets, memberships, versions); current
+version is latest; `inspect_stream` for development, beta and official; **stored
+standing rows reproduce each version's content hash for every version** (closing a
+gap: `inspect_stream` compares a recomputation with the stored hash and counts the
+rows but does not read them); weekly and championship display order, standard
+competition ranking, equal rank ⇒ equal points, points never increase down a table;
+refunded/void rows unranked and pointless, void score sets only void rows, void
+rounds never counted; versions cite final score sets and have standings; operator
+actions attributed (actor-less records only `actor_role = 'system'`), every final
+score set has a finalisation audit record; development/non-development never mixed;
+**official series not started and no official championship**.
+* **Negative control:** on a throw-away copy, a wrong weekly rank, an altered
+  championship standing, a deleted finalisation audit record and a started official
+  series were each detected; points on a void row and an operator action without an
+  actor were rejected outright by existing CHECK constraints.
+* **Results:** `diski9_f4_e2e`, `diski9_f4_e2e_nochamp`, `diski9_f4_n1000`,
+  `diski9_f4_n10000`, `diski9_f4_hist`, `diski9_f4_pub`: **all consistent, 0
+  violations**, including after the concurrent publication, correction, cache and
+  corrections benchmarks. Under Review was exercised (one round settling after a
+  final score set in `diski9_f4_e2e`; readers saw only complete states, §9.4).
+* **Official:** not activated in any database examined; no Official activation was
+  performed in F4.
+
+### 9.6 Protected baselines
+* `diski9_f1_e2e`, `diski9_f2_e2e`, `diski9_f2_e2e_nochamp`: exact row counts of
+  every `app` table and the audit maximum **identical before and after F4**
+  (`tmp/f4/protected_*.txt`). The owner's `diski9`, `diski9_6c5_acceptance` and the
+  pre-6C.5 backup are on the owner's machine and were not accessed. The F3 benchmark
+  databases were only template-copied (read) or not touched; F1–F3 evidence is
+  unchanged.
+* No live odds-provider request was made by F4 testing (the app reads the local
+  football store). The D-29 odds trial ran separately under its own schedule and
+  cutoff (21 Nov 15:00 UTC).
+
+### 9.7 Tool changes (development only)
+* `journeys.js`, `f2_current.js`: `NOCHAMP`, `NODEV`, `E2E_DB_NOCHAMP` and
+  `SHOTS_DIR` override the F2 defaults (so re-runs use isolated copies and never
+  overwrite the F2 evidence).
+* `phase6c5_f3_build.py`, `phase6c5_f3_load.py`, `phase6c5_f3_writes.py`: accept
+  `diski9_f4_*` databases; the publication benchmark's database is `PUB_DB`
+  (default `diski9_f3_pub`).
+* New `phase6c5_f4_integrity.py` (§9.5).
+
+### 9.8 Release-candidate checks
+* Lint (`ruff check`) and formatting (`ruff format --check`) clean.
+* Migration head `app_0007` (no migration in F4).
+* Quantitative fingerprint recalculated:
+  `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4` — **unchanged**.
+* No competition-rule or configuration change; buckets unchanged (`broad60-432-v1`:
+  Foundation 0.60–0.95 inclusive, Balanced 0.40–<0.60, Challenger 0.20–<0.40;
+  `src/diski9/challenge/config.py`).
+* No merge, tag, deployment or Official activation.

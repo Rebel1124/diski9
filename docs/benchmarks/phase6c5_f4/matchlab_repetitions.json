@@ -1,0 +1,135 @@
+[
+ {
+  "variant": "unfixed test, 4 CPUs saturated",
+  "runs": 15,
+  "failed_runs": 3,
+  "failures": [
+   {
+    "run": 1,
+    "failed": [
+     [
+      "desktop",
+      "shown/delta",
+      "0.25"
+     ]
+    ]
+   },
+   {
+    "run": 6,
+    "failed": [
+     [
+      "desktop",
+      "shown/delta",
+      "0.25"
+     ]
+    ]
+   },
+   {
+    "run": 14,
+    "failed": [
+     [
+      "desktop",
+      "shown/delta",
+      "0.25"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "variant": "unfixed test, idle",
+  "runs": 15,
+  "failed_runs": 0,
+  "failures": []
+ },
+ {
+  "variant": "property-only wait (rejected)",
+  "runs": 30,
+  "failed_runs": 6,
+  "failures": [
+   {
+    "run": 7,
+    "failed": [
+     [
+      "phone",
+      "shown/delta",
+      "0.25"
+     ]
+    ]
+   },
+   {
+    "run": 8,
+    "failed": [
+     [
+      "desktop",
+      "shown/delta",
+      "0.25"
+     ]
+    ]
+   },
+   {
+    "run": 9,
+    "failed": [
+     [
+      "desktop",
+      "shown/delta",
+      "0.25"
+     ]
+    ]
+   },
+   {
+    "run": 14,
+    "failed": [
+     [
+      "desktop",
+      "shown/delta",
+      "0.25"
+     ]
+    ]
+   },
+   {
+    "run": 18,
+    "failed": [
+     [
+      "desktop",
+      "shown/delta",
+      "0.25"
+     ]
+    ]
+   },
+   {
+    "run": 22,
+    "failed": [
+     [
+      "desktop",
+      "shown/delta",
+      "0.25"
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "variant": "value-matched wait, reset unfixed",
+  "runs": 30,
+  "failed_runs": 1,
+  "failures": [
+   {
+    "run": 20,
+    "failed": [
+     [
+      "phone",
+      "reset",
+      ""
+     ]
+    ]
+   }
+  ]
+ },
+ {
+  "variant": "final fix, 4 CPUs saturated",
+  "runs": 40,
+  "failed_runs": 0,
+  "failures": []
+ }
+]
