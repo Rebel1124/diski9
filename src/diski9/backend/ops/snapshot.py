@@ -18,6 +18,7 @@ from uuid import UUID
 from sqlalchemy import Engine, bindparam, text
 
 from ..db import read_only
+from ..jobs import locking
 from ..services import settlement
 
 SCHEDULER_JOBS = (
@@ -130,6 +131,9 @@ class Snapshot:
     settlement_failures: dict[str, int] = field(default_factory=dict)
     provider_day_requests: int = 0
     elapsed_ms: float | None = None
+    active_tick: dict | None = None  # live holder of the scheduler lock, with its tick row
+    orphan_ticks: list[dict] = field(default_factory=list)  # running, not the active tick
+    lock_lost: list[JobRow] = field(default_factory=list)  # ticks that lost the lock (24 h)
 
     @property
     def last_tick(self) -> JobRow | None:
@@ -250,10 +254,40 @@ def collect(engine: Engine, *, environment: str, finalise_warning: timedelta) ->
             )
         ]
         snap.abandoned = [j for j in snap.failures if (j.error or "").startswith("abandoned")]
+        snap.lock_lost = [
+            _job(r)
+            for r in _rows(
+                conn,
+                f"SELECT {_JOB_COLS} FROM app.job_runs "
+                "WHERE job = 'scheduler.tick' AND scope = 'global' AND status = 'failed' "
+                "AND started_at >= :day AND error LIKE '%lock lost%' "
+                "ORDER BY started_at DESC LIMIT 10",
+                day=day,
+            )
+        ]
+        active = locking.active_tick(conn)
+        if active is not None:
+            row = conn.execute(
+                text(
+                    "SELECT id, started_at FROM app.job_runs WHERE job = 'scheduler.tick' "
+                    "AND scope = 'global' AND started_at >= :week AND args->>'run_token' = :t "
+                    "ORDER BY started_at DESC LIMIT 1"
+                ),
+                {"week": week, "t": active["run_token"] or ""},
+            ).first()
+            active["tick_id"] = row.id if row else None
+            active["started_at"] = row.started_at if row else active["connected_at"]
+        snap.active_tick = active
+        for t in locking.running_ticks(conn, now):
+            if active is not None and t.run_token and t.run_token == active["run_token"]:
+                continue
+            snap.orphan_ticks.append(
+                {"tick_id": t.tick_id, "started_at": t.started_at, "jobs": list(t.job_ids)}
+            )
         snap.provider_day_requests = conn.execute(
             text(
-                "SELECT coalesce(sum(api_requests), 0) FROM app.job_runs WHERE job IN "
-                "('scheduler.results', 'scheduler.results_full') AND started_at >= :day"
+                "SELECT coalesce(sum(api_requests), 0) FROM app.job_runs "
+                "WHERE job = 'scheduler.provider' AND started_at >= :day"
             ),
             {"day": day},
         ).scalar_one()

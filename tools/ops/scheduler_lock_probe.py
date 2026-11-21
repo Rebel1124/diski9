@@ -1,10 +1,12 @@
-"""Scheduler tick-lock probe (Phase 6C.6 Stage D, locking review §9).
+"""Scheduler tick-lock probe (Phase 6C.6 Stage D locking review and remediation).
 
-Read-only for the accepted code: it exercises the accepted Stage C reconciler on a
-**throw-away database** (created and dropped here, never a protected database) to
-measure how long the tick's lock-holding transaction stays open and what happens
-under ``idle_in_transaction_session_timeout``. It also demonstrates the behaviour
-of a session-level advisory lock for comparison. No provider is called (a fake
+Runs the scheduler on a **throw-away database** (created and dropped here, never a
+protected database) to measure how long a tick holds its lock and to reproduce the
+original defect scenario: ``idle_in_transaction_session_timeout = 2 s``, a 5 s
+provider call and a second tick starting meanwhile; plus loss of the lock-holding
+connection mid-tick and a transaction-pooler URL. Before the remediation the first
+scenario showed overlapping ticks and false abandonment; after it, the second tick
+must skip and nothing may be marked abandoned. No provider is called (a fake
 provider with configurable latency is used).
 
     uv run python tools/ops/scheduler_lock_probe.py \
@@ -51,9 +53,11 @@ class SlowProvider:
         for f in w["fixtures"]:
             self.kickoffs[f] = w["deadline"] + timedelta(seconds=1)
 
-    def fetch(self, ids, allowance):
-        time.sleep(self.latency)
+    def fetch(self, ids, reserve):
         need = math.ceil(len(set(ids)) / 20)
+        for _ in range(need):
+            reserve()
+        time.sleep(self.latency)
         self.requests_made += need
         return [provider_item(f, "FT", ko=self.kickoffs[f], h=1, a=0)
                 for f in ids if f in self.kickoffs], need  # fmt: skip
@@ -125,7 +129,8 @@ def scenario_idle_timeout(admin_url, timeout_ms, latency):
 
         def first():
             try:
-                res["first"] = tick(eng, CFG, provider_factory=lambda: p).status
+                r = tick(eng, CFG, provider_factory=lambda: p)
+                res["first"] = f"{r.status} (exit {r.exit_code})"
             except Exception as exc:  # noqa: BLE001 - this is what we measure
                 res["first"] = f"raised {type(exc).__name__}"
 
@@ -134,17 +139,69 @@ def scenario_idle_timeout(admin_url, timeout_ms, latency):
         time.sleep(timeout_ms / 1000 + 1.0)  # the first tick is inside the slow provider call
         second = tick(eng, replace(CFG, provider_calls=False))
         out["second_tick_while_first_running"] = second.status
+        if p.latency > timeout_ms / 1000:
+            out["note"] = "provider call longer than the idle-in-transaction limit"
         t.join(120)
         out["first_tick"] = res.get("first")
-        with eng.connect() as c:
-            out["tick_rows"] = [dict(r._mapping) for r in c.execute(text(
-                "SELECT id, status, error FROM app.job_runs WHERE job = 'scheduler.tick' "
-                "ORDER BY id"))]  # fmt: skip
+        out.update(_facts(eng, p))
         out["overlap"] = out["second_tick_while_first_running"] == "completed"
         return out
     finally:
         eng.dispose()
         drop_db(admin_url)
+
+
+def _facts(eng, p) -> dict:
+    with eng.connect() as c:
+        rows = [dict(r._mapping) for r in c.execute(text(
+            "SELECT id, job, status, error FROM app.job_runs WHERE job LIKE 'scheduler.%' "
+            "ORDER BY id"))]  # fmt: skip
+    return {
+        "tick_rows": [r for r in rows if r["job"] == "scheduler.tick"],
+        "false_abandonment": any((r["error"] or "").startswith("abandoned") for r in rows),
+        "results_steps": sum(r["job"] == "scheduler.results" for r in rows),
+        "ledger_requests": sum(r["job"] == "scheduler.provider" for r in rows),
+        "requests_sent": p.requests_made,
+    }
+
+
+def scenario_holder_terminated(admin_url, latency):
+    """The lock-holding connection is terminated during a slow provider call."""
+    eng = fresh_db(admin_url, None)
+    out = {"provider_latency_s": latency}
+    try:
+        p = SlowProvider(latency)
+        rounds(eng, 1, p)
+        res = {}
+
+        def first():
+            try:
+                r = tick(eng, CFG, provider_factory=lambda: p)
+                res["first"] = f"{r.status} (exit {r.exit_code})"
+            except Exception as exc:  # noqa: BLE001
+                res["first"] = f"raised {type(exc).__name__}"
+
+        t = threading.Thread(target=first)
+        t.start()
+        time.sleep(1.0)
+        with eng.connect() as c:
+            c.execute(text("SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                           "WHERE application_name LIKE 'diski9-tick:%'"))  # fmt: skip
+            c.commit()
+        second = tick(eng, replace(CFG, provider_calls=False))
+        out["second_tick_after_termination"] = f"{second.status} (exit {second.exit_code})"
+        t.join(120)
+        out["first_tick"] = res.get("first")
+        out.update(_facts(eng, p))
+        return out
+    finally:
+        eng.dispose()
+        drop_db(admin_url)
+
+
+def scenario_pooler_refused():
+    r = tick(None, CFG, lock_url="postgresql+psycopg://u:secret@db.example.invalid:6543/x")
+    return {"status": r.status, "exit_code": r.exit_code, "secret_in_message": "secret" in r.detail}
 
 
 def scenario_session_lock(admin_url, timeout_ms):
@@ -183,6 +240,8 @@ def main() -> int:
             scenario_duration(a.admin_url, n, lat) for n, lat in ((1, 0.0), (5, 0.0), (5, 1.0))
         ],  # fmt: skip
         "idle_in_transaction_timeout": scenario_idle_timeout(a.admin_url, 2000, 5.0),
+        "holder_terminated": scenario_holder_terminated(a.admin_url, 3.0),
+        "pooler_refused": scenario_pooler_refused(),
         "session_level_lock": scenario_session_lock(a.admin_url, 2000),
     }
     print(json.dumps(report, indent=2, default=str))

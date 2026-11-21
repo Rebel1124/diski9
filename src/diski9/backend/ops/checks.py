@@ -139,7 +139,58 @@ def evaluate(snap: Snapshot, ops: OpsConfig, jobs: SchedulerConfig | None) -> li
             "scheduler",
             f"automation is paused ({jobs.pause_reason})",
         )
-    if active:
+    tick_live = snap.active_tick
+    if tick_live is not None:
+        age = now - tick_live["started_at"]
+        if age >= ops.heartbeat_critical:
+            add(
+                Severity.CRITICAL,
+                "scheduler",
+                "tick_overrunning",
+                "scheduler",
+                f"tick {tick_live.get('tick_id')} has held the scheduler lock for {_age(age)}",
+            )
+        else:
+            add(
+                Severity.INFO,
+                "scheduler",
+                "tick_active",
+                "scheduler",
+                f"tick {tick_live.get('tick_id')} is running ({_age(age)})",
+            )
+    if snap.lock_lost:
+        last_lost = snap.lock_lost[0]
+        add(
+            Severity.WARNING,
+            "scheduler",
+            "tick_lock_lost",
+            "scheduler",
+            f"{len(snap.lock_lost)} tick(s) lost the scheduler lock in 24 h (last: tick "
+            f"{last_lost.id}, {_age(now - last_lost.started_at)} ago); see operations runbook",
+        )
+    abandon_after = jobs.abandon_after if jobs is not None else timedelta(minutes=20)
+    for o in snap.orphan_ticks:
+        age = now - o["started_at"]
+        if age < abandon_after:
+            add(
+                Severity.WARNING,
+                "scheduler",
+                "tick_indeterminate",
+                f"tick {o['tick_id']}",
+                f"tick {o['tick_id']} no longer holds the lock but its steps are still running "
+                f"({_age(age)}); it may still be finishing, so new ticks wait (up to "
+                f"{_age(abandon_after)})",
+            )
+        else:
+            add(
+                Severity.WARNING,
+                "scheduler",
+                "tick_unfinished",
+                f"tick {o['tick_id']}",
+                f"tick {o['tick_id']} left steps running for {_age(age)}; the next tick records "
+                "them as abandoned",
+            )
+    if active and tick_live is None:
         last = snap.last_tick
         if last is None:
             add(

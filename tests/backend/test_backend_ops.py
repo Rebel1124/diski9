@@ -433,7 +433,7 @@ def test_after_an_interrupted_tick_ops_shows_it_and_recovery_never_finalises_ear
     with pytest.raises(KeyboardInterrupt):
         tick(eng, BASE, provider_factory=lambda: fake)
     monkeypatch.undo()
-    assert any(j.status == "running" for j in snap(eng).running)
+    assert not snap(eng).running  # the interrupted tick recorded its own steps
     tick(eng, replace(BASE, retry_base=timedelta(0)), provider_factory=lambda: fake)
     f = evaluate(snap(eng), OpsConfig(), BASE)
     assert "step_abandoned" in codes(f, Severity.WARNING)

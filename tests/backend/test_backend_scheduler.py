@@ -85,9 +85,10 @@ class FakeProvider:
         for f in w["fixtures"]:
             self.kickoffs[f] = w["deadline"] + timedelta(seconds=1)
 
-    def fetch(self, ids, allowance):
+    def fetch(self, ids, reserve):
         need = math.ceil(len(set(ids)) / 20)
-        assert need <= allowance  # the scheduler must never ask beyond its allowance
+        for _ in range(need):
+            reserve()  # recorded (and ownership checked) before every request
         self.calls.append(sorted(ids))
         if self.gate is not None:
             self.gate.wait(30)
@@ -317,8 +318,8 @@ def test_per_tick_and_daily_request_caps_defer_explicitly(db):
     deferred = next(s for s in res if s.outcome == Outcome.DEFERRED)
     assert "budget exhausted" in deferred.detail and deferred.api_requests == 0
     assert fake.requests_made == 1 and r.api_requests == 1 and r.exit_code == 0
-    with transaction(eng) as conn:  # a day's scheduler requests already used up
-        conn.execute(sa.insert(job_runs).values(job="scheduler.results", scope="x", args={},
+    with transaction(eng) as conn:  # a day's scheduler requests already recorded
+        conn.execute(sa.insert(job_runs).values(job="scheduler.provider", scope="x", args={},
                                                 status="succeeded", api_requests=100,
                                                 finished_at=sa.func.clock_timestamp()))  # fmt: skip
     r = tick(eng, replace(BASE, max_requests_per_day=100), provider_factory=lambda: fake)
@@ -394,12 +395,12 @@ def test_interrupted_tick_is_recorded_as_abandoned_and_resumes(db, monkeypatch):
     monkeypatch.setattr(rec.rounds_svc, "lock_round", crash)
     with pytest.raises(KeyboardInterrupt):
         tick(eng, replace(BASE, provider_calls=False))
-    assert runs(eng, "scheduler.lock")[-1].status == "running"
+    # the interrupted tick knew it was ending: it recorded its own step as abandoned
+    last = runs(eng, "scheduler.lock")[-1]
+    assert last.status == "failed" and last.error.startswith("abandoned: interrupted")
     assert status(eng, w["round"]) == "open"  # nothing half-done
     monkeypatch.undo()
     r = tick(eng, replace(BASE, provider_calls=False))
-    assert any("abandoned" in n for n in r.notes)
-    assert runs(eng, "scheduler.lock")[-1].status == "failed"
     assert any(s.outcome == Outcome.DEFERRED for s in steps(r, "lock"))  # back-off first
     with transaction(eng) as conn:
         after(eng, db_now(conn) + timedelta(seconds=1))

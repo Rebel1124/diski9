@@ -57,9 +57,9 @@ tick 812 completed: 3 succeeded, 1 skipped, 0 deferred, 0 retryable failure, 0 b
 
 | Code | Meaning |
 |---|---|
-| 0 | nothing failed (also: automation disabled, paused, or another tick still running) |
-| 1 | at least one retryable failure (retried by a later tick with back-off), or the database was unavailable |
-| 2 | invalid configuration: nothing was done |
+| 0 | nothing failed (also: automation disabled, paused, another tick still running, or an earlier tick that lost its lock and may still be finishing — "indeterminate") |
+| 1 | at least one retryable failure (retried by a later tick with back-off), the tick lost the scheduler lock, or the database was unavailable |
+| 2 | invalid configuration, or an unsafe (transaction-pooler) lock connection: nothing was done |
 | 4 | an operator must act (for example a settlement-blocking alert) and nothing retryable failed |
 
 ### Outcomes
@@ -104,15 +104,20 @@ results import, settlement and finalisation.
 * **Two switches before any request:** `DISKI9_JOBS_ENABLED` and
   `DISKI9_JOBS_PROVIDER_CALLS`. With provider calls off, real rounds are locked and
   settled but never finalised by the scheduler.
-* **Caps:** before each import the scheduler computes its allowance as the smaller
-  of the per-tick remainder and the rolling 24-hour remainder (the sum of
-  `api_requests` on `scheduler.results*` job runs). An import needing more requests
-  than the allowance is **not started** and is recorded as `deferred: provider
-  budget exhausted …`. The allowance is also set as the client's request budget, so
-  even retries cannot exceed it; the client's existing daily-reserve guard
-  (`DISKI9_API_FOOTBALL_DAILY_RESERVE`, from the provider's remaining-requests
-  header) still applies and a refusal there is also `deferred`. Every request sent,
-  including failed ones, is counted.
+* **Ledger (crash- and concurrency-safe).** Every provider request — retries
+  included — is recorded *before* it is sent, as a `job_runs` row with
+  `job = 'scheduler.provider'` and `api_requests = 1`, in a short transaction that
+  takes a transaction-level advisory lock and re-checks the per-tick and rolling
+  24-hour caps. A crash after sending cannot lose the count, failed requests are
+  counted, and concurrent callers cannot spend the same allowance. The count is
+  conservative: a request recorded and then not sent (a crash between the two) is
+  counted as spent. Abandoned or indeterminate steps do not affect it (the ledger
+  is independent of step records).
+* **Caps:** before each import the scheduler computes the remaining allowance from
+  the ledger; an import needing more requests than remain is **not started** and is
+  recorded as `deferred: provider budget exhausted …`. A cap reached part-way (for
+  example by a retry) stops further requests the same way. The client's existing
+  daily-reserve guard (`DISKI9_API_FOOTBALL_DAILY_RESERVE`) still applies.
 * **Frequency:** at most one import per round per results refresh interval; the
   service fetches only fixtures selected in locked entries, only from 30 minutes
   before kickoff, and skips fixtures that have been final (or cancelled) for 6
@@ -134,14 +139,35 @@ results import, settlement and finalisation.
 
 ## Safety properties
 
-* **One tick at a time.** A tick holds a transaction-scoped PostgreSQL advisory lock
-  (`ops.try_job_lock("scheduler.tick", "global")`) on a dedicated connection for
-  its whole run; a second tick records `skipped: another tick is still running`
-  and exits 0. A crash closes the connection and releases the lock.
-* **Crash recovery.** Steps left `running` by a tick that ended abruptly are marked
-  `failed` (`abandoned …`) by the next tick, so back-off applies, then the work
-  resumes from the database state. Each service call is one transaction, so a crash
-  never leaves a half-applied step.
+* **One tick at a time (session lock, Stage D remediation).** A tick holds a
+  *session-level* PostgreSQL advisory lock on a dedicated autocommit connection that
+  is never inside a transaction, so database limits such as
+  `idle_in_transaction_session_timeout` cannot end it while the tick waits for the
+  provider. The lock is released explicitly at the end and automatically if the
+  connection dies. A second tick records `skipped: another tick is still running`
+  and exits 0.
+* **Ownership.** Each tick has a unique run token (the lock connection's
+  `application_name` is `diski9-tick:<token>`, also stored in the tick's job row).
+  Before every lifecycle step and before every provider request the tick verifies
+  that the same server session still holds the lock. If not, it stops starting
+  work, finishes recording the step in flight, records `lock lost` on its tick row
+  and exits 1; it never re-acquires the lock in the same run.
+* **Abandonment.** A new tick that finds another tick's steps still `running`
+  marks them abandoned only if that tick started more than
+  `DISKI9_JOBS_ABANDON_AFTER_MINUTES` (20) ago — longer than any live tick can run
+  (below). Otherwise the state is *indeterminate*: the old process may still be
+  finishing an in-flight step, so the new tick does no lifecycle work, records
+  `skipped: indeterminate …` and exits 0. A tick interrupted in-process (Ctrl-C,
+  an unexpected error) records its own steps as `abandoned: interrupted`. Each
+  service call is one transaction, so no step is ever half-applied.
+* **Bounded duration.** No new step starts after `DISKI9_JOBS_TICK_BUDGET_SECONDS`
+  (240); the remaining work continues on the next tick. The scheduler's provider
+  client uses a 10-second timeout and one retry (`DISKI9_JOBS_PROVIDER_TIMEOUT_SECONDS`,
+  `DISKI9_JOBS_PROVIDER_MAX_RETRIES`), so one step can make at most 10 requests of
+  ≤ 22 seconds each; database statements are bounded by the statement (15 s) and
+  lock (5 s) timeouts. Worst case: about 8 minutes, well inside the 20-minute
+  abandonment threshold; with the suggested 5-minute trigger, an overlapping
+  invocation simply skips.
 * **Missed ticks.** Nothing assumes earlier ticks ran: after an outage the next tick
   performs every overdue step in order. A missed tick never bypasses a safeguard:
   results that arrive after the settlement cutoff raise the existing
@@ -155,6 +181,30 @@ results import, settlement and finalisation.
   `scheduler.<step>`, `scope` the round code, host, provider requests, outcome).
   Service writes are audited as `actor_role = system` with no user; scheduled
   settlement runs carry `trigger = scheduled` and the scheduler's `job_run_id`.
+
+## Database connection for the scheduler
+
+The tick lock needs a **direct or session-mode** connection: a session-level lock
+is meaningless through a transaction pooler, which hands each statement to any
+server session.
+
+* Default: the application database URL — refused if
+  `DISKI9_APP_POOLER_MODE=transaction`.
+* Otherwise set `DISKI9_JOBS_DATABASE_URL` (a secret, never printed) to a direct
+  connection or a session-mode pooler, and `DISKI9_JOBS_DATABASE_MODE` to `direct`
+  (default) or `session`. On Supabase: the direct host (`db.<ref>.supabase.co`, port
+  5432) or the session pooler (port 5432), **not** the transaction pooler (port 6543).
+* Refused automatically: port 6543, `pgbouncer=true`, mode `transaction`.
+* **Limitation and validation.** A pooler on another port that is not labelled cannot
+  be recognised from configuration alone. At every acquisition and check the tick
+  verifies that the same server backend still holds the lock; through a transaction
+  pooler this normally fails at once (`unsafe_connection`, exit 2). Before relying on
+  a new host, also validate by hand: connect with the scheduler URL in two `psql`
+  sessions; in the first run `SELECT pg_try_advisory_lock(42), pg_backend_pid();`,
+  wait a minute, and run `SELECT pg_backend_pid();` again (the PID must not change);
+  in the second run `SELECT pid FROM pg_locks WHERE locktype = 'advisory' AND objid
+  = 42;` (it must show the first session's PID); then `SELECT pg_advisory_unlock(42);`
+  in the first. Do not weaken database timeouts for the scheduler; none is needed.
 
 ## Running it on a host (examples)
 

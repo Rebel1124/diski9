@@ -57,6 +57,9 @@ invented.
 | Step failures (same step, same round, in a row) | — | 3 | 6 |
 | Stuck step (`running`) | — | after 30 min | — |
 | Abandoned step (interrupted tick, last 24 h) | — | yes | — |
+| A tick holds the scheduler lock now (trustworthy evidence it is running) | tick active | — | held for 60 min (overrunning) |
+| A tick lost the scheduler lock (24 h) | — | yes | — |
+| Steps of a tick that lost its lock still running | — | indeterminate (may still be finishing), or awaiting abandonment | — |
 | Draft round | awaiting operator publication | — | — |
 | Open round past its deadline | — | 15 min | 60 min |
 | No settlement run since the cutoff | — | 6 h | 24 h |
@@ -73,7 +76,12 @@ invented.
 | Integrity inspection (`--deep`) | — | repairable finding | material finding |
 | Database | — | trivial query > 2 s | unreachable, wrong migration head, tables missing |
 
-Disabled or paused automation is never reported as an outage. Thresholds are
+Disabled or paused automation is never reported as an outage. While a tick holds the
+scheduler lock (seen in `pg_locks` with its `diski9-tick:<token>` connection), the
+heartbeat checks are replaced by "tick active", so a legitimately long tick is not
+reported as an outage; a tick holding it for longer than the critical heartbeat
+threshold is CRITICAL. Provider use is read from the request ledger
+(`scheduler.provider` rows). Thresholds are
 configurable (fail closed on invalid values):
 
 | Variable | Default |

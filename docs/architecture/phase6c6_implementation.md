@@ -598,3 +598,97 @@ password), invalid configuration; bounded timings with 150,000 job runs.
   `app-db check`, real Supabase Auth integration, lint and formatting passed. Test
   suite 24 min 54 s; job 26 min 20 s (within the 40-minute timeout).
 * Documentation after the candidate uses the documentation-only path.
+
+## 6. Stage D remediation: scheduler locking (R1–R6) (21 Nov 2026; checkpoint)
+
+Authorised with the Stage D monitoring acceptance. Code: `backend/jobs/locking.py`
+(new), `backend/jobs/reconciler.py`, `backend/jobs/provider.py`,
+`backend/jobs/config.py`, `jobs_cli.py`; monitoring integration in
+`backend/ops/snapshot.py`, `checks.py` and `ops_cli.py`. No migration, no lease
+table, no new dependency; services, rules and S-02 unchanged.
+
+### 6.1 Original defect and root cause
+The Stage C tick held a **transaction-scoped** advisory lock on a connection whose
+transaction stayed open for the whole tick, including provider calls. With
+`idle_in_transaction_session_timeout = 2 s` and a 5 s provider call, PostgreSQL
+terminated that connection mid-tick (§5.5): the lock vanished, a second tick ran
+concurrently, marked the first tick's live steps abandoned (it treated every
+`running` scheduler row as dead once it held the lock), and the first tick then
+failed with an exception. Ownership was implied by the lock alone and was never
+re-checked; abandonment had no evidence beyond "I hold the lock now".
+
+### 6.2 Implemented fix
+| | Implementation |
+|---|---|
+| **R1** session lock | `TickLock`: `pg_try_advisory_lock` (same key format as `ops.try_job_lock`) on a dedicated connection (`NullPool`, `AUTOCOMMIT`, never in a transaction, TCP keepalives, statement timeout); explicit `pg_advisory_unlock` at the end; released by PostgreSQL if the connection dies. No transaction is open while waiting for the provider. Single active tick preserved |
+| **R2** connection mode | `lock_url()`: `DISKI9_JOBS_DATABASE_URL` (direct or session mode, `DISKI9_JOBS_DATABASE_MODE`) or else the application URL, refused when `DISKI9_APP_POOLER_MODE=transaction`; port 6543, `pgbouncer=true` and mode `transaction` refused (`unsafe_connection`, exit 2, nothing done, no URL in messages). Runtime validation: at acquisition and at every check the same server backend must hold the lock (catches unlabelled poolers); a manual validation procedure is documented. Application connectivity and timeouts unchanged |
+| **R3** ownership | unique run token per tick (`application_name = diski9-tick:<token>`, stored in the tick row with the holder backend PID and OS PID); `TickLock.verify()` (same backend + lock visible in `pg_locks`) before every lifecycle step, before every provider request and before completing the tick record. On loss: `LockLost` → no further step or request, the in-flight step's record is completed, the tick row is recorded `lock lost`, status `lock_lost`, exit 1; never re-acquired in the same run. Services keep their own transactions, row locks and idempotency |
+| **R4** abandonment | `classify_running()`: another tick's `running` rows are abandoned only when that tick started more than `abandon_after` (20 min) ago, which exceeds the maximum live tick duration (R5); younger → **indeterminate**: the new tick records `skipped: indeterminate …`, does no lifecycle work, exits 0, and monitoring reports it. A tick interrupted in-process records its own steps `abandoned: interrupted (…)`. A tick no longer marks rows merely because the previous lock connection disappeared |
+| **R5** bounded duration | tick budget 240 s (no new step after it; remaining work next tick, `deferred`); scheduler provider client 10 s timeout, 1 retry; per-tick request cap 10 → one step ≤ 10 × 22 s; database statements bounded by 15 s statement and 5 s lock timeouts; worst case ≈ 8 min < 20 min abandonment threshold. A second invocation while a tick runs skips (`busy`) |
+| **R6** cleanup | `TickLock.release()` never raises (a failure becomes a note; the closed connection releases the lock); bookkeeping after lock loss is best effort and never replaces the original outcome; an in-process interruption is recorded and re-raised; no traceback for lock loss, unavailability or unsafe connections |
+
+### 6.3 Provider-budget accounting under concurrency
+Advisory locking alone could not make accounting crash-safe (requests were summed
+from step records written *after* the provider call). Now every request — retries
+included — is recorded **before it is sent** as one `job_runs` row
+(`job = 'scheduler.provider'`, `api_requests = 1`) in a short transaction that takes a
+transaction-level advisory lock (`diski9:scheduler.provider_budget`) and re-checks
+the per-tick and rolling 24-hour caps. The real client is hooked through its
+pre-request rate-limiter call, so each attempt passes `reserve()` first; the fake
+providers in tests do the same. Verified: concurrent callers cannot exceed a cap
+(12 threads, cap 5 → exactly 5); a crash after sending keeps the count; failed and
+retried requests are counted; abandoned or indeterminate steps do not make requests
+"unused"; caps hold across ticks and crashes. Limitation (documented): the count is
+conservative — a request recorded and then not sent (crash between) is counted.
+Monitoring and `jobs status` read the ledger. Limits unchanged (10 per tick, 100 per
+24 h, 60-minute refresh, 15–240-minute back-off); automated provider calls remain
+off.
+
+### 6.4 Reproduction and post-fix evidence (`tools/ops/scheduler_lock_probe.py`)
+| Scenario | Before (Stage D, §5.5) | After |
+|---|---|---|
+| idle-in-transaction 2 s, provider 5 s, second tick meanwhile | second tick **completed** (overlap); first tick's live rows marked abandoned; first tick raised `InternalError` | second tick **busy**; first tick completed (exit 0); no abandonment; 1 results step; ledger 1 = requests sent 1 |
+| lock holder terminated during a 3 s provider call, second tick meanwhile | (not run) | first tick `lock_lost` (exit 1, recorded); second tick `indeterminate` (exit 0, no work); no abandonment; 1 results step; ledger 1 = sent 1 |
+| transaction-pooler URL (port 6543) | (accepted) | `unsafe_connection`, exit 2, no secret in the message |
+| tick duration | 0.25 / 0.76 / 5.8 s | 0.27 / 0.87 / 5.9 s (1 round; 5 rounds; 5 rounds with 1 s provider latency) |
+
+### 6.5 Tests (`tests/backend/test_backend_scheduler_locking.py`, 13 tests)
+Session lock held on an idle connection outside any transaction and released;
+the original defect scenario (2 s idle-in-transaction limit, 5 s gated provider,
+second tick) with no overlap, no false abandonment, no duplicate step and correct
+ledger; two and four competing ticks (one owner); lock-holder termination mid-tick
+(controlled `lock_lost`, indeterminate second tick, in-flight step recorded, no
+follow-on step, monitoring shows indeterminate then lock lost, a later tick
+recovers); genuinely abandoned (old) versus uncertain (young) killed ticks; tick
+budget exhaustion and continuation; configuration bounds; cleanup failure reported
+not raised; transaction-pooler refusal, direct/session acceptance and backend-change
+detection; concurrent reservations; requests surviving crashes, failures and
+abandonment; real client retries each recorded before sending and nothing sent once
+the cap is reached (mock transport); monitoring distinguishing a long tick from an
+outage (tick active INFO, overrunning CRITICAL). The Stage C and Stage D suites were
+updated only where semantics changed by design (provider `fetch(ids, reserve)`;
+an in-process interruption now records its own steps as abandoned; budget seeded
+through the ledger).
+
+### 6.6 Verification
+* Level 1: the locking file twice (13 passed each); scheduler and ops files (34
+  passed) after the change.
+* Level 2 (local PostgreSQL and Supabase Auth harness): locking, ops, scheduler,
+  results, settlement (incl. ops and security), corrections, rounds, S-07, operator
+  CLI, migrations, authentication units, weekly results, championships, integrity,
+  concurrency, CI change-scope and API client suites — **399 passed, 0 skipped**.
+* Probe re-run on the remediated code (§6.4). Lint and formatting clean;
+  fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
+  migration head `app_0007`; no change under `src/diski9/challenge/`,
+  `migrations_app/` or the services.
+* Level 3: §6.8.
+
+### 6.7 Remaining risks
+| Item | Note |
+|---|---|
+| Unlabelled poolers | detected at runtime by the backend check, but only once a tick runs; validate by hand before relying on a new host (documented) |
+| Conservative accounting | a crash between recording and sending counts an unsent request |
+| Indeterminate window | after a killed process, lifecycle work waits up to 20 minutes (abandonment threshold); monitoring shows it |
+| Abandonment threshold assumption | relies on the bounded tick (budget, provider timeout/retries, database timeouts); raising those bounds requires raising `DISKI9_JOBS_ABANDON_AFTER_MINUTES` |
+| `idle_session_timeout` | a server-side idle-session limit shorter than a tick would end the lock connection: the tick then stops safely with `lock lost` (no overlap), but hosts should not set one below the tick budget |
+| Provider limits, host, webhook destination | unchanged decisions (provisional limits, Q-07, Q-08) |

@@ -19,7 +19,20 @@ Variable                               Default   Meaning
 ``DISKI9_JOBS_SETTLE_REFRESH_MINUTES``   60      gap between routine settlement runs (5–1440)
 ``DISKI9_JOBS_RETRY_BASE_MINUTES``     15        first back-off after a failure (1–1440)
 ``DISKI9_JOBS_RETRY_MAX_MINUTES``      240       longest back-off (1–10080)
+``DISKI9_JOBS_TICK_BUDGET_SECONDS``    240       no new step starts after this (30–900)
+``DISKI9_JOBS_ABANDON_AFTER_MINUTES``  20        a lost tick's steps count as abandoned
+                                                 only after this (10–1440)
+``DISKI9_JOBS_PROVIDER_TIMEOUT_SECONDS`` 10      scheduler provider request timeout (1–30)
+``DISKI9_JOBS_PROVIDER_MAX_RETRIES``   1         scheduler provider retries (0–3)
+``DISKI9_JOBS_DATABASE_URL``           (none)    direct or session-mode URL for the tick
+                                                 lock (secret); default: the app URL
+``DISKI9_JOBS_DATABASE_MODE``          direct    ``direct`` or ``session``
 =====================================  ========  ==========================================
+
+``abandon_after`` must exceed the longest a live tick can run: the tick budget plus
+one in-flight step (at most ``max_requests_per_tick × (retries + 1)`` provider
+requests of ``timeout`` seconds, and database statements bounded by the statement
+and lock timeouts) — about 8 minutes with the defaults.
 """
 
 from __future__ import annotations
@@ -59,6 +72,10 @@ class SchedulerConfig:
     retry_max: timedelta = timedelta(minutes=240)
     environment: str = "development"
     notes: tuple[str, ...] = field(default=())
+    tick_budget: timedelta = timedelta(seconds=240)
+    abandon_after: timedelta = timedelta(minutes=20)
+    provider_timeout_seconds: float = 10.0
+    provider_max_retries: int = 1
 
     def __post_init__(self) -> None:
         # a second line of defence for configurations built in code (tests, tools)
@@ -69,6 +86,8 @@ class SchedulerConfig:
             raise ConfigError("DISKI9_JOBS_STREAMS must list the streams to automate")
         if self.environment == "production" and "development" in self.streams:
             raise ConfigError("the development stream cannot be automated in production")
+        if self.abandon_after <= self.tick_budget:
+            raise ConfigError("DISKI9_JOBS_ABANDON_AFTER_MINUTES must exceed the tick budget")
 
 
 def _flag(env: Mapping[str, str], name: str) -> bool:
@@ -154,4 +173,12 @@ def load_config(
         retry_base=timedelta(minutes=retry_base),
         retry_max=timedelta(minutes=retry_max),
         environment=environment,
+        tick_budget=timedelta(seconds=_int(env, "DISKI9_JOBS_TICK_BUDGET_SECONDS", 240, 30, 900)),
+        abandon_after=timedelta(
+            minutes=_int(env, "DISKI9_JOBS_ABANDON_AFTER_MINUTES", 20, 10, 1440)
+        ),
+        provider_timeout_seconds=float(
+            _int(env, "DISKI9_JOBS_PROVIDER_TIMEOUT_SECONDS", 10, 1, 30)
+        ),
+        provider_max_retries=_int(env, "DISKI9_JOBS_PROVIDER_MAX_RETRIES", 1, 0, 3),
     )

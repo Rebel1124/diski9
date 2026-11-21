@@ -36,8 +36,10 @@ Resume: remove the file (or unset the variable). The next tick catches up; check
 with `ops status` that the heartbeat recovers and no round is overdue.
 
 ## 4. An abandoned or stuck step
-`step_abandoned` means a tick ended abruptly (killed, host restart) while a step
-was running; the next tick recorded it as failed so back-off applies.
+`step_abandoned` means a tick ended while a step was running: either it was
+interrupted in-process and recorded this itself (`abandoned: interrupted`), or its
+process was killed and the next tick recorded it once the tick was older than the
+abandonment threshold (20 minutes). Back-off then applies.
 1. `ops jobs --round CODE` shows the round's steps and audit records. Because each
    service call is one transaction, an abandoned step left nothing half-applied:
    either its transaction committed (visible in the round's status, settlement
@@ -49,6 +51,20 @@ was running; the next tick recorded it as failed so back-off applies.
    `pg_stat_activity`. Do not edit `job_runs` rows (they are guarded).
 4. Investigate repeated abandonment (host sleeping, OOM kills, timeouts; see the
    locking review in the implementation record §5.5).
+
+## 4a. A tick lost the scheduler lock (`tick_lock_lost`, exit 1) or is indeterminate
+* `lock lost` means the tick's dedicated lock connection was ended (database
+  restart, failover, network drop, an administrator's `pg_terminate_backend`, or an
+  unsuitable connection). The tick stopped starting work after its in-flight step;
+  nothing needs undoing.
+* While that tick's in-flight step is still running, new ticks report
+  `indeterminate` and do nothing (exit 0); `ops status` shows the tick under "lost
+  its lock". This clears by itself when the step finishes, or after
+  `DISKI9_JOBS_ABANDON_AFTER_MINUTES` (20) when the next tick records it abandoned.
+* If lock loss repeats, check the database logs for terminated sessions and confirm
+  the scheduler uses a direct or session-mode connection (operations_scheduler.md,
+  "Database connection for the scheduler"). Do not raise database timeouts as a fix;
+  the lock is not affected by idle-in-transaction limits.
 
 ## 5. Blocking settlement alerts (exit 4, `blocking_alerts`)
 The scheduler never resolves alerts. An authenticated operator investigates and

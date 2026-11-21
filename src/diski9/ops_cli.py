@@ -165,6 +165,9 @@ def _status(args) -> int:
                 "provider_calls": bool(jobs and jobs.provider_calls),
             },
             "rounds": {k: [r.as_dict() for r in v] for k, v in by_cat.items()},
+            "active_tick": snap.active_tick,
+            "orphan_ticks": snap.orphan_ticks,
+            "lock_lost": [j.as_dict() for j in snap.lock_lost],
             "recent_failures": [j.as_dict() for j in snap.failures],
             "running": [j.as_dict() for j in snap.running],
             "abandoned": [j.as_dict() for j in snap.abandoned],
@@ -191,6 +194,15 @@ def _status(args) -> int:
         f"{f' ({lt.outcome}, job {lt.id})' if lt else ''}; last successful tick: "
         f"{_ago(now, ok.started_at) if ok else 'never'}"
     )
+    if snap.active_tick:
+        a = snap.active_tick
+        print(f"  active tick: {a.get('tick_id')} holding the scheduler lock since "
+              f"{_ago(now, a['started_at'])}")  # fmt: skip
+    for o in snap.orphan_ticks:
+        print(f"  tick {o['tick_id']}: lost its lock, steps still running since "
+              f"{_ago(now, o['started_at'])}")  # fmt: skip
+    if snap.lock_lost:
+        print(f"  ticks that lost the lock (24 h): {len(snap.lock_lost)}")
     print(f"notifications: {ops.describe_notifications()}")
     cap = f"{jobs.max_requests_per_day}" if jobs else "?"
     print(

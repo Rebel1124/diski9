@@ -2,10 +2,11 @@
 
 * ``diski9 jobs tick`` — one reconciliation pass, for an external trigger (cron,
   systemd timer, launchd, a hosted scheduler) every few minutes. It never loops or
-  sleeps and exits with: 0 nothing failed (including disabled, paused, or another
-  tick running); 1 a retryable failure or the database was unavailable; 2 invalid
-  configuration (nothing done); 4 an operator must act (blocking) and nothing
-  retryable failed.
+  sleeps and exits with: 0 nothing failed (including disabled, paused, another tick
+  running, or an earlier tick that may still be finishing); 1 a retryable failure,
+  the tick lost its lock, or the database was unavailable; 2 invalid configuration
+  or an unsafe (transaction-pooler) lock connection (nothing done); 4 an operator
+  must act (blocking) and nothing retryable failed.
 * ``diski9 jobs tick --dry-run`` — what is due now; writes nothing, no provider call.
 * ``diski9 jobs status`` — configuration, provider requests in the last 24 hours and
   recent scheduler runs (read-only).
@@ -96,13 +97,26 @@ def _tick(args) -> int:
         print(f"dry run: {len(report.steps)} line(s); provider requests in the last 24 h "
               f"{report.day_requests}; nothing was written")  # fmt: skip
         return 0
-    report = tick(
-        engine, cfg, provider_factory=api_football_provider if cfg.provider_calls else None
-    )
+    from diski9.backend.jobs.locking import lock_url
+
+    try:
+        url = lock_url()
+    except ValueError as exc:  # ConfigError / ConnectionModeError: never echo the URL
+        print(f"jobs tick: unsafe or invalid scheduler connection: {exc}; nothing was done",
+              file=sys.stderr)  # fmt: skip
+        return 2
+
+    def provider():
+        return api_football_provider(cfg.provider_timeout_seconds, cfg.provider_max_retries)
+
+    report = tick(engine, cfg, provider_factory=provider if cfg.provider_calls else None,
+                  lock_url=url)  # fmt: skip
     tag = f"tick {report.tick_run_id}" if report.tick_run_id else "tick"
     if report.status != "completed":
-        stream = sys.stderr if report.status == "unavailable" else sys.stdout
+        stream = sys.stderr if report.exit_code else sys.stdout
         print(f"{tag}: {report.status} - {report.detail}", file=stream)
+        for note in report.notes:
+            print(f"{tag}: note: {note}", file=stream)
         return report.exit_code
     _print_report(report, f"[{tag}]")
     counts = ", ".join(

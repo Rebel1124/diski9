@@ -34,7 +34,10 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import socket
+import time
+import uuid
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -62,7 +65,9 @@ from ..services import corrections, results, settlement
 from ..services import rounds as rounds_svc
 from ..services.common import ServiceError
 from ..services.rounds import SYSTEM
+from . import locking
 from .config import AUTOMATABLE_STREAMS, SchedulerConfig
+from .locking import BudgetExhausted, LockLost
 
 TICK = "scheduler.tick"
 JOB = {
@@ -117,7 +122,9 @@ class StepReport:
 
 @dataclass
 class TickReport:
-    status: str  # completed | disabled | paused | busy | unavailable | planned
+    # completed | disabled | paused | busy | indeterminate | lock_lost | unavailable |
+    # unsafe_connection | planned
+    status: str
     steps: list[StepReport] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
     tick_run_id: int | None = None
@@ -130,9 +137,13 @@ class TickReport:
 
     @property
     def exit_code(self) -> int:
-        """0 nothing failed; 1 a retryable failure (or the database was unavailable);
-        4 an operator must act (blocking) and nothing retryable failed."""
-        if self.status == "unavailable" or self.count(Outcome.RETRYABLE):
+        """0 nothing failed (also busy, indeterminate, paused, disabled); 1 a retryable
+        failure, the lock was lost or the database was unavailable; 2 the lock
+        connection is unsafe (transaction pooler); 4 an operator must act (blocking)
+        and nothing retryable failed."""
+        if self.status == "unsafe_connection":
+            return 2
+        if self.status in ("unavailable", "lock_lost") or self.count(Outcome.RETRYABLE):
             return 1
         if self.count(Outcome.BLOCKING):
             return 4
@@ -140,36 +151,15 @@ class TickReport:
 
 
 class Provider(Protocol):
-    """The results source: ``fetch(ids, allowance)`` returns ``(items, requests)``
-    and must never send more than ``allowance`` requests; ``requests_made`` counts
-    every request sent so far (retries included)."""
+    """The results source. ``fetch(ids, reserve)`` returns ``(items, requests)`` and
+    must call ``reserve()`` immediately before **every** request it sends (retries
+    included); ``reserve`` records the request durably and raises when a cap is
+    reached or the tick no longer owns the scheduler lock. ``requests_made`` counts
+    requests sent (for reporting)."""
 
     requests_made: int
 
-    def fetch(self, ids: Sequence[int], allowance: int) -> tuple[list[dict], int]: ...
-
-
-class BudgetExhausted(Exception):
-    def __init__(self, need: int, allowance: int, scope: str) -> None:
-        super().__init__(f"needs {need} request(s), {allowance} left ({scope})")
-        self.need, self.allowance, self.scope = need, allowance, scope
-
-
-@dataclass
-class _Budget:
-    per_tick: int
-    day_left: int
-    spent: int = 0
-
-    def allowance(self) -> tuple[int, str]:
-        tick_left = self.per_tick - self.spent
-        if tick_left <= self.day_left:
-            return max(tick_left, 0), "per-tick cap"
-        return max(self.day_left, 0), "24-hour cap"
-
-    def spend(self, n: int) -> None:
-        self.spent += n
-        self.day_left -= n
+    def fetch(self, ids: Sequence[int], reserve: Callable[[], None]) -> tuple[list[dict], int]: ...
 
 
 @dataclass(frozen=True)
@@ -257,13 +247,9 @@ def _state(engine: Engine, rid: UUID, code: str, stream: str) -> _RoundState:
 
 
 def _day_requests(engine: Engine) -> int:
+    """Scheduler provider requests recorded in the last 24 hours (the ledger)."""
     with transaction(engine) as conn:
-        return conn.execute(
-            select(func.coalesce(func.sum(job_runs.c.api_requests), 0)).where(
-                job_runs.c.job.in_(PROVIDER_JOBS),
-                job_runs.c.started_at >= func.transaction_timestamp() - timedelta(hours=24),
-            )
-        ).scalar_one()
+        return locking.usage(conn, "")[1]
 
 
 # ------------------------------------------------------------------ job records
@@ -284,21 +270,6 @@ def _end(engine: Engine, run_id: int, outcome: Outcome, detail: str, requests: i
             JOB_STATUS[outcome],
             api_requests=requests,
             error=None if outcome == Outcome.SUCCEEDED else f"{outcome.value}: {detail}"[:500],
-        )
-
-
-def _mark_abandoned(engine: Engine) -> int:
-    """Steps left ``running`` by a tick that ended abruptly (the tick lock is held,
-    so no live tick owns them) are recorded as failed, so back-off applies."""
-    with transaction(engine) as conn:
-        return len(
-            conn.execute(
-                text(
-                    "UPDATE app.job_runs SET status = 'failed', finished_at = clock_timestamp(), "
-                    "error = 'abandoned: the tick ended before this step finished' "
-                    "WHERE status = 'running' AND job LIKE 'scheduler.%' RETURNING id"
-                )
-            ).all()
         )
 
 
@@ -438,13 +409,19 @@ def _classify(exc: BaseException) -> tuple[Outcome, str]:
     return Outcome.RETRYABLE, f"unexpected error ({type(exc).__name__})"
 
 
+class _BudgetSpent(Exception):
+    """The tick's time budget is used up: start no new step (R5)."""
+
+
 @dataclass
 class _Run:
     engine: Engine
     cfg: SchedulerConfig
     host: str | None
     tick_id: int
-    budget: _Budget
+    lock: locking.TickLock
+    token: str
+    deadline: float  # time.monotonic() after which no new step starts
     provider_factory: Callable[[], Provider] | None
     provider: Provider | None = None
 
@@ -455,12 +432,19 @@ class _Run:
             self.provider = self.provider_factory()
         return self.provider
 
+    def check(self) -> None:
+        """Before starting any work: still the owner (R3) and within budget (R5)."""
+        self.lock.verify()
+        if time.monotonic() >= self.deadline:
+            raise _BudgetSpent()
+
     def execute(self, s: _RoundState, step: str) -> tuple[StepReport, dict[str, Any]]:
         job = JOB[step]
         run_id = _begin(self.engine, job, s.code,
                         {"stream": s.stream, "round_id": str(s.id), "tick": self.tick_id,
-                         "step": step}, self.host)  # fmt: skip
+                         "run_token": self.token, "step": step}, self.host)  # fmt: skip
         requests, info = 0, {}
+        lost: LockLost | None = None
         try:
             if step == "lock":
                 res = rounds_svc.lock_round(self.engine, SYSTEM, s.id)
@@ -472,14 +456,23 @@ class _Run:
                 )
             elif step in ("results", "results_full"):
                 provider = self.get_provider()
-                allowance, scope = self.budget.allowance()
+                allowance, scope = locking.allowance(
+                    self.engine, self.token, self.cfg.max_requests_per_tick,
+                    self.cfg.max_requests_per_day)  # fmt: skip
                 before = provider.requests_made
+
+                def reserve() -> None:
+                    # immediately before every request: owner, then durable record
+                    self.lock.verify()
+                    locking.reserve(self.engine, token=self.token, tick_id=self.tick_id,
+                                    scope=s.code, per_tick=self.cfg.max_requests_per_tick,
+                                    per_day=self.cfg.max_requests_per_day)  # fmt: skip
 
                 def fetch(ids: Sequence[int]) -> tuple[list[dict], int]:
                     need = math.ceil(len(set(ids)) / MAX_IDS_PER_REQUEST)
                     if need > allowance:
                         raise BudgetExhausted(need, allowance, scope)
-                    return provider.fetch(ids, allowance)
+                    return provider.fetch(ids, reserve)
 
                 try:
                     res = results.import_results(
@@ -487,7 +480,6 @@ class _Run:
                     )
                 finally:
                     requests = provider.requests_made - before
-                    self.budget.spend(requests)
                 outcome = Outcome.SUCCEEDED
                 detail = (f"polled {len(res.polled)}, not due {len(res.skipped)}, "
                           f"new observations {res.recorded}")  # fmt: skip
@@ -507,14 +499,28 @@ class _Run:
                     outcome, detail = Outcome.SKIPPED, res.reason or "not finalised"
             else:  # pragma: no cover - the step table is closed
                 raise ValueError(step)
+        except LockLost as exc:
+            lost = exc
+            outcome, detail = Outcome.RETRYABLE, f"lock lost: {exc}"
         except Exception as exc:  # noqa: BLE001 - classified, recorded, never fatal
             outcome, detail = _classify(exc)
         _end(self.engine, run_id, outcome, detail, requests)
+        if lost is not None:
+            raise lost  # stop the tick: no follow-on step without ownership
         return StepReport(s.code, s.stream, step, outcome, detail, run_id, requests), info
 
 
 def _process_round(run: _Run, rid: UUID, code: str, stream: str) -> list[StepReport]:
     reports: list[StepReport] = []
+    try:
+        return _process_round_steps(run, rid, code, stream, reports)
+    except (LockLost, _BudgetSpent) as exc:
+        exc.reports = reports  # keep what was done before stopping
+        raise
+
+
+def _process_round_steps(run: _Run, rid: UUID, code: str, stream: str,
+                         reports: list[StepReport]) -> list[StepReport]:  # fmt: skip
     done: set[str] = set()
     new_evidence = new_full = False
     for _ in range(MAX_STEPS_PER_ROUND):
@@ -523,6 +529,7 @@ def _process_round(run: _Run, rid: UUID, code: str, stream: str) -> list[StepRep
         if not want:
             return reports + notes
         step = want[0]
+        run.check()  # owner and budget, before every step
         rep, info = run.execute(s, step)
         reports.append(rep)
         done.add(step)
@@ -550,65 +557,150 @@ def _attention(engine: Engine, cfg: SchedulerConfig) -> list[str]:
     ]
 
 
+def _safe(call, notes: list[str], what: str) -> Any:
+    """Run a bookkeeping call; a failure becomes a note (never replaces the outcome)."""
+    try:
+        return call()
+    except Exception as exc:  # noqa: BLE001
+        notes.append(f"{what} failed ({type(exc).__name__})")
+        return None
+
+
 def tick(
     engine: Engine,
     cfg: SchedulerConfig,
     *,
     provider_factory: Callable[[], Provider] | None = None,
     host: str | None = None,
+    lock_url: str | None = None,
 ) -> TickReport:
-    """Run one reconciliation pass and return what happened (never raises for an
-    operational problem: database unavailability is reported, step failures are
-    recorded and classified)."""
+    """Run one reconciliation pass and return what happened. Never raises for an
+    operational problem (database unavailable, lock lost, cleanup failure): each is
+    reported with its own status and exit code. ``lock_url`` is the direct or
+    session-mode connection for the tick lock (default: the engine's URL)."""
     if not cfg.enabled:
         return TickReport("disabled", detail="automation is disabled (DISKI9_JOBS_ENABLED)")
     host = host or socket.gethostname()
+    url = lock_url or engine.url.render_as_string(hide_password=False)
     try:
-        holder = engine.connect()
-    except SQLAlchemyError as exc:
-        return TickReport("unavailable", detail=f"database unavailable ({type(exc).__name__})")
+        locking.check_lock_url(url)
+    except locking.ConnectionModeError as exc:
+        return TickReport("unsafe_connection", detail=str(exc))
+    token = uuid.uuid4().hex
+    lock = locking.TickLock(url, token)
+    started = time.monotonic()
+    report: TickReport | None = None
+    tick_id: int | None = None
     try:
-        holder.begin()
-        if not ops.try_job_lock(holder, TICK, "global"):
-            rid = _begin(engine, TICK, "global", {"reason": "busy"}, host)
+        try:
+            got = lock.acquire()
+        except LockLost as exc:
+            report = TickReport("unsafe_connection", detail=f"the scheduler lock could not be "
+                                f"verified on one server session: {exc}")  # fmt: skip
+            return report
+        except SQLAlchemyError as exc:
+            report = TickReport(
+                "unavailable", detail=f"database unavailable ({type(exc).__name__})"
+            )
+            return report
+        if not got:
+            rid = _begin(engine, TICK, "global", {"reason": "busy", "run_token": token}, host)
             _end(engine, rid, Outcome.SKIPPED, "another tick is still running")
-            return TickReport("busy", tick_run_id=rid, detail="another tick is still running")
-        abandoned = _mark_abandoned(engine)
+            report = TickReport("busy", tick_run_id=rid, detail="another tick is still running")
+            return report
+        with transaction(engine) as conn:
+            abandoned, unsure = locking.classify_running(conn, db_now(conn), cfg.abandon_after)
+        n_abandoned = locking.mark_abandoned(
+            engine, [i for t in abandoned for i in t.job_ids],
+            f"tick {abandoned[0].tick_id} lost its lock and exceeded the maximum tick "
+            "duration" if abandoned else "")  # fmt: skip
+        if unsure:
+            ids = ", ".join(str(t.tick_id) for t in unsure)
+            detail = (
+                f"indeterminate: tick {ids} lost its lock and may still be finishing; no "
+                f"lifecycle work until it completes or {cfg.abandon_after} has passed"
+            )
+            rid = _begin(engine, TICK, "global", {"reason": "indeterminate", "run_token": token,
+                                                  "waiting_for": ids}, host)  # fmt: skip
+            _end(engine, rid, Outcome.SKIPPED, detail)
+            report = TickReport("indeterminate", tick_run_id=rid, detail=detail)
+            return report
         tick_id = _begin(engine, TICK, "global",
                          {"streams": list(cfg.streams), "provider_calls": cfg.provider_calls,
-                          "abandoned_steps": abandoned}, host)  # fmt: skip
+                          "run_token": token, "holder_pid": lock.pid, "os_pid": os.getpid(),
+                          "abandoned_steps": n_abandoned}, host)  # fmt: skip
         if cfg.paused:
             _end(engine, tick_id, Outcome.SKIPPED, f"paused: {cfg.pause_reason}")
-            return TickReport("paused", tick_run_id=tick_id, detail=f"paused: {cfg.pause_reason}")
-        day_used = _day_requests(engine)
-        run = _Run(engine, cfg, host, tick_id,
-                   _Budget(cfg.max_requests_per_tick, cfg.max_requests_per_day - day_used),
-                   provider_factory)  # fmt: skip
+            report = TickReport("paused", tick_run_id=tick_id, detail=f"paused: {cfg.pause_reason}")
+            return report
+        run = _Run(engine, cfg, host, tick_id, lock, token,
+                   started + cfg.tick_budget.total_seconds(), provider_factory)  # fmt: skip
         report = TickReport("completed", tick_run_id=tick_id)
-        if abandoned:
-            report.notes.append(f"{abandoned} step(s) left running by an earlier tick were "
-                                "recorded as failed (abandoned)")  # fmt: skip
-        for rid, code, stream in _candidates(engine, cfg):
-            try:
-                report.steps.extend(_process_round(run, rid, code, stream))
-            except Exception as exc:  # noqa: BLE001 - isolate rounds from each other
-                outcome, detail = _classify(exc)
-                report.steps.append(StepReport(code, stream, "round", outcome, detail))
+        if n_abandoned:
+            report.notes.append(f"{n_abandoned} step(s) of a tick that lost its lock more than "
+                                f"{cfg.abandon_after} ago were recorded as abandoned")  # fmt: skip
+        try:
+            for rid, code, stream in _candidates(engine, cfg):
+                try:
+                    report.steps.extend(_process_round(run, rid, code, stream))
+                except (LockLost, _BudgetSpent) as stop:
+                    report.steps.extend(getattr(stop, "reports", []))
+                    raise
+                except Exception as exc:  # noqa: BLE001 - isolate rounds from each other
+                    outcome, detail = _classify(exc)
+                    report.steps.append(StepReport(code, stream, "round", outcome, detail))
+        except _BudgetSpent:
+            report.steps.append(StepReport("-", "-", "tick", Outcome.DEFERRED,
+                                           f"tick budget of {cfg.tick_budget} used; remaining "
+                                           "work continues next tick"))  # fmt: skip
+        lock.verify()  # still the owner when the tick's own records are completed
         report.notes.extend(_attention(engine, cfg))
-        report.api_requests = run.budget.spent
-        report.day_requests = day_used + run.budget.spent
+        with transaction(engine) as conn:
+            report.api_requests, report.day_requests = locking.usage(conn, token)
         failed = report.count(Outcome.RETRYABLE) + report.count(Outcome.BLOCKING)
         summary = {o.value: report.count(o) for o in Outcome if o != Outcome.PLANNED}
         _end(engine, tick_id, Outcome.RETRYABLE if failed else Outcome.SUCCEEDED,
-             f"{failed} failed step(s); {json.dumps(summary)}", run.budget.spent)  # fmt: skip
+             f"{failed} failed step(s); {json.dumps(summary)}", report.api_requests)  # fmt: skip
+        return report
+    except LockLost as exc:
+        report = report or TickReport("lock_lost", tick_run_id=tick_id)
+        report.status, report.detail = "lock_lost", f"lock lost: {exc}"
+        if tick_id is not None:
+            notes: list[str] = []
+            requests = _safe(lambda: _usage_of(engine, token), notes, "reading provider usage")
+            why = f"lock lost: {exc}"
+            _safe(
+                lambda: _end(engine, tick_id, Outcome.RETRYABLE, why, requests or 0),
+                notes,
+                "recording the lost lock",
+            )
+            report.notes.extend(notes)
         return report
     except SQLAlchemyError as exc:
-        return TickReport("unavailable", detail=f"database unavailable ({type(exc).__name__})")
+        report = report or TickReport("unavailable", tick_run_id=tick_id)
+        report.status = "unavailable"
+        report.detail = f"database unavailable ({type(exc).__name__})"
+        return report
+    except BaseException as exc:
+        # interrupted in-process (KeyboardInterrupt, SystemExit, an unexpected error):
+        # this tick knows it is ending, so it records its own steps as abandoned
+        if tick_id is not None:
+            kind = type(exc).__name__
+            _safe(
+                lambda: locking.mark_own_interrupted(engine, tick_id, kind),
+                [],
+                "recording the interruption",
+            )
+        raise
     finally:
-        try:
-            holder.rollback()  # releases the tick lock
-        finally:
-            holder.close()
+        note = lock.release()
+        if note and report is not None:
+            report.notes.append(note)
+
+
+def _usage_of(engine: Engine, token: str) -> int:
+    with transaction(engine) as conn:
+        return locking.usage(conn, token)[0]
 
 
 def plan_tick(engine: Engine, cfg: SchedulerConfig) -> TickReport:
