@@ -480,3 +480,17 @@ Reload http://127.0.0.1:8050 with a hard refresh (Cmd-Shift-R) so the new styles
 Populated competitive states (points, podium, both charts) are in
 `docs/screenshots/phase6c5/refined/` (index in its `README.md`), including
 before/after comparisons (`compare_*.png`).
+
+### 15.7 After the final refinements
+Pull and restart exactly as in §15.6, and hard-refresh the browser. No data change is
+needed. Then check:
+1. **Weekly Challenge** (when no round is open): the gap below "Try the demonstration
+   round" matches the gap above it.
+2. **My Challenge.** Open **Details** on an entry in History. "Your result" shows four
+   cards with coloured headers:
+   - Allocated in violet;
+   - Returned in green, or Refunded in amber;
+   - Net in blue, with the value green or red;
+   - Recovery in teal when recovered, amber for a refund, neutral otherwise.
+3. **History.** Both chart headings are bold and the same size as "Your statistics",
+   including when a chart is still waiting for three eligible rounds.

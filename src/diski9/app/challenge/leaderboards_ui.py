@@ -559,11 +559,7 @@ def weekly_table(wb):
     )
 
 
-def tone(value) -> str:
-    """Performance colour for a signed amount (always also written with its sign)."""
-    if value is None or value == 0:
-        return "zero"
-    return "pos-val" if value > 0 else "neg-val"
+tone = c.tone  # performance colour for a signed amount (shared with the result cards)
 
 
 # ------------------------------------------------------------------ championship

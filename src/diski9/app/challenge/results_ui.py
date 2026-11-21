@@ -165,15 +165,21 @@ def summary(res, local) -> html.Div:
         if res.state == "awaiting_round"
         else ""
     )
+    refund = bool(res.round_void or res.entry_refunded)
+    # category colours from the Your Statistics cards; a refund is never shown as a
+    # recovery (amber, not the teal of "Recovered 100+")
+    rec_cat = "gold" if refund else "teal" if res.recovered else "slate"
     metrics = html.Div(
         [
-            c.metric("Allocated", f"{CFG.total_credits}.00", "virtual credits"),
-            c.metric(gross_label, c.credits(res.gross) if res.gross is not None else "—",
-                     gross_sub),
-            c.metric("Net", net),
-            c.metric("Recovery", recovery),
+            c.stat_card("Allocated", "violet", f"{CFG.total_credits}.00", "virtual credits"),
+            c.stat_card(gross_label, "gold" if refund else "green",
+                        c.credits(res.gross) if res.gross is not None else "—", gross_sub),
+            c.stat_card("Net", "blue", net, value_cls=c.tone(res.net)),
+            c.stat_card("Recovery", rec_cat, recovery,
+                        value_cls="me-stat-text" + (" ok" if res.recovered and not refund
+                                                    else "")),
         ],
-        className="ch-metrics ch-res-metrics",
+        className="me-stats four ch-res-metrics",
     )  # fmt: skip
     counts = html.Ul(
         [

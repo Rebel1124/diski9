@@ -1203,3 +1203,70 @@ unchanged.
   checks on leaderboard rows therefore inject the name into the rendered page, while
   the long account name in the navigation is real.
 * The 10,000-participant stretch run is still not executed (unchanged).
+
+### 5.13 Final owner refinements (21 Nov 2026; Stage E not yet closed)
+After a local visual review, the owner asked for three small presentation changes.
+These changed no calculation, settlement or scoring rule, no status classification
+and no schema.
+
+1. **Weekly Challenge: demonstration button spacing.**
+   - When no live round is available, the gap below "Try the demonstration round" (or
+     "Leave the demonstration") now equals the gap above it. A scoped
+     `.ch-actions.ch-demo-actions { margin-bottom: 14px }` matches the 14 px above,
+     where the notice's 12 px margin collapses into the actions' 14 px.
+   - Measured in the browser at 1360, 768, 390 and 320 px: 14 px above and 14 px below.
+     Before the change it was 14 px above and 0 px below.
+   - The button itself is unchanged.
+2. **Your Result cards** (the 6C.4 results panel, shown in My Challenge and in the
+   History drill-down).
+   - They now use the statistics-card component, moved into `components.stat_card`
+     and shared with Your Statistics. The performance colour helper moved to
+     `components.tone`.
+   - Colours:
+
+     | Card | Header colour |
+     |---|---|
+     | Allocated | violet |
+     | Returned | green |
+     | Refunded | amber |
+     | Net | blue, with the value green when positive, red when negative and neutral at zero or "Not final yet" |
+     | Recovery | teal (value also teal) for "Recovered 100+"; amber for "Refund (not a recovery)", so a refund never looks like a recovery; slate for "Not recovered" and "Not decided yet" |
+
+   - Descriptive values wrap at 17 px.
+   - Layout: four across, or two across at 900 px and below.
+   - The wording and values are unchanged (the 6C.4 tests still assert them).
+3. **History chart headings.** They are now `h2.ch-h2.me-chart-title`, matching "Your
+   statistics" (16 px, weight 700, same font), with or without the three-round
+   placeholder. They wrap on phones.
+
+**Verification**
+* `tools/e2e_6c5/final.js` ran in a real browser at 1360, 768, 390 and 320 px: 71
+  checks, 0 problems. It covers:
+  - the measured button spacing;
+  - four cards with the expected categories in the provisional, final, corrected,
+    under-review, void and refunded states;
+  - green positive and red negative Net;
+  - refunds in amber, distinct from a recovery;
+  - headings with the same computed font, size and weight as "Your statistics";
+  - the element-level layout audit from `refined.js` on every page (nothing clipped,
+    overflowing or overlapping).
+* My Challenge Current shows no results panel in the showcase data, because there is
+  no current round. The panel is the same component as the History drill-downs that
+  were checked.
+* Screenshots are the `final_*.png` files in `docs/screenshots/phase6c5/refined/`
+  (indexed there).
+* **New and updated tests.**
+  - `test_backend_participant_results.py` gains
+    `test_result_cards_keep_a_refund_distinct_from_a_recovery` (PostgreSQL). For a
+    refunded entry it expects violet, amber, blue and amber cards with "Refunded" and
+    "Refund (not a recovery)". For a recovered entry it expects green, blue and teal,
+    with a positive Net value.
+  - `test_stage_e_ui.py` now checks that both chart headings are `h2.me-chart-title`,
+    with and without the placeholder.
+* **Regression.**
+  - Full suite: **1,634 passed, 0 failed**. The intermittent Match Lab test passed
+    again; it stays recorded for Stage F.
+  - The new test was added after that run started. It was run with the related files
+    (`test_backend_participant_results.py`, `test_backend_stage_e_history.py`,
+    `test_stage_e_ui.py`): 47 passed.
+  - Fingerprint `88bcd717deca6c1c…` unchanged. Lint and formatting clean.

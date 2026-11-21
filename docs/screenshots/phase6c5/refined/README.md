@@ -66,3 +66,19 @@ parent folder are kept as the "before" set.
 | `mobile320_navigation_long_name.png` | A real 24-character account name (truncated, full name as tooltip) |
 | `mobile320_history_long_name_negative.png` | That viewer's History at 320 px |
 | `mobile320_long_name_weekly_stress.png`, `mobile320_long_name_championship_stress.png` | **Stress pass:** 24-character names, seven-figure returns and maximum points injected into the rendered page; nothing clipped or overlapping. Names locked into entries cannot be changed in the database |
+
+## Final owner refinements (21 Nov 2026)
+These come from `tools/e2e_6c5/final.js`: 71 checks at 1360, 768, 390 and 320 px, with
+0 problems.
+
+| File | Shows |
+|---|---|
+| `final_{desktop,mobile,mobile320}_demo_spacing_before.png` / `…_after.png` | Weekly Challenge with no live round: 14 px above the demonstration button and 0 px below it before; 14 px above and below after |
+| `final_{desktop,mobile}_result_cards_provisional.png` | Your Result cards, provisional ("Returned so far", "Not decided yet") |
+| `final_{desktop,mobile}_result_cards_final.png` | Final, positive Net in green, "Recovered 100+" in teal |
+| `final_desktop_result_cards_negative.png` | Negative Net in red, "Not recovered" in slate |
+| `final_{desktop,mobile}_result_cards_corrected.png`, `…_under_review.png` | Corrected and reopened rounds |
+| `final_{desktop,mobile}_result_cards_void.png` | Void round: amber "Refunded" and "Refund (not a recovery)" |
+| `final_{desktop,mobile,mobile320}_result_cards_refunded.png` | Refunded entry (all nine void); the long value wraps at 320 px |
+| `final_{desktop,mobile,mobile320}_chart_headings.png` | Both chart headings bold at the "Your statistics" size |
+| `final_mobile320_chart_headings_placeholders.png` | Both headings with the three-round placeholders, wrapping at 320 px |

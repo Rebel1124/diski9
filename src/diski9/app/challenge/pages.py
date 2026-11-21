@@ -320,7 +320,7 @@ def unavailable(service, state, mode, snap, avail, local) -> html.Div:
                 ],
                 className="ch-ribbon warn",
             ),
-            html.Div(actions, className="ch-actions"),
+            html.Div(actions, className="ch-actions ch-demo-actions"),
             how_to_play(True),
         ]
     )

@@ -297,6 +297,13 @@ def test_charts_wait_for_three_eligible_rounds():
         assert f"{n} of 3 eligible rounds completed" in t and "Scatter" not in t
     t = text(hu.allocation_chart(stats(allocation_series=series(3))))
     assert "Allocated" in t and "Returned" in t and "will become available" not in t
+    # headings: bold h2 like "Your statistics", with or without the placeholder
+    for card in (hu.allocation_chart(stats(allocation_series=series(1))),
+                 hu.allocation_chart(stats(allocation_series=series(3))),
+                 hu.points_chart(stats(points_championship="Championship Nov-26",
+                                       points_series=series(1)))):  # fmt: skip
+        head = card.children[0]
+        assert type(head).__name__ == "H2" and "me-chart-title" in head.className
     t = text(hu.allocation_chart(stats(allocation_series=series(5))))
     assert "19–23 Nov 2026 · W48" in t  # friendly label on hover; codes are not axis labels
     assert '"type": "linear"' in t or "linear" in t

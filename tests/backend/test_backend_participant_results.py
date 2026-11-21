@@ -244,6 +244,37 @@ def test_panel_wording_for_refunds(engine):
     assert "Recovered 100+" not in body and "Refunded" in body
 
 
+def test_result_cards_keep_a_refund_distinct_from_a_recovery(engine):
+    """Stage E final refinement: the Your Result cards use the statistics-card style;
+    a refund is amber ("Refunded", "Refund (not a recovery)"), a recovery teal."""
+    import json
+
+    from diski9.app.challenge import results_ui as ui
+
+    def result_cards(res):
+        box = ui.summary(res, local).children
+        return next(x for x in box if x is not None and "ch-res-metrics" in
+                    (getattr(x, "className", "") or "")).children  # fmt: skip
+
+    w = settlement_world(engine, [shifted(9), DEFAULT_ENTRY, shifted(1)], **PRAC)
+    scenario(engine, w, "entry-all-void")
+    r = my_settlement(engine, me(engine, w), w["round"])
+    cards = result_cards(r)
+    heads = [x.children[0].children for x in cards]
+    cats = [x.className for x in cards]
+    assert heads == ["Allocated", "Refunded", "Net", "Recovery"]
+    assert cats == ["me-stat cat-violet", "me-stat cat-gold", "me-stat cat-blue",
+                    "me-stat cat-gold"]  # fmt: skip
+    assert "Refund (not a recovery)" in json.dumps(cards[3].to_plotly_json(), default=str)
+    w2 = settlement_world(engine, **PRAC)
+    scenario(engine, w2, "all-correct")
+    r2 = my_settlement(engine, me(engine, w2), w2["round"])
+    cards = result_cards(r2)
+    assert [x.className for x in cards][1:] == ["me-stat cat-green", "me-stat cat-blue",
+                                                "me-stat cat-teal"]  # fmt: skip
+    assert "pos-val" in cards[2].children[1].children[0].className
+
+
 def test_void_round_shows_no_accumulator_returns(engine):
     from diski9.app.challenge import results_ui as ui
 

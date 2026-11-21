@@ -1406,6 +1406,16 @@ table.results td.value-cell { white-space: nowrap; }
 .me-stat-val.pos-val, .me-stat-sub .pos-val { color: var(--win); }
 .me-stat-val.neg-val, .me-stat-sub .neg-val { color: var(--loss); }
 .me-stat-val.zero { color: var(--text); }
+/* descriptive values (e.g. "Refund (not a recovery)") wrap naturally at a text size */
+.me-stat-val.me-stat-text { font-size: 17px; line-height: 1.25; overflow-wrap: break-word; }
+.me-stat-val.me-stat-text.ok { color: var(--accent); }
+/* Your Result: four cards in the same style */
+.me-stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 8px 0 10px; }
+/* chart headings match the "Your statistics" heading (16 px, bold) */
+.me-chart-title { font-size: 16px; font-weight: 700; margin: 0 0 10px; overflow-wrap: break-word; }
+/* Weekly Challenge (no live round): the same space below the demonstration button as
+   above it (the notice's 12 px margin collapses into the actions' 14 px) */
+.ch-actions.ch-demo-actions { margin-bottom: 14px; }
 .me-stats-note { margin: 0 0 6px; }
 .me-method { margin-top: 2px; }
 .me-method p { margin: 6px 0 2px; max-width: 90ch; }
@@ -1425,6 +1435,10 @@ td.warn { color: var(--warn); }
 
 @media (max-width: 1100px) {
   .me-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .me-stats.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  .me-stats.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
   .me-charts { grid-template-columns: minmax(0, 1fr); }

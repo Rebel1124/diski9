@@ -986,6 +986,34 @@ def rank_cell(rank: int, shared: bool):
     return html.Span([ic, html.Span(label)], className="rank-wrap", title=title)
 
 
+def tone(value) -> str:
+    """Performance colour class for a signed amount (always also written with its sign):
+    ``pos-val`` (green), ``neg-val`` (red) or ``zero`` (neutral)."""
+    if value is None or value == 0:
+        return "zero"
+    return "pos-val" if value > 0 else "neg-val"
+
+
+def stat_card(label: str, category: str, value, sub="", value_cls: str = "") -> html.Div:
+    """A metric card in the Build Portfolio card style (Phase 6C.5 Stage E): a tinted
+    header in the metric's category colour, then the value and a supporting line. The
+    category colour identifies the metric; a performance colour (``value_cls``) applies
+    to the value only, never to the header."""
+    return html.Div(
+        [
+            html.Div(label, className="me-stat-head"),
+            html.Div(
+                [
+                    html.Span(value, className=f"me-stat-val {value_cls}".strip()),
+                    html.Span(sub, className="me-stat-sub") if sub else None,
+                ],
+                className="me-stat-body",
+            ),  # fmt: skip
+        ],
+        className=f"me-stat cat-{category}",
+    )
+
+
 def podium(rows, value_label: str | None = None) -> html.Div | None:
     """Top three *positions* by competition rank. Tied players share their position;
     nobody is reordered or split to force three places (ranks 1, 1, 3 show 1st with

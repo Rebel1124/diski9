@@ -244,23 +244,7 @@ def summary(s) -> html.Div:
     )
 
 
-def stat_card(label: str, category: str, value: str, sub, value_cls: str = "") -> html.Div:
-    """A statistics card in the Build Portfolio card style (coloured category header,
-    value and supporting line in the body). The category colour identifies the metric;
-    a performance colour (``value_cls``) is applied to the value only, never the header."""
-    return html.Div(
-        [
-            html.Div(label, className="me-stat-head"),
-            html.Div(
-                [
-                    html.Span(value, className=f"me-stat-val {value_cls}".strip()),
-                    html.Span(sub, className="me-stat-sub"),
-                ],
-                className="me-stat-body",
-            ),  # fmt: skip
-        ],
-        className=f"me-stat cat-{category}",
-    )
+stat_card = c.stat_card  # shared with the Your Result cards (components)
 
 
 # ------------------------------------------------------------------ charts
@@ -326,7 +310,7 @@ def _graph(fig, label: str) -> html.Div:
 
 
 def allocation_chart(s) -> html.Div:
-    title = html.Div("Cumulative virtual allocation and return", className="ch-h2 small-h")
+    title = html.H2("Cumulative virtual allocation and return", className="ch-h2 me-chart-title")
     if s.allocation_rounds < CHART_MIN_ROUNDS:
         return locked_chart(title, s.allocation_rounds, "allocation and return")
     xs = list(range(1, len(s.allocation_series) + 1))
@@ -366,8 +350,8 @@ def allocation_chart(s) -> html.Div:
 
 def points_chart(s) -> html.Div:
     name = s.points_championship
-    title = html.Div("Cumulative championship points" + (f" · {name}" if name else ""),
-                     className="ch-h2 small-h")  # fmt: skip
+    title = html.H2("Cumulative championship points" + (f" · {name}" if name else ""),
+                    className="ch-h2 me-chart-title")  # fmt: skip
     if s.points_rounds < CHART_MIN_ROUNDS:
         return locked_chart(title, s.points_rounds, "championship points")
     fig = _figure()
