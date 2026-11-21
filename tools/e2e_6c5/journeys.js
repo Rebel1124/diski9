@@ -21,9 +21,13 @@ const path = require('path');
 const { execSync } = require('child_process');
 const { chromium, BASE, ROOT, DATA, signIn, settle, accounts, createUser } = require('./lib');
 
-const NOCHAMP = 'http://127.0.0.1:8055';
-const NODEV = 'http://127.0.0.1:8056';
-const OUT = path.join(ROOT, 'docs/screenshots/phase6c5/f2');
+// F4 re-runs on isolated copies: NOCHAMP, NODEV and SHOTS_DIR override the F2 defaults
+// (so the preserved F2 evidence is not overwritten)
+const NOCHAMP = process.env.NOCHAMP || 'http://127.0.0.1:8055';
+const NODEV = process.env.NODEV || 'http://127.0.0.1:8056';
+const OUT = path.join(ROOT, process.env.SHOTS_DIR || 'docs/screenshots/phase6c5/f2');
+const DB_MAIN = process.env.E2E_DB || 'diski9_f2_e2e';
+const DB_NOCHAMP = process.env.E2E_DB_NOCHAMP || 'diski9_f2_e2e_nochamp';
 fs.mkdirSync(OUT, { recursive: true });
 const X = JSON.parse(fs.readFileSync(path.join(DATA, 'expect.json'), 'utf8'));
 const R = (n) => X.codes[n - 1];
@@ -339,7 +343,7 @@ async function crafted(page, label, body, wname, otherName) {
 (async () => {
   const acc = accounts();
   const browser = await chromium.launch();
-  const before = counts('diski9_f2_e2e'), beforeN = counts('diski9_f2_e2e_nochamp');
+  const before = counts(DB_MAIN), beforeN = counts(DB_NOCHAMP);
   const eve = await createUser('eve');  // a third participant with no entries (throw-away)
   for (const [wname, [w, h]] of Object.entries(WIDTHS)) {
     const errors = [];
@@ -400,7 +404,7 @@ async function crafted(page, label, body, wname, otherName) {
     note('Browser errors', wname, 'no uncaught errors or console errors', errs.slice(0, 5));
   }
   await browser.close();
-  const after = counts('diski9_f2_e2e'), afterN = counts('diski9_f2_e2e_nochamp');
+  const after = counts(DB_MAIN), afterN = counts(DB_NOCHAMP);
   note('Read-only', 'all', 'page loads and crafted callbacks wrote nothing',
        [...want(before === after, `rows changed ${before} -> ${after}`), ...want(beforeN === afterN, 'no-champion rows changed')]);
   for (const r of results) console.log(r.problems.length ? 'PROBLEM' : 'ok     ', `[${r.wname}] ${r.journey} — ${r.name}`, r.problems.join(' | '));

@@ -9,8 +9,9 @@ factories (``tests/backend/champ_helpers.py``), not the F1 runner (whose
     uv run python tools/phase6c5_f3_build.py history  URL NAME
 
 ``create`` makes and migrates database ``NAME`` (refused unless it starts with
-``diski9_f3_``). ``populate`` adds N participants (plus the onboarded local test
-accounts in ACCOUNTS_JSON, so they can sign in for the HTTP tests) and 13 development
+``diski9_f3_`` or, for F4 re-runs, ``diski9_f4_``). ``populate`` adds N
+participants (plus the onboarded local test accounts in ACCOUNTS_JSON, so they can
+sign in for the HTTP tests) and 13 development
 rounds:
 
 * R1–R10 competitive and final: the first championship completes (10 counted).
@@ -51,8 +52,8 @@ import sqlalchemy as sa  # noqa: E402
 def _url(base: str, name: str) -> str:
     from sqlalchemy.engine import make_url
 
-    if not name.startswith("diski9_f3_"):
-        raise SystemExit("refused: F3 databases must be named diski9_f3_*")
+    if not name.startswith(("diski9_f3_", "diski9_f4_")):
+        raise SystemExit("refused: F3/F4 databases must be named diski9_f3_* or diski9_f4_*")
     return make_url(base).set(database=name).render_as_string(hide_password=False)
 
 

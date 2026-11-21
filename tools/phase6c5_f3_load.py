@@ -164,8 +164,8 @@ def summary(readers, wall_s, conns):
 def clear_rate_limits(db):
     """The app rate-limits sign-ins (HTTP 429 after a burst, as it should); like the
     browser helpers, clear the isolated F3 database's counter before each test sign-in."""
-    if not db.startswith("diski9_f3_"):
-        raise SystemExit("refused: F3 databases only")
+    if not db.startswith(("diski9_f3_", "diski9_f4_")):
+        raise SystemExit("refused: F3/F4 databases only")
     subprocess.run(["psql", "-h", "127.0.0.1", "-p", "5433", "-U", "postgres", "-d", db, "-qc",
                     "DELETE FROM app.auth_rate_events"], check=True)  # fmt: skip
 

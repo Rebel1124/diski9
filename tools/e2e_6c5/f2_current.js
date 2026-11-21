@@ -8,7 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium, BASE, ROOT, DATA, signIn, settle, accounts } = require('./lib');
 
-const OUT = path.join(ROOT, 'docs/screenshots/phase6c5/f2');
+const OUT = path.join(ROOT, process.env.SHOTS_DIR || 'docs/screenshots/phase6c5/f2');  // F4 re-runs: own folder
 const AUDIT = fs.readFileSync(path.join(__dirname, 'refined.js'), 'utf8').match(/function audit\(\) \{[\s\S]*?\n\}\n/)[0];
 const label = process.argv[2];
 const E = JSON.parse(fs.readFileSync(path.join(DATA, `current_${label}.json`), 'utf8'));

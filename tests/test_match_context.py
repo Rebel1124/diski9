@@ -260,6 +260,59 @@ const { chromium, devices } = require('playwright');
                               ['phone', devices['iPhone 13']]]) {
     const p = await (await b.newContext(opts)).newPage();
     const errors = []; p.on('pageerror', e => errors.push(String(e)));
+    // F4: wait for the Dash callback a step triggers (identified by its changed
+    // property), its response, and any follow-on callbacks, instead of fixed sleeps.
+    // On a loaded machine the debounced Section B callback was sent ~0.4-1.1 s after
+    // Tab, so a fixed 900 ms read sometimes ran before the update arrived (F4 record).
+    const isDash = (q) => q.url().includes('_dash-update-component');
+    let inflight = 0, quietSince = Date.now();
+    const recent = [];  // the last callbacks, reported only when a check fails
+    p.on('request', q => { if (isDash(q)) { inflight++; quietSince = Date.now();
+      let ch = []; try { ch = (JSON.parse(q.postData()).changedPropIds || []).slice(0, 3); } catch (e) {}
+      recent.push({ t: Date.now(), ch }); if (recent.length > 12) recent.shift(); } });
+    p.on('response', x => { if (isDash(x.request()) && x.status() !== 200 && x.status() !== 204)
+      recent.push({ t: Date.now(), status: x.status() }); });
+    const finished = q => { if (isDash(q)) { inflight--; quietSince = Date.now(); } };
+    p.on('requestfinished', finished); p.on('requestfailed', finished);
+    const settled = async () => {
+      const t0 = Date.now();
+      while (Date.now() - t0 < 30000) {
+        const loading = await p.evaluate(() => !!document.querySelector('[data-dash-is-loading="true"]'));
+        if (inflight === 0 && !loading && Date.now() - quietSince > 400) return;
+        await p.waitForTimeout(50);
+      }
+      throw new Error('Dash callbacks did not settle within 30 s');
+    };
+    // The request that carries this step's own input: Dash also fires `adjust` for the
+    // newly rendered inputs when a fixture opens (every input listed as changed), and
+    // on a loaded machine that request can be dispatched late, so matching the changed
+    // property alone is not enough; the request must carry the value just entered.
+    const carries = (q, prop, ok) => {
+      if (!isDash(q)) return false;
+      try {
+        const body = JSON.parse(q.postData());
+        if (!(body.changedPropIds || []).includes(prop)) return false;
+        const [id, property] = prop.split('.');
+        const v = (body.inputs || []).find(i => i.id === id && i.property === property);
+        return !!v && ok(v.value);
+      } catch (e) { return false; }
+    };
+    const roundTrip = async (prop, ok, action) => {
+      const t0 = Date.now();
+      const resp = p.waitForResponse(x => carries(x.request(), prop, ok), { timeout: 30000 });
+      await action(); await resp; await settled();
+      return Date.now() - t0;
+    };
+    // A market change rebuilds the match detail (update_detail); the rebuilt inputs then
+    // fire `adjust`, which restores the stored adjustment. Both responses must have
+    // arrived before the next step: on a starved browser the rebuild was dispatched
+    // seconds after the market callbacks, in a gap with nothing in flight.
+    const newMarket = async (value, action) => {
+      const rebuilt = p.waitForResponse(x => carries(x.request(), 'market.value', v => v === value) &&
+        String(JSON.parse(x.request().postData()).output).includes('detail.children'), { timeout: 30000 });
+      const restored = p.waitForResponse(x => carries(x.request(), 'lab-reset.n_clicks', () => true), { timeout: 30000 });
+      await action(); await rebuilt; await restored; await settled();
+    };
     await p.goto(BASE);
     const sel = name === 'phone' ? '.fx-card' : 'tr.row';
     await p.waitForSelector(sel, { timeout: 20000, state: 'visible' });
@@ -269,8 +322,8 @@ const { chromium, devices } = require('playwright');
     r.align = await p.evaluate(() => getComputedStyle(document.querySelector('#lab-home-input')).textAlign);
     const base = parseFloat(await p.locator('#lab-home-input').inputValue());
     await p.locator('.ctx-acc summary').click();
-    await p.locator('#ctx-home').fill('0.25'); await p.locator('#ctx-home').press('Tab');
-    await p.waitForTimeout(900);
+    r.ctxMs = await roundTrip('ctx-home.value', v => v === '0.25', async () => {
+      await p.locator('#ctx-home').fill('0.25'); await p.locator('#ctx-home').press('Tab'); });
     r.shown = await p.locator('#ctx-home').inputValue();
     r.delta = Math.round((parseFloat(await p.locator('#lab-home-input').inputValue()) - base) * 100) / 100;
     r.layout = {};
@@ -278,16 +331,18 @@ const { chromium, devices } = require('playwright');
       await p.evaluate(() => window.scrollTo(0, 0));  // the menu opens beside the control
       await p.locator('#market').click(); await p.waitForSelector('[role=option]');
       await p.waitForTimeout(300);  // let the menu finish opening
-      await p.locator('[role=option]', { hasText: label }).dispatchEvent('click');
+      const value = { btts: 'BTTS', ou25: 'OU25', '1x2': '1X2' }[key];  // each step changes it
+      await newMarket(value, () => p.locator('[role=option]', { hasText: label }).dispatchEvent('click'));
       await p.waitForFunction((l) => document.querySelector('#market').innerText.includes(l), label);
-      await p.waitForTimeout(800);
       const m = await p.locator('.market-main').boundingBox();
       const s = await p.locator('.market-side').boundingBox();
       r.layout[key] = { side: s.x > m.x + m.width - 1, kept: await p.locator('#ctx-home').inputValue() };
     }
-    await p.locator('#lab-reset').click();
+    r.resetMs = await roundTrip('lab-reset.n_clicks', v => !!v, () => p.locator('#lab-reset').click())
+      .catch(e => { r.resetError = String(e).slice(0, 200); });
     await p.waitForFunction(() => document.querySelector('#lab-output').innerText.includes('Showing the model baseline'), null, { timeout: 15000 }).catch(async () => {
-      r.debug = await p.locator('#lab-output').innerText(); });
+      r.debug = await p.locator('#lab-output').innerText();
+      r.recent = recent.map(x => ({ ...x, t: x.t - recent[0].t })); });
     r.reset = parseFloat(await p.locator('#lab-home-input').inputValue()) === base;
     r.overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     r.errors = errors.length;

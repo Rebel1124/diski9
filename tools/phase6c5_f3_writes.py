@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import random
 import statistics
 import sys
@@ -137,7 +138,7 @@ def publication(base: str, entries: int = 1000, rounds: int = 7) -> None:
     from diski9.backend.db import transaction
     from diski9.backend.services import championships as ch
 
-    name = "diski9_f3_pub"
+    name = os.environ.get("PUB_DB", "diski9_f3_pub")  # F4 re-runs: diski9_f4_pub
     eng, _ = h.isolated_engine(base, name)
     rng = random.Random(77)
     with transaction(eng) as conn:
@@ -205,8 +206,8 @@ def corrections(base: str, name: str, samples: int = 3) -> None:
     from diski9.backend.db import BackendDatabaseSettings, make_app_engine, transaction
     from diski9.backend.services import championships as ch
 
-    if not name.startswith("diski9_f3_"):
-        raise SystemExit("refused: F3 databases only")
+    if not name.startswith(("diski9_f3_", "diski9_f4_")):
+        raise SystemExit("refused: F3/F4 databases only")
     url = make_url(base).set(database=name).render_as_string(hide_password=False)
     eng = make_app_engine(BackendDatabaseSettings(environment="development",
                                                   lock_timeout_ms=10000), url=url)  # fmt: skip
