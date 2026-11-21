@@ -67,6 +67,22 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E.1 design authorisation (21 Nov 2026):**
+* **Design phase of Stage E.1 (automated draft preparation) authorised**; design
+  only — no application code, migration, scheduler-permission change, automated
+  draft creation, publication, live provider call or Official activation.
+  Implementation needs a separate approval of the design and authorisation.
+* Operating model for the initial Beta: automated data preparation → automated
+  draft creation and validation → authenticated human publication approval →
+  existing automated lifecycle. The scheduler never publishes; participants keep
+  choosing their own nine picks; deterministic rules only (no AI- or model-driven
+  fixture selection).
+* **Provider clarification:** API-Football is the sole active football-data
+  provider; FootyStats is not used (no FootyStats dependency, fallback or
+  integration; any reference is legacy — none found in the repository).
+* Design proposal: `docs/architecture/phase6c6_stage_e1_design.md` (decisions
+  ADP-01 to ADP-22), at the owner checkpoint. Stages F and G not authorised.
+
 **Phase 6C.6 Stage E formal acceptance and closure (21 Nov 2026):**
 * **Stage E formally accepted and complete** (`c49de86`, CI run 99: 1,797 passed,
   0 failed, 0 skipped, all 13 browser tests; documentation `8ed731b`, CI run 100;
