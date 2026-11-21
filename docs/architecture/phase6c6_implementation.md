@@ -288,3 +288,139 @@ Commit `320e134` (separate from S-07, owner-approved quick wins).
 * `docs/development_testing.md`: Levels 1–3, escalation rules, the focused-test
   map and push discipline. Not done (separate approval): pytest parallelisation,
   per-worker databases, new dependencies, CI restructuring.
+
+## 4. Stage C: scheduling and lifecycle orchestration (21 Nov 2026; checkpoint)
+
+Authorised by the owner with Stage B's acceptance. Approach as approved in the
+design (§3.2): a database-driven **reconciler** run by an external cron-style
+trigger. Operator guide and configuration reference:
+[`../operations_scheduler.md`](../operations_scheduler.md).
+
+### 4.1 What was built
+| Component | Purpose |
+|---|---|
+| `backend/jobs/config.py` | fail-closed environment configuration: off by default; explicit stream allowlist (`development`, `beta`); **`official` refused** by the parser and by `SchedulerConfig` itself (no setting can enable it); development refused in production; pause switch and pause file; provider calls a separate switch (off); per-tick and 24-hour request caps; refresh intervals; back-off bounds |
+| `backend/jobs/reconciler.py` | `tick()` and `plan_tick()` (dry run). Per round, oldest deadline first, re-reading state after every step: lock → results → settle → (full re-check) → finalise, each through the existing service as `SYSTEM` |
+| `backend/jobs/provider.py` | adapter over the existing API-Football client and by-ID fetch; the scheduler's allowance is set as the client's request budget |
+| `jobs_cli.py` | `diski9 jobs tick [--dry-run]`, `diski9 jobs status`; exit codes 0 / 1 / 2 / 4; one line per step |
+| `settlement.settle_round` | optional `job_run_id`, so scheduled settlement runs link to the scheduler's job record (no rule change) |
+
+No migration (head `app_0007`), no new dependency, no daemon, no other database or
+queue. Records use the existing `job_runs` (constrained by `app.run_guard`: only
+status, finish time, request count and error change, so the outcome class is the
+prefix of `error` for non-success rows) and `audit_log`.
+
+### 4.2 Publication stays supervised
+There is no publication or round-creation step and no configuration gate for one:
+the scheduler package never references `publish_round`, `create_round` or
+snapshot building (enforced by a static test). Draft rounds in an allowlisted
+stream are reported as "awaiting operator publication". A future automatic
+publication phase would add a new step behind its own approved gate; nothing
+unused and reachable exists now.
+
+### 4.3 System actor and authorisation
+Lifecycle calls use the existing explicit `SYSTEM` actor only for `lock_round`,
+`import_results`, `settle_round` and `finalise_round` (the approved allowlist; each
+refuses time overrides for `SYSTEM`). The scheduler stores and uses no operator
+password, Supabase session or token, never calls `authenticate_operator` or
+`cli_principal`, and every other service still refuses `SYSTEM` (S-07 tests).
+Audit records carry `actor_role = system` with no user; settlement runs carry
+`trigger = scheduled` and the scheduler's `job_run_id`.
+
+### 4.4 Lifecycle rules preserved
+* **Lock:** only when the database clock has passed `deadline_at`; database
+  triggers still refuse late entries; an already-locked round is a no-op.
+* **Results:** only real rounds outside the development stream, only with provider
+  calls on; the service's relevant-fixture, lead-time and stability rules
+  unchanged; never invents results.
+* **Settlement:** idempotent service; alerts raised by the service; blocking
+  alerts never resolved automatically.
+* **Finalisation:** only when `now ≥ earliest_finalisation` (S-02, unchanged) and
+  no blocking alert; real rounds additionally need a full results re-check made
+  after that time; `finalise_round` makes its final settlement run, refuses on any
+  remaining condition and runs weekly publication and championship processing
+  itself (no separate championship logic in the scheduler).
+* **Missed ticks:** level-triggered; results that arrive after the settlement
+  cutoff raise the existing late-notification alerts, which hold finalisation for
+  an operator (demonstrated by test).
+
+### 4.5 Concurrency, idempotency and failure handling
+* One tick at a time: transaction-scoped advisory lock (`ops.try_job_lock`) held on
+  a dedicated connection for the tick; a concurrent tick records `skipped` and
+  exits 0. Services keep their own row locks and idempotency guards.
+* Each service call is its own transaction; a crash leaves no half step. Steps left
+  `running` are recorded as `failed (abandoned)` by the next tick.
+* Failures: classified as retryable (provider/database errors), blocking (refused
+  provider access, service refusals, blocking alerts) or deferred (budget, back-off,
+  provider calls off). Exponential back-off per step and round from `job_runs`
+  (15 → 240 min by default). A failure in one round never stops another; a failed
+  lock, full re-check or final settlement stops that round for the tick.
+* Exit status: 1 if anything retryable failed or the database was unavailable; 4 if
+  only blocking conditions remain; 0 otherwise.
+
+### 4.6 Provider budget (proposed limits for owner approval)
+Per-tick cap 10, rolling 24-hour cap 100 (scheduler requests only), results refresh
+60 min, settle refresh 60 min, back-off 15–240 min. An import that would exceed the
+allowance is not started (`deferred: provider budget exhausted`); every request
+sent, including failures and retries, is counted. The limits are conservative
+proposals, not derived from a confirmed account quota (a round's import needs about
+1–3 requests); they should be confirmed before the Beta round. No live provider
+call was made in Stage C.
+
+### 4.7 Tests (`tests/backend/test_backend_scheduler.py`, 19 tests)
+Each test runs on its own freshly migrated database with mocked provider
+responses and short real deadlines (frozen correction window 0 h where the test must
+reach finalisation on the real clock; real rounds keep 24 h):
+* configuration fails closed (default off, allowlist required, Official/unknown
+  streams refused in the environment and in code, invalid numbers, development in
+  production, pause switch and file); disabled and paused ticks change nothing;
+* lock only after the real deadline, attributed to `SYSTEM`, never repeated;
+* full lifecycle to final (lock, import, settle, full re-check before finalise,
+  weekly results published, settlement runs linked to job runs), then repeated
+  ticks with no duplicate effects;
+* never before the S-02 earliest time (real 24-hour window); provider calls off
+  hold real-round finalisation; a blocking alert holds finalisation (exit 4) and
+  stays open;
+* per-tick and 24-hour caps defer explicitly without sending requests; provider
+  failure → retryable, back-off, recovery; refused access → blocking, with no
+  provider text recorded;
+* concurrent ticks (one runs, one skips); an interrupted tick is recorded as
+  abandoned and resumes after back-off; missed ticks catch up in order, and an
+  outage past the cutoff is held by late-notification alerts; a database error in
+  one round does not affect another; database unavailable is reported (exit 1);
+* Official and unlisted streams untouched; drafts stay drafts; a static check that
+  the scheduler calls only the four approved services and never publication,
+  creation, human-only services or operator sign-in; dry run writes nothing and
+  calls no provider; CLI exit codes and cron output without credentials.
+
+### 4.8 Verification
+* Level 1/2 (local PostgreSQL and the local Supabase Auth harness): the scheduler
+  file twice (19 passed each); then the scheduler, results, settlement (incl. ops
+  and security), corrections, rounds, scenarios, S-07, operator CLI, migrations,
+  authentication units, weekly results, championships, championship sequences,
+  CI change-scope and championship-scoring suites — **329 passed, 0 skipped**.
+* Lint and formatting clean; fingerprint
+  `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`; migration
+  head `app_0007`; no change under `src/diski9/challenge/` or `migrations_app/`.
+* Level 3: see §4.10.
+
+### 4.9 Outstanding risks and owner decisions (Stage C)
+| Item | Note |
+|---|---|
+| Provider limits | defaults are proposals (§4.6); confirm against the account's daily allowance before enabling provider calls for the Beta round |
+| Host (Q-07) | the trigger needs an always-on host for the genuine Beta week; examples documented for cron, systemd, launchd; decision before Stage F |
+| Monitoring (Stage D) | exit codes and `job_runs` give the evidence; no notification yet, so a blocked round (exit 4) or repeated failures are visible only in logs and `jobs status` |
+| Football store | the scheduler records competition evidence only; it does not refresh the analytics football store (the manual `--update-football-store` option remains) |
+| Pending predictions | a round whose predictions stay pending after the cutoff is retried at the refresh interval (with a full re-check each time for real rounds), bounded by the request caps |
+| Idle-in-transaction limits | the tick lock holds one connection in an open transaction for the tick; a hosted database with a short `idle_in_transaction_session_timeout` would need it raised above the longest tick (seconds today) |
+| Database credential | anyone holding the application database credential can still write directly (unchanged; hosting phase) |
+
+### 4.10 Level 3 (GitHub CI)
+* **Final application-code candidate `f89de9d`, CI run 89: passed.** The scope step
+  chose **full** (10 non-documentation paths). **1,750 passed, 0 failed, 0
+  skipped** (1,731 at Stage B + 19 scheduler tests), all 13 browser tests included;
+  migration up/down/up and `app-db check`, real Supabase Auth integration, lint and
+  formatting passed. Test suite 24 min 32 s; job 26 min 0 s (within the ratified
+  40-minute timeout).
+* Documentation after the candidate (this record, plan status) uses the
+  documentation-only path.
