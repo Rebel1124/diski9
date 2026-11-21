@@ -692,3 +692,14 @@ through the ledger).
 | Abandonment threshold assumption | relies on the bounded tick (budget, provider timeout/retries, database timeouts); raising those bounds requires raising `DISKI9_JOBS_ABANDON_AFTER_MINUTES` |
 | `idle_session_timeout` | a server-side idle-session limit shorter than a tick would end the lock connection: the tick then stops safely with `lock lost` (no overlap), but hosts should not set one below the tick budget |
 | Provider limits, host, webhook destination | unchanged decisions (provisional limits, Q-07, Q-08) |
+
+### 6.8 Level 3 (GitHub CI)
+* **Final application-code candidate `0f3c0b1`, CI run 95: passed.** Scope **full**
+  (13 non-documentation paths). **1,778 passed, 0 failed, 0 skipped** (1,765 at
+  Stage D + 13 locking tests), all 13 browser tests included; migration up/down/up
+  and `app-db check`, real Supabase Auth integration, lint and formatting passed.
+  Test suite 28 min 35 s; job 29 min 34 s — within the ratified 40-minute timeout,
+  but the margin has narrowed to about 10 minutes (the suite took 24 min 52 s in run
+  92; runner speed varies). No timeout change is proposed now; the trend is noted
+  for owner awareness.
+* Documentation after the candidate uses the documentation-only path.
