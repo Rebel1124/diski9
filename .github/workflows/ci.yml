@@ -1,5 +1,11 @@
 # Automated repository checks (T-13): lint, formatting and the full test suite,
 # including the competition-backend tests against a real PostgreSQL service.
+# Documentation-only changes (Phase 6C.6, owner-approved): tools/ci/change_scope.py
+# decides from the full change set of the push or pull request; only when every
+# changed file is documentation that no code or test reads does the job skip the
+# migration, Supabase Auth and test-suite steps (lint, formatting and a relative-link
+# check still run). Anything ambiguous runs everything. The job name `checks` (the
+# status check) is unchanged and always reports.
 # No football-API credentials are provided or needed: tests use recorded fixtures
 # and mock transports, so CI never spends the API allowance.
 name: CI
@@ -43,6 +49,20 @@ jobs:
       DISKI9_API_FOOTBALL_BASE_URL: http://127.0.0.1:9/
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history, so the change set can be computed
+
+      - name: Decide scope (documentation-only changes skip the test suite)
+        id: scope
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 tools/ci/change_scope.py --event "$EVENT" --before "$BEFORE" \
+            --after "$AFTER" --base "$PR_BASE" --head "$PR_HEAD" || echo "scope=full" >> "$GITHUB_OUTPUT"
 
       - uses: astral-sh/setup-uv@v6
         with:
@@ -58,7 +78,20 @@ jobs:
       - name: Formatting
         run: uv run ruff format --check .
 
+      - name: Documentation links (documentation-only changes)
+        if: steps.scope.outputs.scope == 'docs'
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -n "$PR_BASE" ]; then range="$PR_BASE...$PR_HEAD"; else range="$BEFORE..$AFTER"; fi
+          files=$(git diff --name-only --no-renames --diff-filter=d "$range" -- '*.md')
+          python3 tools/ci/change_scope.py --check-links $files
+
       - name: Competition schema migrates cleanly from an empty database
+        if: steps.scope.outputs.scope != 'docs'
         env:
           DISKI9_APP_DATABASE_URL: postgresql+psycopg://diski9:ci-only-password@localhost:5432/diski9_test
         run: |
@@ -69,6 +102,7 @@ jobs:
           uv run diski9 app-db upgrade
 
       - name: Start a real Supabase Auth server (official image) for integration tests
+        if: steps.scope.outputs.scope != 'docs'
         env:
           SUPABASE_AUTH_IMAGE: supabase/gotrue:v2.198.0
         run: |
@@ -94,6 +128,7 @@ jobs:
           echo "DISKI9_REQUIRE_SUPABASE_AUTH=1" >> "$GITHUB_ENV"
 
       - name: Test suite (PostgreSQL and real Supabase Auth integration tests)
+        if: steps.scope.outputs.scope != 'docs'
         run: uv run pytest -q -p no:cacheprovider -rs
 
       - name: Stop the Supabase Auth server
