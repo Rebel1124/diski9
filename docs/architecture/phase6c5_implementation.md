@@ -1312,8 +1312,8 @@ Stage F has four checkpoints, each reviewed separately:
 * F3 performance and concurrency;
 * F4 regression and the Stage G handover.
 
-Only F1 is authorised, and this records it. **F1 is implemented and awaits owner
-review; F2–F4 and Stage G have not begun.** Starting point: `51c28b3` (Stage E
+Only F1 was authorised at first, and this records it. **F1 was formally closed by
+the owner on 21 Nov 2026 (§6.9); F2 is recorded in §7.** Starting point: `51c28b3` (Stage E
 closure), CI run 69 passed, fingerprint `88bcd717deca6c1c…`, migration head
 `app_0007`.
 
@@ -1517,3 +1517,34 @@ F1 is not the performance stage.
   `diski9_6c5_acceptance` (`app_0007`) and the backup were not touched. All F1 work
   used isolated `_test` databases and the dedicated `diski9_f1_e2e` on the local test
   server.
+
+### 6.9 Owner approval and formal closure of F1 (21 Nov 2026)
+The owner reviewed the F1 checkpoint report, accepted the implementation and
+**formally closed F1**. The same decision authorised **F2 (integration and security
+testing)** only; F3, F4 and Stage G remain unauthorised.
+
+* **Baseline confirmed before closure:** `8379606` on
+  `feature/phase-6c5-leaderboards`, local worktree clean and equal to the remote;
+  GitHub CI run 70 passed on `8379606`; fingerprint `88bcd717deca6c1c…`; migration
+  head `app_0007`.
+* **Acceptance evidence (as reported):**
+  - 22 new development-tooling tests and 2 new genuine-terminal CLI tests passed;
+  - full local regression 1,658 passed, 1 failed: the known intermittent Match Lab
+    browser test, which passed 3 of 3 isolated reruns;
+  - a real ten-round championship completed 10/10 through the CLI, surviving a hard
+    kill and a SIGINT, with no duplicate entries, score sets or memberships on resume;
+  - development-only participant restrictions tested;
+  - Current-tab result panel verified provisional and final at desktop and mobile
+    widths;
+  - no migration and no business-rule change.
+* **The first 20-fixture run** (§6.4) produced a correctly voided round under D-32b
+  and a 9/10 championship; the 40-fixture run completed 10/10. Both are kept as
+  evidence. The void round was correct competition behaviour, caused by the preset's
+  fixture pool, not an engine defect.
+* **Limitations carried forward:**
+  - development participants remain in their isolated database;
+  - a development stream is shared within its database;
+  - clean preset runs need isolated development databases;
+  - Current-tab refund and void presentations still to be tested (F2);
+  - the intermittent Match Lab test is unresolved (F4 root cause);
+  - the older S-07 operator commands are unchanged (assessed in F2, §7.2).

@@ -7,6 +7,12 @@ are approved, with decisions **CH-01 to CH-12** (the Stage A questions Q-1 to Q-
 and the amendment **D-30a** below. Stage B is authorised; Stage C needs separate
 approval. Private mini-leagues are removed from the MVP roadmap.
 
+**Phase 6C.5 Stage F1 (owner approval and closure, 21 Nov 2026):**
+* F1 (development tooling and resumable development championships) is approved and
+  closed at `8379606`. No business rule changed. F2 (integration and security
+  testing) is authorised; F3, F4 and Stage G are not.
+* Record: [`docs/architecture/phase6c5_implementation.md`](../architecture/phase6c5_implementation.md) §6.9.
+
 **Phase 6C.5 Stage E (owner approval and closure, 21 Nov 2026):**
 * Stage E (Leaderboards and Historical Performance UI) is approved and closed. No
   business rule changed.
