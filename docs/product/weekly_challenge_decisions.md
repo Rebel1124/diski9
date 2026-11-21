@@ -67,6 +67,26 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E.1 design approval and E.1a planning (21 Nov 2026):**
+* **Design direction approved; two phases:** E.1a (automated Beta draft creation,
+  readiness evaluation and monitoring, no new API-Football calls) and E.1b
+  (automated API-Football refresh, after provider requirements, budgets and hosting
+  are confirmed).
+* **Approved in principle for E.1a:** ADP-01 to ADP-10, ADP-14 to ADP-19, ADP-21,
+  ADP-22. **Provisional** where they concern automated refresh: ADP-11, ADP-12,
+  ADP-13, ADP-20. The 78-hour lead (Tuesday 00:00 UTC to Friday 06:00 UTC) is
+  consistent with the schedule. Week, window, publication rules, eligibility and
+  configurations unchanged.
+* **ADP-20 recorded:** API-Football Pro plan advertises 7,500 requests/day at
+  $16/month; no hourly or per-minute limit stated in the pricing reviewed; subject
+  to confirmation against the active subscription. Internal scheduler limits stay
+  provisional (10/tick, 100/24 h) and are **not** raised to 7,500; E.1b budgets to
+  be proposed with safety margins (preliminary figures in the E.1a plan, Appendix
+  A). API-Football remains the sole provider; no FootyStats or fallback.
+* **E.1a implementation plan** (`docs/architecture/phase6c6_stage_e1a_plan.md`)
+  prepared; **implementation not authorised**. E.1b, Stage F and Stage G not
+  authorised.
+
 **Phase 6C.6 Stage E.1 design authorisation (21 Nov 2026):**
 * **Design phase of Stage E.1 (automated draft preparation) authorised**; design
   only — no application code, migration, scheduler-permission change, automated

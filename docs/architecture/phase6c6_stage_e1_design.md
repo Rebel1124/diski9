@@ -1,7 +1,14 @@
 # Phase 6C.6 Stage E.1 — Automated Draft Preparation: design proposal
 
-**Status:** design for owner review (21 Nov 2026). **Nothing here is implemented
-or authorised for implementation.** Branch `feature/phase-6c6-operations`, baseline
+**Status:** design **approved in principle by the owner (21 Nov 2026)** — ADP-01
+to ADP-10, ADP-14 to ADP-19, ADP-21 and ADP-22 approved for E.1a; ADP-11, ADP-12,
+ADP-13 and ADP-20 provisional wherever they concern automated API-Football refresh
+(revisited before E.1b). **E.1a is the next implementation candidate, awaiting
+authorisation**; its plan: [`phase6c6_stage_e1a_plan.md`](phase6c6_stage_e1a_plan.md).
+No application code is authorised. The 78-hour preparation lead was confirmed as
+consistent with the schedule (Tuesday 00:00 UTC to the Friday 08:00 SAST / 06:00
+UTC target). The competition week, fixture window, publication rules, eligibility
+criteria and configurations are preserved unchanged. Branch `feature/phase-6c6-operations`, baseline
 `40ae07a` (Stage E closed; CI run 101). Application baseline `c49de86` (CI run 99:
 1,797 passed, 0 skipped, 13 browser tests). Migration head `app_0007`; fingerprint
 `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
@@ -355,8 +362,9 @@ All from API-Football (ADP-22). No `/predictions`; no historical odds; no other 
 * These caps are **provisional** and are not a verified entitlement.
 
 ### 8.4 Provider information needed before live Beta activation (ADP-20)
-1. Subscription plan name and its **daily request allowance** (confirm or correct
-   the 7,500/day observed during the trial).
+1. Subscription plan name and its **daily request allowance** — owner review (21
+   Nov 2026): the **Pro plan advertises 7,500 requests/day at $16/month**; confirm
+   it is the active plan.
 2. Per-minute rate limit and burst behaviour; behaviour when the allowance is
    exhausted (hard stop or overage charges).
 3. Confirmation that **odds** (pre-match 1X2, BTTS, O/U 2.5) are included for all
@@ -515,16 +523,16 @@ Estimated scope: E.1a medium (no migration); E.1b medium.
 | ADP-08 | Thin-pool safeguard | none / monitoring note / blocking rule | **Monitoring note only**; thresholds later from D-29 evidence |
 | ADP-09 | Idempotency key | round code + `UNIQUE` / new key table | **Round code** (no migration) |
 | ADP-10 | Integration | inside `jobs tick` after lifecycle / separate daemon | **Inside `jobs tick`** |
-| ADP-11 | Refresh granularity | one league per step / whole refresh in one step | **One league per step** (fits the 10-per-tick cap and 240 s budget) |
-| ADP-12 | Budgets | shared caps + preparation sub-cap 60/24 h / shared only / raise caps | **Sub-cap within the provisional caps**; revisit after ADP-20 |
-| ADP-13 | Configuration and defaults | §5.2 | As listed, off by default, `beta` only |
+| ADP-11 *(provisional, E.1b)* | Refresh granularity | one league per step / whole refresh in one step | **One league per step** (fits the 10-per-tick cap and 240 s budget) |
+| ADP-12 *(provisional, E.1b)* | Budgets | shared caps + preparation sub-cap 60/24 h / shared only / raise caps | **Sub-cap within the provisional caps**; revisit after ADP-20 |
+| ADP-13 *(E.1a settings approved via the plan; refresh settings provisional)* | Configuration and defaults | §5.2 | As listed, off by default, `beta` only |
 | ADP-14 | Preparation state | derived / new status or table | **Derived** from rounds and job runs |
 | ADP-15 | Operator discovery | `ops status`, attention notes, existing `round readiness/inspect` | As proposed (no new command) |
 | ADP-16 | Publication revalidation | A build at publication (existing) / B freeze at preparation | **A** |
 | ADP-17 | Monitoring thresholds | §10.2 | As proposed (configurable) |
 | ADP-18 | Development stream | include / exclude | **Exclude** (`dev-open` remains for development) |
 | ADP-19 | Official | — | Always refused (D-38) |
-| ADP-20 | Provider entitlement | §8.4 | Owner supplies the listed information before E.1b |
+| ADP-20 | Provider entitlement | §8.4 | **Recorded:** API-Football Pro plan advertises 7,500 requests/day at $16/month; no hourly or per-minute limit stated in the pricing reviewed — subject to confirmation against the active subscription and any rate-limit conditions; internal limits are not raised to 7,500 (E.1b budgets: plan Appendix A). Provisional |
 | ADP-21 | Phasing | E.1a (no provider calls) then E.1b / all at once | **Phased** |
 | ADP-22 | Football-data provider | API-Football only (owner clarification) | **API-Football exclusively**; no FootyStats or fallback provider; no legacy references found to review |
 
