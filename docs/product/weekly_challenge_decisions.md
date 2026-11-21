@@ -67,6 +67,18 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage D acceptance and scheduler-locking remediation (21 Nov 2026):**
+* **Stage D monitoring, alerts and recovery formally accepted** (`45faeac`, CI run
+  92: 1,765 passed, 0 skipped; documentation head `f4e0447`, CI run 93).
+* The demonstrated scheduler-locking defect must be remediated before Stage D is
+  closed for operational readiness: **R1–R6 authorised** (session-level advisory
+  lock on a dedicated connection outside a transaction; direct or session-mode
+  connection required; ownership checks with a unique run identity; conservative
+  abandonment; bounded tick duration and provider operations; predictable cleanup),
+  plus crash- and concurrency-safe provider-budget accounting. No lease table or
+  migration unless the approved approach proves unsuitable. Provider limits stay
+  provisional and live calls stay off. Stage E not authorised.
+
 **Phase 6C.5 Stage F4 closure and Stage G owner acceptance (21 Nov 2026) — Phase 6C.5 complete:**
 * **F4 closed** at `f0ac3c2` (CI run 81; 1,682 passed, 0 failed, 0 skipped; 12
   journeys, 253 checks, 0 problems; Match Lab intermittent test corrected, 40/40

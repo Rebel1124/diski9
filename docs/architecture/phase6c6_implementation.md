@@ -440,7 +440,20 @@ reach finalisation on the real clock; real rounds keep 24 h):
 * Documentation after the candidate (this record, plan status) uses the
   documentation-only path.
 
-## 5. Stage D: operational monitoring, alerts and recovery (21 Nov 2026; checkpoint)
+## 5. Stage D: operational monitoring, alerts and recovery — **monitoring accepted (21 Nov 2026); scheduler-locking remediation open**
+
+**Owner decision (21 Nov 2026).** The Stage D monitoring, alerting and recovery
+deliverables are formally accepted on this evidence: final application-code commit
+`45faeac`, GitHub CI run 92 passed (1,765 passed, 0 failed, 0 skipped; all 13
+browser tests); documentation-only head `f4e0447`, CI run 93 passed; migration head
+`app_0007`; fingerprint unchanged; `broad60-432-v1` and `points-150-75-v2`. Accepted
+and to remain unchanged unless a directly related defect is found: `ops status`,
+`ops check`, `ops jobs`, the severity thresholds, read-only monitoring, the
+disabled-by-default webhook with de-duplication and retry, the runbook and the
+performance safeguards. **Stage D is not closed for operational readiness until
+the scheduler-locking defect (§5.5) is remediated**; the R1–R6 remediation is
+authorised (§6), with crash- and concurrency-safe provider-budget accounting. Stage
+E is not authorised.
 
 Authorised with Stage C's acceptance. Reference:
 [`../operations_monitoring.md`](../operations_monitoring.md); recovery runbook:
