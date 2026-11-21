@@ -1,0 +1,10 @@
+{
+  "name": "diski9-browser-tests",
+  "private": true,
+  "description": "Pinned Node tooling for the browser tests (pytest drives them with `node -e`). Not an application dependency.",
+  "license": "UNLICENSED",
+  "engines": { "node": ">=22" },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

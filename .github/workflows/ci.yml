@@ -8,6 +8,7 @@
 # status check) is unchanged and always reports.
 # No football-API credentials are provided or needed: tests use recorded fixtures
 # and mock transports, so CI never spends the API allowance.
+# Browser tests run with Node and the Playwright version pinned in package-lock.json.
 name: CI
 
 on:
@@ -26,7 +27,9 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # 40 (was 30): the browser tests add ~5 min and tooling ~1 min to a ~23 min job
+    # (measured, Phase 6C.6 Stage B); 30 would leave no margin for runner variance.
+    timeout-minutes: 40
     services:
       postgres:
         image: postgres:17
@@ -127,8 +130,26 @@ jobs:
           echo "DISKI9_TEST_SUPABASE_DB_URL=postgresql+psycopg://diski9:ci-only-password@localhost:5432/diski9_auth_local" >> "$GITHUB_ENV"
           echo "DISKI9_REQUIRE_SUPABASE_AUTH=1" >> "$GITHUB_ENV"
 
-      - name: Test suite (PostgreSQL and real Supabase Auth integration tests)
+      # Browser tests (Phase 6C.6 Stage B, owner-approved): Node and the Playwright
+      # version pinned in package-lock.json, plus only the Chromium headless shell
+      # and the system libraries it needs. DISKI9_REQUIRE_BROWSER=1 makes missing or
+      # broken tooling fail tests/test_browser_tooling.py instead of skipping.
+      - uses: actions/setup-node@v4
         if: steps.scope.outputs.scope != 'docs'
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install browser-test tooling (pinned Playwright, Chromium headless shell)
+        if: steps.scope.outputs.scope != 'docs'
+        run: |
+          npm ci --ignore-scripts
+          npx --no-install playwright install --with-deps --only-shell chromium
+
+      - name: Test suite (PostgreSQL, real Supabase Auth and browser tests)
+        if: steps.scope.outputs.scope != 'docs'
+        env:
+          DISKI9_REQUIRE_BROWSER: "1"
         run: uv run pytest -q -p no:cacheprovider -rs
 
       - name: Stop the Supabase Auth server

@@ -43,6 +43,8 @@ def test_documentation_only_changes(paths):
         ["migrations_app/versions/app_0008_x.py"],
         ["pyproject.toml"],
         ["uv.lock"],
+        ["package.json"],  # browser-test tooling
+        ["package-lock.json"],
         [".env.example"],
         ["docs/legal/terms-beta-2026-11.md"],  # read by the web app
         ["docs/research/weekly_challenge_risk/pool_weekend.json"],  # test and app data
