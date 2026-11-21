@@ -7,6 +7,27 @@ are approved, with decisions **CH-01 to CH-12** (the Stage A questions Q-1 to Q-
 and the amendment **D-30a** below. Stage B is authorised; Stage C needs separate
 approval. Private mini-leagues are removed from the MVP roadmap.
 
+**Phase 6C.6 Stage A (owner approval of the design, 21 Nov 2026):**
+* The design `docs/architecture/phase6c6_design_proposal.md` is approved with
+  decisions **Q-01 to Q-14** (its §11): remove `--by-email` operator identity
+  (Q-01); authenticated manual lock, unattended lock only as `SYSTEM` (Q-02);
+  bootstrap verifies control of the target account, emergency recovery only after
+  a documented, fail-closed security design (Q-03); **phased automation — 6C.6
+  automates preparation, lock, results import, settlement, finalisation and
+  championship processing, while publication stays operator-approved; automatic
+  publication is a later, separately authorised phase** (Q-04); configurable
+  fail-closed provider limits proposed in Stage C (Q-05); environment
+  configuration with stream allowlist and pause, Official disabled (Q-06); host
+  decision before Stage F (Q-07); one webhook channel approved in Stage D (Q-08);
+  no alerts table initially (Q-09); `/healthz` deferred to hosting (Q-10); the
+  **S-02 finalisation rule preserved unchanged** — "deadline + 24 h" wording means
+  max(settlement cutoff, last material change) + 24 h (Q-11; design §12); local
+  restore drill in Stage F (Q-12); continue on `feature/phase-6c6-operations`, no
+  merge (Q-13); practice-round timing evidence is not competitive-lifecycle
+  evidence, no time overrides (Q-14).
+* Stage A closed; Stage B (S-07) authorised; Stage C onwards not authorised.
+* Record: [`docs/architecture/phase6c6_implementation.md`](../architecture/phase6c6_implementation.md) §1.
+
 **Phase 6C.5 Stage F4 closure and Stage G owner acceptance (21 Nov 2026) — Phase 6C.5 complete:**
 * **F4 closed** at `f0ac3c2` (CI run 81; 1,682 passed, 0 failed, 0 skipped; 12
   journeys, 253 checks, 0 problems; Match Lab intermittent test corrected, 40/40

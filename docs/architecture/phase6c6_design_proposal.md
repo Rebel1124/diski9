@@ -1,10 +1,11 @@
 # Phase 6C.6 — Operational administration, scheduling and monitoring: design proposal
 
-> **Status: PROPOSED — Stage A deliverable, not approved.** Nothing in this document
-> is implemented or authorised. It changes no accepted record or decision. Owner
-> decisions requested are listed in §10 (Q-01 to Q-14). Prepared 21 Nov 2026 on
-> branch `feature/phase-6c6-operations`, created from the accepted 6C.5 closure
-> commit `630e021`.
+> **Status: Stage A design APPROVED with decisions (21 Nov 2026) — see §11.** The
+> owner's decisions on Q-01 to Q-14 (§11) take precedence over the recommendations
+> in §1–§10 where they differ (notably Q-03, Q-04, Q-07). Stage B (S-07) is
+> authorised; Stage C and later stages need separate approval. Prepared 21 Nov 2026
+> on branch `feature/phase-6c6-operations`, created from the accepted 6C.5 closure
+> commit `630e021` (proposal commit `ee309d3`, CI run 83).
 
 Legend used throughout: **[Confirmed]** = verified in the repository (code, schema
 or documents, with a reference); **[Recommendation]** = proposed design;
@@ -284,3 +285,61 @@ The owner's A–G structure is retained with one adjustment: **operational admin
 | Q-12 | Include a local backup/restore drill in Stage F (from the original 6C.6 plan) | Yes (local, small) |
 | Q-13 | Branching: continue 6C.6 on `feature/phase-6c6-operations` from `630e021`, or merge/release 6C.5 to `main` first | Owner's choice; merging first gives a clean base |
 | Q-14 | Use Beta for the genuine-finalisation demonstration with real entrants; if fewer than 5 entrants the round is practice (D-32b) — acceptable as evidence of the finalisation rule, with championship processing evidenced separately | Accept |
+
+## 11. Owner decisions at Stage A (21 Nov 2026) — approved design
+
+| ID | Decision |
+|---|---|
+| Q-01 | **Approved.** `--by-email` is removed as a means of identifying privileged human operators; `authenticate_operator` and the verified identity are used; clear guidance for the former syntax. |
+| Q-02 | **Approved.** Manual locking requires an authenticated operator; unattended locking only through the future scheduler as `SYSTEM`, within the approved allowlist. |
+| Q-03 | **Approved in principle, subject to a detailed security design.** Bootstrap-owner must verify control of the target account. An emergency owner-recovery mechanism may be provided only if it requires explicit recovery authorisation, verifies the target account's credentials, is restricted to a secured host environment, is fully audited, fails closed and prevents arbitrary owner impersonation or privilege escalation; its threat model, authorisation mechanism and safeguards must be documented first, and if they cannot be met without a new vulnerability, the owner decides before implementation. |
+| Q-04 | **Approved with a phased rollout.** Phase 1 (6C.6): supervised automation — prepare and validate weekly challenges automatically, **authenticated operator approval before publishing**, automate lock, results import, settlement, finalisation and championship processing. Phase 2: automatic publication only after several reliable weekly cycles and separate authorisation, fail-closed on eligibility, freshness, provider limits, integrity and every mandatory check. Phase 3: autonomous operation with monitoring and secure intervention. 6C.6 designs for automatic publication **without enabling it**; no autonomous publication pathway in Stage B. |
+| Q-05 | **Approved in principle.** Configurable per-tick and daily provider limits, fail-closed when exhausted. Current provider budgets unchanged; no automated provider calls in Stage B; exact limits and refresh frequency proposed for Stage C approval. |
+| Q-06 | **Approved.** Environment-based configuration (no migration) with explicit stream allowlisting, safe defaults and an emergency pause; Official automation disabled. |
+| Q-07 | **Deferred to Stage F planning.** Host-neutral architecture; before Stage F a recommendation comparing the owner's Mac, an always-on machine and a hosted scheduler (a sleeping laptop is not assumed reliable). |
+| Q-08 | **Approved in principle.** One configurable channel, preferably a webhook, with secrets handling and failure isolation; provider, destination and activation approved separately in Stage D. |
+| Q-09 | **Approved.** Start with `job_runs` and existing operational records; no alerts table unless acknowledgements prove necessary. |
+| Q-10 | **Approved with qualification.** The public `/healthz` endpoint is deferred to hosting, provided 6C.6 delivers adequate internal health and scheduler-status checks. The original 6C.6 roadmap listed a health-check endpoint; it is deferred because no host exists yet and the CLI `ops status`/`app-db check` cover operator needs until then. |
+| Q-11 | **Conditional approval; reconciled (§12).** The implemented S-02 rule is preserved unchanged. |
+| Q-12 | **Approved.** A limited local backup-and-restore drill in Stage F on isolated databases. |
+| Q-13 | **Approved.** Continue on `feature/phase-6c6-operations`; no merge of 6C.5 or 6C.6 into `main` yet; merge, tag and release are separate decisions. |
+| Q-14 | **Approved with qualification.** A genuine Beta round on the real database clock demonstrates finalisation eligibility; a practice round (fewer than five entries) may demonstrate the timing rule but is **not** evidence of the competitive championship lifecycle, which needs separate evidence; no time override may be used to claim genuine Beta finalisation. |
+
+## 12. Q-11 reconciliation: entry deadline, settlement cutoff and earliest finalisation
+
+**Finding: imprecise wording, not a contradiction.** No competition rule is changed.
+
+* **Authoritative decision:** **S-02** (decision register; approved in 6C.4 as owner
+  question Q-2): *earliest finalisation = max(fixed cutoff, last material settlement
+  change) + 24 hours (database clock)*, and only with every relevant prediction
+  resolved, no unresolved settlement-blocking alert and all settlement and
+  round-validity checks complete. It resolved the 6C.4 conflict between three
+  readings of R-14 ("24-hour correction window before a round is final") recorded
+  in `phase6c4_implementation.md` §8. `settle/v1` §2 (worked example: cutoff
+  Wednesday 19:00 UTC, finalisation Thursday evening), 6C.4 §8 and the 6C.5
+  specification §4.3 all state the same rule.
+* **The three times:**
+
+| Term | Definition | Fixed when | Effect |
+|---|---|---|---|
+| **Entry deadline** (`deadline_at`) | first scheduled kickoff of the round sheet minus the schedule's deadline buffer (15 min) | at publication | drafts and submissions refused by database triggers after it; the round can then be locked |
+| **Settlement cutoff** (`settle_cutoff_at`) | latest scheduled kickoff at publication + 48 h (`settle/v1` §2) | at publication; never moves | decides postponement/abandonment voids (V1/V4); results completed after it do not count |
+| **Earliest finalisation** | `max(settle_cutoff_at, last material settlement change) + correction_window_hours (24)` | computed (`settlement.earliest_finalisation`) | finalisation refused before it |
+
+* **Changes after the cutoff:** a material settlement change after the cutoff moves
+  the start of the 24-hour window to that change (the `max`); the final settlement
+  run made inside `finalise_round` also refuses and restarts the window if it finds
+  a material change. Non-material changes (for example a score correction that
+  changes no verdict, metadata, repeated identical observations) never restart it.
+* **Consistent enforcement:** `corrections.finalise_round` is the only code that
+  sets a round `final` (`rounds_repo.set_status(..., "final")`); the CLI `round
+  finalise`, the development runner and any future scheduler call it. The time
+  comes from the database clock; the development-only `as_of` override is refused
+  for real rounds, in production and for the `SYSTEM` actor
+  (`settlement.evaluation_time`), so scheduled finalisation cannot be earlier than
+  manual finalisation.
+* **Wording to read as S-02:** "deadline + 24 h", "deadline-plus-24-hour rule" and
+  "real 24-hour window" in 6C.5 F-stage records, the Stage G handover and the Phase
+  6C plan's outstanding-work register mean the S-02 earliest finalisation above
+  (not entry deadline + 24 h). Those living registers carry a clarification note;
+  historical records are not rewritten.

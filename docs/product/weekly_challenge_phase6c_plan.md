@@ -397,7 +397,7 @@ Accepting Phase 6C.5 completes **none** of these items. Record:
 | Gate | Target |
 |---|---|
 | **S-07** CLI operator-authentication remediation (`round create/publish/lock/dev-open`, `account grant-role/revoke-role/grant-feature/revoke-feature/suspend/reinstate`) | **mandatory in 6C.6**; before any hosted deployment or Official activation |
-| Genuine Beta finalisation under the real deadline + 24 h rule | later acceptance |
+| Genuine Beta finalisation under the real S-02 rule (earliest finalisation = max(settlement cutoff, last material change) + 24 h, database clock; wording clarified at 6C.6 Stage A) | 6C.6 Stage F |
 | D-29 real weekly pool validation | before the Official series |
 | D-36 account deletion workflow (retention and pseudonymisation) | before hosting real participants |
 | D-38 Official activation requirements | before Official activation (**no Official stream is authorised**) |

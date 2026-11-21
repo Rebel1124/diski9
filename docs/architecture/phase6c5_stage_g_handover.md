@@ -121,6 +121,9 @@ supporting read and integrity services — is **accepted and complete** (G-1).
 * **D-38 Official activation requirements** (with D-29 real weekly pool validation).
   **No Official competition stream is authorised for activation.**
 * **Genuine Beta finalisation** under the real deadline-plus-24-hour rule
+  *(terminology clarified at 6C.6 Stage A, 21 Nov 2026: this means the S-02 rule,
+  earliest finalisation = max(settlement cutoff, last material settlement change)
+  + 24 h on the database clock, not entry deadline + 24 h; no rule changed)*
   (development time overrides do not prove it).
 * **Hosted Supabase authentication acceptance.**
 * **D-36 account deletion workflow** (retention and pseudonymisation) before
