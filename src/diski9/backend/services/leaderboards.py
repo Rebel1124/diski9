@@ -371,13 +371,20 @@ def _official(conn, common, state, latest, me_id, page, page_size) -> WeeklyBoar
     void_round = latest.kind == "void"
     page, pages = _bounds(total, page, page_size)
     lo, hi = (page - 1) * page_size + 1, page * page_size
+    # O(page): only the page rows and the viewer's row are read. A rank is shared when
+    # a neighbour in display order has the same rank: the scoring engine orders rows by
+    # rank, so equal ranks are contiguous (Phase 6C.5 F3; it replaced a window over the
+    # whole score set). ``same_rank`` is only ever compared with 1.
     rows = conn.execute(
         text(
-            "SELECT * FROM (SELECT rs.*, count(*) OVER (PARTITION BY rs.rank) AS same_rank, "
-            "e.locked_at, e.public_name_at_lock, e.privacy_mode_at_lock "
-            "FROM app.round_scores rs JOIN app.entries e ON e.id = rs.entry_id "
-            "WHERE rs.score_set_id = :s) t "
-            "WHERE display_order BETWEEN :lo AND :hi OR user_id = :me ORDER BY display_order"
+            "SELECT rs.*, CASE WHEN rs.rank IS NOT NULL AND EXISTS (SELECT 1 FROM "
+            "app.round_scores n WHERE n.score_set_id = rs.score_set_id AND n.display_order IN "
+            "(rs.display_order - 1, rs.display_order + 1) AND n.rank = rs.rank) THEN 2 "
+            "ELSE 1 END AS same_rank, e.locked_at, e.public_name_at_lock, "
+            "e.privacy_mode_at_lock FROM app.round_scores rs "
+            "JOIN app.entries e ON e.id = rs.entry_id WHERE rs.score_set_id = :s AND "
+            "(rs.display_order BETWEEN :lo AND :hi OR rs.user_id = :me) "
+            "ORDER BY rs.display_order"
         ),
         {"s": latest.id, "lo": lo, "hi": hi, "me": me_id},
     ).all()
@@ -830,15 +837,22 @@ def championship_board(
         ).scalar_one()  # fmt: skip
         page, pages = _bounds(total, page, page_size)
         lo, hi = (page - 1) * page_size + 1, page * page_size
+        # O(page), as for the weekly page: shared ranks from the display-order
+        # neighbours (equal ranks are contiguous); the joint champions are the leading
+        # rank-1 rows, bounded by the first row with a lower rank (index range scans)
         rows = [] if v is None else conn.execute(
             text(
-                "SELECT * FROM (SELECT cs.*, count(*) OVER (PARTITION BY cs.rank) AS same_rank, "
-                "e.locked_at, e.public_name_at_lock, e.privacy_mode_at_lock "
-                "FROM app.championship_standings cs JOIN app.entries e ON e.id = cs.name_entry_id "
-                "WHERE cs.version_id = :v) t "
-                "WHERE display_order BETWEEN :lo AND :hi OR user_id = :me "
-                "OR (:done AND rank = 1 AND points > 0) "
-                "ORDER BY display_order"
+                "SELECT cs.*, CASE WHEN EXISTS (SELECT 1 FROM app.championship_standings n "
+                "WHERE n.version_id = cs.version_id AND n.display_order IN "
+                "(cs.display_order - 1, cs.display_order + 1) AND n.rank = cs.rank) THEN 2 "
+                "ELSE 1 END AS same_rank, e.locked_at, e.public_name_at_lock, "
+                "e.privacy_mode_at_lock FROM app.championship_standings cs "
+                "JOIN app.entries e ON e.id = cs.name_entry_id WHERE cs.version_id = :v AND "
+                "(cs.display_order BETWEEN :lo AND :hi OR cs.user_id = :me "
+                "OR (:done AND cs.rank = 1 AND cs.points > 0 AND cs.display_order < "
+                "coalesce((SELECT x.display_order FROM app.championship_standings x "
+                "WHERE x.version_id = :v AND x.rank > 1 ORDER BY x.display_order LIMIT 1), "
+                "2147483647))) ORDER BY cs.display_order"
             ),
             {"v": v.id, "lo": lo, "hi": hi, "me": me_id,
              "done": v.status == "completed"},
