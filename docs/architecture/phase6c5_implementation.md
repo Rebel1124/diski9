@@ -1925,3 +1925,26 @@ PostgreSQL suites, re-run in the full regression, not replaced:
   and the 3-second published-round cache should be measured under load.
 * **Then F4:** the intermittent Match Lab browser test's root cause, the full
   regression determination and the Stage G handover.
+
+### 7.14 Owner approval and formal closure of F2 (21 Nov 2026)
+The owner reviewed the F2 checkpoint and **formally closed F2**; the same decision
+authorised **F3 (performance and concurrency)** only. F4, Stage G, 6C.6 and later
+phases are not authorised.
+* **Baseline confirmed:** `7afc03b` on `feature/phase-6c5-leaderboards`, worktree
+  clean and equal to the remote; CI run 75 passed; fingerprint
+  `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`; head `app_0007`.
+* **Closure evidence:** all 12 journeys at 1360, 768 and 390 px, 253 checks, 0
+  problems; five Current states at three widths; 91 focused tests; full regression
+  1,675 passed, 0 failed, 0 skipped; CI run 75 passed; four presentation defects
+  fixed; no competition-rule change, no migration, fingerprint unchanged; no merge,
+  tag, deployment or Official activation. Evidence kept in
+  `docs/screenshots/phase6c5/f2/`.
+* **Carried forward:**
+  - **S-07 remediation is mandatory in Phase 6C.6** and a release gate before any
+    hosted deployment or Official activation (§7.2); not remediated in F3 unless a
+    new finding is an immediate blocker, which would be escalated first;
+  - **Beta finalisation:** a genuine beta round needs the real 24-hour window;
+    development time overrides are not proof of it; kept for later acceptance;
+  - **intermittent Match Lab browser test:** F4;
+  - **minus signs:** leaderboards use U+2212, result cards a hyphen-minus; cosmetic,
+    not an F3 concern.

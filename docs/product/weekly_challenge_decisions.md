@@ -7,6 +7,16 @@ are approved, with decisions **CH-01 to CH-12** (the Stage A questions Q-1 to Q-
 and the amendment **D-30a** below. Stage B is authorised; Stage C needs separate
 approval. Private mini-leagues are removed from the MVP roadmap.
 
+**Phase 6C.5 Stage F2 (owner approval and closure, 21 Nov 2026):**
+* F2 (integration and security testing) is approved and closed at `7afc03b`. No
+  business rule changed. F3 (performance and concurrency) is authorised; F4, Stage
+  G and 6C.6 are not.
+* **S-07 remediation is a mandatory Phase 6C.6 item and a release gate** before any
+  hosted deployment or Official activation (implementation record §7.2).
+* The genuine beta 24-hour finalisation window must be demonstrated in later
+  acceptance; development time overrides do not prove it.
+* Record: [`docs/architecture/phase6c5_implementation.md`](../architecture/phase6c5_implementation.md) §7.14.
+
 **Phase 6C.5 Stage F1 (owner approval and closure, 21 Nov 2026):**
 * F1 (development tooling and resumable development championships) is approved and
   closed at `8379606`. No business rule changed. F2 (integration and security
