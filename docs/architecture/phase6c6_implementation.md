@@ -910,7 +910,7 @@ readiness output limited to the pinned fields with no account or credential data
   suite 26 min 11 s; job 27 min 33 s, within the 40-minute timeout.
 * Documentation after the candidate uses the documentation-only path.
 
-## 8. Stage E.1a: automated draft creation, readiness and monitoring (21 Nov 2026; checkpoint)
+## 8. Stage E.1a: automated draft creation, readiness and monitoring (21 Nov 2026; checkpoint, awaiting owner acceptance)
 
 Authorised by the owner on the approved plan
 ([`phase6c6_stage_e1a_plan.md`](phase6c6_stage_e1a_plan.md); design
@@ -1009,4 +1009,10 @@ the service; production refuses nothing extra because only beta is preparable.
   migrations, authentication units, weekly results, accounts, runtime role,
   scenarios, CI change scope and the API client — **529 passed, 0 failed, 0
   skipped** (10 min 44 s).
-* **Level 3:** pending on the application-code candidate.
+* **Level 3 — application-code candidate `3ed0301`, CI run 104: passed.** Scope
+  full. **1,835 passed, 0 failed, 0 skipped** (1,797 at Stage E + 38 E.1a tests),
+  all 13 browser tests included (`DISKI9_REQUIRE_BROWSER=1`); migration from an
+  empty database, real Supabase Auth integration, lint and formatting passed. Test
+  suite 29 min 26 s; job 30 min 25 s — within the 40-minute timeout (margin about
+  9.5 minutes; noted, no change proposed).
+* Documentation after the candidate uses the documentation-only path.

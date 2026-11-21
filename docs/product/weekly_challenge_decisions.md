@@ -67,6 +67,16 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E.1a implementation authorised and delivered (21 Nov 2026):**
+* E.1a authorised on the approved plan (baseline `c47474f`); implemented at
+  `3ed0301`, CI run 104 (1,835 passed, 0 skipped, 13 browser tests); awaiting owner
+  acceptance. Owner safeguards: readiness starts only with enough tick time
+  (measured cost, 2× margin, never past the abandonment threshold); read-only
+  evaluations every 30 minutes once a draft exists, with monitoring quiet about an
+  early NOT READY until the attention window. Deviation reported: the Stage D
+  locking job list now includes the two preparation jobs (recovery coverage).
+  E.1b, Stage F and Stage G not authorised.
+
 **Phase 6C.6 Stage E.1 design approval and E.1a planning (21 Nov 2026):**
 * **Design direction approved; two phases:** E.1a (automated Beta draft creation,
   readiness evaluation and monitoring, no new API-Football calls) and E.1b
