@@ -766,7 +766,7 @@ of this record, the decision register and the plan).
 | Genuine Beta finalisation on the real clock (S-02) and backup/restore drill | **3 Stage F** | — | calendar time |
 | D-29 real weekly pool validation | **2** (before the Official series) — evidence only | Stage F onwards, from real weeks | the trial is **not** restarted; `round readiness --json` can record each week's pool evidence without provider calls |
 | D-38 Official activation | **5 Requires approval** | owner | Official stays disabled |
-| Automated draft preparation (scheduler creating drafts) | **5 Requires approval** | owner decision (it is a new state change by `SYSTEM`) | readiness is ready to serve as its validation step |
+| Automated draft preparation (scheduler creating drafts) | **5 Requires approval — scheduled as Stage E.1 (owner, 21 Nov 2026)** | Stage E.1, after Stage E and before Stage F: approved design first (competition week, fixture window, scheduling, provider requirements, duplicate prevention), then separate implementation authorisation | goal: fully automated weekly operation with human publication approval during the initial Beta; readiness can serve as its validation step |
 | Database-down notification without the database (file state) | **5 Requires approval** | owner (Stage D option) | trigger reporting meanwhile |
 | `ops_alerts` acknowledgement table (M1) / per-stream automation settings in the database (M2) | **5** (migration) | owner | not proposed now |
 | Index review (`settlement_runs.round_id`, `audit_log.job_run_id`) | **4 Phase 6D** | — | fine at current volumes |
@@ -778,7 +778,7 @@ of this record, the decision register and the plan).
 | Command | Auth | Writes | Notes |
 |---|---|---|---|
 | `round readiness --code C [--json]` | none (like `round show`; reads the football store and the round) | nothing | real draft rounds only; exit 0 ready, 1 not ready, 2 usage |
-| `round publish --code C --operator E` | password (`round.publish`), unchanged | as before | now prints the readiness summary of the snapshot it will freeze and requires typing the round code; a NOT READY snapshot goes straight to the service, which refuses and records the attempt as before |
+| `round publish --code C --operator E` | password (`round.publish`), unchanged | as before | builds the snapshot once, prints its readiness summary, requires typing the round code and publishes exactly that snapshot (`expected_fingerprint`); a NOT READY snapshot goes straight to the service, which refuses and records the attempt as before |
 | `round inspect --code C --operator E` | password, `jobs.run` (as `settle status`); **refuses `SYSTEM`** | nothing | settlement figures computed in a rolled-back transaction |
 | `audit list [--round C] [--action-prefix P] [--since T] [--limit N] [--json] --operator E` | password, `audit.view`; **refuses `SYSTEM`** | nothing | usernames or `SYSTEM`, round codes; no emails, payloads or request IDs; ≤ 200 rows |
 | `account grant-role/…/reinstate` | unchanged | unchanged | argument checks moved before the password prompt |
@@ -802,7 +802,51 @@ cannot disagree with publication (tested for the ready case and three refusals).
 * Error messages never contain the database URL or password (tested with a
   password-bearing URL).
 
-### 7.6 Tests (`tests/backend/test_backend_stage_e_admin.py`, 16 tests)
+### 7.5a Owner decisions at review (21 Nov 2026) and their verification
+**Publish confirmation — approved**, on condition that the validated snapshot is
+exactly the snapshot published (no time-of-check/time-of-use gap). How this holds:
+* `round publish` builds the snapshot **once**; the same object is validated
+  (`publication_readiness`), shown, confirmed and passed to `publish_round`. It is
+  never rebuilt (tested: the builder is called exactly once and the service
+  receives that very object).
+* `RoundSnapshot`, `RoundFixture` and `ChallengeOutcome` are frozen dataclasses
+  holding tuples, so the approved object cannot change between check and use.
+* The CLI also passes the approved fingerprint (`expected_fingerprint`, added in
+  this review); `publish_round` refuses any other snapshot ("The snapshot differs
+  from the one approved; nothing was published", recorded as a refused attempt;
+  tested). The fingerprint covers every outcome's price, probabilities, bookmaker
+  groups and quote time; the object identity above covers the remaining fields.
+* Everything that can change while the operator reads the summary — the round's
+  status, the database clock against the snapshot-age limit and the deadline — is
+  re-checked by `publish_round` under the round's row lock in the publishing
+  transaction (tested: another operator publishing during the confirmation makes
+  this publish refuse with "already open").
+
+**Readiness without a password — approved conditionally**: it must expose nothing
+sensitive beyond `round show`. Verification (code review and a test pinning the
+exact output fields):
+* Round fields shown are those `round show` already prints (code, status,
+  development flag, stream) plus nothing from entries, accounts or audit.
+* Everything else is derived from the football store's fixtures and odds — the
+  same upcoming fixtures and market data the public Screener displays — and the
+  competition configuration (bucket sizes, the 24-hour quote rule, the snapshot-age
+  limit): counts, kickoff times, deadline, cutoff and the content fingerprint.
+* It contains no participant, account, entry, audit, provider-credential or
+  database-connection data (tested: no `@`, user ID, database URL or password in
+  the JSON output); it reads with the application database credential the operator
+  already needs for `round show`, and writes nothing.
+* Difference to note: readiness shows the *candidate* pool before publication,
+  which `round show` cannot (a draft has no snapshot). That pool is public football
+  data, not competition-sensitive information; if the owner prefers, the command
+  can require `--operator` without any other change.
+
+**Automated draft creation — deferred from Stage E** and then scheduled by the
+owner as **Stage E.1 — Automated Draft Preparation**, immediately after Stage E and
+before Stage F: a separately approved design (competition-week definition, fixture
+window, scheduling, provider requirements, duplicate prevention) first, then a
+separate implementation authorisation. Not started (§7.3, decision register).
+
+### 7.6 Tests (`tests/backend/test_backend_stage_e_admin.py`, 19 tests)
 Readiness writes nothing and matches publication (deadline, cutoff, fingerprint);
 refusal parity for too few fixtures, a stale snapshot and a wrong source; unknown
 round; inspection refused for a participant and `SYSTEM` (and `audit list` for
@@ -816,7 +860,11 @@ the shown snapshot, attributed to the operator), NOT READY publish refused and
 recorded, inspect and audit output, one-line errors; CLI in a pseudo-terminal
 against the local Supabase Auth harness: account arguments refused before any
 password prompt, and `round inspect` / `audit list` refused for a participant and
-allowed for an operator, password never echoed.
+allowed for an operator, password never echoed. Added at the owner review: a
+snapshot other than the approved one is refused and nothing is stored; the CLI
+builds the snapshot once and passes that object and its fingerprint, and a
+concurrent publication during the confirmation is refused by the service;
+readiness output limited to the pinned fields with no account or credential data.
 
 ### 7.7 Verification
 * Level 1: the Stage E file (16 passed, no skips; pseudo-terminal tests ran
@@ -834,4 +882,9 @@ allowed for an operator, password never echoed.
 * Level 3: §7.8.
 
 ### 7.8 Level 3 (GitHub CI)
-* Pending on the final application-code candidate.
+* **First candidate `2f374da`, CI run 98: passed.** Scope full. **1,794 passed, 0
+  failed, 0 skipped** (1,778 at the remediation + 16 Stage E tests), all 13 browser
+  tests included; migration from an empty database, real Supabase Auth integration,
+  lint and formatting passed. Test suite 28 min 20 s; job 29 min 47 s.
+* Final candidate (owner-review additions: approved-fingerprint guard, three
+  tests, decisions documentation including Stage E.1): recorded below.

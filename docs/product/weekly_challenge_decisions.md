@@ -67,6 +67,26 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E review decisions (21 Nov 2026):**
+* **Publish confirmation approved:** the operator types the round code; the
+  validated snapshot must be exactly the snapshot published (single build,
+  immutable snapshot, approved fingerprint enforced by `publish_round`, every check
+  repeated under the round lock).
+* **`round readiness` without a password approved conditionally:** it may expose
+  nothing sensitive beyond `round show` (verified and documented: round fields of
+  `round show` plus public football-store data; no account, entry, audit or
+  credential data).
+* **Automated draft creation deferred from Stage E:** Diski 9 should progress
+  towards fully automated weekly operation, with human publication approval during
+  the initial Beta. Not implemented in Stage E.
+* **Roadmap: Phase 6C.6 Stage E.1 — Automated Draft Preparation** is introduced
+  immediately after Stage E and before Stage F. It begins with a separately
+  approved design covering the competition-week definition, fixture window,
+  scheduling, provider requirements and duplicate prevention; implementation needs
+  a subsequent authorisation. Publication stays a human, authenticated approval.
+* Neither Stage E.1 nor Stage F may begin until Stage E is formally accepted and
+  each is separately authorised.
+
 **Phase 6C.6 Stage D closure and Stage E authorisation (21 Nov 2026):**
 * **Scheduler-locking remediation (R1–R6) formally accepted** (`0f3c0b1`, CI run 95:
   1,778 passed, 0 failed, 0 skipped, all 13 browser tests; documentation head

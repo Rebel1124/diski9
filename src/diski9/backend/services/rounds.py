@@ -350,11 +350,15 @@ def publish_round(
     *,
     source: str,
     snapshot_age_limit: timedelta | None = None,
+    expected_fingerprint: str | None = None,
 ) -> RoundView:
     """Validate the opening conditions and freeze the snapshot (needs
     ``round.publish``). Either everything is written - snapshot rows, deadline,
     settlement cutoff, versions and the ``open`` status - or nothing is, and the
-    refusal explains why."""
+    refusal explains why. ``expected_fingerprint`` (Stage E): the fingerprint the
+    operator approved; any other snapshot is refused. Every check runs again here,
+    under the round's row lock and on the database clock, so nothing validated
+    earlier is trusted at publication time."""
     authorize(principal, Capability.PUBLISH_ROUND)
     with transaction(engine) as conn:
         r = rounds_repo.lock_round_for_change(conn, round_id)
@@ -366,6 +370,9 @@ def publish_round(
         check = _evaluate_publication(r, sched, snapshot, source, now, age_limit)
         problem, details = check.problem, check.details
         config, report, deadline = check.config, check.report, check.deadline
+        if expected_fingerprint is not None and snapshot.fingerprint != expected_fingerprint:
+            problem = "The snapshot differs from the one approved; nothing was published."
+            details = {"approved": expected_fingerprint, "snapshot": snapshot.fingerprint}
         if problem is None:
             run = ops.start_job(conn, "publish", r.code, {"source": source})
             snapshots.store_snapshot(

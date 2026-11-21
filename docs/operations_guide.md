@@ -70,8 +70,13 @@ snapshot, job record or audit entry. It reports:
 * **Verdict:** READY, or NOT READY with the exact reason `round publish` would give.
   `--json` prints the same data for automation; exit 0 ready, 1 not ready.
 
-`round publish` re-runs the readiness summary on the snapshot it is about to freeze
-and asks you to **type the round code** to confirm; anything else stops with
+`round readiness` needs no password because it shows only the round fields that
+`round show` shows plus public football data (fixtures, odds-derived counts,
+timing); it never shows participants, entries, accounts or credentials.
+
+`round publish` builds the snapshot **once**, shows its readiness summary and asks
+you to **type the round code** to confirm; exactly that snapshot (checked by its
+fingerprint) is then published, never a rebuilt one. Any other answer stops with
 "Not confirmed; nothing changed." The service then repeats every check in its own
 transaction, so a round that became invalid in the meantime is still refused. A
 NOT READY snapshot is not offered for confirmation; the service refuses it and

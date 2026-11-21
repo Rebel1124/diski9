@@ -311,6 +311,81 @@ def test_cli_one_line_errors(cli_env, monkeypatch, capsys, tmp_path):
     assert "must be a PostgreSQL URL" in err and "S3cretPw" not in err
 
 
+def test_publish_refuses_a_snapshot_other_than_the_approved_one(db):
+    eng, _ = db
+    op = principal(eng, role="operator")
+    v, snap = _draft(eng, op)
+    other = replace(snap, snapshot_at=snap.snapshot_at - timedelta(seconds=1))
+    assert other.fingerprint != snap.fingerprint
+    with pytest.raises(PublicationRefused) as exc:
+        svc.publish_round(eng, op, v.id, other, source="football-db",
+                          expected_fingerprint=snap.fingerprint)  # fmt: skip
+    assert "differs from the one approved" in exc.value.message
+    assert svc.get_round(eng, v.id).status == "draft"
+    with transaction(eng) as conn:
+        assert conn.execute(sa.select(sa.func.count()).select_from(round_snapshots)
+                            ).scalar_one() == 0  # fmt: skip
+
+
+def test_cli_publish_builds_once_and_rechecks_at_publication(cli_env, monkeypatch, capsys):
+    """No time-of-check/time-of-use gap: the snapshot is built once and the same
+    immutable object is validated, shown, confirmed and published with the approved
+    fingerprint; a state change during the confirmation (here another operator
+    publishes first) is caught by the service's own checks under the round lock."""
+    import diski9.challenge.roundsheet as rs
+
+    eng = cli_env
+    op = principal(eng, role="operator")
+    v, snap = _draft(eng, op)
+    calls = []
+    _patch(monkeypatch, snap, op)
+    monkeypatch.setattr(rs, "build_live_snapshot", lambda *a, **k: calls.append(1) or snap)
+    seen = {}
+    real = svc.publish_round
+
+    def spy(*a, **k):
+        seen.update(snapshot=a[3], expected=k.get("expected_fingerprint"))
+        return real(*a, **k)
+
+    monkeypatch.setattr(svc, "publish_round", spy)
+    import diski9.settlement_cli as sc
+
+    def race(prompt):  # someone else publishes while the operator reads the summary
+        real(eng, principal(eng, role="operator"), v.id, snap, source="football-db")
+        return v.code
+
+    monkeypatch.setattr(sc, "_ask", race)
+    assert cli.main(["round", "publish", "--code", v.code]) == 2
+    assert "already open" in capsys.readouterr().err
+    assert calls == [1] and seen["snapshot"] is snap and seen["expected"] == snap.fingerprint
+
+
+def test_readiness_exposes_no_account_or_credential_data(cli_env, monkeypatch, capsys):
+    """Condition of the owner's approval: readiness shows the round fields that
+    ``round show`` shows plus football-store data (fixtures, odds-derived counts,
+    timing) - no participant, account, entry, audit or credential data."""
+    eng = cli_env
+    op = principal(eng, role="operator")
+    v, snap = _draft(eng, op)
+    _patch(monkeypatch, snap, op)
+    assert cli.main(["round", "readiness", "--code", v.code, "--json"]) == 0
+    raw = capsys.readouterr().out
+    data = json.loads(raw)
+    assert set(data) == {
+        "round", "status", "development", "stream", "ready", "problem", "details",
+        "evaluated_at", "snapshot_at", "max_snapshot_age_minutes", "source",
+        "config_version", "fingerprint", "fixtures", "outcomes", "leagues",
+        "earliest_kickoff", "latest_kickoff", "deadline_at", "settle_cutoff_at",
+        "opening_report", "required_by_bucket", "ineligible_outcome_issues",
+        "oldest_eligible_quote_at", "newest_eligible_quote_at", "max_quote_age_hours",
+        "pool_diagnostics",
+    }  # fmt: skip
+    url = __import__("os").environ["DISKI9_APP_DATABASE_URL"]
+    password = sa.engine.make_url(url).password or "\x00"
+    for forbidden in ("@", str(op.user_id), password, "postgresql", "username", "email"):
+        assert forbidden not in raw, forbidden
+
+
 # ------------------------------------------------------------------ CLI (real terminal)
 from test_backend_operator_cli import ANON, AUTH_URL, PASSWORD, make_account, provider  # noqa: E402,F401,I001
 

@@ -600,7 +600,8 @@ def cmd_round(args) -> int:
             rid = svc.round_id_for_code(engine, args.code)
             p = _principal(engine, args.operator)
             r = svc.get_round(engine, rid)
-            snap = build_snapshot(engine, r)
+            snap = build_snapshot(engine, r)  # built once; the same immutable object is
+            approved = None  # validated, shown, confirmed and published (no rebuild)
             if r.status == "draft" and not r.is_development:
                 # show the operator exactly what would be frozen, then ask (Stage E)
                 rd = svc.publication_readiness(engine, rid, snap, source="football-db")
@@ -611,8 +612,10 @@ def cmd_round(args) -> int:
                     if answer != r.code:
                         print("Not confirmed; nothing changed.")
                         return 0
-            # the service repeats every check in its own transaction (and records a refusal)
-            show(svc.publish_round(engine, p, rid, snap, source="football-db"))
+                    approved = rd.fingerprint
+            # the service repeats every check under the round lock (and records a refusal)
+            show(svc.publish_round(engine, p, rid, snap, source="football-db",
+                                   expected_fingerprint=approved))  # fmt: skip
             return 0
         if args.action == "dev-open":
             from diski9.backend.devdata import dev_snapshot
