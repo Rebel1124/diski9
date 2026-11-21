@@ -1678,3 +1678,250 @@ used in F2 only on isolated development databases, as in F1.
 
 **Impact on F2.** None blocking. The browser-journey data is built with the F1
 runner (authenticated) and the services directly in test databases.
+
+### 7.3 New tests
+| File | Tests | What it adds |
+|---|---|---|
+| `tests/backend/test_backend_f2_s07_assessment.py` | 6 | S-07 characterisation through the real CLI (§7.2) |
+| `tests/backend/test_backend_f2_integration.py` | 8 | Privacy and isolation across the read services *and* the Dash components rendered from real database results; public payload inspection; deleted-account alias with preserved standings; withdrawal on each side of the five-entry boundary; provisional boards without points; practice excluded from progress; development and beta championships independent; nothing in the official stream; no cross-stream membership |
+| `tests/test_callback_wildcard_outputs.py` | 1 | Regression for defect F2-2 (§7.9) |
+| `tests/test_stage_e_ui.py` (`test_pager_and_rules`, extended) | — | Regression for defect F2-1: distinct pager ids, page parsing |
+| `tests/backend/test_app_persistence.py` (`test_direct_visit_with_an_empty_store_shows_the_confirmed_entry`) | 1 | Regression for defect F2-3 |
+
+Each regression test was confirmed to fail on the code before its fix.
+
+### 7.4 Browser acceptance journeys (§17.3)
+**Tool:** `tools/e2e_6c5/journeys.js` (Node Playwright) against the real app, real
+PostgreSQL and the local Supabase Auth harness, at **desktop 1360, tablet 768 and
+mobile 390 px**. Data: `seed.py` (the Stage E showcase: 60 participants, 14 rounds,
+corrections) plus `seed_f2.py` (R15, a shared rank 31 spanning rows 31–60; and a
+separate database whose championship completes with no points) on the isolated
+`diski9_f2_e2e` and `diski9_f2_e2e_nochamp`, all through the real services.
+
+**Authoritative comparison.** `tools/e2e_6c5/f2_expect.py` reads the same read
+services the pages use (`weekly_board`, `championship_board`, `my_history`,
+`my_statistics`) for a guest and two signed-in participants and writes the
+expectations. For every journey the script compares the visible ranks (including
+"=n"), names, points, viewer highlight and page, state labels and headers with them,
+then runs the element-level layout audit from `refined.js` (nothing clipped,
+overflowing or overlapping), checks for page-wide horizontal overflow and for any
+e-mail address or UUID in page text or element ids, and collects browser errors.
+
+| # | Journey | Verified (each at 3 widths; guest and two participants where meaningful) |
+|---|---|---|
+| J1 | Provisional weekly | rows and positions = service; "Returned so far / Settled / Pending" headers, no Points; "Provisional ·" banner; personal summary or sign-in prompt |
+| J2 | Final weekly, highlight, page two | page 1 and page 2 rows = service; Points column; viewer highlighted on its page; "Showing 51–60 of 60" |
+| J3 | Shared ranks across the boundary | page 1 ends with "=31", page 2 starts with "=31"; "Go to my position" opens page 2 with the viewer highlighted |
+| J4 | Practice round | rows = service; no Points column; practice explanation |
+| J5 | Void round | no table; void wording; "Round void · your 100 credits were refunded" for an entrant |
+| J6 | Championship in progress | standings = service; "In progress"; counted-round progress; personal points |
+| J7 | Joint champions | standings = service; "Joint champions" naming both |
+| J8 | No champion | completed; "No champion: no participant scored points."; nobody named |
+| J9 | Under review | weekly "last published results" banner; championship "Under review" |
+| J10 | Corrected and shortened | weekly "Corrected · version 2"; championship "corrected after completion", "Completed with 9 valid rounds" (D-30a), never "Short" |
+| J11 | History, filters, drill-down | every own entry listed; statistics values = service; championship filter narrows the rows; the reopened round's drill-down shows "Last published official result" and the four result cards |
+| J12 | Guest | public standings only, no highlighted row, sign-in prompts, no history or statistics |
+
+Also per width: stream visibility on a server **without** the development flag (no
+development stream or round code visible), navigation (routes 200, nav links
+resolve), **no uncaught page or console errors**, and **read-only** (score sets,
+championship versions, competition audit rows and entries unchanged by every page
+load and crafted request; account rows from the throw-away sign-ins are excluded).
+
+**Result (final run, after the fixes in §7.9): 253 checks, 0 problems; every
+journey 0 problems at every width** (`tmp/f2/journeys_final.log`, local). Earlier
+runs found the defects in §7.9 and script-side mistakes (CSS upper-case text,
+expected wording), which were corrected in the script, never by weakening a check.
+
+**Screenshots:** `docs/screenshots/phase6c5/f2/` (indexed): every journey at
+desktop, key states at tablet and mobile, and the Current states; earlier evidence
+is untouched.
+
+### 7.5 My Challenge Current result panel
+**Tool:** `tools/e2e_6c5/f2_current.py` makes each state the live current round
+through the services (the viewer's own `submit_test_entry`, five development
+participants, lock after the real deadline, synthetic results, settlement and
+finalisation with the development-only `as_of`, the owner's reopening with
+corrections; no clock change). `f2_current.js` compares the four cards with the
+participant's `my_settlement` at 1360, 768 and 390 px and runs the layout audit.
+
+| State | Cards (Allocated · second · Net · Recovery) | Result |
+|---|---|---|
+| Refunded entry (all nine void, round valid) | violet 100.00 · **amber "Refunded" 100.00** · blue **0.00 (zero tone)** · **amber "Refund (not a recovery)"** | pass ×3 |
+| Void round (D-32b) | violet · amber "Refunded" 100.00 · blue 0.00 · amber "Refund (not a recovery)" | pass ×3 |
+| Negative (final, not recovered) | violet · green "Returned" 0.00 · blue **−100.00 (red)** · slate "Not recovered" | pass ×3 |
+| Under review (owner reopened with corrections) | violet · green 5,080.83 · blue +4,980.83 (green) · teal "Recovered 100+"; review wording; the official result marked under review | pass ×3 |
+| Corrected (re-finalised) | violet · green 5,080.83 · blue +4,980.83 · teal "Recovered 100+"; correction wording | pass ×3 |
+
+With F1's provisional and final successful recoveries (§6.5), every Current state is
+covered. **Zero Net** is shown through the refund states (Net 0.00, zero tone); a
+*recovered* entry whose gross is exactly 100.00 cannot be produced naturally and was
+not manufactured. The card styling is unchanged and identical to the History
+drill-down component.
+
+### 7.6 Privacy and participant isolation
+* **Services and rendered components** (`test_backend_f2_integration.py`): another
+  participant's round code reveals nothing (`my_round_code_visible` is `None`,
+  `my_round_result` is `None`); history pages −3, 0, 1 and 999 return only one's own
+  entry; an unknown championship or one of another stream is refused; development is
+  refused unless enabled; guests get no history; statistics count only one's own
+  rounds. Weekly and championship boards, and the Dash components built from them,
+  contain no user UUID, e-mail address, identity subject or fixture id (so no
+  selections), for a guest and for a participant; `WeeklyRow` has only public fields.
+* **Crafted Dash callbacks (browser):** a captured drill-down request of one
+  participant was replayed from a signed-in account with no entries and from a guest
+  session, also with the stream switched to beta and official. The participant got
+  "That entry is not available.", the guest an empty detail; none contained the
+  other participant's name, values or detail panel. The account with no entries saw
+  only its own empty history. The server derives the participant from the session;
+  no callback accepts a user identifier.
+* **Anonymity:** retroactive and non-retroactive anonymity and e-mail-free names are
+  covered by the existing suites (`test_backend_accounts.py`,
+  `test_backend_weekly_results.py`, `test_backend_championship_corrections.py`).
+  **Deleted account (new):** with the account's status set to `deleted` (there is no
+  deletion workflow yet; D-36), the weekly and championship boards show its alias
+  instead of its username, with the same position and points, and the standings are
+  otherwise unchanged.
+
+### 7.7 Operator authentication and permissions
+Covered by the existing genuine-terminal tests (real local Supabase Auth, hidden
+password prompt, real PostgreSQL) in `test_backend_operator_cli.py`, run again in
+F2: correct password (`test_authorised_operator_and_password_never_shown`), incorrect
+password (`test_incorrect_password_fails_closed`), provider down or unconfigured,
+password never an argument and no terminal refused
+(`test_password_is_never_an_argument_or_piped`), non-operator
+(`test_participant_cannot_run_operator_commands`), unknown address
+(`test_database_access_alone_is_not_authority`), owner-only reopen and the full
+lifecycle (`test_full_lifecycle_through_the_cli`), missing confirmation
+(`test_declined_confirmation_changes_nothing`), stale preview token
+(`test_stale_preview_is_rejected`), expired recency at confirmation
+(`test_recent_authentication_boundary_at_confirmation`), `competition
+status/verify/backfill/repair` (`test_competition_*`), participant test entries, and
+the F1 commands. The 12-hour session expiry and the owner's 15-minute recency in the
+runner are tested at service level (F1, `test_backend_dev_championship.py`); the
+service-level T-14 matrix is in `test_backend_corrections.py` and
+`test_backend_auth_unit.py`. Audit attribution and no partial writes are asserted in
+those tests. The legacy email-identified commands are assessed in §7.2.
+
+### 7.8 Competition integrity, corrections and failure recovery
+New coverage is in `test_backend_f2_integration.py` (§7.3). The rest is the existing
+PostgreSQL suites, re-run in the full regression, not replaced:
+* **validity and scoring:** five-entry minimum and practice
+  (`test_four_valid_entries_make_a_practice_round`,
+  `test_five_valid_entries_make_a_championship_round_and_lock_is_idempotent`, F2
+  withdrawal boundary), D-32b strict majority of played instances, voided
+  predictions, D-33 refunds, no points without recovery (`test_settle_entry.py`,
+  `test_settle_rules.py`, `test_competition_adapter.py`,
+  `test_backend_weekly_results.py`), shared ranks and equal points (F1 ties, F2 J3),
+  no points before finalisation (F2);
+* **championships:** ten counted rounds, practice and invalid rounds excluded,
+  mid-championship joining, rollover, joint champions, no champion, immutable
+  membership, D-30a, no cross-stream contamination (`test_backend_championships.py`,
+  `_edges.py`, `_corrections.py`, `_capacity.py`, `_sequences.py`, F1 presets, F2);
+* **corrections:** reopening, corrected results, re-finalisation, updated
+  standings, preserved audit, under review, no duplicate score sets, no speculative
+  publication (`test_backend_corrections.py`, `_championship_corrections.py`, F1
+  reopen-and-correct, F2 Current review and corrected);
+* **failure and recovery:** failed publication and recalculation roll back
+  (`test_failure_rolls_back_weekly_and_championship_publication`), reads never see a
+  partial publication (`test_reads_are_consistent_during_publication`), idempotent
+  retries (`test_repeated_processing_and_restart_change_nothing`,
+  `test_repeated_backfill_is_a_no_op`, `test_repeated_repair_is_a_no_op`), interrupted
+  backfill and repair (`test_interrupted_*`), interrupted F1 runs (F1), verification
+  detects inconsistency (`test_tampered_counter_is_repaired_without_touching_membership`,
+  `test_material_inconsistency_is_refused_and_reported`), repair needs an operator,
+  a preview and a confirmation (`test_repair_preview_writes_nothing_and_needs_an_operator`,
+  `test_repair_safeguards`). All fault injection ran in isolated `_test` databases.
+
+### 7.9 Defects found and fixed in F2 (presentation layer; no competition behaviour changed)
+1. **F2-1 Pager "Next" did nothing for some viewers.** When the viewer's own page was
+   the next page, "Next ›" and "Go to my position" had the same Dash id
+   (`{"t": "lbw-goto", "i": 2}`), so neither click reached the server. "Go to my
+   position" now has its own id (`"me-<page>"`, parsed by `goto_page`). Found by J2.
+2. **F2-2 HTTP 500 and console errors from wildcard callbacks.** The leaderboard,
+   history and My Challenge tab callbacks returned a bare `no_update` for
+   pattern-matching outputs when a pager or history button was re-rendered without a
+   click; Dash rejects that. They now raise `PreventUpdate`. Found by the
+   browser-error check.
+3. **F2-3 My Challenge on a direct visit.** Opening My Challenge in a new tab or from
+   a bookmark rendered before the session store was filled from the account, so a
+   confirmed entry (and its result) showed as "The deadline has passed without a
+   confirmed entry" until a reload; in-app navigation was correct. The page now
+   renders from the account state (`persist.hydrate`, read-only). Found while
+   preparing the Current states.
+4. **F2-4 Long round codes widened the History table** on desktop (the code line did
+   not wrap; seen with 30-character development codes). The code line now wraps.
+
+### 7.10 Stream isolation
+* Development rounds are hidden unless enabled: services refuse them
+  (`NotFound`), and a server without the development flag shows no development
+  stream or round code (J-checks at three widths); existing
+  `test_development_rounds_are_hidden_unless_enabled` and the locked-entry tests.
+* Development participants cannot enter beta or official rounds (F1).
+* Beta and development championships progress independently with no shared
+  counters, names or membership; nothing reaches the official stream, which stays
+  gated (D-29, D-38; `test_official_stream_is_gated_and_beta_untouched`, F2).
+* The Official series was not activated anywhere; official assertions use isolated
+  test databases only.
+
+### 7.11 Limitations and deviations for owner review
+* **Beta finalisation end to end:** a genuine (beta) round can be finalised only
+  after cutoff + 24 h and takes no time override (approved rule), so F2 settles a
+  beta round (provisional, no points) but completes championships with development
+  rounds. The paths are the same apart from the development-only `as_of`.
+* **Deleted accounts** are simulated by status; there is no deletion workflow (D-36
+  is a separate release requirement).
+* **No-champion** data lives in a second isolated database, served separately.
+* **Current "under review"** shows the provisional re-settlement with the official
+  result marked under review, as designed in 6C.4.
+* **Minus signs:** leaderboards use the true minus (U+2212) but the result cards
+  print a hyphen-minus ("-100.00"). Presentation only; not changed (owner's call).
+* **Crafted-callback coverage** replays the drill-down and history requests; other
+  callbacks take no participant identifiers by design.
+* **Intermittent Match Lab browser test:** see §7.12; not investigated further in F2
+  (F4).
+* **S-07** remains deferred to 6C.6 per §7.2 (release gate before hosting).
+* **Timing data:** incidental only (a journey run takes about 8.5 minutes); no
+  performance work (F3).
+
+### 7.12 Regression and verification
+* **Full local suite on the F2 code (all fixes included): 1,675 passed, 0 failed, 0
+  skipped** (26 min 14 s; real PostgreSQL, local Supabase Auth, browser tests). That
+  is F1's 1,659 plus the 16 new F2 tests (6 + 8 + 1 + 1).
+* **Intermittent Match Lab browser test**
+  (`tests/test_match_context.py::test_browser_section_b_alignment_and_bookmaker_layout`):
+  passed in this run; no occurrence during F2. Still unresolved (F4).
+* **Focused run:** the F2 files, `test_stage_e_ui.py`, `test_app_persistence.py`,
+  `test_backend_operator_cli.py` (genuine terminal) and
+  `test_backend_dev_championship.py`: **91 passed** (10 min 46 s).
+* **Browser:** journeys 253 checks, 0 problems; Current states 15 checks (5 states
+  × 3 widths), 0 problems.
+* **Fingerprint** `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`
+  unchanged. **Migration head** `app_0007` (no migration). Lint and formatting clean.
+* **No business rule changed:** scoring, settlement, D-32b, D-33, championship
+  processing, corrections and authentication code are untouched; the four fixes are
+  in the Dash presentation layer (`callbacks.py`, `leaderboards_ui.py`, `pages.py`,
+  `style.css`).
+* **Databases:** F2 used isolated `_test` databases, `diski9_f2_e2e` and
+  `diski9_f2_e2e_nochamp` on the local test server. `diski9_f1_e2e` was not reset or
+  overwritten. The owner's `diski9` (`app_0006`), `diski9_6c5_acceptance`
+  (`app_0007`) and `diski9-before-6c5.dump` are on the owner's Mac and were not
+  touched. No production or Official-series operation.
+* **Odds research trial:** not touched by F2 (separate checkout, branch and
+  schedule).
+
+### 7.13 Recommended F3 handover (performance and concurrency; not started)
+* **Multi-process load:** run the app under a production-style WSGI server with
+  several workers against one PostgreSQL, and drive concurrent readers of the
+  leaderboards and My Challenge (the F2 journeys can provide realistic request
+  mixes) while finalisation, corrections and championship processing run.
+* **Scale data:** the F1 runner and `seed_f2.py` patterns can build 1,000 and
+  10,000-participant development streams in isolated databases (the stretch runs
+  of Stages D and E were never executed).
+* **Hotspots to measure:** `weekly_board` provisional computation, the
+  championship board with many members, `my_statistics`, the history page, and the
+  extra account read now made on a direct visit to My Challenge (§7.9 F2-3).
+* **Contention:** readers in the same process can contend (§4.8); the read cache
+  and the 3-second published-round cache should be measured under load.
+* **Then F4:** the intermittent Match Lab browser test's root cause, the full
+  regression determination and the Stage G handover.

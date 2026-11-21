@@ -36,13 +36,25 @@ def weekly(wb) -> dict:
         "page": wb.page,
         "me_page": wb.me_page,
         "me_status": wb.me_status,
-        "me": None if wb.me is None else {"rank": rank(wb.me), "name": wb.me.name,
-                                          "points": wb.me.points,
-                                          "returned": str(wb.me.returned)},  # fmt: skip
+        "me": None
+        if wb.me is None
+        else {
+            "rank": rank(wb.me),
+            "name": wb.me.name,
+            "points": wb.me.points,
+            "returned": str(wb.me.returned),
+        },  # fmt: skip
         "championship": wb.championship,
-        "rows": [{"rank": rank(r), "name": r.name, "points": r.points, "me": r.is_me,
-                  "returned": None if r.returned is None else f"{r.returned:,.2f}"}
-                 for r in wb.rows],  # fmt: skip
+        "rows": [
+            {
+                "rank": rank(r),
+                "name": r.name,
+                "points": r.points,
+                "me": r.is_me,
+                "returned": None if r.returned is None else f"{r.returned:,.2f}",
+            }
+            for r in wb.rows
+        ],  # fmt: skip
     }
 
 
@@ -58,10 +70,18 @@ def champ(cb) -> dict:
         "corrected_after_completion": cb.corrected_after_completion,
         "fewer_rounds": cb.corrected_with_fewer_rounds,
         "me_status": cb.me_status,
-        "me": None if cb.me is None else {"rank": ("=" if cb.me.shared else "")
-                                          + str(cb.me.position), "points": cb.me.points},
-        "rows": [{"rank": ("=" if r.shared else "") + str(r.position), "name": r.name,
-                  "points": r.points, "me": r.is_me} for r in cb.rows],  # fmt: skip
+        "me": None
+        if cb.me is None
+        else {"rank": ("=" if cb.me.shared else "") + str(cb.me.position), "points": cb.me.points},
+        "rows": [
+            {
+                "rank": ("=" if r.shared else "") + str(r.position),
+                "name": r.name,
+                "points": r.points,
+                "me": r.is_me,
+            }
+            for r in cb.rows
+        ],  # fmt: skip
     }
 
 

@@ -1222,6 +1222,11 @@ needed in pytest.
 
 Each runs at desktop, tablet and mobile widths.
 
+*As implemented in Stage F2 (21 Nov 2026; implementation record §7.4–§7.5):* all
+twelve journeys run in `tools/e2e_6c5/journeys.js` at desktop, tablet and mobile,
+each compared with the read services' values; My Challenge Current result states in
+`tools/e2e_6c5/f2_current.js`. Final run 253 checks with 0 problems.
+
 ### 17.4 Manual owner acceptance (Stage G)
 
 A Mac guide like `phase6c4_local_acceptance_mac.md`:

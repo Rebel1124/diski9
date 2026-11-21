@@ -92,10 +92,14 @@ def my_legs(eng, me, round_id) -> dict:
     from diski9.backend.db import transaction
 
     with transaction(eng) as conn:
-        rows = conn.execute(text(
-            "SELECT s.fixture_id, s.market, s.outcome FROM app.entries e "
-            "JOIN app.submission_selections s ON s.submission_id = e.locked_submission_id "
-            "WHERE e.round_id = :r AND e.user_id = :u"), {"r": round_id, "u": me.user_id}).all()
+        rows = conn.execute(
+            text(
+                "SELECT s.fixture_id, s.market, s.outcome FROM app.entries e "
+                "JOIN app.submission_selections s ON s.submission_id = e.locked_submission_id "
+                "WHERE e.round_id = :r AND e.user_id = :u"
+            ),
+            {"r": round_id, "u": me.user_id},
+        ).all()
     assert len(rows) == 9, rows
     return {r.fixture_id: (r.market, r.outcome) for r in rows}
 
@@ -176,14 +180,18 @@ def main(step: str) -> None:
     if step in ("refund", "void", "negative"):
         op, v = open_round(eng, me, step)
         if step == "refund":
+
             def fn(fid, leg):
                 return "CANC" if leg else (1, 0)
         elif step == "void":
+
             def fn(fid, leg):
                 return "CANC"
         else:
+
             def fn(fid, leg):
                 return LOSE.get(leg, (1, 0)) if leg else (1, 0)
+
         lock_and_results(eng, op, me, v, fn)
         settle_and_finalise(eng, op, v)
         record(eng, me, v, step)
