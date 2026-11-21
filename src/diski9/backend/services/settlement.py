@@ -629,10 +629,12 @@ def settle_round(
     round_id: UUID,
     *,
     as_of: datetime | None = None,
+    job_run_id: int | None = None,
 ) -> SettlementResult:
     """Run settlement for a locked or settling round (``jobs.run``, or the explicit
     scheduled-job actor). A finalised round is never changed: a material
-    difference raises a ``post_final_change`` alert."""
+    difference raises a ``post_final_change`` alert. ``job_run_id`` links the
+    settlement run to the scheduler's job record (Phase 6C.6 Stage C)."""
     uid = actor_id(actor, Capability.RUN_JOBS)
     trigger = "scheduled" if isinstance(actor, System) else "manual"
     try:
@@ -665,7 +667,9 @@ def settle_round(
                         ],
                     )
                 return _result(conn, plan, None, None, new, post_final=plan.material)
-            run_id, version, new = apply(conn, plan, trigger=trigger, actor=uid)
+            run_id, version, new = apply(
+                conn, plan, trigger=trigger, actor=uid, job_run_id=job_run_id
+            )
             return _result(conn, plan, run_id, version, new)
     except ServiceError:
         raise

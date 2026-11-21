@@ -395,3 +395,15 @@ Stage E (read services for the Leaderboards and My Challenge History pages):
 Ranks and points come from the unchanged `challenge/scoring.py`. Specification:
 `docs/architecture/phase6c5_design_specification.md`; record:
 `docs/architecture/phase6c5_implementation.md`.
+
+## Scheduled lifecycle (Phase 6C.6 Stage C)
+
+`diski9 jobs tick` is a database-driven reconciler for an external trigger (cron,
+systemd, launchd or a hosted scheduler): it locks rounds after the deadline,
+imports results (only when provider calls are switched on, within per-tick and
+24-hour caps), settles, and finalises under the unchanged S-02 rule, as the explicit
+`SYSTEM` actor. It never publishes or creates a round (Beta publication stays
+supervised) and cannot process the Official stream. Code: `backend/jobs/`
+(`config.py`, `reconciler.py`, `provider.py`) and `jobs_cli.py`. Configuration,
+exit codes, budget and retry policy, and host examples:
+[`operations_scheduler.md`](operations_scheduler.md).

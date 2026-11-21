@@ -56,9 +56,13 @@ def make_settlement_round(
     cutoff_after=timedelta(seconds=3),
     development: bool = False,
     published_at=None,
+    correction_window_hours: int | None = None,
+    series: str = "beta",
 ):
     """``published_at`` (default: now) may be set in the past, e.g. to test SAST
-    month boundaries of championship names."""
+    month boundaries of championship names. ``correction_window_hours`` (default:
+    the schedule's 24) may be frozen shorter so a test can reach S-02 finalisation
+    on the real database clock (the scheduler has no time override)."""
     now = db_now(conn)
     code = unique("dev-s-" if development else "2026-W48-s")
     rid = conn.execute(
@@ -66,10 +70,15 @@ def make_settlement_round(
         .values(
             code=code,
             schedule_id=rounds_repo.schedule_id(conn),
-            series_id=rounds_repo.series_id(conn, "beta"),
+            series_id=rounds_repo.series_id(conn, series),
             window_start_at=now - timedelta(days=1),
             window_end_at=now + timedelta(days=3),
             is_development=development,
+            **(
+                {"correction_window_hours": correction_window_hours}
+                if correction_window_hours is not None
+                else {}
+            ),
         )
         .returning(rounds_t.c.id)
     ).scalar_one()
@@ -168,12 +177,14 @@ def settlement_world(
     deadline_in=timedelta(seconds=3),
     cutoff_after=timedelta(seconds=3),
     lock: bool = True,
+    correction_window_hours: int | None = None,
 ):
     """A round with one confirmed entry per spec, locked after its deadline."""
     with transaction(engine) as conn:
         rid, snap, fids, deadline, cutoff = make_settlement_round(
-            conn, deadline_in=deadline_in, cutoff_after=cutoff_after, development=development
-        )
+            conn, deadline_in=deadline_in, cutoff_after=cutoff_after, development=development,
+            correction_window_hours=correction_window_hours,
+        )  # fmt: skip
         users, ents = [], []
         for spec in specs:
             u = make_user(conn)

@@ -38,6 +38,7 @@ uv run pytest -q tests/backend/test_backend_migrations.py tests/backend/test_bac
 | `backend/services/competition*.py`, `championships.py`, `leaderboards.py`, `challenge_history.py` | `tests/backend/test_backend_champ*.py`, `test_backend_f3_*.py`, `test_backend_stage_e*.py`, `test_backend_weekly_results.py` |
 | `challenge/*` (engine, configuration) | `tests/test_challenge_*.py`, `tests/test_championship_*.py` and the fingerprint (`uv run python tools/phase6c3_quant_regression.py 2>/dev/null \| sha256sum`) |
 | `app/*` (Dash pages) | the matching `tests/test_*.py` UI and browser tests |
+| `backend/jobs/*`, `jobs_cli.py` (scheduler) | `tests/backend/test_backend_scheduler.py` plus the settlement, results and corrections rows above; scheduler changes touch settlement and finalisation, so escalate to Level 3 |
 | `migrations_app/*` | Level 3 |
 | `tools/ci/*`, `.github/*` | `tests/test_ci_change_scope.py`, then Level 3 |
 

@@ -844,6 +844,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_round_arguments(s)
     add_settlement_parsers(sub)
+    from diski9.jobs_cli import add_parsers as add_jobs_parsers
+
+    add_jobs_parsers(sub)
 
     s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
     s.add_argument("action", choices=["upgrade", "downgrade", "current", "check"])
@@ -858,6 +861,10 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_app_db(args)
     if args.command == "account":
         return cmd_account(args)
+    if args.command == "jobs":
+        from diski9.jobs_cli import run as run_jobs
+
+        return run_jobs(args)
     if args.command in ("results", "settle", "dev-results", "competition", "dev-championship") or (
         args.command == "round" and args.action in ROUND_ACTIONS
     ):
