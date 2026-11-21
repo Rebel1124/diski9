@@ -565,3 +565,23 @@ password), invalid configuration; bounded timings with 150,000 job runs.
   head `app_0007`; no change under `src/diski9/challenge/`, `migrations_app/`, the
   scheduler (`backend/jobs/`) or the services.
 * Level 3: §5.10.
+
+### 5.9 Outstanding risks and owner decisions (Stage D)
+| Item | Note |
+|---|---|
+| **Scheduler locking (defect, §5.5)** | demonstrated under `idle_in_transaction_session_timeout`; remediation R1–R6 proposed and awaiting approval; required before hosted Beta |
+| Notification destination (Q-08) | no real webhook configured; provider, destination and activation need approval |
+| Database-down alerts | no webhook while the database is unreachable (ledger in the database); rely on the trigger's failure reporting, or approve a small file-based state for that one case |
+| Provider limits | still provisional; live calls off (Stage C decision) |
+| Host (Q-07) | the triggers for `jobs tick` and `ops check --notify` need an always-on host |
+| Abandoned-step warnings | remain visible for 24 h after the event (history), by design |
+| Index review | `settlement_runs (round_id)` and `audit_log (job_run_id)` unindexed for the queries used; fine now, review if volumes grow greatly |
+| Database credential | direct writes by anyone holding it (unchanged; hosting phase) |
+
+### 5.10 Level 3 (GitHub CI)
+* **Final application-code candidate `45faeac`, CI run 92: passed.** Scope **full**
+  (11 non-documentation paths). **1,765 passed, 0 failed, 0 skipped** (1,750 at
+  Stage C + 15 ops tests), all 13 browser tests included; migration up/down/up and
+  `app-db check`, real Supabase Auth integration, lint and formatting passed. Test
+  suite 24 min 54 s; job 26 min 20 s (within the 40-minute timeout).
+* Documentation after the candidate uses the documentation-only path.
