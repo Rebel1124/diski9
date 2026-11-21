@@ -1,0 +1,66 @@
+{
+ "entries_per_round": 1000,
+ "rounds": 7,
+ "measured": 6,
+ "weekly_publication_ms": {
+  "median": 131.9,
+  "p95": 161.0,
+  "min": 123.7,
+  "max": 161.0,
+  "n": 6
+ },
+ "championship_processing_ms": {
+  "median": 259.6,
+  "p95": 417.8,
+  "min": 128.2,
+  "max": 417.8,
+  "n": 6
+ },
+ "finalisation_total_ms": {
+  "median": 937.4,
+  "p95": 1014.3,
+  "min": 829.9,
+  "max": 1014.3,
+  "n": 6
+ },
+ "per_round": [
+  {
+   "weekly": 131.9,
+   "championship": 109.9,
+   "finalisation": 703.7
+  },
+  {
+   "weekly": 124.5,
+   "championship": 128.2,
+   "finalisation": 829.9
+  },
+  {
+   "weekly": 123.7,
+   "championship": 156.3,
+   "finalisation": 842.9
+  },
+  {
+   "weekly": 139.2,
+   "championship": 236.4,
+   "finalisation": 946.5
+  },
+  {
+   "weekly": 124.9,
+   "championship": 282.8,
+   "finalisation": 1014.3
+  },
+  {
+   "weekly": 138.9,
+   "championship": 315.0,
+   "finalisation": 928.3
+  },
+  {
+   "weekly": 161.0,
+   "championship": 417.8,
+   "finalisation": 986.6
+  }
+ ],
+ "refunded_entries": 72,
+ "refunded_entries_ranked": 0,
+ "problems": "none"
+}

@@ -1,0 +1,21 @@
+{
+ "phases": [
+  {
+   "step": "publish",
+   "write": {
+    "step": "publish",
+    "ms": 865.1
+   },
+   "championship_responses": 48,
+   "readers_seeing_unexpected_state": 0,
+   "state_changed": 20
+  }
+ ],
+ "errors": 0,
+ "leaderboard_callbacks_ms": {
+  "median": 145.8,
+  "p95": 439.7,
+  "n": 184
+ },
+ "note": "console summary of the 1,000-participant run (the full file was overwritten by the 10,000 run)"
+}

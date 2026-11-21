@@ -1,0 +1,85 @@
+{
+ "readers": 20,
+ "seconds": 61.2,
+ "requests": 13529,
+ "throughput_rps": 221.1,
+ "errors": [],
+ "error_count": 0,
+ "all_requests_ms": {
+  "median": 63.1,
+  "p95": 255.1
+ },
+ "leaderboard_callbacks_ms": {
+  "median": 153.2,
+  "p95": 294.9,
+  "n": 987
+ },
+ "page_loads_ms": {
+  "/leaderboards": {
+   "median": 1660.7,
+   "p95": 2400.3,
+   "n": 329
+  },
+  "/challenge/me": {
+   "median": 2084.1,
+   "p95": 2940.1,
+   "n": 331
+  }
+ },
+ "per_request_ms": {
+  "GET /challenge/me": {
+   "median": 54.4,
+   "p95": 153.1,
+   "n": 331
+  },
+  "GET /leaderboards": {
+   "median": 51.8,
+   "p95": 188.4,
+   "n": 329
+  },
+  "championship tab": {
+   "median": 159.1,
+   "p95": 314.1,
+   "n": 329
+  },
+  "history development": {
+   "median": 187.0,
+   "p95": 367.6,
+   "n": 331
+  },
+  "history drill-down": {
+   "median": 211.7,
+   "p95": 377.3,
+   "n": 331
+  },
+  "history tab": {
+   "median": 100.5,
+   "p95": 253.2,
+   "n": 331
+  },
+  "leaderboards page": {
+   "median": 51.5,
+   "p95": 144.8,
+   "n": 5593
+  },
+  "my challenge page": {
+   "median": 57.5,
+   "p95": 301.0,
+   "n": 5296
+  },
+  "weekly development (default round)": {
+   "median": 150.4,
+   "p95": 292.5,
+   "n": 329
+  },
+  "weekly page 2": {
+   "median": 149.2,
+   "p95": 285.9,
+   "n": 329
+  }
+ },
+ "db_connections": {
+  "max": 14,
+  "median": 14.0
+ }
+}

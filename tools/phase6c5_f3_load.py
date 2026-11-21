@@ -161,14 +161,27 @@ def summary(readers, wall_s, conns):
     }  # fmt: skip
 
 
-def setup(base, data_dir, n):
+def clear_rate_limits(db):
+    """The app rate-limits sign-ins (HTTP 429 after a burst, as it should); like the
+    browser helpers, clear the isolated F3 database's counter before each test sign-in."""
+    if not db.startswith("diski9_f3_"):
+        raise SystemExit("refused: F3 databases only")
+    subprocess.run(["psql", "-h", "127.0.0.1", "-p", "5433", "-U", "postgres", "-d", db, "-qc",
+                    "DELETE FROM app.auth_rate_events"], check=True)  # fmt: skip
+
+
+def setup(base, data_dir, n, db):
     accts = list(json.loads((Path(data_dir) / "accounts.json").read_text()).values())[:n]
     calls = json.loads((Path(data_dir) / "callbacks.json").read_text())
-    return [Reader(base, a, calls) for a in accts]
+    readers = []
+    for a in accts:
+        clear_rate_limits(db)
+        readers.append(Reader(base, a, calls))
+    return readers
 
 
 def idle(base, data_dir, seconds, n=20, db=None, label="idle"):
-    readers = setup(base, data_dir, n)
+    readers = setup(base, data_dir, n, db)
     for rd in readers:  # warm-up: one of each page per reader
         rd.page("/leaderboards", LB)
         rd.page("/challenge/me", ME)
@@ -227,7 +240,7 @@ def write_step(db, step, code):
 
 
 def during(base, data_dir, db, code, steps, label):
-    readers = setup(base, data_dir, 20)
+    readers = setup(base, data_dir, 20, db)
     for rd in readers:
         rd.page("/leaderboards", LB)
         rd.samples, rd.pages, rd.champ = [], [], []
@@ -261,7 +274,7 @@ def during(base, data_dir, db, code, steps, label):
     print(json.dumps({"phases": phases, "errors": out["load"]["error_count"],
                       "leaderboard_callbacks_ms": out["load"]["leaderboard_callbacks_ms"]},
                      indent=1))  # fmt: skip
-    (OUT / f"load_{label}.json").write_text(json.dumps(out, indent=1))
+    (OUT / f"load_{label}_{db}.json").write_text(json.dumps(out, indent=1))
 
 
 if __name__ == "__main__":

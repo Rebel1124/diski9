@@ -1,0 +1,35 @@
+{
+ "database": "diski9_f3_n10000",
+ "samples": [
+  {
+   "reopen_and_corrections_ms": 123991.3,
+   "refinalisation_total_ms": 10259.8,
+   "weekly_republication_ms": 1557.8,
+   "championship_reaggregation_ms": 4908.7,
+   "new_versions": 1
+  },
+  {
+   "reopen_and_corrections_ms": 113716.2,
+   "refinalisation_total_ms": 8593.3,
+   "weekly_republication_ms": 1102.8,
+   "championship_reaggregation_ms": 3863.4,
+   "new_versions": 1
+  }
+ ],
+ "refinalisation_total_ms": {
+  "median": 9426.5,
+  "p95": 10259.8,
+  "min": 8593.3,
+  "max": 10259.8,
+  "n": 2
+ },
+ "championship_reaggregation_ms": {
+  "median": 4386.1,
+  "p95": 4908.7,
+  "min": 3863.4,
+  "max": 4908.7,
+  "n": 2
+ },
+ "duplicate_score_sets": 0,
+ "problems": "none"
+}

@@ -1,0 +1,110 @@
+{
+ "label": "correct",
+ "phases": [
+  {
+   "step": "reopen",
+   "write": {
+    "step": "reopen",
+    "ms": 16100.6
+   },
+   "championship_responses": 122,
+   "readers_seeing_unexpected_state": 0,
+   "state_changed": 20
+  },
+  {
+   "step": "refinalise",
+   "write": {
+    "step": "refinalise",
+    "ms": 847.5
+   },
+   "championship_responses": 49,
+   "readers_seeing_unexpected_state": 0,
+   "state_changed": 20
+  }
+ ],
+ "load": {
+  "readers": 20,
+  "seconds": 36.5,
+  "requests": 7171,
+  "throughput_rps": 196.2,
+  "errors": [],
+  "error_count": 0,
+  "all_requests_ms": {
+   "median": 59.9,
+   "p95": 277.9
+  },
+  "leaderboard_callbacks_ms": {
+   "median": 158.3,
+   "p95": 352.7,
+   "n": 573
+  },
+  "page_loads_ms": {
+   "/leaderboards": {
+    "median": 1544.1,
+    "p95": 2613.6,
+    "n": 171
+   },
+   "/challenge/me": {
+    "median": 2035.3,
+    "p95": 3404.7,
+    "n": 176
+   }
+  },
+  "per_request_ms": {
+   "GET /challenge/me": {
+    "median": 49.4,
+    "p95": 217.9,
+    "n": 176
+   },
+   "GET /leaderboards": {
+    "median": 44.3,
+    "p95": 138.3,
+    "n": 171
+   },
+   "championship tab": {
+    "median": 139.5,
+    "p95": 317.3,
+    "n": 231
+   },
+   "history development": {
+    "median": 174.3,
+    "p95": 402.5,
+    "n": 176
+   },
+   "history drill-down": {
+    "median": 229.9,
+    "p95": 485.7,
+    "n": 176
+   },
+   "history tab": {
+    "median": 100.3,
+    "p95": 231.3,
+    "n": 176
+   },
+   "leaderboards page": {
+    "median": 48.9,
+    "p95": 146.4,
+    "n": 2907
+   },
+   "my challenge page": {
+    "median": 57.2,
+    "p95": 372.7,
+    "n": 2816
+   },
+   "weekly development (default round)": {
+    "median": 166.2,
+    "p95": 408.3,
+    "n": 171
+   },
+   "weekly page 2": {
+    "median": 165.8,
+    "p95": 411.7,
+    "n": 171
+   }
+  },
+  "db_connections": {
+   "max": 17,
+   "median": 16
+  }
+ }
+}

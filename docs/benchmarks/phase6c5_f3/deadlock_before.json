@@ -1,0 +1,17 @@
+{
+ "pairs": 50,
+ "finalisations": 100,
+ "ok": 99,
+ "deadlock": 1,
+ "refused": 0,
+ "error": 0,
+ "retried_afterwards": 1,
+ "verify": "consistent",
+ "duplicate_memberships": 0,
+ "details": [
+  [
+   "deadlock",
+   "OperationalError('(psycopg.errors.DeadlockDetected) deadlock detected\\nDETAIL:  Process 4812 waits for ExclusiveLock on advisory lock [1129792,715373513,3897479482,1]; blocked by process 4813.\\nProces"
+  ]
+ ]
+}

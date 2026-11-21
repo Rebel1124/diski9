@@ -1,0 +1,111 @@
+{
+ "database": "diski9_f3_n10000",
+ "participants": 10000,
+ "accounts": 20,
+ "phases_s": {
+  "users": 13.2,
+  "entries_and_lock": 713.1,
+  "results_and_settlement": 59.8
+ },
+ "finalisations": [
+  {
+   "round": 1,
+   "entries": 8526,
+   "finalisation_ms": 6188.7,
+   "weekly_publication_ms": 1343.7,
+   "championship_processing_ms": 985.1
+  },
+  {
+   "round": 2,
+   "entries": 8537,
+   "finalisation_ms": 7379.1,
+   "weekly_publication_ms": 1056.1,
+   "championship_processing_ms": 1867.9
+  },
+  {
+   "round": 3,
+   "entries": 8559,
+   "finalisation_ms": 7765.7,
+   "weekly_publication_ms": 1331.4,
+   "championship_processing_ms": 1993.3
+  },
+  {
+   "round": 4,
+   "entries": 8523,
+   "finalisation_ms": 8552.1,
+   "weekly_publication_ms": 1495.4,
+   "championship_processing_ms": 2214.9
+  },
+  {
+   "round": 5,
+   "entries": 8464,
+   "finalisation_ms": 7604.1,
+   "weekly_publication_ms": 1580.5,
+   "championship_processing_ms": 2669.8
+  },
+  {
+   "round": 6,
+   "entries": 8509,
+   "finalisation_ms": 8251.8,
+   "weekly_publication_ms": 1126.0,
+   "championship_processing_ms": 3308.2
+  },
+  {
+   "round": 7,
+   "entries": 8526,
+   "finalisation_ms": 9787.8,
+   "weekly_publication_ms": 1430.7,
+   "championship_processing_ms": 4111.7
+  },
+  {
+   "round": 8,
+   "entries": 8513,
+   "finalisation_ms": 9023.7,
+   "weekly_publication_ms": 1483.1,
+   "championship_processing_ms": 3469.6
+  },
+  {
+   "round": 9,
+   "entries": 8512,
+   "finalisation_ms": 9375.9,
+   "weekly_publication_ms": 1267.2,
+   "championship_processing_ms": 3935.1
+  },
+  {
+   "round": 10,
+   "entries": 8497,
+   "finalisation_ms": 10737.6,
+   "weekly_publication_ms": 1770.3,
+   "championship_processing_ms": 4340.6
+  },
+  {
+   "round": 11,
+   "entries": 8536,
+   "finalisation_ms": 6249.8,
+   "weekly_publication_ms": 1010.4,
+   "championship_processing_ms": 1132.1
+  }
+ ],
+ "rounds": {
+  "R12": "provisional (settled, not final)",
+  "R13": "settled, held for F3 concurrent publication"
+ },
+ "integrity": {
+  "verify": "consistent",
+  "participants": 10021,
+  "entries_locked": 110730,
+  "rounds": 13,
+  "score_sets": 11,
+  "round_score_rows": 93702,
+  "championships": 2,
+  "championship_versions": 13,
+  "standing_rows": 106806,
+  "duplicate_score_sets": 0,
+  "duplicate_memberships": 0
+ },
+ "live_round": {
+  "code": "dev-tbf2596ed2f",
+  "entries": 20,
+  "deadline_at": "2026-11-21 19:37:27.493009+00:00"
+ }
+}

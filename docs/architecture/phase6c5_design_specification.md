@@ -1052,6 +1052,12 @@ Mobile: the charts stack, and the table becomes cards.
 | Leaderboards page load (Dash) | 1,000 | ≤ 600 ms |
 | Reads during a concurrent publication | 20 readers | no errors, no mixed versions, p95 ≤ 2× idle |
 
+*Measured in Stage F3 (21 Nov 2026; implementation record §8.3):* every target
+met at 1,000 (and the 10,000 read targets) except the signed-in Dash leaderboards
+page load (653 ms vs 600 ms; guest 594 ms), caused by the Dash shell rather than the
+competition reads. The official page reads became O(page) in F3 (they had used a
+whole-set window for shared ranks).
+
 **Scalability:**
 - Official reads are O(page) via `(score_set_id, display_order)` and
   `(version_id, display_order)` indexes.

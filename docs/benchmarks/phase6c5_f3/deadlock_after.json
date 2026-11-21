@@ -1,0 +1,12 @@
+{
+ "pairs": 50,
+ "finalisations": 100,
+ "ok": 100,
+ "deadlock": 0,
+ "refused": 0,
+ "error": 0,
+ "retried_afterwards": 0,
+ "verify": "consistent",
+ "duplicate_memberships": 0,
+ "details": []
+}

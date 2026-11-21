@@ -1948,3 +1948,258 @@ phases are not authorised.
   - **intermittent Match Lab browser test:** F4;
   - **minus signs:** leaderboards use U+2212, result cards a hyphen-minus; cosmetic,
     not an F3 concern.
+
+## 8. Stage F3: performance, scalability and concurrency (21 Nov 2026)
+Authorised by the owner with the F2 closure (§7.14). Measurement first; only
+evidence-backed, narrowly scoped fixes; no migration, no index, no competition-rule
+change. F4, Stage G and 6C.6 are not authorised. Raw results (sanitised, no account
+identifiers): [`docs/benchmarks/phase6c5_f3/`](../benchmarks/phase6c5_f3/).
+
+### 8.1 Environment
+* **Machine:** cloud container, Linux 6.18 x86_64, 4 vCPU (Intel Xeon 2.10 GHz, 1
+  thread per core), 15 GiB RAM. The load generator, browser, app and PostgreSQL share
+  these 4 CPUs, so HTTP figures under load are pessimistic.
+* **Software:** Python 3.12.3, PostgreSQL 16.15 (local, defaults: max_connections
+  100, shared_buffers 128 MB, work_mem 4 MB, fsync and synchronous_commit on), Dash
+  4.5.0, Flask 3.1.3, SQLAlchemy 2.1.8, psycopg 3.3.9, gunicorn 27.0.1 (tools only,
+  via `uv run --with gunicorn`; not a project dependency), Node 22.23 with Playwright
+  1.63 (Chromium).
+* **App configuration:** `tools/f3_wsgi.py` builds the app exactly as `diski9 serve`
+  does; gunicorn `-k gthread --threads 4 -w 1|2|4`; the app's SQLAlchemy pool per
+  process (pool_size 5, max_overflow 5); caches: provisional standings (per process,
+  keyed by settlement run, so never stale), the published-round cache of the Challenge
+  pages (per process, 3 s), the snapshot cache and the football `ScreenerData` cache
+  (per process, 300 s). Local Supabase Auth harness for sign-in.
+* **Timing:** `time.perf_counter` (services, HTTP) and `Date.now()` around Playwright
+  actions (browser). Median and p95 (nearest rank) with sample sizes; one cold call
+  (new engine, provisional cache cleared) and 5 warm-up calls before measured
+  iterations. Data generation, settlement and deadline waits are outside every timed
+  region.
+
+### 8.2 Datasets (isolated `diski9_f3_*` databases; built through the real services)
+Built by `tools/phase6c5_f3_build.py` with the existing test factories
+(`tests/backend/champ_helpers.py`), **not** the F1 runner: its 500-participant
+safeguard is unchanged, and no test-only capacity extension was needed. About 85 %
+of participants enter each round (so some miss rounds); portfolios vary (full
+winners ~1 in 9, partly void winners, shared losing portfolios giving weekly and
+championship ties, ~1 % all-void refunds). 13 rounds: R1–R10 counted (the first
+championship completes), R11 final (rollover; second championship), R12 provisional,
+R13 settled and held for the concurrent-publication test; plus one genuinely
+published open round (valid snapshot, the 20 test accounts' entries through the
+entry services) for My Challenge Current, because factory rounds carry placeholder
+snapshot hashes that the snapshot loader correctly rejects. A separate database has
+one participant with 50 entries (History target).
+
+| Dataset | Participants (+ operator) | Locked entries | Rounds | Score sets / rows | Championships / versions / standing rows | Verify | Duplicates |
+|---|---|---|---|---|---|---|---|
+| `diski9_f3_n100` | 100 (+1) | 1,088 | 13 | 11 / 923 | 2 / 13 / 1,050 | consistent | 0 |
+| `diski9_f3_n1000` | 1,000 + 20 accounts (+1) | 11,381 | 13 (+1 live) | 11 / 9,629 | 2 / 13 / 10,902 | consistent | 0 |
+| `diski9_f3_n10000` | 10,000 + 20 accounts (+1) | 110,730 | 13 (+1 live) | 11 / 93,702 | 2 / 13 / 106,806 | consistent | 0 |
+| `diski9_f3_hist` | 6 (one with 50 entries) | 250 | 50 | 50 / 250 | 5 / 55 / 250 | consistent | 0 |
+
+Build times (entries and lock / results and settlement): 100: 7 s / 5 s; 1,000:
+73 s / 8 s; 10,000: 713 s / 60 s.
+
+### 8.3 §14 targets (local medians; nothing retrofitted)
+Service-level figures are after the O(page) fix (§8.7); the "before" column is the
+same benchmark on the code before it.
+
+| Operation | Population | Target | Observed median | p95 | Result |
+|---|---|---|---|---|---|
+| Weekly publication (adapter, ranking, insert) inside finalisation | 1,000 entries (6 rounds after 1 warm-up) | ≤ 400 ms | **132 ms** | 161 ms | pass |
+| — with the championship processing also added by 6C.5 | 1,000 entries | (≤ 400 ms, if read this way) | 392 ms | 579 ms | at the limit (median), p95 over |
+| Championship re-aggregation and new version | 1,000 × 10 (3 corrections) | ≤ 600 ms | **442 ms** | 568 ms | pass |
+| Re-finalisation with recalculation, end to end | 1,000 × 10 (3) | ≤ 2.5 s | **1.09 s** | 1.37 s | pass |
+| Official weekly page, 50 rows + names | 1,000 | ≤ 50 ms | **10.4 ms** (before 10.9) | 12.1 ms | pass |
+| Official weekly page | 10,000 | ≤ 80 ms | **11.1 ms** (before 49.1) | 14.3 ms | pass |
+| Championship page (completed) | 1,000 / 10,000 | ≤ 50 / 80 ms | **13.6 / 14.7 ms** (before 18.1 / 41.2) | 17.5 / 20.4 ms | pass |
+| Personal rank lookup (upper bound: page 1 + the viewer's rank in one read) | 10,000 | ≤ 20 ms | **14.8 ms** (before **52.7, miss**) | 19.2 ms | pass after fix |
+| Provisional page, uncached / cached | 1,000 | ≤ 250 / 30 ms | **63.7 / 8.0 ms** | 125 / 9.3 ms | pass |
+| History list (20 rows) + statistics | 50 entries | ≤ 100 ms | **10.1 ms** | 11.6 ms | pass |
+| Leaderboards page load (Dash, browser) | 1,000, 1 worker, idle | ≤ 600 ms | guest **594 ms**; participant **653 ms** | 723 / 755 ms | guest pass; **participant miss (+9 %)** |
+| Reads during a concurrent publication | 20 readers, 4 workers | no errors, no mixed versions, p95 ≤ 2× idle | 0 errors, 0 mixed; p95 440 vs 324 ms idle (**1.36×**) | — | pass |
+
+All official page reads at 1,000 and 10,000 pass at p95 as well. Other operations
+measured (no §14 target): my round result 10 ms; statistics 3–9 ms; history page
+5 ms (1,000) and 22 ms (10,000); My Challenge render 66–73 ms; account hydration of a
+direct visit 7–9 ms (9 statements; §8.6).
+
+### 8.4 Weekly publication and championship processing (writes)
+* **1,000-entry publication** (`phase6c5_f3_writes.py publication`, 7 rounds of
+  exactly 1,000 entries, the first a warm-up): weekly publication 132 ms (min 124,
+  max 161); championship processing 260 ms (128–418, growing with the counted rounds
+  aggregated); whole finalisation 937 ms (830–1,014, including the final settlement
+  run). Verified: one score set per round, every ranked entry scored, refunds (72)
+  never ranked, equal points for shared ranks, standings equal to a from-scratch
+  recomputation, verification consistent.
+* **Realistic datasets** (finalisations while building, ~865 / ~8,500 entries per
+  round): weekly 118 ms / 1.34 s; championship processing 233 ms / 2.67 s; R10
+  (full 10-round aggregation) 841 ms / 10.7 s end to end. Scaling is close to linear
+  in entries.
+* **Corrections** (`corrections`; valid-to-valid correction of all nine results of
+  a counted round of the completed championship so that nobody recovers; owner
+  reopening, operator corrections, re-finalisation): 1,000 × 10: re-finalisation
+  1.09 s (0.97–1.37), re-aggregation 442 ms (395–568), each a genuine new version;
+  10,000 × 10 (stretch, 2 samples): 9.4 s and 4.4 s. The reopening plus nine audited
+  corrections (each re-settling the round) took 13–18 s at 1,000 and about 2 minutes
+  at 10,000 (no target). Standings equal to a recomputation, no duplicate score sets,
+  verification consistent.
+
+### 8.5 Multi-worker HTTP load (`phase6c5_f3_load.py`)
+Twenty separately signed-in sessions (the local test accounts, through
+`/auth/sign-in`) each alternate the leaderboards page and My Challenge exactly as the
+browser does: the page GET, then the recorded Dash callbacks (`f3_capture.js`),
+including the ~17 Screener callbacks every page fires, the weekly board (default
+round, page 2), the championship tab, History, statistics and a drill-down. Closed
+loop with no think time: a saturation test, not a model of real traffic. Worker
+processes verified (`pgrep`).
+
+| Dataset | Workers | Requests (60 s) | Throughput | Errors | All requests median / p95 | Leaderboard callbacks median / p95 | DB connections |
+|---|---|---|---|---|---|---|---|
+| 1,000 | 1 | 3,914 | 61 req/s | 0 | 256 / 685 ms | 527 / 740 ms | 4 |
+| 1,000 | 2 | 7,749 | 123 req/s | 0 | 126 / 388 ms | 225 / 459 ms | 8 |
+| 1,000 | 4 | 13,080 | 212 req/s | 0 | 58 / 282 ms | 145 / 324 ms | 15 |
+| 10,000 | 4 | 13,529 | 221 req/s | 0 | 63 / 255 ms | 153 / 295 ms | 14 |
+
+A single reader (1 worker) sees a complete leaderboards page (GET + 20 callbacks) in
+298 ms server time, the leaderboard callbacks themselves 34–40 ms. Throughput scales
+almost linearly with workers on 4 CPUs; no connection-pool pressure (well under
+PostgreSQL's 100).
+
+### 8.6 Concurrent publication, correction and cache consistency
+* **Method:** the 20 readers run while another process finalises R13 (weekly
+  publication + championship processing) or reopens R11 with corrections and then
+  re-finalises it. Every championship-tab response is fingerprinted (SHA-256 of the
+  body); per reader, every fingerprint must be one of the complete states captured
+  before, between and after the write.
+* **1,000, 4 workers:** publication (865 ms): 48 responses, 0 unexpected states, all
+  20 readers saw the change, 0 errors, p95 1.36× idle. Correction: reopening and
+  corrections (16.1 s): 122 responses, each the previous or the Under-review state;
+  re-finalisation (848 ms): 49 responses, each Under-review or the new version; 0
+  errors; p95 1.09× idle.
+* **10,000, 4 workers (stretch):** publication (9.7 s): 86 responses, 0 unexpected,
+  0 errors, p95 1.62× idle.
+* **Service level:** readers in four threads comparing every championship board
+  with the stored version row by row during a rollover finalisation in another
+  process found no mismatch (`test_backend_f3_concurrency.py`); official reads use
+  REPEATABLE READ snapshots.
+* **Cache:** leaderboards and History have no time-based cache (the provisional
+  cache is keyed by the settlement run), so a publication, a reopening (Under review)
+  or a new version is visible on the next request in every worker. The only
+  time-based cache is the Challenge pages' published-round cache (3 s per worker):
+  after a new current round was published, 4 workers kept serving the previous
+  (complete) round for at most **2.13 s** after the publishing process exited (60 of
+  397 responses), within the 3 s contract; 0 errors (`phase6c5_f3_cache.py`).
+
+### 8.7 Concurrent writers, defects found and fixes
+New tests in **separate OS processes** released together by a barrier
+(`tests/backend/test_backend_f3_concurrency.py`, 5 tests): four processes finalising
+the same round (exactly one finalises; the others are refused with "Only a settling
+round can be finalised"; one score set, one membership, one audit record); repeated
+finalisation refused with nothing written; two rounds racing for the last slot (the
+earlier deadline completes the championship, the later starts the next; no
+duplicate); readers during a rollover. Plus `tools/phase6c5_f3_deadlock.py` (many
+races at the championship boundary).
+
+1. **F3-1 Championship processing failed on a backlog (fixed).** When rounds had
+   finalised while an earlier round held the last slot, one processing pass could
+   fill a championship it had just created with those already-final rounds and create
+   the next: the boundary of the new championship was updated by its placeholder key
+   `("new", 0)` before it was inserted, so the finalisation failed **on every retry**
+   (`invalid input syntax for type uuid`). Created championships are inserted with the
+   boundary already set; the update now skips them (one line in `process_stream`).
+   Regression test fails before, passes after. Realistic trigger: ten or more rounds
+   finalising while one round is held in review, a backfill, or small development
+   championships.
+2. **F3-2 Deadlock between concurrent finalisations of one stream (fixed).** The
+   round row was locked `FOR UPDATE`; championship processing (under the stream lock)
+   inserts rows referencing *other* rounds (`domain_events`, `championship_rounds`),
+   whose foreign-key check takes `FOR KEY SHARE` on those rounds and waited for a
+   concurrent finaliser holding `FOR UPDATE` while that one waited for the stream lock
+   (PostgreSQL log: advisory lock vs ShareLock on transaction). PostgreSQL aborted one
+   transaction; the finalisation rolled back atomically and a retry succeeded.
+   Round change locks now use `FOR NO KEY UPDATE` (`lock_round_for_change`,
+   `set_status`, `results.round_row`), which still serialises every change of a round
+   and still waits for in-flight submissions (`FOR SHARE`), but no longer blocks
+   foreign-key checks. Evidence: 2 deadlocks in 140 racing finalisations before
+   (1/40 and 1/100), **0 in 100 after**; the 190 core competition tests (entries,
+   locks, settlement, corrections, championships, capacity, repair, backfill,
+   sequences) pass.
+3. **F3-3 O(N) official page queries (optimised).** The weekly and championship page
+   queries computed shared ranks with a window over the whole score set or standings
+   (about 45 ms per page at 10,000; the personal rank lookup missed 20 ms). Shared
+   ranks now come from the display-order neighbours (the scoring engine orders rows by
+   rank, so equal ranks are contiguous; verified by construction and on all 220,000
+   rows of the F2/F3 databases), and joint champions are bounded by the first lower
+   rank, both via the existing unique `(set, display_order)` indexes. An equivalence
+   test (`test_backend_f3_pages.py`) passes on the old and the new code. 10,000:
+   page 49 → 11 ms, page + personal rank 53 → 15 ms. No schema change.
+
+Not a defect: the services expect UUID round ids (a string id is refused at
+publication), as every production caller passes.
+
+### 8.8 Database profiling
+Statement timing (SQLAlchemy events) and `EXPLAIN` of the slow reads identified the
+whole-set window (§8.7 F3-3); after the fix every page read issues 12–16 statements,
+none above ~2 ms at 10,000. Statement counts are flat in N (no N+1 pattern). Index
+use: the existing `(set, display_order)` unique indexes serve pages and neighbours;
+`(user_id, …)` indexes serve the viewer's row. No index or migration is proposed.
+
+### 8.9 Remaining risks and proposals (no change made)
+* **Dash page load for signed-in participants misses 600 ms by ~9 %** (653 ms at
+  1,000, 1 worker; 729 ms with 4 workers, whose per-process caches warm separately).
+  The competition reads are ~35–40 ms of it; most of the time is the Dash shell
+  (≈350–400 ms: every page fires the ~17 Screener callbacks, and the app bundle
+  loads) and client rendering after the stream switch. *Recommendation:* accept for
+  6C.5 and consider a separate front-end change (skip Screener callbacks when the
+  Screener is hidden) with owner approval; not an F3 backend fix.
+* **Weekly publication plus championship processing** together add 392 ms median
+  (579 ms p95) to a 1,000-entry finalisation; the weekly part alone is 132 ms. Accept:
+  finalisation is a background operator/scheduler action.
+* **Provisional page at 10,000 uncached:** 574 ms (no target; cached 10 ms). The
+  cache is keyed by settlement run, so it is computed once per run per worker.
+* **History at 10,000:** 22 ms, growing with N because its shared-rank count uses a
+  correlated count over the score set (`challenge_history`); the same neighbour rule
+  would make it O(rows). No target is missed; left for F4/6C.6 consideration.
+* **Corrections at scale:** reopening with nine corrections is about 2 minutes at
+  10,000 (each correction re-settles the round). Operator action, no target.
+* **Process-local caches** (provisional, snapshot, published round, football data)
+  are per worker: memory grows with workers, and the published-round view can be up
+  to 3 s stale per worker (measured 2.13 s). Documented contract; no shared cache
+  proposed.
+* **Single machine:** load generator and server share 4 CPUs; no network latency.
+
+### 8.10 Tests and verification
+* **New tests:** `test_backend_f3_concurrency.py` (5) and `test_backend_f3_pages.py`
+  (2); both regression tests confirmed failing (or equivalent) on the old code.
+* **Focused:** the 190 core competition tests after F3-2; 135 leaderboard, history,
+  championship, F2 and account tests after F3-3; both F3 files.
+* Full regression, CI, fingerprint and migration head: §8.11.
+* **Protected databases:** none touched; F3 used `diski9_f3_n100`, `_n1000`,
+  `_n10000`, `_hist` and throw-away `_test` databases. `diski9_f1_e2e`,
+  `diski9_f2_e2e` and `diski9_f2_e2e_nochamp` were not modified. No odds-provider
+  request was made by any F3 test (the app reads the local football store only).
+
+### 8.11 Regression and verification
+* **Full local suite on the F3 code: 1,682 passed, 0 failed, 0 skipped** (27 min
+  50 s; real PostgreSQL, local Supabase Auth, browser tests): F2's 1,675 plus the 7
+  new F3 tests. The intermittent Match Lab browser test passed (no occurrence in F3).
+* **Fingerprint** `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`
+  unchanged. **Migration head** `app_0007` (no migration, no index). Lint and
+  formatting clean.
+* **No competition rule changed:** scoring, settlement, D-32b, D-33, corrections,
+  publication and championship rules are untouched; the three code changes are a
+  skipped redundant update (F3-1), a row-lock mode (F3-2) and equivalent page queries
+  (F3-3).
+
+### 8.12 Recommended F4 handover
+* Root-cause the intermittent Match Lab browser test and make the final regression
+  determination (F3 saw no occurrence).
+* Decide on the signed-in Dash page-load miss (§8.9): accept, or approve a separate
+  front-end change to stop Screener callbacks firing on non-Screener pages.
+* Optionally apply the neighbour rule to the History shared-rank count (§8.9).
+* Re-run `tools/phase6c5_f3_*` on the release candidate (datasets are reproducible;
+  the commands are in each tool's docstring) and the F2 browser journeys.
+* Carry S-07 (mandatory in 6C.6), the genuine beta 24-hour finalisation check, D-29,
+  D-36, D-38, hosted Supabase acceptance and the 6C.3 backlog into the Stage G
+  handover.

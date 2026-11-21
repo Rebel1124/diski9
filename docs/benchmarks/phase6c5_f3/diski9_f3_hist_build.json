@@ -1,0 +1,17 @@
+{
+ "database": "diski9_f3_hist",
+ "entries": 50,
+ "integrity": {
+  "verify": "consistent",
+  "participants": 6,
+  "entries_locked": 250,
+  "rounds": 50,
+  "score_sets": 50,
+  "round_score_rows": 250,
+  "championships": 5,
+  "championship_versions": 55,
+  "standing_rows": 250,
+  "duplicate_score_sets": 0,
+  "duplicate_memberships": 0
+ }
+}
