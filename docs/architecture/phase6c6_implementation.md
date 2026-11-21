@@ -28,3 +28,186 @@ decisions in its §11). Decisions are also recorded in
   handover §C.4). No rule changed.
 * **Stage A closed** with the owner's approval of the design; Stage B (S-07) and a
   separate CI documentation-only work item are authorised; Stage C onwards is not.
+
+## 2. Stage B: S-07 operator authentication remediation (21 Nov 2026; checkpoint)
+
+Commit `8bf4d1a` (separate from the CI work item in §3). No competition rule,
+settlement, scoring, configuration or migration change.
+
+### 2.1 What changed
+| Command | Before (F2 finding) | After |
+|---|---|---|
+| `round create`, `round publish`, `round dev-open` | actor = the address in `--by-email`, no password; principal with no recency | `authenticate_operator` (password through Supabase Auth, roles from the database); the service authorises `round.publish` (T-12) before writing |
+| `round lock` | `--by-email` actor, or `SYSTEM` when omitted | always an authenticated operator (`jobs.run`); **no `SYSTEM` path in the CLI** (Q-02: unattended locking only through the future scheduler) |
+| `account grant-role`, `revoke-role` | actor UUID from `--by-email`; database owner check only; no T-12/T-14 | authenticated person; `authorize(roles.manage)` against the current database time (T-12 + **T-14 15 min**); database owner check kept |
+| `account grant-feature`, `revoke-feature` | same | same with `entitlements.manage` (sensitive) |
+| `account suspend`, `reinstate` | same; audit always recorded `operator` | same with `user.suspend` (sensitive); audit records the actor's real role (`owner`/`operator`) |
+| `account bootstrap-owner` | no proof of control | refused before any prompt if an owner exists; otherwise the **target account's own password** is verified and must match `--email`; audit names the verified account (`actor_role = participant`, `verified: password`) |
+| `--by-email` (all ten commands) | the identity | hidden option that only prints guidance ("use `--operator EMAIL`…") and exits 2 before any database access |
+
+Related hardening found in the review:
+* `permissions.authorize()` refuses any object that is not a `Principal`, so the
+  `SYSTEM` actor can never satisfy a capability check (previously it would have
+  failed with an attribute error rather than a deliberate refusal).
+* `results.set_result_mode` (development result mode) accepted `SYSTEM`; it is a
+  person's choice and outside the approved scheduler allowlist, so it is now
+  person-only. All existing callers pass persons.
+* `services.common.cli_principal` (a principal built from the database without a
+  password) is no longer used by any product command; it is documented as a
+  development/test helper and refused in the `production` environment. Remaining
+  users are development tools on isolated databases.
+* `settlement_cli.guarded()` gives every operator command the same handling:
+  authentication/authorisation failures exit 3 with a user-safe message (no
+  traceback — the F2 assessment noted a participant's refusal escaped as one),
+  usage/refusals exit 2, nothing written.
+* Reviewed and unaffected: every writing `results`, `settle`, `round
+  finalise/finalise-check/reopen/invalidate`, `competition` and `dev` command
+  already used `authenticate_operator`; read-only `round list/show`,
+  `account list-privileged`, `dev scenarios`, `dev-championship presets/plan`
+  need database access only.
+* Services that accept `SYSTEM` explicitly after Stage B: `lock_round`,
+  `import_results`, `settle_round`, `finalise_round` (each refusing time
+  overrides for `SYSTEM`) — the approved Stage C allowlist. Corrections,
+  withdrawal, alert resolution, invalidation and reopening refuse it.
+
+### 2.2 Emergency owner recovery (Q-03): security analysis — **not implemented**
+* **Threat model.** Assets: the owner role (roles, entitlements, reopening frozen
+  championships). Adversaries: (a) someone with shell access to the application
+  host and its environment (database URL, Supabase publishable key); (b) a
+  compromised operator account; (c) someone who knows an owner's e-mail address.
+  Recovery is needed only when **no active owner can act**: all owner accounts are
+  suspended, deleted, or their provider accounts lost. A forgotten password is
+  *not* a recovery case — Supabase's own password reset restores access without any
+  application change.
+* **Why a command cannot be both safe and useful today.** Any recovery command runs
+  with the same credentials as adversary (a). An environment flag
+  (`DISKI9_BREAK_GLASS=1`) is not authorisation — whoever can run the command can
+  set it. Verifying the *target's* password stops impersonation of someone else
+  (requirement met) but not self-escalation: adversary (a) with any onboarded
+  account of their own could make themselves owner. That is a new privilege path
+  beyond what the CLI offers today (although direct database writes by the
+  application role remain possible for (a), as the F2 assessment recorded).
+* **Design that would meet the requirements** (for owner decision): (1) recovery
+  allowed only when **no active owner exists** (suspended owners do not count); (2)
+  explicit authorisation by a **recovery secret** held offline by the owner: the
+  host stores only its SHA-256 hash in the secret store
+  (`DISKI9_OWNER_RECOVERY_SHA256`); the command asks for the secret at a hidden
+  prompt (never arguments or environment), compares in constant time, and fails
+  closed if no hash is configured; (3) the target's own password verified through
+  Supabase Auth; (4) terminal only, `--confirm`, reason, one target; (5) a
+  high-visibility audit record (`role.recovered_owner`) and, once monitoring
+  exists (Stage D), a P1 alert; (6) after use, the owner rotates the secret. No
+  migration is needed. Residual risk: a host administrator who also holds the
+  offline secret can recover — which is the intended authority.
+* **Status:** **paused for owner approval** (the recovery-secret mechanism is a new
+  authorisation design). Bootstrap hardening, which is independently safe, is
+  implemented. Until a decision, recovery when no owner can act is the documented
+  manual procedure: the database administrator restores an owner row directly and
+  records the reason; this is outside the application and is audited only by the
+  database's own logs.
+
+### 2.3 Tests (`tests/backend/test_backend_s07_remediation.py`, 26 tests)
+The F2 characterisation tests were inverted into regression tests. Every case runs
+the real CLI in a pseudo-terminal with real Supabase Auth passwords and real
+PostgreSQL:
+* former `--by-email` path for all ten commands → exit 2 with guidance, no password
+  prompt, no row or audit change (10 parameterised cases);
+* no terminal; wrong password; impersonation (another person's address with one's
+  own password); a participant and an unknown address for round commands; an
+  operator for owner-only role and entitlement changes; a suspended owner — all
+  exit 3, nothing changed;
+* valid owner grant/revoke role and entitlement (audit = verified owner, role
+  `owner`); suspension by an operator and reinstatement by an owner (audit roles
+  `operator`/`owner`); operator `dev-open` and `create` (audit = operator; beta
+  series, never official); manual lock before the deadline refused, without an
+  operator refused, after the deadline locked and attributed;
+* `dev-open` refused in production and for non-`dev-` codes;
+* bootstrap on an isolated database: `--confirm` required, wrong password refused,
+  the target's password grants owner (audit = target, `verified: password`), then
+  refused before any prompt once an owner exists;
+* `SYSTEM`: locks through the service (audit `system`, no user); refused by
+  `authorize` for **every** capability, by `create_round`, `set_result_mode`,
+  `correct_result`, `reopen_round` and `invalidate_round`, with no row written;
+* an unverified principal fails T-14 for every sensitive capability, and
+  `cli_principal` is refused in production;
+* a static sweep: neither command module uses `cli_principal`, an e-mail identity or
+  the `SYSTEM` actor.
+
+### 2.4 Documentation
+`docs/backend.md`, `docs/authentication.md` and `docs/operator_settlement_cli.md`
+describe the authenticated commands and the removed option;
+`tools/e2e_6c5/README.md` notes that closed-stage scripts calling `--by-email`
+non-interactively now stop at that step (no non-interactive password path exists by
+design). Historical acceptance guides of closed phases are unchanged.
+
+### 2.5 Verification
+* **Level 1/2 (local, real PostgreSQL and the local Supabase Auth harness):** the
+  S-07 file plus accounts, web authentication, authentication units, results,
+  corrections and settlement-security suites — 199 passed; then every backend
+  suite except the slow development-championship file — **619 passed**; then
+  every app-level suite including the browser tests on the candidate commit
+  `320e134` — **1,087 passed, 0 skipped** (7 min 55 s).
+* **Level 3 (GitHub CI, exact candidate `320e134`, which contains `8bf4d1a`):**
+  run 84 **passed** — **1,715 passed, 13 skipped** (22 min 09 s for the suite). The
+  13 skips are browser tests (`playwright for node not available`); see §2.6.
+* Collected tests on the candidate: 1,728 = 1,682 (6C.5 baseline) − 6 (F2
+  characterisation file, inverted) + 26 (S-07) + 26 (CI change scope).
+* Lint and formatting clean; migration head `app_0007` (no migration);
+  fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`
+  unchanged; no change under `src/diski9/challenge/` (rules, buckets, scoring) or
+  `migrations_app/`.
+
+### 2.6 Finding: GitHub CI does not run the browser tests (pre-existing)
+The CI job has never installed Node Playwright, so the 13 browser tests skip
+there. Confirmed on the accepted 6C.5 closure run 82 (**1,669 passed, 13
+skipped**), so this predates Stage B. Local full runs (with Node Playwright) have
+always run them (6C.5 F4: 1,682 passed, 0 skipped). Consequence: "independent full
+CI" has meant *full except browser tests*; the browser tests are evidenced locally.
+For this candidate the app-level suites, browser tests included, were run locally
+on `320e134`: 1,087 passed, 0 skipped. Every one of the 1,728 tests has therefore
+passed on the candidate: the 13 browser tests locally, the development-championship
+file (not run in the local Level 2 pass) on CI, and all others in both. Recommendation for owner approval:
+install Node and the pinned Playwright Chromium in the CI job so Level 3 covers the
+browser tests too (adds roughly 1–2 minutes; a CI change, not part of S-07).
+
+### 2.7 Residual risks and deferred items
+* Emergency owner recovery is not implemented (§2.2); decision needed on the
+  recovery-secret design.
+* `cli_principal` remains for development tools (non-production only).
+* Closed-stage e2e scripts that used `--by-email` no longer run non-interactively.
+* Direct database writes by anyone holding the application database credentials
+  remain possible (unchanged by S-07; a hosting-phase concern: least-privilege
+  roles and secret management).
+* The CLI's T-14 check happens immediately after the password for account
+  commands (no confirmation prompt), so the 15-minute window cannot lapse inside
+  them; commands with a confirmation prompt re-check at the write (6C.4).
+
+## 3. CI work item: documentation-only path and verification policy (separate)
+
+Commit `320e134` (separate from S-07, owner-approved quick wins).
+* `tools/ci/change_scope.py` decides from the **full change set** (push:
+  `before..after`, every commit in the push; pull request: `base...head` since the
+  merge base). Documentation-only = every changed path is Markdown outside code
+  directories or a `docs/screenshots/` / `docs/benchmarks/` artefact, **and** none
+  is read by code: `docs/legal/` (served by the app), `docs/research/` (app and
+  test data) and `docs/methodology.md` (asserted by a test) always run the full
+  suite. Mixed changes, new branches, manual runs and any detection failure are
+  full. A guard test scans `src/` and `tests/` for `docs/` paths they open and
+  fails if one is not excluded.
+* `ci.yml`: full-history checkout; a scope step; on documentation-only changes
+  the job runs lint, formatting and a relative-link check of the changed Markdown
+  and skips the migration, Supabase Auth and test-suite steps (`if: scope !=
+  'docs'`, so a missing value runs everything). The job name `checks` — the status
+  check — is unchanged and always reports; no repository protection setting was
+  touched.
+* Tests: `tests/test_ci_change_scope.py` (26) — documentation and code examples,
+  fail-safe events and git errors, real-history ranges (a known docs-only commit →
+  docs; code and multi-commit pushes → full; a pull request judged since its merge
+  base), the guard, and the link check.
+* Verification: the workflow commit itself received the full suite (run 84: the
+  scope step chose **full**; migration, Auth and test steps ran; link step
+  skipped). The documentation-only path is demonstrated by the next
+  documentation-only push (checkpoint report).
+* `docs/development_testing.md`: Levels 1–3, escalation rules, the focused-test
+  map and push discipline. Not done (separate approval): pytest parallelisation,
+  per-worker databases, new dependencies, CI restructuring.
