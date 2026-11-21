@@ -29,10 +29,23 @@ decisions in its §11). Decisions are also recorded in
 * **Stage A closed** with the owner's approval of the design; Stage B (S-07) and a
   separate CI documentation-only work item are authorised; Stage C onwards is not.
 
-## 2. Stage B: S-07 operator authentication remediation (21 Nov 2026; final verification checkpoint — awaiting owner acceptance)
+## 2. Stage B: S-07 operator authentication remediation — **formally accepted (21 Nov 2026)**
 
 Commit `8bf4d1a` (separate from the CI work item in §3). No competition rule,
 settlement, scoring, configuration or migration change.
+
+**Owner acceptance (21 Nov 2026).** Stage B is formally accepted on this evidence:
+final application-code candidate `85b8608`, GitHub CI run 86 passed (1,731 passed,
+0 failed, 0 skipped; all 13 browser tests ran; all 26 S-07 tests passed);
+documentation-only head `607bf64`, CI run 87 passed in 26 s; migration head
+`app_0007`; fingerprint
+`88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
+`broad60-432-v1` and `points-150-75-v2`. Decisions at acceptance: **Q-03 remains
+deferred** (no recovery command, secret, bypass or endpoint in Stage C; the manual
+procedure in `docs/authentication.md` §6.1 stands); **CI timeout 40 minutes
+ratified** (later changes outside an authorised scope need approval); the three
+GitHub Actions Node-runtime warnings are a **separate maintenance item** (M-CI-1),
+not part of Stage C. Stage C is authorised; Stages D–G are not.
 
 ### 2.1 What changed
 | Command | Before (F2 finding) | After |
@@ -203,8 +216,7 @@ browser tests too (adds roughly 1–2 minutes; a CI change, not part of S-07).
 * **Timeout 30 → 40 min (measured):** the 13 browser tests take ~5 min locally and
   tooling setup ~1 min, on a job that took 22 min 50 s (run 84), leaving no margin
   at 30. Run 86 measured: tooling 45 s, test suite 22 min 58 s, job **24 min 34
-  s**. A later reduction to 35 min would still leave ~10 min of margin; 40 kept for
-  now pending the owner's view.
+  s**. 40 minutes ratified by the owner at acceptance.
 * **Level 3 — GitHub CI run 86 on `85b8608` (the final application-code
   candidate): passed.** Scope step chose **full** ("6 non-documentation paths").
   **1,731 passed, 0 failed, 0 skipped** (1,731 collected): 1,728 previous + 2
@@ -232,9 +244,10 @@ browser tests too (adds roughly 1–2 minutes; a CI change, not part of S-07).
 ### 2.7 Residual risks and deferred items
 * Emergency owner recovery is not implemented (§2.2): deferred by the owner; Q-03
   open; interim controls documented.
-* GitHub Actions warns that `actions/checkout@v4`, `setup-node@v4` and
-  `setup-uv@v6` target the deprecated Node 20 runtime (forced to Node 24 today);
-  updating action versions is a separate CI maintenance item.
+* **M-CI-1 (maintenance item, owner-recorded):** GitHub Actions warns that
+  `actions/checkout@v4`, `setup-node@v4` and `setup-uv@v6` target the deprecated
+  Node 20 runtime (forced to Node 24 today); updating action versions is separate
+  from Stage C unless a compatibility or security blocker arises.
 * Release gates remain open (no hosted deployment, Official activation, merge or
   release); Stage C onwards not authorised.
 * `cli_principal` remains for development tools (non-production only).

@@ -39,6 +39,18 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   settings unchanged.
 * Stage B not yet formally accepted; Stage C not authorised.
 
+**Phase 6C.6 Stage B formal acceptance and Stage C authorisation (21 Nov 2026):**
+* **Stage B formally accepted** (candidate `85b8608`, CI run 86: 1,731 passed, 0
+  skipped; documentation head `607bf64`, CI run 87).
+* Q-03 remains deferred; CI timeout of 40 minutes ratified; GitHub Actions runtime
+  warnings recorded as separate maintenance item M-CI-1.
+* **Stage C (scheduling and lifecycle orchestration) authorised:** a database-driven
+  reconciler run by an external cron-style trigger; **Beta publication stays
+  supervised** (no automatic publication or round creation; no unused autonomous
+  publication path); `SYSTEM` only for lock, results import, settlement and
+  finalisation; Official unreachable; no live provider calls in development or
+  tests; no new migration unless separately justified. Stages D–G not authorised.
+
 **Phase 6C.5 Stage F4 closure and Stage G owner acceptance (21 Nov 2026) — Phase 6C.5 complete:**
 * **F4 closed** at `f0ac3c2` (CI run 81; 1,682 passed, 0 failed, 0 skipped; 12
   journeys, 253 checks, 0 problems; Match Lab intermittent test corrected, 40/40
