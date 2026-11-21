@@ -2203,3 +2203,27 @@ use: the existing `(set, display_order)` unique indexes serve pages and neighbou
 * Carry S-07 (mandatory in 6C.6), the genuine beta 24-hour finalisation check, D-29,
   D-36, D-38, hosted Supabase acceptance and the 6C.3 backlog into the Stage G
   handover.
+
+### 8.13 Owner approval and formal closure of F3 (21 Nov 2026)
+The owner reviewed the F3 checkpoint and **formally closed F3**; the same decision
+authorised **F4 (final regression, stability and handover)** only. Stage G closure,
+6C.6 and later phases are not authorised.
+* **Baseline accepted:** `c2583c3` on `feature/phase-6c5-leaderboards`; CI run 79
+  passed; full regression 1,682 passed, 0 failed, 0 skipped; head `app_0007`;
+  fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`.
+* **Owner decisions:**
+  - the signed-in Dash leaderboard page load (653 ms median against the 600 ms
+    target, §8.3) is an **accepted, documented performance limitation**, not a
+    blocker for 6C.5 acceptance; the target is unchanged and the result stays a miss;
+  - **no Screener callback redesign** in F4;
+  - the optional History shared-rank query optimisation (§8.9) is **deferred** unless
+    F4 finds a correctness issue or a material performance regression;
+  - the remaining F3 scalability limitations (§8.9) are accepted as documented;
+    **production performance has not been established** (single shared 4-vCPU
+    machine, local services);
+  - **S-07 remains a mandatory Phase 6C.6 remediation** and a release gate before
+    any hosted deployment or Official activation (§7.2).
+* The F3 evidence (`docs/benchmarks/phase6c5_f3/`), the tools (`tools/phase6c5_f3_*`,
+  `tools/e2e_6c5/f3_*`) and the methodology (§8.1–§8.3) are retained.
+* No competition rule, probability bucket, scoring, settlement or championship rule
+  changed.

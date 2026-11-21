@@ -7,6 +7,22 @@ are approved, with decisions **CH-01 to CH-12** (the Stage A questions Q-1 to Q-
 and the amendment **D-30a** below. Stage B is authorised; Stage C needs separate
 approval. Private mini-leagues are removed from the MVP roadmap.
 
+**Phase 6C.5 Stage F3 (owner approval and closure, 21 Nov 2026):**
+* F3 (performance, scalability and concurrency) is approved and closed at `c2583c3`
+  (CI run 79; 1,682 passed). No business rule changed. F4 (final regression,
+  stability and handover) is authorised; Stage G closure and 6C.6 are not.
+* The signed-in Dash leaderboard page load (653 ms against the 600 ms target) is an
+  **accepted, documented limitation**; the target is unchanged and the result is not
+  a pass. No Screener callback redesign in F4.
+* The History shared-rank optimisation is deferred unless F4 finds a correctness
+  issue or a material regression. The remaining F3 scalability limitations are
+  accepted as documented; production performance is not established.
+* **S-07 remains a mandatory Phase 6C.6 remediation and a release gate.**
+* The Weekly Challenge buckets stay `broad60-432-v1` (Foundation 60–95%, Balanced
+  40–<60%, Challenger 20–<40%); a proposal to raise Foundation to 65% was reviewed
+  and not adopted.
+* Record: [`docs/architecture/phase6c5_implementation.md`](../architecture/phase6c5_implementation.md) §8.13.
+
 **Phase 6C.5 Stage F2 (owner approval and closure, 21 Nov 2026):**
 * F2 (integration and security testing) is approved and closed at `7afc03b`. No
   business rule changed. F3 (performance and concurrency) is authorised; F4, Stage
