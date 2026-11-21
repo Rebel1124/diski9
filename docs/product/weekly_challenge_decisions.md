@@ -67,6 +67,21 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E formal acceptance and closure (21 Nov 2026):**
+* **Stage E formally accepted and complete** (`c49de86`, CI run 99: 1,797 passed,
+  0 failed, 0 skipped, all 13 browser tests; documentation `8ed731b`, CI run 100;
+  head `app_0007`; fingerprint unchanged; configurations unchanged).
+* `round readiness` remains password-free, including candidate fixture-pool
+  information, under the verified data-exposure restrictions.
+* Publication fingerprint safeguard accepted. **Standing requirement:** any future
+  publication entry point (including Stage E.1 tooling) must publish exactly the
+  validated and confirmed snapshot.
+* **Next stage: Stage E.1 — Automated Draft Preparation**, starting with a
+  separately authorised design (competition-week definition, fixture window,
+  preparation schedule, provider requirements, duplicate prevention, failure
+  handling, human publication approval). E.1 implementation, Stage F and Stage G
+  are not authorised.
+
 **Phase 6C.6 Stage E review decisions (21 Nov 2026):**
 * **Publish confirmation approved:** the operator types the round code; the
   validated snapshot must be exactly the snapshot published (single build,

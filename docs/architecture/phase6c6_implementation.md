@@ -725,7 +725,23 @@ through the ledger).
   for owner awareness.
 * Documentation after the candidate uses the documentation-only path.
 
-## 7. Stage E: operational administration and remaining backlog (21 Nov 2026; checkpoint, awaiting owner acceptance)
+## 7. Stage E: operational administration and remaining backlog — **formally accepted and closed (21 Nov 2026)**
+
+**Owner acceptance (21 Nov 2026).** Stage E is formally accepted on this evidence:
+final application-code commit `c49de86`, GitHub CI run 99 passed (1,797 passed, 0
+failed, 0 skipped; all 13 browser tests); documentation-only commit `8ed731b`, CI
+run 100 passed; migration head `app_0007`; fingerprint
+`88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
+`broad60-432-v1` and `points-150-75-v2`; no unauthorised change to competition
+rules, security boundaries or scheduler behaviour. Confirmed: `round readiness`
+stays password-free, including the candidate fixture-pool information, under the
+verified data-exposure restrictions (§7.5a). The publication fingerprint safeguard
+is accepted; **standing requirement: any future publication entry point must
+publish exactly the validated and confirmed snapshot.** **Stage E is complete.**
+Next: **Stage E.1 — Automated Draft Preparation**, beginning with a separately
+authorised design (competition-week definition, fixture window, preparation
+schedule, provider requirements, duplicate prevention, failure handling, human
+publication approval). Stages E.1 (implementation), F and G are not authorised.
 
 Authorised with the Stage D closure (decision register, 21 Nov 2026). Operator
 guide: [`../operations_guide.md`](../operations_guide.md). Code:
