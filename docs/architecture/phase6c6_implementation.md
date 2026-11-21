@@ -724,3 +724,114 @@ through the ledger).
   92; runner speed varies). No timeout change is proposed now; the trend is noted
   for owner awareness.
 * Documentation after the candidate uses the documentation-only path.
+
+## 7. Stage E: operational administration and remaining backlog (21 Nov 2026; checkpoint)
+
+Authorised with the Stage D closure (decision register, 21 Nov 2026). Operator
+guide: [`../operations_guide.md`](../operations_guide.md). Code:
+`backend/services/rounds.py` (shared publication check, `publication_readiness`),
+`backend/ops/inspect.py` and `backend/ops/audit.py` (new, read-only),
+`admin_cli.py` (new, presentation and `audit list`), `cli.py` (`round readiness`,
+`round inspect`, publish confirmation, argument checks), `settlement_cli.py`
+(`guarded`: one-line configuration and connectivity errors). No migration, no new
+dependency, no new privileged capability, no new kind of state change; services,
+rules, S-02, the scheduler and its locking are unchanged.
+
+### 7.1 Stage D closure
+Confirmed before Stage E work: branch `feature/phase-6c6-operations` clean and equal
+to the remote at `f5458a3`; closure recorded in `7c5d295` (documentation only: §5–§6
+of this record, the decision register and the plan).
+
+### 7.2 Scope matrix (backlog reconciliation)
+| Area | Already implemented (reuse; document) | Gap addressed in Stage E | Deferred / needs approval |
+|---|---|---|---|
+| Round administration | `round list/show/create/publish/lock/dev-open`, `finalise-check/finalise/invalidate/reopen` (S-07 authenticated) | **`round readiness`** (read-only preview of every publication check plus pool, bucket, freshness and data-quality evidence); **publish shows the summary and requires typing the round code**; `--code` required with a clear message | automated draft creation (new state change by the scheduler: needs a design decision); web operator console (original 6C.6 plan; superseded by the CLI design, needs approval) |
+| Investigation | `settle status`, `results show`, `settle alerts`, `ops jobs --round`, `competition status/verify` | **`round inspect`**: one report composing those sources plus entries, championship assignment and weekly-results revision | — |
+| Recovery | `results import [--full]`, `settle run`, `settle resolve-alert`, `results correct/withdraw-correction`, `round finalise`, `competition repair/backfill`, `jobs tick [--dry-run]`, pause file, `ops check --deep` | documented in the operator guide; **no new state-changing command was needed** | force-finalise (excluded); automatic alert resolution (excluded) |
+| Audit | audit records written by every service; per-round audit in `ops jobs --round` | **`audit list`** behind the existing, previously unused `audit.view` capability (the "audit list" item of the approved Stage A design) | acknowledgement table `ops_alerts` (M1, migration: Q-09) |
+| Accounts (S-07) | bootstrap, grant/revoke role and feature, suspend/reinstate, `list-privileged` | arguments checked **before** the password prompt (`--role`, `--feature`, inapplicable options refused); message punctuation | emergency owner recovery (Q-03, deferred); account deletion (D-36) |
+| CLI errors (6C.3 backlog) | `guarded` for service, auth and usage errors | missing/invalid database configuration and unreachable or busy database now give **one line** (never the URL or password) instead of a traceback | — |
+
+### 7.3 Outstanding backlog classification
+| Item | Classification | Owner / proposed stage | Note |
+|---|---|---|---|
+| CLI tracebacks for expected errors (6C.3) | **1 Required for Stage E — done** | — | §7.2 |
+| Audit viewer (6C.6 design, Stage E) | **1 — done** (`audit list`) | — | read-only, `audit.view` |
+| Publication readiness evidence | **1 — done** | — | reuses the existing checks |
+| ML-01 Match Lab stale-adjustment race | **2 Required before private Beta** | owner authorisation of a focused fix; proposed Phase 6D (or a dedicated maintenance item) | not touched in Stage E |
+| D-36 account deletion (retention, pseudonymisation) | **2** and **5 Requires approval** | owner: security and data-retention design first; before hosting real participants | not implemented |
+| Hosted Supabase authentication acceptance | **4 Phase 10 / hosting** | — | one skipped hosted test |
+| Host for triggers (Q-07); webhook destination (Q-08) | **5 Requires approval**; needed for Stage F's real week | owner | unchanged |
+| Provider caps (provisional) and live provider calls | **5 Requires approval** | owner, after confirming the API-Football allowance | live calls off |
+| Genuine Beta finalisation on the real clock (S-02) and backup/restore drill | **3 Stage F** | — | calendar time |
+| D-29 real weekly pool validation | **2** (before the Official series) — evidence only | Stage F onwards, from real weeks | the trial is **not** restarted; `round readiness --json` can record each week's pool evidence without provider calls |
+| D-38 Official activation | **5 Requires approval** | owner | Official stays disabled |
+| Automated draft preparation (scheduler creating drafts) | **5 Requires approval** | owner decision (it is a new state change by `SYSTEM`) | readiness is ready to serve as its validation step |
+| Database-down notification without the database (file state) | **5 Requires approval** | owner (Stage D option) | trigger reporting meanwhile |
+| `ops_alerts` acknowledgement table (M1) / per-stream automation settings in the database (M2) | **5** (migration) | owner | not proposed now |
+| Index review (`settlement_runs.round_id`, `audit_log.job_run_id`) | **4 Phase 6D** | — | fine at current volumes |
+| CI runtime margin (~10 min under the 40-minute timeout) | **4 Phase 6D** watch item | owner if a change is needed | no change made |
+| `settle run` without `--confirm`; development time override only for settle/finalise | documented limitations (6C.4) | — | unchanged |
+| Screener reload latency; direct fixture URL; freezing Your View (D-41) | **4 Phase 6D / later decision** | — | unrelated to administration |
+
+### 7.4 New and changed commands
+| Command | Auth | Writes | Notes |
+|---|---|---|---|
+| `round readiness --code C [--json]` | none (like `round show`; reads the football store and the round) | nothing | real draft rounds only; exit 0 ready, 1 not ready, 2 usage |
+| `round publish --code C --operator E` | password (`round.publish`), unchanged | as before | now prints the readiness summary of the snapshot it will freeze and requires typing the round code; a NOT READY snapshot goes straight to the service, which refuses and records the attempt as before |
+| `round inspect --code C --operator E` | password, `jobs.run` (as `settle status`); **refuses `SYSTEM`** | nothing | settlement figures computed in a rolled-back transaction |
+| `audit list [--round C] [--action-prefix P] [--since T] [--limit N] [--json] --operator E` | password, `audit.view`; **refuses `SYSTEM`** | nothing | usernames or `SYSTEM`, round codes; no emails, payloads or request IDs; ≤ 200 rows |
+| `account grant-role/…/reinstate` | unchanged | unchanged | argument checks moved before the password prompt |
+| all `guarded` commands | unchanged | unchanged | one-line errors: database URL missing/invalid (exit 2), unreachable or busy (exit 1); `--code` required (exit 2) |
+
+`publish_round` and `publication_readiness` share one function
+(`_evaluate_publication`) for every check, in the original order, so the preview
+cannot disagree with publication (tested for the ready case and three refusals).
+
+### 7.5 Security and audit verification
+* No new capability: `round inspect` uses `jobs.run` (as the existing settlement
+  reports), `audit list` the existing `audit.view`; both refuse the scheduler's
+  `SYSTEM` actor explicitly (the shared `actor_id` helper would otherwise accept it)
+  and participants. `round readiness` reads only what `round show` and the football
+  store already expose and writes nothing.
+* Password authentication, current database roles, recency rules and audit
+  attribution unchanged; `--by-email` still refused with guidance (also on `audit`).
+* Publication: the human approval step is stronger (explicit confirmation of the
+  exact snapshot); refusals are still recorded; the audit record of a CLI
+  publication names the verified operator (tested).
+* Error messages never contain the database URL or password (tested with a
+  password-bearing URL).
+
+### 7.6 Tests (`tests/backend/test_backend_stage_e_admin.py`, 16 tests)
+Readiness writes nothing and matches publication (deadline, cutoff, fingerprint);
+refusal parity for too few fixtures, a stale snapshot and a wrong source; unknown
+round; inspection refused for a participant and `SYSTEM` (and `audit list` for
+`SYSTEM`); inspection of draft and open rounds writes nothing; inspection of a
+scheduler-settled round in its real 24-hour correction window shows the S-02
+earliest finalisation and "cannot finalise" and changes nothing; audit attribution,
+filters (prefix with literal wildcards, round, unknown round), `SYSTEM` attribution
+of a scheduled lock and no email anywhere; CLI in-process: readiness exit codes and
+JSON, publish confirmation (wrong answer changes nothing; the round code publishes
+the shown snapshot, attributed to the operator), NOT READY publish refused and
+recorded, inspect and audit output, one-line errors; CLI in a pseudo-terminal
+against the local Supabase Auth harness: account arguments refused before any
+password prompt, and `round inspect` / `audit list` refused for a participant and
+allowed for an operator, password never echoed.
+
+### 7.7 Verification
+* Level 1: the Stage E file (16 passed, no skips; pseudo-terminal tests ran
+  against the local Supabase Auth harness); lint and formatting clean.
+* Level 2 (local PostgreSQL and Supabase Auth harness): Stage E, rounds, S-07,
+  operator CLI, scheduler, scheduler locking, ops, results, settlement (incl. ops
+  and security), corrections, championships (incl. corrections, repair,
+  backfill), integrity, concurrency, migrations, authentication units, weekly
+  results, accounts, runtime role, scenarios and CI change-scope suites —
+  **464 passed, 0 skipped** (11 min 33 s).
+* Fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
+  migration head `app_0007`; no change under `src/diski9/challenge/`,
+  `migrations_app/` or the scheduler; `publish_round` behaviour preserved (shared
+  check, same order and messages).
+* Level 3: §7.8.
+
+### 7.8 Level 3 (GitHub CI)
+* Pending on the final application-code candidate.

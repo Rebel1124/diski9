@@ -1,5 +1,9 @@
 # Operational recovery runbook (Phase 6C.6 Stage D)
 
+Weekly administration and the command overview: [`operations_guide.md`](operations_guide.md).
+For one round, `uv run diski9 round inspect --code CODE --operator EMAIL` (Stage E)
+gathers status, S-02 timing, alerts, jobs and audit records in one report.
+
 Safe, limited procedures for the scheduled lifecycle. **Nothing here bypasses
 authorisation, settlement, correction or finalisation rules**: there is no
 force-finalise, no automatic alert resolution and no privileged shortcut. Every

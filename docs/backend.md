@@ -282,7 +282,15 @@ uv run diski9 round create --week 2026-W48 --operator operator@example.test
 ```
 
 ```bash
+uv run diski9 round readiness --code 2026-W48-weekend
+```
+
+```bash
 uv run diski9 round publish --code 2026-W48-weekend --operator operator@example.test
+```
+
+```bash
+uv run diski9 round inspect --code 2026-W48-weekend --operator operator@example.test
 ```
 
 ```bash
@@ -293,8 +301,14 @@ uv run diski9 round lock --code 2026-W48-weekend --operator operator@example.tes
 uv run diski9 round dev-open --operator operator@example.test --deadline-minutes 30
 ```
 
-`publish` builds the snapshot read-only from the football store (no API request)
-and refuses with the reason if the opening rules are not met. `lock` is refused
+`readiness` (Phase 6C.6 Stage E; read-only, no password) builds the snapshot
+read-only from the football store (no API request) and runs the same checks as
+`publish`, printing the pool, bucket feasibility, odds freshness, exclusions,
+deadline, cutoff and a READY / NOT READY verdict (`--json`; exit 0 / 1). `publish`
+builds the snapshot the same way, shows that summary, asks you to type the round
+code to confirm, and refuses with the reason if the opening rules are not met.
+`inspect` is the one-round investigation report (see
+[`operations_guide.md`](operations_guide.md)). `lock` is refused
 before the deadline and is idempotent; a manual lock is always made by an
 authenticated operator (unattended locking belongs to the future scheduler, as the
 explicit system actor). `dev-open` publishes a development round

@@ -449,10 +449,21 @@ def cmd_account(args) -> int:
         return 0
 
     def change(engine) -> int:
+        # every argument is checked before the password is asked for (nothing written)
         if not args.email:
             raise _Usage("--email is required (the account to change)")
         if not (args.reason and args.reason.strip()):
             raise _Usage("--reason is required (recorded in the audit log)")
+        role_action = args.action in ("grant-role", "revoke-role")
+        feature_action = args.action in ("grant-feature", "revoke-feature")
+        if role_action and not args.role:
+            raise _Usage(f"--role is required for {args.action} (operator or owner)")
+        if feature_action and not (args.feature and args.feature.strip()):
+            raise _Usage(f"--feature is required for {args.action}, for example lucy.research")
+        if args.role and not role_action:
+            raise _Usage(f"--role does not apply to {args.action}; nothing was changed")
+        if args.feature and not feature_action:
+            raise _Usage(f"--feature does not apply to {args.action}; nothing was changed")
         actor = _principal(engine, args.operator)
         # authorise against the current database time, before any write (T-12/T-14)
         actor = refresh_clock(engine, actor)
@@ -503,8 +514,6 @@ def cmd_round(args) -> int:
     from diski9.backend.services.common import ServiceError
     from diski9.settlement_cli import _principal, guarded
 
-    settings = BackendDatabaseSettings()
-
     def show(v) -> None:
         print(
             f"{v.code}  status={v.status}  development={v.is_development}  "
@@ -519,13 +528,56 @@ def cmd_round(args) -> int:
             f"fingerprint={v.fingerprint or '-'}"
         )
 
+    def build_snapshot(engine, r):
+        """The live snapshot exactly as publication builds it (football store, read-only)."""
+        from diski9.app.data import LEAGUE_SHORT
+        from diski9.challenge.roundsheet import build_live_snapshot
+
+        football = make_engine(args.database_url)
+        with transaction(engine) as conn:
+            now = db_now(conn)
+        return build_live_snapshot(
+            football, now, r.window_start_at, r.window_end_at, r.code, LEAGUE_SHORT
+        )
+
     def call(engine) -> int:
+        from diski9.admin_cli import print_inspection, print_readiness
+
         if args.action == "list":
             for v in svc.list_rounds(engine):
                 show(v)
             return 0
+        if args.action in ("show", "lock", "publish", "readiness", "inspect") and not args.code:
+            raise ServiceError("--code is required, for example 2026-W48-weekend", code="usage")
         if args.action == "show":
             show(svc.get_round(engine, svc.round_id_for_code(engine, args.code)))
+            return 0
+        if args.action == "readiness":
+            # read-only: the same checks as publication, nothing written, no password
+            rid = svc.round_id_for_code(engine, args.code)
+            r = svc.get_round(engine, rid)
+            if r.status != "draft":
+                raise ServiceError(
+                    f"{r.code} is already {r.status}; readiness applies to draft rounds "
+                    "(use round inspect for published rounds).",
+                    code="usage",
+                )
+            if r.is_development:
+                raise ServiceError(
+                    "Development rounds are opened with round dev-open (synthetic data); "
+                    "readiness applies to real rounds.",
+                    code="usage",
+                )
+            rd = svc.publication_readiness(engine, rid, build_snapshot(engine, r),
+                                           source="football-db")  # fmt: skip
+            print_readiness(rd, as_json=args.json)
+            return 0 if rd.ready else 1
+        if args.action == "inspect":
+            from diski9.backend.ops.inspect import inspect_round
+
+            rid = svc.round_id_for_code(engine, args.code)
+            p = _principal(engine, args.operator)
+            print_inspection(inspect_round(engine, p, rid))
             return 0
         if args.action == "create":
             if not args.week or "-W" not in args.week:
@@ -543,24 +595,29 @@ def cmd_round(args) -> int:
             show(v)
             return 0
         if args.action == "publish":
-            from diski9.app.data import LEAGUE_SHORT
-            from diski9.challenge.roundsheet import build_live_snapshot
+            from diski9.settlement_cli import _ask
 
             rid = svc.round_id_for_code(engine, args.code)
             p = _principal(engine, args.operator)
             r = svc.get_round(engine, rid)
-            football = make_engine(args.database_url)
-            with transaction(engine) as conn:
-                now = db_now(conn)
-            snap = build_live_snapshot(
-                football, now, r.window_start_at, r.window_end_at, r.code, LEAGUE_SHORT
-            )
+            snap = build_snapshot(engine, r)
+            if r.status == "draft" and not r.is_development:
+                # show the operator exactly what would be frozen, then ask (Stage E)
+                rd = svc.publication_readiness(engine, rid, snap, source="football-db")
+                print_readiness(rd)
+                if rd.ready:
+                    answer = _ask(f"Type {r.code} to publish this snapshot, or press Enter to "
+                                  "stop: ").strip()  # fmt: skip
+                    if answer != r.code:
+                        print("Not confirmed; nothing changed.")
+                        return 0
+            # the service repeats every check in its own transaction (and records a refusal)
             show(svc.publish_round(engine, p, rid, snap, source="football-db"))
             return 0
         if args.action == "dev-open":
             from diski9.backend.devdata import dev_snapshot
 
-            if settings.environment == "production":
+            if BackendDatabaseSettings().environment == "production":
                 raise ServiceError("development rounds are refused in production", code="usage")
             if args.fixtures < 0:
                 raise ServiceError("--fixtures must be 0 (no cap) or more", code="usage")
@@ -806,14 +863,26 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser(
         "round",
-        help="weekly rounds: create, publish, lock; invalidate, finalise, reopen (competition DB)",
+        help="weekly rounds: list, show, readiness, inspect, create, publish, lock; "
+        "invalidate, finalise, reopen (competition DB)",
     )
     s.add_argument(
         "action",
-        choices=["list", "show", "create", "publish", "lock", "dev-open", *ROUND_ACTIONS],
+        choices=[
+            "list",
+            "show",
+            "readiness",
+            "inspect",
+            "create",
+            "publish",
+            "lock",
+            "dev-open",
+            *ROUND_ACTIONS,
+        ],
     )
     s.add_argument("--code", help="round code, for example 2026-W48-weekend")
     s.add_argument("--week", help="ISO week for create, for example 2026-W48")
+    s.add_argument("--json", action="store_true", help="readiness: machine-readable output")
     s.add_argument("--by-email", help=argparse.SUPPRESS)  # removed (S-07): guidance error
     s.add_argument("--seed", type=int, default=2026, help="dev-open: fixture seed")
     s.add_argument(
@@ -850,6 +919,9 @@ def build_parser() -> argparse.ArgumentParser:
     from diski9.ops_cli import add_parsers as add_ops_parsers
 
     add_ops_parsers(sub)
+    from diski9.admin_cli import add_parsers as add_admin_parsers
+
+    add_admin_parsers(sub)
 
     s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
     s.add_argument("action", choices=["upgrade", "downgrade", "current", "check"])
@@ -872,6 +944,10 @@ def main(argv: list[str] | None = None) -> int:
         from diski9.ops_cli import run as run_ops
 
         return run_ops(args)
+    if args.command == "audit":
+        from diski9.admin_cli import run_audit
+
+        return run_audit(args)
     if args.command in ("results", "settle", "dev-results", "competition", "dev-championship") or (
         args.command == "round" and args.action in ROUND_ACTIONS
     ):

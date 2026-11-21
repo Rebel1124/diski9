@@ -392,9 +392,11 @@ def _print_settlement(res) -> None:
         print("  The round is final: a material difference raised a post_final_change alert.")
 
 
-def _round_id(engine, code: str):
+def _round_id(engine, code: str | None):
     from diski9.backend.services import rounds as rounds_svc
 
+    if not code:
+        raise _Usage("--code is required, for example 2026-W48-weekend")
     return rounds_svc.round_id_for_code(engine, code)
 
 
@@ -896,16 +898,44 @@ AUTH_MESSAGES = {
 def guarded(call) -> int:
     """Run ``call(engine)`` for an operator command with the shared error handling:
     authentication and authorisation failures exit 3, usage and refused operations
-    exit 2, and nothing is written when a check fails (every check runs before the
-    service's write transaction). Used by the settlement, competition, ``round``
+    exit 2, an unreachable database exits 1 (one line, never the URL), and nothing is
+    written when a check fails (every check runs before the service's write
+    transaction). Used by the settlement, competition, ``round``
     and ``account`` commands (S-07, Phase 6C.6)."""
+    from pydantic import ValidationError
+    from sqlalchemy.exc import OperationalError
+
     from diski9.backend.auth.privileged import PrivilegeError
     from diski9.backend.db import make_app_engine
+    from diski9.backend.db.settings import BackendDatabaseError
     from diski9.backend.services.common import ServiceError
 
-    engine = make_app_engine()
+    # configuration and connectivity problems: one line, never the URL or password
+    try:
+        engine = make_app_engine()
+    except BackendDatabaseError as exc:
+        print(f"error: {exc}. Nothing was changed.", file=sys.stderr)
+        return 2
+    except ValidationError as exc:
+        first = exc.errors()[0] if exc.errors() else {}
+        where = ".".join(str(x) for x in first.get("loc", ())) or "settings"
+        print(f"error: invalid competition database configuration ({where}): "
+              f"{first.get('msg', 'invalid value')}. Nothing was changed.",
+              file=sys.stderr)  # fmt: skip
+        return 2
     try:
         return call(engine)
+    except OperationalError as exc:
+        import psycopg
+
+        kind = type(exc.orig).__name__
+        if isinstance(exc.orig, psycopg.errors.QueryCanceled | psycopg.errors.LockNotAvailable):
+            what = f"the competition database was busy ({kind}: lock or statement timeout)"
+        else:
+            what = f"the competition database is unavailable ({kind})"
+        print(f"error: {what}. The operation did not complete and its transaction was rolled "
+              "back; check the state before retrying.", file=sys.stderr)  # fmt: skip
+        return 1
     except OperatorAuthFailed as exc:
         print(f"error: {exc.message}", file=sys.stderr)
         return 3
@@ -927,7 +957,8 @@ def guarded(call) -> int:
             print(json.dumps(details, indent=2, default=str), file=sys.stderr)
         return 2
     except PrivilegeError as exc:
-        print(f"error: {exc} Nothing was changed.", file=sys.stderr)
+        msg = str(exc).rstrip(".")
+        print(f"error: {msg[:1].upper()}{msg[1:]}. Nothing was changed.", file=sys.stderr)
         return 2
     except (_Usage, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)

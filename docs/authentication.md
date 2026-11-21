@@ -284,7 +284,12 @@ application session, not the token, is what the browser holds.
   at the moment of the change. The former `--by-email` option was removed (S-07):
   it now only prints guidance and changes nothing. The last owner cannot be
   removed. There is no web route for any of this. Every change is audited in
-  `app.audit_log` with the verified account and its role.
+  `app.audit_log` with the verified account and its role. Since Phase 6C.6 Stage E
+  the commands check `--email`, `--reason` and `--role` / `--feature` (and refuse an
+  option that does not apply) before asking for a password, and
+  `uv run diski9 audit list --action-prefix role --operator <you>` (capability
+  `audit.view`, operators and owners) lists the changes with usernames, never
+  email addresses.
 
 ### 6.1 Owner recovery when no owner can act (interim controls; Q-03 deferred)
 

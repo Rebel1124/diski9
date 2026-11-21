@@ -363,19 +363,9 @@ def publish_round(
         ).one()
         now = db_now(conn)
         age_limit = snapshot_age_limit or max_snapshot_age()
-        problem, details = _publication_problem(r, sched, snapshot, source, now, age_limit)
-        if problem is None:
-            config = get_config(sched.config_version)
-            report = snapshot.opening_report(config)
-            if not report.opens:
-                availability = assess_round(snapshot, snapshot.snapshot_at, config)
-                problem = f"{availability.title}: {availability.message}"
-                details = {"report": snapshots.report_dict(report), "status": availability.status}
-        if problem is None:
-            deadline = snapshot.earliest_kickoff - timedelta(minutes=sched.deadline_buffer_minutes)
-            if deadline <= now:
-                problem = "The submission deadline for these fixtures has already passed."
-                details = {"deadline": deadline.isoformat()}
+        check = _evaluate_publication(r, sched, snapshot, source, now, age_limit)
+        problem, details = check.problem, check.details
+        config, report, deadline = check.config, check.report, check.deadline
         if problem is None:
             run = ops.start_job(conn, "publish", r.code, {"source": source})
             snapshots.store_snapshot(
@@ -428,6 +418,146 @@ def publish_round(
             return _view(conn, round_id)
         code = r.code
     raise _refuse(engine, code, problem, details)
+
+
+@dataclass(frozen=True)
+class _PublicationCheck:
+    problem: str | None
+    details: dict
+    config: Any = None
+    report: Any = None  # RoundOpeningReport once the basic checks pass
+    deadline: datetime | None = None
+
+
+def _evaluate_publication(r, sched, snap: RoundSnapshot, source, now, max_age) -> _PublicationCheck:
+    """Every publication check, in order, shared by :func:`publish_round` (inside its
+    write transaction) and :func:`publication_readiness` (read-only), so the
+    readiness preview can never disagree with publication itself."""
+    problem, details = _publication_problem(r, sched, snap, source, now, max_age)
+    if problem is not None:
+        return _PublicationCheck(problem, details)
+    config = get_config(sched.config_version)
+    report = snap.opening_report(config)
+    if not report.opens:
+        availability = assess_round(snap, snap.snapshot_at, config)
+        return _PublicationCheck(
+            f"{availability.title}: {availability.message}",
+            {"report": snapshots.report_dict(report), "status": availability.status},
+            config,
+            report,
+        )
+    deadline = snap.earliest_kickoff - timedelta(minutes=sched.deadline_buffer_minutes)
+    if deadline <= now:
+        return _PublicationCheck(
+            "The submission deadline for these fixtures has already passed.",
+            {"deadline": deadline.isoformat()},
+            config,
+            report,
+            deadline,
+        )
+    return _PublicationCheck(None, {}, config, report, deadline)
+
+
+@dataclass(frozen=True)
+class PublicationReadiness:
+    """What :func:`publish_round` would decide for this snapshot now, without
+    writing anything (Phase 6C.6 Stage E). ``issues`` counts the existing
+    per-outcome eligibility issues (odds, freshness, bucket bands); no rule is
+    added or changed here."""
+
+    round: RoundView
+    ready: bool
+    problem: str | None
+    details: dict
+    evaluated_at: datetime
+    snapshot_at: datetime
+    max_snapshot_age: timedelta
+    source: str
+    fingerprint: str
+    config_version: str
+    fixtures: int
+    outcomes: int
+    leagues: int
+    earliest_kickoff: datetime | None
+    latest_kickoff: datetime | None
+    deadline_at: datetime | None
+    settle_cutoff_at: datetime | None
+    report: dict | None
+    required_by_bucket: dict
+    issues: dict
+    oldest_observation_at: datetime | None
+    newest_observation_at: datetime | None
+    max_quote_age_hours: float
+    diagnostics: dict
+
+
+def publication_readiness(
+    engine: Engine,
+    round_id: UUID,
+    snapshot: RoundSnapshot,
+    *,
+    source: str,
+    snapshot_age_limit: timedelta | None = None,
+) -> PublicationReadiness:
+    """Read-only publication readiness for a draft round: the same checks as
+    :func:`publish_round` against the database clock, plus the evidence an operator
+    needs to approve publication (pool size, bucket feasibility, odds freshness,
+    exclusions). Writes nothing (no job record, audit entry or lock)."""
+    from diski9.challenge.structured import assess_outcome
+
+    with read_only(engine) as conn:
+        r = conn.execute(select(rounds).where(rounds.c.id == round_id)).one_or_none()
+        if r is None:
+            raise NotFound("No such round.")
+        sched = conn.execute(
+            select(round_schedules).where(round_schedules.c.id == r.schedule_id)
+        ).one()
+        now = db_now(conn)
+        view = _view(conn, round_id)
+    age_limit = snapshot_age_limit or max_snapshot_age()
+    check = _evaluate_publication(r, sched, snapshot, source, now, age_limit)
+    config = check.config or get_config(sched.config_version)
+    issues: dict[str, int] = {}
+    seen: list[datetime] = []
+    for o in snapshot.outcomes:
+        a = assess_outcome(o, snapshot.snapshot_at, config)
+        for i in a.issues:
+            issues[str(i.code)] = issues.get(str(i.code), 0) + 1
+        if a.eligible and o.latest_observation_at is not None:
+            seen.append(o.latest_observation_at)
+    latest = snapshots.latest_kickoff(snapshot)
+    cutoff = (
+        latest + timedelta(hours=sched.settle_cutoff_hours)
+        if latest is not None and check.problem is None
+        else None
+    )
+    max_age = config.odds.max_quote_age.total_seconds() / 3600
+    return PublicationReadiness(
+        round=view,
+        ready=check.problem is None,
+        problem=check.problem,
+        details=check.details,
+        evaluated_at=now,
+        snapshot_at=snapshot.snapshot_at,
+        max_snapshot_age=age_limit,
+        source=source,
+        fingerprint=snapshot.fingerprint,
+        config_version=sched.config_version,
+        fixtures=len(snapshot.fixtures),
+        outcomes=len(snapshot.outcomes),
+        leagues=len({f.league_id for f in snapshot.fixtures}),
+        earliest_kickoff=snapshot.earliest_kickoff,
+        latest_kickoff=latest,
+        deadline_at=check.deadline,
+        settle_cutoff_at=cutoff,
+        report=snapshots.report_dict(check.report) if check.report is not None else None,
+        required_by_bucket=dict(zip(config.bucket_codes, config.sizes, strict=True)),
+        issues=dict(sorted(issues.items())),
+        oldest_observation_at=min(seen, default=None),
+        newest_observation_at=max(seen, default=None),
+        max_quote_age_hours=max_age,
+        diagnostics=dict(snapshot.diagnostics or {}),
+    )
 
 
 def _publication_problem(r, sched, snap: RoundSnapshot, source, now, max_age):
