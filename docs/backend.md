@@ -407,3 +407,12 @@ supervised) and cannot process the Official stream. Code: `backend/jobs/`
 (`config.py`, `reconciler.py`, `provider.py`) and `jobs_cli.py`. Configuration,
 exit codes, budget and retry policy, and host examples:
 [`operations_scheduler.md`](operations_scheduler.md).
+
+## Monitoring and recovery (Phase 6C.6 Stage D)
+
+`diski9 ops status|check|jobs`: read-only operational overview, health checks with
+INFO/WARNING/CRITICAL severities (exit 0/1/2), an optional disabled-by-default
+webhook, and job history. Code: `backend/ops/` (`config.py`, `snapshot.py`,
+`checks.py`, `notify.py`, `history.py`) and `ops_cli.py`. Reference:
+[`operations_monitoring.md`](operations_monitoring.md); recovery:
+[`operations_runbook.md`](operations_runbook.md).

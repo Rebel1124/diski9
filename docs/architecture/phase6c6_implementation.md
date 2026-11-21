@@ -439,3 +439,129 @@ reach finalisation on the real clock; real rounds keep 24 h):
   40-minute timeout).
 * Documentation after the candidate (this record, plan status) uses the
   documentation-only path.
+
+## 5. Stage D: operational monitoring, alerts and recovery (21 Nov 2026; checkpoint)
+
+Authorised with Stage C's acceptance. Reference:
+[`../operations_monitoring.md`](../operations_monitoring.md); recovery runbook:
+[`../operations_runbook.md`](../operations_runbook.md).
+
+### 5.1 What was built
+| Component | Purpose |
+|---|---|
+| `backend/ops/config.py` | thresholds (deadline-, cutoff- and S-02-relative) and notification settings from the environment; fail closed; webhook URL treated as a secret (never in `repr`, output or the database); https only (http only for localhost) |
+| `backend/ops/snapshot.py` | one bounded, read-only snapshot: database (server, schema vs expected head, required tables, query time), scheduler heartbeat (last and last successful tick), failures, running and abandoned steps, per-step failure streaks, rounds with their lifecycle position, blocking alerts, settlement failures, provider use, light integrity (Official anomalies, final rounds without weekly results) |
+| `backend/ops/checks.py` | `evaluate()`: findings with INFO / WARNING / CRITICAL and stable fingerprints; `deep_findings()`: the existing `inspect_stream` for every open stream (on demand only) |
+| `backend/ops/notify.py` | one webhook, off by default; new / ongoing / resolved with de-duplication, escalation, re-notification and retry, using `job_runs` (`job = 'ops.notify'`) as the ledger — no migration |
+| `backend/ops/history.py` | read-only recent job runs with outcome class and settlement-run links; a round's audit records |
+| `ops_cli.py` | `diski9 ops status [--json]`, `ops check [--json] [--deep] [--notify]` (exit 0/1/2), `ops jobs [...]` |
+
+No migration (head `app_0007`), no new dependency, no index added, no change to the
+scheduler, the services or any rule. Monitoring is read-only apart from the
+notification ledger and runs separately from `jobs tick`.
+
+### 5.2 Severity model and thresholds
+As documented in `operations_monitoring.md`: INFO for intended states (disabled or
+paused automation, provider calls off, drafts awaiting publication, normal
+progress); WARNING for delays and repeated retryable problems (tick 15 min late, 3
+step failures in a row, stuck or abandoned steps, lock 15 min late, no settlement 6
+h after the cutoff, eligible 6 h without finalisation, blocking alerts, budget ≥ 80
+%); CRITICAL for integrity or blocked operations (no tick for 60 min while
+automation should run, 6 failures in a row, lock 60 min late, settlement 24 h late,
+eligible or blocked 24 h past the S-02 time, Official-stream activity, material
+integrity finding, database unreachable or wrong head). All thresholds are
+configurable; disabled or paused automation is never an outage.
+
+### 5.3 Notifications
+Disabled by default and inactive without an explicit `DISKI9_OPS_WEBHOOK_URL`; no
+real destination configured (activation needs Q-08 approval). Tested only against
+a local webhook on 127.0.0.1: INFO never sent; duplicates suppressed;
+re-notification after the interval; escalation; resolved once; reappearance; HTTP
+500 and refused connections recorded and retried after the interval; no secret in
+payloads or ledger rows. The ledger lives in the database, so no notification is
+sent while the database is unreachable (the check still exits 2; the trigger's own
+failure reporting covers it).
+
+### 5.4 Recovery
+`operations_runbook.md`: scheduler not running, re-running a tick, pause/resume,
+abandoned or stuck steps, blocking alerts, provider budget or failures, verifying
+catch-up, rounds that need an operator, database problems, integrity findings. No
+force-finalise, no automatic alert resolution, no privileged shortcut; every manual
+competition action uses the existing authenticated commands.
+
+### 5.5 Scheduler locking review (§9 of the authorisation) — **defect demonstrated**
+Method: `tools/ops/scheduler_lock_probe.py` runs the **accepted, unchanged** Stage C
+reconciler on a throw-away database with a fake provider of chosen latency.
+
+| Question | Finding |
+|---|---|
+| How long is the lock transaction open? | The whole tick: measured 0.25 s (1 round), 0.76 s (5 rounds), 5.8 s (5 rounds, 1 s provider latency). Worst case from the client settings (30 s timeout, 3 retries, 2-4-8 s back-off, up to 10 requests per tick): about 134 s per request and over 20 minutes per tick, plus database lock and statement waits |
+| Provider latency, retries, rounds | Duration grows linearly with provider calls; the holder connection sits *idle in transaction* throughout |
+| `idle_in_transaction_session_timeout` | With 2 s and a 5 s provider call, PostgreSQL **terminated the holder connection while the tick was still working**. A second tick then acquired the lock and **ran concurrently**; it marked the first tick's live job rows as **abandoned**; the first tick then failed with an exception (`InternalError`) when completing its records. Competition data stayed correct (each service has its own row locks and idempotency), but job records, budget accounting and provider-request limits are not reliable under overlap, and a traceback escapes |
+| Can the connection be terminated mid-work? | Yes (above); also by `pg_terminate_backend`, failover or network drops; the tick does not notice until it finishes |
+| Session-level advisory lock | Held on a connection that is idle **outside** a transaction, it survived the same 2 s timeout and a second session could not acquire it |
+| Connection pooling | The current transaction-scoped lock works through a transaction pooler (the transaction pins the server connection) but is exactly what idle-in-transaction limits kill. A session-level lock is **not** safe through a transaction pooler (Supabase transaction mode on port 6543, PgBouncer transaction mode): the server session can be reassigned. It needs a direct or session-mode connection |
+
+**Remediation proposal (not implemented; owner approval requested before changing
+the locking architecture):**
+* **R1** Hold a session-level advisory lock (`pg_try_advisory_lock`) on a dedicated
+  autocommit connection that is never in a transaction; release explicitly at the
+  end (and implicitly if the connection dies). No database timeout needs weakening.
+* **R2** Require a direct or session-mode connection for the scheduler: refuse to
+  tick when `DISKI9_APP_POOLER_MODE=transaction` unless a separate session-mode
+  `DISKI9_JOBS_DATABASE_URL` is configured.
+* **R3** Detect lock loss: before each step (and before completing records) verify
+  the lock is still held (`pg_locks` for the holder's backend); if not, stop starting
+  work, record `lock lost`, exit 1. Enable TCP keepalives on the holder.
+* **R4** Mark steps abandoned only when the tick that started them is provably gone:
+  record the holder's backend PID in the tick row's arguments and treat a `running`
+  step as abandoned only if that PID is no longer in `pg_stat_activity`.
+* **R5** Bound a tick: a time budget after which no new step starts (for example
+  4 minutes), and scheduler-specific provider client settings (shorter timeout,
+  fewer retries) so one tick cannot run for tens of minutes.
+* **R6** Make lock release and connection errors at the end of a tick non-fatal
+  (reported, never a traceback).
+* Alternative considered: a lease row with an expiry renewed by heartbeat (works
+  through any pooler) — needs a migration and more moving parts; not recommended
+  unless a transaction pooler must be used.
+* Tests to accompany R1–R6: the probe's timeout scenario must show no overlap and no
+  false abandonment; pooler refusal; lock loss stops the tick.
+
+Current exposure: none locally (no idle-in-transaction limit; one trigger). Before
+hosted Beta, R1–R6 (or the alternative) are needed, or hosted settings must be shown
+to be safe; the owner has asked not to rely on weakening timeouts.
+
+### 5.6 Performance
+Light checks use indexed or time-bounded queries. Measured: 40–47 ms for
+status/check and under 50 ms for job history with 150,000 `job_runs` rows (test);
+read-only on the F4 datasets, light checks 31 ms (1,000 players, 11,401 entries)
+and 22 ms (10,000 players, 110,750 entries); the deep inspection 1.2 s and 11.0 s —
+hence on demand or daily, never per tick (a test fails if a light check runs it).
+No index added; `settlement_runs (round_id)` and `audit_log (job_run_id)` lack
+indexes for the per-round queries used, acceptable at current volumes.
+
+### 5.7 Tests (`tests/backend/test_backend_ops.py`, 15 tests)
+Synthetic-snapshot unit tests for the severity model (scheduler states and
+heartbeat, lifecycle thresholds and categories, provider budget, integrity,
+database head and tables, failure streaks) and configuration (off by default,
+webhook hidden, invalid values refused); and on isolated PostgreSQL databases:
+status reflecting a real lifecycle and staying read-only; failed, abandoned, stuck
+and blocked rounds; deep integrity on demand only (light checks never inspect);
+job history with settlement links and audit records; notifications disabled by
+default, de-duplication, re-notification, escalation, resolution, delivery
+failures; static check that monitoring performs no lifecycle or human-only action;
+an interrupted tick visible to `ops check` and recovery that never finalises before
+S-02; CLI status/check/jobs, JSON, deep, database unavailable (no traceback, no
+password), invalid configuration; bounded timings with 150,000 job runs.
+
+### 5.8 Verification
+* Level 1/2 (local PostgreSQL and the local Supabase Auth harness): the ops file (15
+  passed) and then ops, scheduler, results, settlement (incl. ops and security),
+  corrections, rounds, S-07, operator CLI, migrations, authentication units, weekly
+  results, championships, integrity and CI change-scope suites — **347 passed, 0
+  skipped**.
+* Lint and formatting clean; fingerprint
+  `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`; migration
+  head `app_0007`; no change under `src/diski9/challenge/`, `migrations_app/`, the
+  scheduler (`backend/jobs/`) or the services.
+* Level 3: §5.10.

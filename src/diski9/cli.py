@@ -847,6 +847,9 @@ def build_parser() -> argparse.ArgumentParser:
     from diski9.jobs_cli import add_parsers as add_jobs_parsers
 
     add_jobs_parsers(sub)
+    from diski9.ops_cli import add_parsers as add_ops_parsers
+
+    add_ops_parsers(sub)
 
     s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
     s.add_argument("action", choices=["upgrade", "downgrade", "current", "check"])
@@ -865,6 +868,10 @@ def main(argv: list[str] | None = None) -> int:
         from diski9.jobs_cli import run as run_jobs
 
         return run_jobs(args)
+    if args.command == "ops":
+        from diski9.ops_cli import run as run_ops
+
+        return run_ops(args)
     if args.command in ("results", "settle", "dev-results", "competition", "dev-championship") or (
         args.command == "round" and args.action in ROUND_ACTIONS
     ):
