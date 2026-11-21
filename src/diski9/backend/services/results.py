@@ -80,7 +80,7 @@ def actor_id(actor: Principal | System, capability: Capability) -> UUID | None:
 def round_row(conn, round_id: UUID, *, for_update: bool = False):
     q = select(rounds).where(rounds.c.id == round_id)
     if for_update:
-        q = q.with_for_update()
+        q = q.with_for_update(key_share=True)  # FOR NO KEY UPDATE (see repositories.rounds)
     row = conn.execute(q).one_or_none()
     if row is None:
         raise NotFound("No such round.")

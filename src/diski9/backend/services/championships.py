@@ -447,6 +447,8 @@ def process_stream(
         plan = plan_assignments(facts, models, required)
     now = conn.execute(text("SELECT clock_timestamp()")).scalar_one()
     for m in plan.newly_fixed:
+        if m.new:  # created in this pass: inserted below with boundary_fixed_at (F3 fix)
+            continue
         conn.execute(update(championships).where(championships.c.id == m.key)
                      .values(boundary_fixed_at=now))  # fmt: skip
     created_names = []

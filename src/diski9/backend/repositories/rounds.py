@@ -3,8 +3,13 @@
 Locking helpers make the concurrency conventions explicit:
 * :func:`lock_round_for_submission` takes ``FOR SHARE`` on the round row, so many
   submissions can proceed together but a status change has to wait for them;
-* :func:`lock_round_for_change` takes ``FOR UPDATE`` (used by lock, settlement and
-  operator jobs), which waits for in-flight submissions to commit.
+* :func:`lock_round_for_change` takes ``FOR NO KEY UPDATE`` (used by lock,
+  settlement and operator jobs), which waits for in-flight submissions to commit and
+  serialises every change of the round, but does not block foreign-key checks of rows
+  that merely *reference* the round (``FOR KEY SHARE``). Championship processing
+  inserts such rows for other rounds of the stream under the stream lock; with
+  ``FOR UPDATE`` two finalisations could deadlock (Phase 6C.5 F3, implementation
+  record §8). The round's key is never updated.
 """
 
 from __future__ import annotations
@@ -74,7 +79,7 @@ def set_status(
     """Change the round's status (and set-once fields such as the deadline) and
     append the status history row in the same transaction."""
     current = conn.execute(
-        select(rounds.c.status).where(rounds.c.id == round_id).with_for_update()
+        select(rounds.c.status).where(rounds.c.id == round_id).with_for_update(key_share=True)
     ).scalar_one()
     conn.execute(update(rounds).where(rounds.c.id == round_id).values(status=to_status, **fields))
     conn.execute(
@@ -99,7 +104,7 @@ def lock_round_for_submission(conn: Connection, round_id: UUID) -> Row:
 
 def lock_round_for_change(conn: Connection, round_id: UUID, nowait: bool = False) -> Row:
     return conn.execute(
-        select(rounds).where(rounds.c.id == round_id).with_for_update(nowait=nowait)
+        select(rounds).where(rounds.c.id == round_id).with_for_update(nowait=nowait, key_share=True)
     ).one()
 
 
