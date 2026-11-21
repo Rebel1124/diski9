@@ -63,3 +63,20 @@ These need a dedicated development database (`diski9_f1_e2e` on the test server,
 | `f1_real_run.py` | Runs `dev-championship run --preset ten-round-complete` in a pseudo-terminal, typing the password at the hidden prompt. It sends SIGINT (what Ctrl-C delivers) in round 9, then resumes with the same command |
 | `f1_current_steps.py settle` then `... finalise` | The documented CLI steps for a populated My Challenge Current result panel |
 | `f1_current.js <label>` | Browser check of that panel at 1360 and 390 px: four statistics-style cards, layout audit, screenshots `f1_*_current_result_<label>.png` |
+
+## Stage F2 (integration, browser acceptance)
+Isolated databases `diski9_f2_e2e` and `diski9_f2_e2e_nochamp`; data folder
+`tmp/f2` (`E2E_DIR=tmp/f2`). Servers: 8054 (development rounds shown), 8055 (the
+no-champion database) and 8056 (the same database with development rounds hidden).
+1. `E2E_DIR=tmp/f2 BASE=http://127.0.0.1:8054 E2E_DB=diski9_f2_e2e node accounts.js`.
+2. `E2E_DIR=tmp/f2 uv run python tools/e2e_6c5/seed.py <url>`, then
+   `seed_f2.py extra <url>` and `seed_f2.py nochamp <no-champion url>`.
+3. `uv run python tools/e2e_6c5/f2_expect.py <url> <no-champion url>` writes the
+   authoritative expectations from the read services.
+4. `node tools/e2e_6c5/journeys.js`: the twelve §17.3 journeys at 1360, 768 and 390
+   px, compared with the expectations, plus crafted-callback privacy replays, stream
+   visibility, navigation, browser errors and a read-only check.
+5. Current result states: `uv run python tools/e2e_6c5/f2_current.py <state>` then
+   `node tools/e2e_6c5/f2_current.js <state>` for `refund`, `void`, `negative`,
+   `review` and `corrected` in that order (re-run `f2_expect.py` afterwards before
+   repeating step 4, since the new rounds join the current championship).

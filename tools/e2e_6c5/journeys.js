@@ -64,6 +64,7 @@ async function pageChecks(page, j, wname, name) {
 }
 async function shot(page, wname, name, level = 'all') {
   if (SHOTS[wname] !== 'all' && level !== 'key') return;
+  if (name.includes('_pat_')) return;  // the second viewer is checked, not captured (no duplicates)
   const width = page.viewportSize().width;
   const height = await page.evaluate(() => document.documentElement.scrollHeight);
   await page.screenshot({ path: path.join(OUT, `${wname}_${name}.png`), fullPage: true,
@@ -323,6 +324,9 @@ async function crafted(page, label, body, wname, otherName) {
   const leaks = (t) => [otherName, '2,744.60', 'Official result', 'me-hist-detail'].filter(s => t.includes(s));
   if (res.status === 200) {
     if (leaks(res.text).length) p.push(`drill-down replay leaked: ${leaks(res.text).join(', ')}`);
+    // a signed-in participant gets the explicit refusal; a guest gets an empty detail
+    if (label !== 'guest' && !res.text.includes('That entry is not available.')) p.push('no refusal text in the response');
+    if (label === 'guest' && !/"children":\s*\[?null/.test(res.text)) p.push(`guest response not empty: ${res.text.slice(0, 120)}`);
   } else if (res.status !== 204 && res.status !== 403 && res.status !== 400) p.push(`unexpected status ${res.status}`);
   // the same request with the stream switched to beta and to official
   for (const s of ['beta', 'official']) {

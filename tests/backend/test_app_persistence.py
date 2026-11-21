@@ -339,3 +339,19 @@ def test_my_challenge_shows_your_view_now_without_touching_the_entry(engine, op,
     as_user(other)
     out, _, _ = body_text(engine, view.id)
     assert "Your View is calculated now" not in out
+
+
+def test_direct_visit_with_an_empty_store_shows_the_confirmed_entry(engine, locked_world, as_user):
+    """F2: opening My Challenge in a new tab (empty session store) must render the
+    account's confirmed entry on the first render, not "no confirmed entry"."""
+    w = locked_world
+    rsvc.lock_round(engine, rsvc.SYSTEM, w.short.id)
+    as_user(w.a)
+    service = make_service(engine, w.short.id)
+    out = text(pages.my_challenge(service, {}, local))
+    assert "without a confirmed entry" not in out
+    assert "Nothing confirmed for this round" not in out
+    assert w.short.code in out
+    as_user(w.c)  # never entered: still told so
+    out = text(pages.my_challenge(make_service(engine, w.short.id), {}, local))
+    assert "without a confirmed entry" in out

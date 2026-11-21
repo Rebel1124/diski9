@@ -1891,6 +1891,12 @@ def my_challenge(service, state, local) -> html.Div:
     callbacks keep updating only their own container."""
     from . import persist
 
+    if persist.participant(service) is not None:
+        # A direct visit (new tab, bookmark) starts with an empty store, which the
+        # store sync fills from the account in parallel with this render: render from
+        # the same account state (read-only), so a confirmed entry and its result are
+        # never shown as "no confirmed entry" on the first render (Phase 6C.5 F2).
+        state = persist.hydrate(service, state) or state
     if persist.backend_of(service) is None:
         return html.Div(
             [
