@@ -7,7 +7,40 @@ are approved, with decisions **CH-01 to CH-12** (the Stage A questions Q-1 to Q-
 and the amendment **D-30a** below. Stage B is authorised; Stage C needs separate
 approval. Private mini-leagues are removed from the MVP roadmap.
 
-**Phase 6C.5 Stage F4 (checkpoint, 21 Nov 2026; awaiting owner review):**
+**Phase 6C.5 Stage F4 closure and Stage G owner acceptance (21 Nov 2026) — Phase 6C.5 complete:**
+* **F4 closed** at `f0ac3c2` (CI run 81; 1,682 passed, 0 failed, 0 skipped; 12
+  journeys, 253 checks, 0 problems; Match Lab intermittent test corrected, 40/40
+  under CPU saturation; head `app_0007`; fingerprint
+  `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`). Application
+  code unchanged from the F3 baseline `c2583c3`; no rule, bucket or scoring change.
+* **G-1 Functional acceptance:** the Phase 6C.5 functionality (weekly leaderboards,
+  championship lifecycle, corrections, History, My Challenge and the supporting
+  competition services) is accepted.
+* **G-2 Performance limitations:** the signed-in Dash leaderboards page load above
+  600 ms and the guest page-load variability around 600 ms are accepted limitations,
+  not blockers. The targets and measured results are retained; missed targets are
+  not reclassified as passes.
+* **G-3 Match Lab defect ML-01:** the stale-adjustment race is accepted as a known
+  low-severity defect for 6C.5 and **scheduled as a targeted maintenance fix, with
+  regression coverage, before private beta testing with real users** (register:
+  `weekly_challenge_phase6c_plan.md`, "Outstanding work accepted at the 6C.5
+  closure"). Not implemented in Stage G.
+* **G-4 Local versus hosted:** the local integration, performance, concurrency and
+  integrity evidence is accepted; it does **not** establish production scalability,
+  hosted Supabase readiness or deployment readiness.
+* **G-5 Release gates remain open:** S-07 remediation is mandatory in 6C.6 and before
+  any hosted deployment or Official activation; genuine Beta finalisation (deadline +
+  24 h), D-29, D-36, D-38, hosted Supabase authentication acceptance and the relevant
+  6C.3 backlog remain open. **No Official competition stream is authorised.**
+* Unchanged: `broad60-432-v1` (Foundation 60–95 %, Balanced 40–<60 %, Challenger
+  20–<40 %), picks 4/3/2, credits 40/30/20/10, `points-150-75-v2` and the
+  championship rules, stream isolation.
+* Not authorised: 6C.6 implementation, the ML-01 fix, merge or tag, deployment,
+  Official activation.
+* Record: [`docs/architecture/phase6c5_implementation.md`](../architecture/phase6c5_implementation.md) §9.9 and §10;
+  acceptance record: [`docs/architecture/phase6c5_stage_g_handover.md`](../architecture/phase6c5_stage_g_handover.md).
+
+**Phase 6C.5 Stage F4 (checkpoint, 21 Nov 2026; approved and closed — see the Stage G entry above):**
 * F4 changed no application code and no business rule. The intermittent Match Lab
   browser test was a test-synchronisation fault (fixed; assertions unchanged).
 * A low-severity Match Lab defect was found and **not** fixed (a late detail rebuild

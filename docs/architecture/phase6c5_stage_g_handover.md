@@ -1,13 +1,15 @@
-# Phase 6C.5 — Stage G owner-acceptance handover
+# Phase 6C.5 — Stage G owner acceptance and closure record
 
-**Status:** prepared at the end of Stage F4 (21 Nov 2026) for the owner's Stage G
-review. Stage G is **not** closed by this document; Phase 6C.6 is not started.
-Nothing has been merged, tagged, deployed or activated.
+**Status: Stage G closed; Phase 6C.5 complete (owner acceptance, 21 Nov 2026).**
+Prepared at the end of Stage F4 as the handover and updated with the owner's Stage G
+decisions (§G). Accepting Phase 6C.5 completes **no** release gate (§C.4, §D).
+Nothing has been merged, tagged, released, deployed or activated; Phase 6C.6 is not
+authorised.
 
 | | |
 |---|---|
 | Branch | `feature/phase-6c5-leaderboards` (`Rebel1124/diski9`) |
-| Release candidate | the F4 checkpoint commit (see §B.6); application code identical to the accepted F3 baseline `c2583c3` |
+| Accepted baseline | F4: `f0ac3c2`, CI run 81 passed (Stage G adds documentation only); application code identical to the accepted F3 baseline `c2583c3` |
 | Migration head | `app_0007` |
 | Quantitative fingerprint | `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4` (unchanged since before 6C.5) |
 | Weekly Challenge configuration | `broad60-432-v1`: Foundation 60–95 %, Balanced 40–<60 %, Challenger 20–<40 %; picks 4/3/2; credits 40/30/20/10 |
@@ -28,7 +30,8 @@ Nothing has been merged, tagged, deployed or activated.
 | F1 | Development tooling: development participants, bulk test entries, resumable ten-round development championships (500-participant safeguard) | 21 Nov 2026 (`8379606`) |
 | F2 | Integration and security: privacy and stream-isolation tests, S-07 assessment, 12 browser journeys at three widths, Current states; four presentation defects fixed | 21 Nov 2026 (`7afc03b`) |
 | F3 | Performance and concurrency: 100 / 1,000 / 10,000 datasets, §14 benchmarks, multi-worker HTTP, concurrent readers and writers; fixed F3-1 (backlog), F3-2 (deadlock), F3-3 (O(page) queries) | 21 Nov 2026 (`c2583c3`) |
-| F4 | Final regression, stability and handover: Match Lab intermittent test root-caused and fixed (test synchronisation), full regression, journeys and F3 re-run, integrity tool and verification | checkpoint (this document) |
+| F4 | Final regression, stability and handover: Match Lab intermittent test root-caused and fixed (test synchronisation), full regression, journeys and F3 re-run, integrity tool and verification | 21 Nov 2026 (`f0ac3c2`) |
+| G | Owner acceptance (decisions G-1 to G-5, §G) | 21 Nov 2026 |
 
 No competition rule, probability bucket, scoring, settlement or championship rule was
 changed after its approval.
@@ -55,21 +58,31 @@ changed after its approval.
    stored standings against version hashes, ranks, refunds and voids, audit
    attribution and stream isolation; negative control detects deliberate corruption;
    no Official stream active. Record §9.5.
-7. **CI:** run 79 (`c2583c3`, F3 baseline) and run 80 (`0570220`, F4 test fix)
-   passed; the final F4 commit's run is reported in the F4 checkpoint report.
+7. **CI:** run 79 (`c2583c3`, F3 baseline), run 80 (`0570220`, F4 test fix) and
+   run 81 (`f0ac3c2`, F4 baseline) passed.
 8. **Protected baselines:** unchanged (record §9.6).
 
 ## C. Outstanding limitations
 
-### C.1 Accepted limitations (owner-accepted; not blockers for 6C.5)
+### C.0 Accepted and completed
+Phase 6C.5 functionality — weekly leaderboards (provisional and official, shared
+ranks, points), the championship lifecycle (streams, membership, progression,
+completion, rollover, joint and no champions, versions), corrections (Under Review,
+re-finalisation, historical corrections, D-30a), History, My Challenge and the
+supporting read and integrity services — is **accepted and complete** (G-1).
+
+### C.1 Accepted limitations (owner-accepted, G-2 and G-4; not blockers for 6C.5)
 * **Signed-in Dash leaderboards page load** above the 600 ms target (F3 653 ms; F4
   704–727 ms). Cause: the Dash page shell fires ~17 Screener callbacks on every page;
-  competition reads are ~35–40 ms of it. No Screener redesign authorised. The guest
-  page load is at the boundary (F4 586–635 ms).
+  competition reads are ~35–40 ms of it. No Screener redesign authorised.
+* **Guest Dash leaderboards page load variability** around the 600 ms target (F3
+  594 ms; F4 586–635 ms). Targets unchanged; neither result is reclassified as a
+  pass.
 * **F3 scalability limitations:** at 10,000 participants the uncached provisional
   page (~550 ms) and History (~17–22 ms) carry whole-set work; reopening with nine
   corrections takes ~2 minutes; process-local caches grow with workers; all figures
-  are from one shared 4-vCPU machine. **Production performance is not established.**
+  are from one shared 4-vCPU machine. **The local evidence does not establish
+  production scalability, hosted Supabase readiness or deployment readiness (G-4).**
 * Earlier-stage limitations (record §4.8, §5.10, Stage E handover §8): an operator
   invalidation cannot be reversed; membership verified structurally, not by full
   replay; round labels can coincide (codes distinguish them).
@@ -82,22 +95,31 @@ changed after its approval.
   (F4's integrity tool does; a candidate for 6C.6 monitoring).
 * Leaderboards use U+2212 minus, result cards a hyphen-minus (cosmetic).
 
-### C.3 Known defects
-* **Match Lab stale detail rebuild (low severity; found in F4, not fixed).** A detail
-  rebuild still in flight after a market change can, when its response arrives last,
-  restore the previous Match Lab adjustment after the participant clicked Reset or
-  edited one (`update_detail` writes `lab-store` from its request-time value). Needs a
-  slow server or device and an action inside that window. Browser-side what-if
-  adjustments only; no effect on entries, settlement, scoring, championships or
-  leaderboards. Recommended: a scoped Match Lab maintenance fix (separate approval).
+### C.3 Known defects scheduled for remediation (G-3)
+* **ML-01 Match Lab stale-adjustment race — low severity; fix required before
+  private beta.**
+  - *Failure scenario:* a match-detail rebuild (`update_detail`, after a market
+    change) is still in flight when the participant clicks Reset or edits a Section
+    B, C or D adjustment; its response arrives last, writes `lab-store` from its
+    request-time value, and the rebuilt inputs restore the earlier adjustment.
+    Needs a slow server, network or device and an action inside that window.
+  - *Impact:* browser-side what-if adjustments and the saved Your View only (no
+    effect on entries, settlement, scoring, championships or leaderboards), but a
+    removed adjustment can reappear, which undermines user confidence and the
+    accuracy of the displayed what-if figures.
+  - *Requirement:* a narrowly scoped fix with deterministic regression coverage of
+    the late-response ordering; **target: completed before private beta testing
+    with real users**; not implemented in Stage G. Register: Phase 6C plan,
+    "Outstanding work accepted at the 6C.5 closure".
 * No competition-logic defect is open.
 
-### C.4 Mandatory pre-hosting or pre-release blockers
+### C.4 Mandatory security, operational, hosting and release gates (all open, G-5)
 * **S-07:** operator CLI commands that identify the operator by e-mail without a
   password (`round create/publish/lock/dev-open`, `account grant-role/...`) —
   remediation is **mandatory in Phase 6C.6** before any hosted deployment or Official
   activation (record §7.2).
 * **D-38 Official activation requirements** (with D-29 real weekly pool validation).
+  **No Official competition stream is authorised for activation.**
 * **Genuine Beta finalisation** under the real deadline-plus-24-hour rule
   (development time overrides do not prove it).
 * **Hosted Supabase authentication acceptance.**
@@ -115,14 +137,14 @@ changed after its approval.
 | D-38 Official activation requirements | Official series start | before Official |
 | Hosted Supabase authentication acceptance | hosting | before hosting |
 | Relevant Phase 6C.3 backlog items | 6C.6 / later | per backlog |
-| Match Lab stale-rebuild defect (C.3) | Match Lab maintenance | none (low severity) |
+| ML-01 Match Lab stale-adjustment race (C.3) | targeted maintenance fix | **before private beta** |
 | Accepted signed-in page-load limitation | documented | none |
 | Match Lab test stability | resolved in F4 (test synchronisation; 40/40 under load); monitor in CI | none |
 
 Private mini-leagues remain excluded. Phase 6C.6 (administration, scheduling and
 monitoring) and 6D require separate authorisation.
 
-## E. Stage G acceptance recommendation
+## E. Stage G acceptance recommendation (as submitted at F4; accepted, §G)
 
 **Recommendation: Phase 6C.5 is ready for owner acceptance (Stage G), with the
 qualifications below.**
@@ -144,15 +166,63 @@ Qualifications:
    by 6C.5 acceptance; in particular S-07 before any hosted deployment or Official
    activation, and no Official series activation.
 
-## F. Stage G acceptance checklist (for the owner)
+## F. Stage G acceptance checklist
 
-- [ ] Review this handover and implementation record §9 (F4) and §8.13 (F3 closure).
-- [ ] Confirm the F4 checkpoint commit, its CI run, and that local and remote match.
-- [ ] Optionally repeat the read-only fingerprint on your machine
+- [x] Handover and implementation record §9 (F4) and §8.13 (F3 closure) reviewed by
+      the owner.
+- [x] F4 baseline confirmed: `f0ac3c2`, CI run 81, local and remote equal.
+- [ ] *Optional, owner's machine:* read-only fingerprint
       (`uv run python tools/phase6c3_quant_regression.py 2>/dev/null | shasum -a 256`
       → `88bcd717deca6c1c…`).
-- [ ] Optionally walk through the leaderboards, championships, History and My
-      Challenge on your acceptance database (`docs/phase6c5_local_acceptance_mac.md`).
-- [ ] Decide on the Match Lab stale-rebuild defect (accept as known / schedule a fix).
-- [ ] Confirm the accepted limitations (§C.1) and the carried release gates (§C.4, §D).
-- [ ] Decide on Stage G closure, and separately on any merge, tag or release.
+- [ ] *Optional, owner's machine:* walkthrough on the acceptance database
+      (`docs/phase6c5_local_acceptance_mac.md`).
+- [x] ML-01 decided: known low-severity defect, fix scheduled before private beta.
+- [x] Accepted limitations (§C.1) and open release gates (§C.4, §D) confirmed.
+- [x] Stage G closed and Phase 6C.5 complete (21 Nov 2026).
+- [ ] Merge, tag or release: **not authorised** (separate owner decision).
+
+## G. Owner decisions at Stage G (21 Nov 2026)
+
+* **F4 formally closed** at `f0ac3c2` (CI run 81; 1,682 passed, 0 failed, 0 skipped;
+  12 journeys, 253 checks, 0 problems; Match Lab test 40/40 under CPU saturation;
+  `app_0007`; fingerprint unchanged). Application code unchanged from `c2583c3`; no
+  rule, bucket or scoring change.
+* **G-1 Functional acceptance** of the Phase 6C.5 functionality (§C.0).
+* **G-2 Performance limitations** accepted (§C.1); targets and measurements retained,
+  misses not reclassified as passes.
+* **G-3 ML-01** accepted as a known low-severity defect; targeted fix with regression
+  coverage before private beta; not implemented in Stage G (§C.3).
+* **G-4** Local evidence accepted; production scalability, hosted Supabase readiness
+  and deployment readiness not established.
+* **G-5** All release gates remain open (§C.4, §D); S-07 mandatory in 6C.6 before any
+  hosted deployment or Official activation; no Official stream authorised.
+* **Unchanged technical baseline:** `broad60-432-v1` (Foundation 60–95 %, Balanced
+  40–<60 %, Challenger 20–<40 %), picks 4/3/2, credits 40/30/20/10,
+  `points-150-75-v2` and the championship rules, Development / Beta / Official
+  isolation, `app_0007`, the fingerprint.
+* **Not authorised:** Phase 6C.6 implementation, the ML-01 fix, merge or tag,
+  deployment or hosted activation, Official activation, rule or configuration
+  changes, changes to protected databases.
+
+## H. Recommended Phase 6C.6 priorities (planning only; not authorised)
+
+1. **S-07 operator-authentication remediation (first, release gate).** Bring the
+   e-mail-identified commands (`round create/publish/lock/dev-open`, `account
+   grant-role/revoke-role/grant-feature/revoke-feature/suspend/reinstate`) under
+   `authenticate_operator` with password and T-14 recency; remove or restrict
+   `--by-email`; tests through the real CLI (the F2 characterisation tests become
+   the regression baseline).
+2. **Production scheduling.** Publish, lock, `results import --full` before
+   finalisation, settle, finalise (after the real deadline + 24 h) and championship
+   processing as idempotent, locked, audited jobs with retries; this also provides
+   the genuine Beta finalisation evidence.
+3. **Monitoring and alerting.** Job health, settlement alerts, `inspect_stream` and
+   the F4 integrity checks (including stored standings against version hashes) on a
+   schedule, with alerts for failed or stuck rounds and Under Review championships.
+4. **Operational administration.** An authorised operator interface or hardened CLI
+   for reopenings, corrections, role and feature management, with clear one-line
+   errors (6C.3 backlog: CLI tracebacks) and complete audit.
+5. **Readiness work feeding later gates:** D-38 Official activation checklist, D-29
+   pool-validation reporting, D-36 deletion workflow design, and a hosted Supabase
+   acceptance plan (Phase 10).
+6. **Maintenance before private beta:** ML-01 (separately authorised, as decided).

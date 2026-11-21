@@ -2397,3 +2397,39 @@ score set has a finalisation audit record; development/non-development never mix
   Foundation 0.60–0.95 inclusive, Balanced 0.40–<0.60, Challenger 0.20–<0.40;
   `src/diski9/challenge/config.py`).
 * No merge, tag, deployment or Official activation.
+
+### 9.9 Owner approval and formal closure of F4 (21 Nov 2026)
+The owner reviewed the F4 checkpoint and **formally closed F4**; the same decision
+authorised Stage G owner acceptance (§10).
+* **Baseline accepted:** `f0ac3c2` on `feature/phase-6c5-leaderboards`; CI run 81
+  passed; full regression 1,682 passed, 0 failed, 0 skipped; browser acceptance 12
+  journeys, 253 checks, 0 problems; Match Lab intermittent test root-caused and
+  corrected (40 consecutive passes under CPU saturation); head `app_0007`;
+  fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`.
+* **Confirmed:** application code unchanged from the accepted F3 baseline `c2583c3`
+  (`git diff c2583c3 -- src/ migrations_app/` empty at `f0ac3c2` and after Stage G);
+  no competition rule, probability bucket or scoring change.
+
+## 10. Stage G: owner acceptance and Phase 6C.5 closure (21 Nov 2026)
+The owner accepted Phase 6C.5 with five decisions (decision register, "Phase 6C.5
+Stage F4 closure and Stage G owner acceptance"):
+1. **Functional acceptance** of the weekly leaderboards, championship lifecycle,
+   corrections, History, My Challenge and supporting competition services.
+2. **Performance limitations accepted:** the signed-in Dash leaderboards page load
+   above 600 ms and the guest page-load variability around 600 ms. Targets and
+   measurements retained (§8.3, §9.4); misses are not reclassified as passes.
+3. **ML-01 Match Lab stale-adjustment race** (§9.1) accepted as a known low-severity
+   defect, **scheduled as a targeted maintenance fix with regression coverage before
+   private beta**; not implemented in Stage G. Register: Phase 6C plan, "Outstanding
+   work accepted at the 6C.5 closure".
+4. **Local evidence accepted;** production scalability, hosted Supabase readiness and
+   deployment readiness are **not** established.
+5. **All release gates remain open:** S-07 (mandatory in 6C.6, before any hosted
+   deployment or Official activation), genuine Beta finalisation (deadline + 24 h),
+   D-29, D-36, D-38, hosted Supabase authentication acceptance and the relevant
+   6C.3 backlog. No Official stream is authorised.
+
+**Stage G is closed and Phase 6C.5 is complete.** Stage G changed documentation only:
+no application code, configuration, migration, rule or database change. Not merged,
+tagged, released or deployed; Phase 6C.6 is not authorised. Acceptance record:
+[`phase6c5_stage_g_handover.md`](phase6c5_stage_g_handover.md).

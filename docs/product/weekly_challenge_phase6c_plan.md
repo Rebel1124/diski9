@@ -1,6 +1,6 @@
 # Phase 6C — Staged implementation plan
 
-**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A approved (decisions S-01 to S-11), Stages B–D implemented and accepted at the owner checkpoint, and Stages E–G implemented; **6C.4 formally accepted by the owner on 20 Nov 2026 and released as v4.2.0** (closure: `docs/architecture/phase6c4_closure_handover.md`; release notes: `docs/releases/v4.2.0.md`); **6C.5 (leaderboards and championships): Stage A approved by the owner on 20 Nov 2026 (decisions CH-01 to CH-12, D-30a); Stage B approved (20 Nov 2026, `ccd7c4e`); Stage C complete and approved (20 Nov 2026, `3999974`); Stage D complete, owner-approved and formally closed (20 Nov 2026, `65a1440`; local acceptance Checkpoints 1–4 passed, 5–6 owner-waived); Stage E complete, owner-approved and formally closed (21 Nov 2026, `e820790`; closure: `docs/architecture/phase6c5_stage_e_closure_handover.md`); Stage F authorised as four checkpoints (F1 development tooling, F2 integration and security, F3 performance and concurrency, F4 regression and Stage G handover); F1 implemented, owner-approved and formally closed (21 Nov 2026, `8379606`); F2 implemented, owner-approved and formally closed (21 Nov 2026, `7afc03b`); F3 implemented, owner-approved and formally closed (21 Nov 2026, `c2583c3`; signed-in page-load miss accepted as a documented limitation); F4 (final regression, stability and handover) implemented (21 Nov 2026; no application code change; full regression 1,682 passed; Match Lab intermittent test root-caused and fixed) and awaiting owner review; Stage G handover prepared (`docs/architecture/phase6c5_stage_g_handover.md`); Stage G closure not authorised** ([`../architecture/phase6c5_design_specification.md`](../architecture/phase6c5_design_specification.md)); Stages C–G each need owner approval. Original status: plan for owner review. Each stage is a separate
+**Status:** 6C.0, 6C.1 and 6C.2 implemented; 6C.3 implemented (Stages A–G and post-G refinements), formally accepted by the owner on 19 Nov 2026 and released as v4.1.0 (closure: `docs/architecture/phase6c3_closure_handover.md`; release notes: `docs/releases/v4.1.0.md`); 6C.4 Stage A approved (decisions S-01 to S-11), Stages B–D implemented and accepted at the owner checkpoint, and Stages E–G implemented; **6C.4 formally accepted by the owner on 20 Nov 2026 and released as v4.2.0** (closure: `docs/architecture/phase6c4_closure_handover.md`; release notes: `docs/releases/v4.2.0.md`); **6C.5 (leaderboards and championships): Stage A approved by the owner on 20 Nov 2026 (decisions CH-01 to CH-12, D-30a); Stage B approved (20 Nov 2026, `ccd7c4e`); Stage C complete and approved (20 Nov 2026, `3999974`); Stage D complete, owner-approved and formally closed (20 Nov 2026, `65a1440`; local acceptance Checkpoints 1–4 passed, 5–6 owner-waived); Stage E complete, owner-approved and formally closed (21 Nov 2026, `e820790`; closure: `docs/architecture/phase6c5_stage_e_closure_handover.md`); Stage F authorised as four checkpoints (F1 development tooling, F2 integration and security, F3 performance and concurrency, F4 regression and Stage G handover); F1 implemented, owner-approved and formally closed (21 Nov 2026, `8379606`); F2 implemented, owner-approved and formally closed (21 Nov 2026, `7afc03b`); F3 implemented, owner-approved and formally closed (21 Nov 2026, `c2583c3`; signed-in page-load miss accepted as a documented limitation); F4 (final regression, stability and handover) implemented, owner-approved and formally closed (21 Nov 2026, `f0ac3c2`, CI run 81); **Stage G owner acceptance recorded and Phase 6C.5 complete (21 Nov 2026)** (acceptance record: `docs/architecture/phase6c5_stage_g_handover.md`); not merged, tagged or released; release gates remain open; Phase 6C.6 not authorised** ([`../architecture/phase6c5_design_specification.md`](../architecture/phase6c5_design_specification.md)); Stages C–G each need owner approval. Original status: plan for owner review. Each stage is a separate
 branch from the agreed base (§0), reviewed and approved by the owner before the
 next begins. Every stage keeps:
 * the deterministic engines unchanged (`challenge.structured`, `analysis`,
@@ -364,6 +364,46 @@ relevant-fixture re-check (`results import --full`) before finalising. Record:
 `docs/architecture/phase6c4_implementation.md` §24. Accepted by the owner on 20 Nov
 2026 (§25) and released as v4.2.0.
 
+## Outstanding work accepted at the 6C.5 closure (21 Nov 2026)
+
+Accepting Phase 6C.5 completes **none** of these items. Record:
+`docs/architecture/phase6c5_stage_g_handover.md`.
+
+**Known defect scheduled for remediation**
+
+| ID | Item | Detail |
+|---|---|---|
+| ML-01 | Match Lab stale-adjustment race | **Failure scenario:** after a market change (or another input that rebuilds the match detail), the detail-rebuild callback (`update_detail`) is still in flight; the participant clicks **Reset to model** or edits a Section B, C or D adjustment; when the rebuild's response arrives last, it writes `lab-store` from the value it held when its request was sent and the rebuilt inputs restore the **earlier** adjustment, undoing the Reset or edit. Needs a slow server, network or device and an action inside that window (observed in F4 only with the CPUs saturated). **Severity:** low. **Impact:** browser-side what-if adjustments and the saved Your View only — no effect on entries, settlement, scoring, championships or leaderboards — but a participant can see an adjustment they removed reappear, which undermines confidence in the displayed what-if figures and can mislead their analysis. **Requirement:** a narrowly scoped fix to the callback writes (no redesign) with deterministic regression coverage of the late-response ordering (browser test that holds the rebuild response, plus a callback-level test). **Target:** completed **before private beta testing with real users** (before Phase 10). Not to be implemented in Stage G. |
+
+**Accepted performance limitations (targets unchanged; results not reclassified)**
+
+| Item | Detail |
+|---|---|
+| Signed-in Dash leaderboards page load | target ≤ 600 ms; measured 653 ms (F3), 704–727 ms (F4); cause: Dash page shell and Screener callbacks |
+| Guest Dash leaderboards page load | target ≤ 600 ms; measured 594 ms (F3), 586–635 ms (F4): variability around the target |
+| 10,000-participant stretch | uncached provisional page ~550 ms; History ~17–22 ms; reopening with nine corrections ~2 min; local single-machine evidence only; production scalability not established |
+
+**Deferred optional improvements**
+
+| Item | Target |
+|---|---|
+| History shared-rank count O(page) | only if needed |
+| Screener callbacks not run on non-Screener pages (page-load limitation) | later, separately approved |
+| `inspect_stream` also comparing stored standing rows with the version hash (the F4 integrity tool does) | 6C.6 monitoring candidate |
+| Minus-sign consistency (U+2212 on leaderboards, hyphen-minus on result cards) | cosmetic |
+
+**Mandatory security, operational, hosting and release gates (all open)**
+
+| Gate | Target |
+|---|---|
+| **S-07** CLI operator-authentication remediation (`round create/publish/lock/dev-open`, `account grant-role/revoke-role/grant-feature/revoke-feature/suspend/reinstate`) | **mandatory in 6C.6**; before any hosted deployment or Official activation |
+| Genuine Beta finalisation under the real deadline + 24 h rule | later acceptance |
+| D-29 real weekly pool validation | before the Official series |
+| D-36 account deletion workflow (retention and pseudonymisation) | before hosting real participants |
+| D-38 Official activation requirements | before Official activation (**no Official stream is authorised**) |
+| Hosted Supabase authentication acceptance | before hosting (Phase 10) |
+| Relevant 6C.3 / 6C.4 backlog items (above and below) | as listed |
+
 ## Deferred backlog accepted at the 6C.4 closure (20 Nov 2026)
 
 | Item | Target |
@@ -389,8 +429,8 @@ relevant-fixture re-check (`results import --full`) before finalising. Record:
 Outstanding requirements, not blocking 6C.4: D-29 (validation on 6–8 real pools,
 before Official Championship 1) and D-36 (retention policy, before launch).
 
-Roadmap (updated 21 Nov 2026): 6C.5 leaderboards and championships (Stages A–E closed;
-Stage F in four checkpoints: F1 development tooling closed, F2 integration and security closed, F3 performance and concurrency closed, F4 regression and handover implemented and awaiting review; then Stage G owner acceptance and release) → 6C.6 administration, scheduling and monitoring → 6D integration
+Roadmap (updated 21 Nov 2026): 6C.5 leaderboards and championships (**complete**: Stages A–E,
+F1–F4 and Stage G owner acceptance closed on 21 Nov 2026; merge and release not yet authorised) → 6C.6 administration, scheduling and monitoring → 6D integration
 testing and release → 7 Lucy AI football analyst and LiveKit → 8 European
 competition coverage → 9 community badges and achievements → 10 production
 deployment and private beta → 11 public launch and YouTube → 12 advanced
