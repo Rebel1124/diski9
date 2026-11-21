@@ -13,6 +13,7 @@ from datetime import UTC
 from decimal import Decimal
 
 from dash import ALL, Input, Output, State, ctx, dcc, html, no_update
+from dash.exceptions import PreventUpdate
 
 from diski9.challenge import analysis as pa
 from diski9.challenge.config import DEFAULT_CONFIG
@@ -829,7 +830,7 @@ def register(app, data, service: ChallengeService) -> None:
         """Current or History (Stage E). History is rendered when it is opened, from
         the authoritative read services, so it is never stale."""
         if not tab:
-            return no_update, no_update, no_update
+            raise PreventUpdate  # wildcard outputs: a bare no_update is rejected by Dash
         from . import history_ui
 
         hide, show = {"display": "none"}, {}
@@ -850,13 +851,13 @@ def register(app, data, service: ChallengeService) -> None:
         from . import history_ui
 
         if not stream or not scope:
-            return no_update, no_update, no_update
+            raise PreventUpdate  # wildcard outputs: a bare no_update is rejected by Dash
         trig = ctx.triggered_id or {}
         kind = trig.get("t") if isinstance(trig, dict) else None
         s = stream[0]
         if kind == "hist-goto":
             if not ctx.triggered or not ctx.triggered[0].get("value"):
-                return no_update, no_update, no_update
+                raise PreventUpdate  # wildcard outputs: a bare no_update is rejected by Dash
             return ([history_ui.body(service, local, s, scope[0], trig.get("i") or 1)],
                     [no_update] * len(scope), [no_update] * len(scope))  # fmt: skip
         if kind == "me-hstream":
@@ -913,8 +914,8 @@ def register(app, data, service: ChallengeService) -> None:
         s = stream[0] if stream else "beta"
         if kind in ("lbw-goto", "lbc-goto"):
             if not ctx.triggered or not ctx.triggered[0].get("value"):
-                return no_update, no_update, no_update, no_update
-            page_no = trig.get("i") or 1
+                raise PreventUpdate  # wildcard outputs: a bare no_update is rejected by Dash
+            page_no = lbu.goto_page(trig.get("i"))
             value = rnd[0] if rnd else None
             return ([lbu.body(service, t, s, value, page_no)], [],
                     [no_update] * n_round, [no_update] * n_round)  # fmt: skip

@@ -161,6 +161,14 @@ def rules() -> html.Details:
     )
 
 
+def goto_page(i) -> int:
+    """The page a pager button asks for: an int, or ``"me-<n>"`` for "Go to my position"."""
+    try:
+        return max(1, int(str(i).removeprefix("me-")))
+    except (TypeError, ValueError):
+        return 1
+
+
 def pager(page: int, pages: int, total: int, page_size: int, me_page: int | None, kind: str):
     if total == 0:
         return None
@@ -184,8 +192,12 @@ def pager(page: int, pages: int, total: int, page_size: int, me_page: int | None
                         className=btn,
                         disabled=page >= pages,
                     ),
+                    # its own id ("me-<page>"): it must never share an id with "Next" or
+                    # "Previous" when the viewer is on the adjacent page (Dash ids are unique)
                     html.Button(
-                        "Go to my position", id={"t": f"{kind}-goto", "i": me_page}, className=btn
+                        "Go to my position",
+                        id={"t": f"{kind}-goto", "i": f"me-{me_page}"},
+                        className=btn,
                     )
                     if me_page is not None and me_page != page
                     else None,

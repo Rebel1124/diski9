@@ -26,11 +26,14 @@ Refused unless the database name contains ``e2e``. It never touches another data
 from __future__ import annotations
 
 import json
+import os
 import sys
 from datetime import timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
+# E2E_DIR (default tmp/e2e_6c5): the git-ignored folder with accounts.json and rounds.json
+DATA = ROOT / os.environ.get("E2E_DIR", "tmp/e2e_6c5")
 sys.path.insert(0, str(ROOT / "tests" / "backend"))
 
 
@@ -49,7 +52,7 @@ def main(url: str) -> None:
     from diski9.backend.services import settlement as st
 
     eng = make_app_engine(BackendDatabaseSettings(environment="development"), url=url)
-    accts = json.loads((ROOT / "tmp" / "e2e_6c5" / "accounts.json").read_text())
+    accts = json.loads((DATA / "accounts.json").read_text())
     with transaction(eng) as conn:
         you, pat = (
             conn.execute(text("SELECT user_id FROM app.user_identities WHERE subject = :s"),
@@ -133,7 +136,7 @@ def main(url: str) -> None:
             print("championship:", tuple(r))
         codes = [conn.execute(text("SELECT code FROM app.rounds WHERE id = :r"),
                               {"r": w["round"]}).scalar_one() for w in made]  # fmt: skip
-    (ROOT / "tmp" / "e2e_6c5" / "rounds.json").write_text(json.dumps(codes))
+    (DATA / "rounds.json").write_text(json.dumps(codes))
     print("rounds:", ", ".join(codes))
     eng.dispose()
 

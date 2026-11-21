@@ -140,6 +140,10 @@ def test_podium_caps_names_per_place():
 def test_pager_and_rules():
     t = text(lbu.pager(2, 5, 214, 50, 4, "lbw"))
     assert "Showing 51–100 of 214" in t and "Go to my position" in t and "Page 2 of 5" in t
+    # the viewer on the next page: "Next" and "Go to my position" keep distinct ids (F2)
+    ids = re.findall(r'"id": (\{[^}]*\})', text(lbu.pager(1, 2, 60, 50, 2, "lbw")))
+    assert len(ids) == len(set(ids)) == 3
+    assert [lbu.goto_page(i) for i in (2, "me-2", None, "x")] == [2, 2, 1, 1]
     r = text(lbu.rules())
     for pts in (150, 135, 125, 120, 115, 110, 105, 100, 95, 90):
         assert f": {pts}" in r

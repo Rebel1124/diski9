@@ -49,5 +49,7 @@ async function settle(page, ms = 700) {
   await page.waitForTimeout(ms);
   await page.waitForFunction(() => !document.querySelector('._dash-loading-callback'), null, { timeout: 20000 }).catch(() => {});
 }
-function accounts() { return JSON.parse(fs.readFileSync(path.join(ROOT, 'tmp/e2e_6c5/accounts.json'), 'utf8')); }
-module.exports = { chromium, BASE, ROOT, createUser, signIn, settle, accounts };
+// E2E_DIR (default tmp/e2e_6c5) lets a later stage use its own isolated data folder
+const DATA = path.join(ROOT, process.env.E2E_DIR || 'tmp/e2e_6c5');
+function accounts() { return JSON.parse(fs.readFileSync(path.join(DATA, 'accounts.json'), 'utf8')); }
+module.exports = { chromium, BASE, ROOT, DATA, createUser, signIn, settle, accounts };
