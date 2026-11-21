@@ -893,20 +893,19 @@ AUTH_MESSAGES = {
 }
 
 
-def run(args) -> int:
-    """Run one settlement command; returns the process exit code."""
+def guarded(call) -> int:
+    """Run ``call(engine)`` for an operator command with the shared error handling:
+    authentication and authorisation failures exit 3, usage and refused operations
+    exit 2, and nothing is written when a check fails (every check runs before the
+    service's write transaction). Used by the settlement, competition, ``round``
+    and ``account`` commands (S-07, Phase 6C.6)."""
+    from diski9.backend.auth.privileged import PrivilegeError
     from diski9.backend.db import make_app_engine
     from diski9.backend.services.common import ServiceError
 
-    if args.command == "dev-championship" and args.action in ("presets", "plan"):
-        try:
-            return _dev_championship(args, None)  # no database needed
-        except ServiceError as exc:
-            print(f"error: {exc.message}", file=sys.stderr)
-            return 2
     engine = make_app_engine()
     try:
-        return HANDLERS[args.command](args, engine)
+        return call(engine)
     except OperatorAuthFailed as exc:
         print(f"error: {exc.message}", file=sys.stderr)
         return 3
@@ -923,6 +922,12 @@ def run(args) -> int:
         return 3
     except ServiceError as exc:
         print(f"error: {exc.message}", file=sys.stderr)
+        details = getattr(exc, "details", None)
+        if details:
+            print(json.dumps(details, indent=2, default=str), file=sys.stderr)
+        return 2
+    except PrivilegeError as exc:
+        print(f"error: {exc} Nothing was changed.", file=sys.stderr)
         return 2
     except (_Usage, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -932,3 +937,16 @@ def run(args) -> int:
         return 130
     finally:
         engine.dispose()
+
+
+def run(args) -> int:
+    """Run one settlement command; returns the process exit code."""
+    from diski9.backend.services.common import ServiceError
+
+    if args.command == "dev-championship" and args.action in ("presets", "plan"):
+        try:
+            return _dev_championship(args, None)  # no database needed
+        except ServiceError as exc:
+            print(f"error: {exc.message}", file=sys.stderr)
+            return 2
+    return guarded(lambda engine: HANDLERS[args.command](args, engine))

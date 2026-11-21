@@ -272,12 +272,19 @@ application session, not the token, is what the browser holds.
   `requires()` for services and future agent tools; `require()` for Flask routes;
   `authorize_callback()` for Dash callbacks; `require_feature()` for entitlements.
 * **Owner bootstrap:** `uv run diski9 account bootstrap-owner --email <verified address> --confirm`
-  on the server; it works only while no owner exists, for an active account that
-  has finished set-up, and grants the Lucy entitlements. Afterwards only an
-  existing owner can grant or revoke roles and entitlements
-  (`grant-role`, `revoke-role`, `grant-feature`, `revoke-feature`, each with
-  `--by-email` and `--reason`); the last owner cannot be removed. There is no web
-  route for any of this. Every change is audited in `app.audit_log`.
+  on the server, in a terminal; it works only while no owner exists, for an active
+  account that has finished set-up, **and asks for that account's own password**
+  (proof of control; Phase 6C.6 S-07). It grants the Lucy entitlements and the audit
+  record names the verified account. Afterwards only an existing owner can grant or
+  revoke roles and entitlements (`grant-role`, `revoke-role`, `grant-feature`,
+  `revoke-feature`), and operators or owners can `suspend` / `reinstate`; each takes
+  `--email` (the account to change), `--reason` and `--operator <your own sign-in
+  address>`, then asks for **your** password, verified by Supabase Auth, and applies
+  the 12-hour operator and 15-minute sensitive-operation recency rules (T-12, T-14)
+  at the moment of the change. The former `--by-email` option was removed (S-07):
+  it now only prints guidance and changes nothing. The last owner cannot be
+  removed. There is no web route for any of this. Every change is audited in
+  `app.audit_log` with the verified account and its role.
 
 ## 7. Guest and account access (Stage G)
 

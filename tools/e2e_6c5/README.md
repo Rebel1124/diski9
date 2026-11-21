@@ -89,3 +89,15 @@ rounds hidden). Extra environment variables: `E2E_URL` (f2_current.py), `NOCHAMP
 `NODEV`, `E2E_DB_NOCHAMP` and `SHOTS_DIR` (journeys.js, f2_current.js), so the F2
 evidence is not overwritten. F3 tools accept `diski9_f4_*` databases; the
 publication benchmark takes `PUB_DB`. Integrity: `tools/phase6c5_f4_integrity.py`.
+
+## Phase 6C.6 Stage B (S-07) — operator commands now need a password
+`round create / publish / lock / dev-open` and the `account` administration
+commands verify the acting operator's password (`--operator EMAIL`, hidden prompt in
+a real terminal); `--by-email` was removed and only prints guidance. Scripts from
+closed stages that call `round dev-open --by-email …` non-interactively
+(`tools/e2e_6c5/f1_current_steps.py`, `tools/e2e_6c3/journey_*.js`,
+`tools/e2e_6c4/*.js`) therefore stop at that step: run that one command yourself in a
+terminal, or use the service-level seed tools (`seed.py`, `f2_current.py`), which
+create development rounds directly on isolated `_e2e`/`_test` databases. There is
+deliberately no non-interactive password option. These scripts are not part of the
+regression suite.

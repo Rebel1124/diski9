@@ -367,11 +367,32 @@ def cmd_serve(args, engine) -> None:
     app.run(host=args.host, port=args.port, debug=args.debug)
 
 
-def cmd_account(args) -> int:
-    """Server-side account administration. There is no web equivalent: these need
-    shell access to the server and its database credentials."""
-    from diski9.backend.auth import privileged as pv
+BY_EMAIL_REMOVED = (
+    "error: --by-email was removed (S-07, Phase 6C.6): an e-mail address alone no longer "
+    "identifies the acting operator or owner. Use --operator EMAIL (your own sign-in "
+    "address); your password is then asked for in a terminal and verified with Supabase "
+    "Auth. Nothing was changed."
+)
 
+# The capability each privileged account command needs. All three are SENSITIVE, so
+# the password must have been entered within the T-14 window (15 minutes) at the
+# moment of the write, on top of the T-12 operator recency.
+ACCOUNT_CAPABILITY = {
+    "grant-role": "roles.manage",
+    "revoke-role": "roles.manage",
+    "grant-feature": "entitlements.manage",
+    "revoke-feature": "entitlements.manage",
+    "suspend": "user.suspend",
+    "reinstate": "user.suspend",
+}
+
+
+def cmd_account(args) -> int:
+    """Server-side account administration. There is no web equivalent. Every change
+    is made by a person whose identity is verified with their password through
+    Supabase Auth (S-07): the acting owner or operator for roles, entitlements and
+    suspension; the target account itself for the one-time owner bootstrap. Roles
+    come from the database and every change is audited."""
     if args.action == "generate-keys":
         import secrets as _s
 
@@ -381,92 +402,108 @@ def cmd_account(args) -> int:
         print(f"DISKI9_APP_TOKEN_ENCRYPTION_KEY={generate_fernet_key()}")
         print("# put these in your untracked .env (or the host's secret store); never commit them")
         return 0
+    if getattr(args, "by_email", None):
+        print(BY_EMAIL_REMOVED, file=sys.stderr)
+        return 2
+    from diski9.backend.auth import privileged as pv
+    from diski9.backend.auth.operator_cli import authenticate_operator, refresh_clock
+    from diski9.backend.auth.permissions import Capability, authorize
     from diski9.backend.auth.sessions import revoke_all_sessions
-    from diski9.backend.db import make_app_engine, transaction
+    from diski9.backend.db import transaction
+    from diski9.settlement_cli import _principal, _Usage, guarded
 
-    engine = make_app_engine()
-    try:
+    def list_privileged(engine) -> int:
+        from sqlalchemy import select
+
+        from diski9.backend.db.schema import profiles, user_roles
+
         with transaction(engine) as conn:
-            if args.action == "list-privileged":
-                from sqlalchemy import select
+            rows = conn.execute(
+                select(user_roles.c.role, profiles.c.username, user_roles.c.granted_at)
+                .join(profiles, profiles.c.user_id == user_roles.c.user_id)
+                .order_by(user_roles.c.role, profiles.c.username)
+            ).all()
+        for r in rows:
+            print(f"{r.role:8} {r.username} (since {r.granted_at:%Y-%m-%d})")
+        if not rows:
+            print("no operators or owners")
+        return 0
 
-                from diski9.backend.db.schema import profiles, user_roles
-
-                rows = conn.execute(
-                    select(user_roles.c.role, profiles.c.username, user_roles.c.granted_at)
-                    .join(profiles, profiles.c.user_id == user_roles.c.user_id)
-                    .order_by(user_roles.c.role, profiles.c.username)
-                ).all()
-                for r in rows:
-                    print(f"{r.role:8} {r.username} (since {r.granted_at:%Y-%m-%d})")
-                if not rows:
-                    print("no operators or owners")
-                return 0
-            if not args.email:
-                print("error: --email is required", file=sys.stderr)
-                return 2
+    def bootstrap(engine) -> int:
+        if not args.confirm:
+            raise _Usage("add --confirm to grant the first owner role")
+        if not args.email:
+            raise _Usage("--email is required (the account that becomes the first owner)")
+        with transaction(engine) as conn:
+            if pv.owner_count(conn) > 0:  # fail before asking for a password
+                raise pv.PrivilegeError("an owner already exists; use grant-role as that owner.")
             target = pv.find_user_by_email(conn, args.email)
-            if args.action == "bootstrap-owner":
-                if not args.confirm:
-                    print("error: add --confirm to grant the first owner role", file=sys.stderr)
-                    return 2
-                pv.bootstrap_owner(conn, target, args.reason or "initial owner bootstrap")
-                print("owner role granted (first owner); lucy.* entitlements granted")
-                return 0
-            if not (args.by_email and args.reason):
-                print(
-                    "error: --by-email (an owner, or operator for status changes) and "
-                    "--reason are required",
-                    file=sys.stderr,
-                )
-                return 2
-            actor = pv.find_user_by_email(conn, args.by_email)
+        print("Owner bootstrap: sign in as the account that will become the first owner.")
+        who = authenticate_operator(engine, args.email, out=sys.stdout)
+        if who.user_id != target:  # the verified sign-in must be the named account
+            raise pv.PrivilegeError("the verified sign-in is not the account named by --email.")
+        with transaction(engine) as conn:
+            pv.bootstrap_owner(conn, target, args.reason or "initial owner bootstrap",
+                               actor=who.user_id)  # fmt: skip
+        print("owner role granted (first owner); lucy.* entitlements granted")
+        return 0
+
+    def change(engine) -> int:
+        if not args.email:
+            raise _Usage("--email is required (the account to change)")
+        if not (args.reason and args.reason.strip()):
+            raise _Usage("--reason is required (recorded in the audit log)")
+        actor = _principal(engine, args.operator)
+        # authorise against the current database time, before any write (T-12/T-14)
+        actor = refresh_clock(engine, actor)
+        authorize(actor, Capability(ACCOUNT_CAPABILITY[args.action]))
+        with transaction(engine) as conn:
+            target = pv.find_user_by_email(conn, args.email)
             if args.action == "grant-role":
-                pv.grant_role(conn, actor, target, args.role, args.reason)
+                pv.grant_role(conn, actor.user_id, target, args.role, args.reason)
             elif args.action == "revoke-role":
-                pv.revoke_role(conn, actor, target, args.role, args.reason)
+                pv.revoke_role(conn, actor.user_id, target, args.role, args.reason)
             elif args.action == "grant-feature":
-                pv.grant_feature(conn, actor, target, args.feature, args.reason)
+                pv.grant_feature(conn, actor.user_id, target, args.feature, args.reason)
             elif args.action == "revoke-feature":
-                pv.revoke_feature(conn, actor, target, args.feature, args.reason)
-            elif args.action in ("suspend", "reinstate"):
+                pv.revoke_feature(conn, actor.user_id, target, args.feature, args.reason)
+            else:
                 pv.set_status(
                     conn,
-                    actor,
+                    actor.user_id,
                     target,
                     "suspended" if args.action == "suspend" else "active",
                     args.reason,
                     revoke_all_sessions,
+                    actor_role="owner" if "owner" in actor.roles else "operator",
                 )
-            print(f"{args.action}: done (audited)")
-            return 0
-    except pv.PrivilegeError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
-    finally:
-        engine.dispose()
+        print(f"{args.action}: done (audited)")
+        return 0
+
+    if args.action == "list-privileged":
+        return guarded(list_privileged)
+    if args.action == "bootstrap-owner":
+        return guarded(bootstrap)
+    return guarded(change)
 
 
 def cmd_round(args) -> int:
     """Weekly round administration through the server CLI (Phase 6C.3). Publication
     and lock run the same services and checks as any other caller; nothing here can
-    change a published snapshot or deadline."""
+    change a published snapshot or deadline. Every write is made by an operator whose
+    password is verified through Supabase Auth (S-07); unattended locking belongs to
+    the scheduler (``SYSTEM``), not to this command."""
     from datetime import timedelta
 
-    from diski9.backend.auth import privileged as pv
-    from diski9.backend.db import BackendDatabaseSettings, db_now, make_app_engine, transaction
+    if getattr(args, "by_email", None):
+        print(BY_EMAIL_REMOVED, file=sys.stderr)
+        return 2
+    from diski9.backend.db import BackendDatabaseSettings, db_now, transaction
     from diski9.backend.services import rounds as svc
-    from diski9.backend.services.common import ServiceError, cli_principal
+    from diski9.backend.services.common import ServiceError
+    from diski9.settlement_cli import _principal, guarded
 
     settings = BackendDatabaseSettings()
-    engine = make_app_engine(settings)
-
-    def actor():
-        if not args.by_email:
-            raise ServiceError("--by-email (an operator or owner) is required", code="usage")
-        with transaction(engine) as conn:
-            uid = pv.find_user_by_email(conn, args.by_email)
-            return cli_principal(conn, uid, db_now(conn))
 
     def show(v) -> None:
         print(
@@ -482,7 +519,7 @@ def cmd_round(args) -> int:
             f"fingerprint={v.fingerprint or '-'}"
         )
 
-    try:
+    def call(engine) -> int:
         if args.action == "list":
             for v in svc.list_rounds(engine):
                 show(v)
@@ -491,11 +528,14 @@ def cmd_round(args) -> int:
             show(svc.get_round(engine, svc.round_id_for_code(engine, args.code)))
             return 0
         if args.action == "create":
+            if not args.week or "-W" not in args.week:
+                raise ServiceError("--week is required, for example 2026-W48", code="usage")
             year, week = (int(x) for x in args.week.split("-W"))
             start, end = svc.schedule_window(engine, year, week)
+            p = _principal(engine, args.operator)
             v = svc.create_round(
                 engine,
-                actor(),
+                p,
                 code=f"{year}-W{week:02d}-weekend",
                 window_start=start,
                 window_end=end,
@@ -506,8 +546,8 @@ def cmd_round(args) -> int:
             from diski9.app.data import LEAGUE_SHORT
             from diski9.challenge.roundsheet import build_live_snapshot
 
-            p = actor()
             rid = svc.round_id_for_code(engine, args.code)
+            p = _principal(engine, args.operator)
             r = svc.get_round(engine, rid)
             football = make_engine(args.database_url)
             with transaction(engine) as conn:
@@ -522,13 +562,15 @@ def cmd_round(args) -> int:
 
             if settings.environment == "production":
                 raise ServiceError("development rounds are refused in production", code="usage")
-            p = actor()
+            if args.fixtures < 0:
+                raise ServiceError("--fixtures must be 0 (no cap) or more", code="usage")
+            if not args.mirror_upcoming and args.spacing_minutes < 1:
+                raise ServiceError("--spacing-minutes must be 1 or more", code="usage")
+            p = _principal(engine, args.operator)
             with transaction(engine) as conn:
                 now = db_now(conn)
             first = now + timedelta(minutes=args.deadline_minutes + 15)
             code = args.code or f"dev-{now:%Y%m%d-%H%M%S}"
-            if args.fixtures < 0:
-                raise ServiceError("--fixtures must be 0 (no cap) or more", code="usage")
             if args.mirror_upcoming:
                 from diski9.app.data import LEAGUE_SHORT
                 from diski9.backend.devdata import mirror_snapshot
@@ -543,8 +585,6 @@ def cmd_round(args) -> int:
                     league_names=LEAGUE_SHORT,
                 )
             else:
-                if args.spacing_minutes < 1:
-                    raise ServiceError("--spacing-minutes must be 1 or more", code="usage")
                 snap = dev_snapshot(
                     code,
                     now,
@@ -568,8 +608,9 @@ def cmd_round(args) -> int:
             )
             return 0
         if args.action == "lock":
-            who = actor() if args.by_email else svc.SYSTEM
-            res = svc.lock_round(engine, who, svc.round_id_for_code(engine, args.code))
+            rid = svc.round_id_for_code(engine, args.code)
+            p = _principal(engine, args.operator)  # a person; never SYSTEM here (Q-02)
+            res = svc.lock_round(engine, p, rid)
             show(res.round)
             print(
                 "already locked; nothing changed"
@@ -577,15 +618,9 @@ def cmd_round(args) -> int:
                 else f"locked {res.locked_entries} entries"
             )
             return 0
-    except (ServiceError, pv.PrivilegeError) as exc:
-        print(f"error: {getattr(exc, 'message', exc)}", file=sys.stderr)
-        details = getattr(exc, "details", None)
-        if details:
-            print(json.dumps(details, indent=2, default=str), file=sys.stderr)
         return 2
-    finally:
-        engine.dispose()
-    return 2
+
+    return guarded(call)
 
 
 def cmd_app_db(args) -> int:
@@ -758,7 +793,12 @@ def build_parser() -> argparse.ArgumentParser:
         ],
     )
     s.add_argument("--email", help="the account to change (its verified email address)")
-    s.add_argument("--by-email", help="the acting owner or operator (verified email address)")
+    s.add_argument(
+        "--operator",
+        metavar="EMAIL",
+        help="your own sign-in email (owner or operator); your password is then asked for",
+    )
+    s.add_argument("--by-email", help=argparse.SUPPRESS)  # removed (S-07): guidance error
     s.add_argument("--role", choices=["operator", "owner"])
     s.add_argument("--feature", help="for example lucy.research")
     s.add_argument("--reason", help="recorded in the audit log")
@@ -774,7 +814,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     s.add_argument("--code", help="round code, for example 2026-W48-weekend")
     s.add_argument("--week", help="ISO week for create, for example 2026-W48")
-    s.add_argument("--by-email", help="the acting operator or owner (verified email address)")
+    s.add_argument("--by-email", help=argparse.SUPPRESS)  # removed (S-07): guidance error
     s.add_argument("--seed", type=int, default=2026, help="dev-open: fixture seed")
     s.add_argument(
         "--deadline-minutes",

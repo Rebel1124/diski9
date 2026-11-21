@@ -92,9 +92,17 @@ def require_active(conn: Connection, user_id: UUID) -> None:
 
 
 def cli_principal(conn: Connection, user_id: UUID, now) -> Principal:
-    """A principal for an operator acting through the server CLI (shell access to
-    the server and its database credentials, as for ``diski9 account``). Roles are
-    loaded from the database; nothing is taken from the command line."""
+    """A principal built from the database **without** verifying a password: for
+    development tools and tests only (seed scripts, demonstrations, read-only
+    expectation builders). No product command uses it: privileged human operations
+    authenticate through ``authenticate_operator`` (S-07, Phase 6C.6). Refused when
+    the application environment is ``production``."""
+    from ..db import BackendDatabaseSettings
+
+    if BackendDatabaseSettings().environment == "production":
+        raise ServiceError(
+            "Unverified principals are not available in production.", code="forbidden"
+        )
     view = account(conn, user_id)
     return Principal(
         user_id=user_id,

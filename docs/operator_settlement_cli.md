@@ -45,9 +45,11 @@ Verified yourname (roles: operator).
 The scheduled-job actor (future automation, 6C.6) can only import, settle and
 finalise; corrections, invalidation and reopening always need a person.
 
-The 6C.3 commands `round create / publish / lock / dev-open` keep their existing
-`--by-email` behaviour (unchanged in 6C.4; see limitations in the implementation
-record).
+Since Phase 6C.6 Stage B (S-07) the 6C.3 commands `round create / publish / lock /
+dev-open` and the `account` administration commands authenticate the same way as
+the settlement commands (`--operator EMAIL` and your password). The former
+`--by-email` option was removed and only prints guidance; a manual `round lock`
+always needs an operator (no system fallback in the CLI).
 
 ## Commands
 
@@ -148,9 +150,9 @@ rounds. Synthetic observations are stored only in PostgreSQL, scoped to the one
 development round, and never touch the football data store.
 
 ```
-uv run diski9 round dev-open --by-email EMAIL --deadline-minutes 6 --spacing-minutes 1 --code dev-accept-a
+uv run diski9 round dev-open --operator EMAIL --deadline-minutes 6 --spacing-minutes 1 --code dev-accept-a
 uv run diski9 dev-results test-entry --round CODE --participant EMAIL [--variant N]
-uv run diski9 round lock --code CODE
+uv run diski9 round lock --code CODE --operator EMAIL
 uv run diski9 dev-results set-mode --round CODE --mode synthetic --operator EMAIL
 uv run diski9 dev-results scenarios
 uv run diski9 dev-results scenario --round CODE --name NAME --operator EMAIL [--timeline prompt|standard]
@@ -303,7 +305,7 @@ choose **Development**.
 **A populated My Challenge Current "Your result" panel** (you, signed in,
 competing with the development participants):
 ```
-uv run diski9 round dev-open --by-email EMAIL --deadline-minutes 1 --spacing-minutes 1 --fixtures 40 --code dev-mine
+uv run diski9 round dev-open --operator EMAIL --deadline-minutes 1 --spacing-minutes 1 --fixtures 40 --code dev-mine
 uv run diski9 dev-results test-entry --round dev-mine --participant YOUR_EMAIL --variant 1
 uv run diski9 dev-results test-entry --round dev-mine --all-dev-participants --operator EMAIL
 # after the deadline:

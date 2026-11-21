@@ -134,7 +134,12 @@ GUEST = Principal()
 
 
 def authorize(principal: Principal, capability: Capability) -> None:
-    """Raise unless ``principal`` may use ``capability`` right now."""
+    """Raise unless ``principal`` may use ``capability`` right now. Only a person
+    (a :class:`Principal`) can hold a capability: the scheduled-job actor
+    (``SYSTEM``) or any other object is refused, so it can never stand in for a
+    human operator (S-07); services that accept ``SYSTEM`` do so explicitly."""
+    if not isinstance(principal, Principal):
+        raise NotAuthenticated("not_a_person")
     if not principal.is_authenticated:
         raise NotAuthenticated("not_signed_in")
     if not principal.onboarded:

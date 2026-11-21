@@ -267,32 +267,37 @@ server-built `Principal`, checks a capability, writes in one transaction and use
 the database clock. Errors are typed with user-safe messages
 (`services.common`). Details: [Phase 6C.3 record](architecture/phase6c3_implementation.md).
 
-Round commands (server CLI; the acting operator is resolved by verified email, as
-for `diski9 account`):
+Round commands (server CLI). Since Phase 6C.6 Stage B (S-07) every writing command
+verifies the acting operator's password with Supabase Auth: give your own sign-in
+address with `--operator` (or type it when asked) and enter your password at the
+hidden prompt in a real terminal. The former `--by-email` option was removed and now
+only prints this guidance:
 
 ```bash
 uv run diski9 round list
 ```
 
 ```bash
-uv run diski9 round create --week 2026-W48 --by-email operator@example.test
+uv run diski9 round create --week 2026-W48 --operator operator@example.test
 ```
 
 ```bash
-uv run diski9 round publish --code 2026-W48-weekend --by-email operator@example.test
+uv run diski9 round publish --code 2026-W48-weekend --operator operator@example.test
 ```
 
 ```bash
-uv run diski9 round lock --code 2026-W48-weekend
+uv run diski9 round lock --code 2026-W48-weekend --operator operator@example.test
 ```
 
 ```bash
-uv run diski9 round dev-open --by-email operator@example.test --deadline-minutes 30
+uv run diski9 round dev-open --operator operator@example.test --deadline-minutes 30
 ```
 
 `publish` builds the snapshot read-only from the football store (no API request)
 and refuses with the reason if the opening rules are not met. `lock` is refused
-before the deadline and is idempotent. `dev-open` publishes a development round
+before the deadline and is idempotent; a manual lock is always made by an
+authenticated operator (unattended locking belongs to the future scheduler, as the
+explicit system actor). `dev-open` publishes a development round
 from deterministic synthetic fixtures (refused when `DISKI9_APP_ENVIRONMENT` is
 `production`). Migration `app_0003` adds draft and Your View versions, the
 development flag and the snapshot and draft guards.

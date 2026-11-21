@@ -230,8 +230,10 @@ def _development_guard(r) -> None:
 
 def set_result_mode(engine: Engine, actor: Principal, round_id: UUID, mode: str) -> str:
     """Freeze a development round's result mode (``real`` or ``synthetic``). Set once:
-    the database refuses any later change. Real rounds are always ``real``."""
-    uid = actor_id(actor, Capability.RUN_JOBS)
+    the database refuses any later change. Real rounds are always ``real``. A
+    person's choice: the scheduled-job actor is refused (S-07, Phase 6C.6)."""
+    authorize(actor, Capability.RUN_JOBS)  # refuses SYSTEM (not a Principal)
+    uid = actor.user_id
     if uid is None:
         raise ResultsRefused("Choosing a result mode needs an authenticated operator.")
     if mode not in ("real", "synthetic"):

@@ -1,13 +1,19 @@
 """Privileged account administration: roles, entitlements and suspension.
 
-There is no web route for any of this. These functions are called from the
-server command line (``diski9 account ...``) by someone with database access, and
-every change is written to the immutable audit log in the same transaction.
+There is no web route for any of this. These are the database-level operations
+behind the server command line (``diski9 account ...``); every change is written to
+the immutable audit log in the same transaction.
 
+* **Who calls them (S-07, Phase 6C.6):** the CLI first verifies the acting person's
+  password with Supabase Auth (``authenticate_operator``) and authorises the
+  capability against the current database time (T-12 and T-14); only then does it
+  pass the *verified* account ID here. An e-mail address is never an identity. The
+  checks below (active owner/operator in the database) remain as defence in depth.
 * **Owner bootstrap** works exactly once: it succeeds only while no owner exists,
-  for an existing, active, onboarded account whose email is verified.
+  for an existing, active, onboarded account whose email is verified, and the CLI
+  requires that account's own password (proof of control).
 * Afterwards roles and entitlements can be changed only by an existing active
-  owner (named explicitly as the actor), with a reason.
+  owner, with a reason.
 * Suspension revokes every session of the account immediately.
 """
 
@@ -75,8 +81,14 @@ def owner_count(conn: Connection) -> int:
     ).scalar_one()
 
 
-def bootstrap_owner(conn: Connection, user_id: UUID, reason: str) -> None:
-    """Grant the first owner role (and the owner-only Lucy entitlements)."""
+def bootstrap_owner(
+    conn: Connection, user_id: UUID, reason: str, *, actor: UUID | None = None
+) -> None:
+    """Grant the first owner role (and the owner-only Lucy entitlements). ``actor`` is
+    the account whose password was verified (the CLI requires it to be ``user_id``);
+    it is recorded in the audit log."""
+    if actor is not None and actor != user_id:
+        raise PrivilegeError("the first owner must prove control of their own account")
     _lock(conn)
     if owner_count(conn) > 0:
         raise PrivilegeError("an owner already exists; use grant-role as that owner")
@@ -97,9 +109,14 @@ def bootstrap_owner(conn: Connection, user_id: UUID, reason: str) -> None:
         action="role.bootstrap_owner",
         target_type="user",
         target_id=str(user_id),
-        actor_role="system",
+        actor=actor,
+        actor_role="participant" if actor is not None else "system",
         reason=reason or "bootstrap",
-        after={"role": "owner", "features": list(OWNER_FEATURES)},
+        after={
+            "role": "owner",
+            "features": list(OWNER_FEATURES),
+            "verified": "password" if actor is not None else "none",
+        },
     )
 
 
@@ -216,9 +233,19 @@ def revoke_feature(conn: Connection, actor: UUID, user_id: UUID, feature: str, r
 
 
 def set_status(
-    conn: Connection, actor: UUID, user_id: UUID, status: str, reason: str, revoke_sessions
+    conn: Connection,
+    actor: UUID,
+    user_id: UUID,
+    status: str,
+    reason: str,
+    revoke_sessions,
+    *,
+    actor_role: str = "operator",
 ) -> None:
-    """Suspend or reinstate an account (operators and owners; audited)."""
+    """Suspend or reinstate an account (operators and owners; audited with the
+    acting person's role)."""
+    if actor_role not in ("operator", "owner"):
+        raise PrivilegeError("unknown actor role")
     if status not in ("active", "suspended"):
         raise PrivilegeError("status must be active or suspended")
     if not reason.strip():
@@ -246,7 +273,7 @@ def set_status(
         target_type="user",
         target_id=str(user_id),
         actor=actor,
-        actor_role="operator",
+        actor_role=actor_role,
         reason=reason,
         before={"status": before},
         after={"status": status},
