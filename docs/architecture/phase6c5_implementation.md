@@ -1548,3 +1548,133 @@ testing)** only; F3, F4 and Stage G remain unauthorised.
   - Current-tab refund and void presentations still to be tested (F2);
   - the intermittent Match Lab test is unresolved (F4 root cause);
   - the older S-07 operator commands are unchanged (assessed in F2, §7.2).
+
+## 7. Stage F2: integration, browser acceptance and security testing (21 Nov 2026)
+Authorised by the owner on 21 Nov 2026 together with the F1 closure (§6.9). F2 is a
+testing, verification and security-assessment checkpoint: no migration, no
+competition-rule change, no redesign. F3, F4 and Stage G are not authorised.
+
+### 7.1 Baseline
+* `feature/phase-6c5-leaderboards` at `8379606` (F1), local worktree clean and equal
+  to the remote; CI run 70 passed on `8379606`; fingerprint `88bcd717deca6c1c…`;
+  migration head `app_0007`. F1 closure documentation: `a8abba3`.
+* Isolated databases only: the per-file `_test` databases of the test suite and a
+  dedicated `diski9_f2_e2e` development database for the browser journeys.
+  `diski9_f1_e2e` was not reset or overwritten. The owner's `diski9`,
+  `diski9_6c5_acceptance` and the backup live on the owner's Mac and were not
+  touched.
+
+### 7.2 S-07 security assessment (first checkpoint)
+**Question.** The 6C.3 commands `round lock` and `round dev-open` identify the
+operator by `--by-email` and ask no password. Is that an immediate risk?
+
+**Method.** Code inspection of every CLI entry point and its authorisation path, the
+runtime database grants (migrations `app_0001`/`app_0002`), and six executed
+characterisation tests through the real `diski9` CLI on an isolated `_test` database:
+`tests/backend/test_backend_f2_s07_assessment.py` (6 passed).
+
+**Affected commands (all in `src/diski9/cli.py`).**
+
+| Command | Identity | Authorisation actually enforced | Password / recency |
+|---|---|---|---|
+| `round create`, `round publish` | `--by-email` | `PUBLISH_ROUND`, roles read from the database | none |
+| `round dev-open` | `--by-email` | `PUBLISH_ROUND`; refused when `DISKI9_APP_ENVIRONMENT=production`; `dev-` codes only | none |
+| `round lock` | `--by-email`, or none (runs as `SYSTEM`) | `RUN_JOBS` if an email is given; refused before the deadline (database clock); idempotent | none |
+| `account grant-role/revoke-role/grant-feature/revoke-feature` | `--by-email` | active **owner** in the database | none; **no T-14 15-minute recency** although these are `MANAGE_ROLES`/`MANAGE_ENTITLEMENTS` |
+| `account suspend/reinstate` | `--by-email` | active operator or owner | none; no T-14 recency (`SUSPEND_USER`) |
+| `account bootstrap-owner` | target email + `--confirm` | only while no owner exists | none (documented break-glass) |
+
+Not affected: every 6C.4/6C.5 settlement, correction, `competition`
+(`status/verify/backfill/repair`), `dev-results` and F1 `test-entry`,
+`dev-results participants` and `dev-championship run` command. They verify the
+password with Supabase Auth at a hidden terminal prompt, refuse a missing terminal,
+re-evaluate roles at the database clock and apply T-14 to sensitive capabilities
+(existing genuine-terminal tests in `test_backend_operator_cli.py`, including
+`test_database_access_alone_is_not_authority`,
+`test_dev_participants_need_an_operator_password` and
+`test_dev_championship_cli_pauses_resumes_and_reports`). The F1 runner's operator
+and owner sessions come from `authenticate_operator`; its development participants
+are built without a password only for accounts whose sole identity is
+`development` (tested in F1).
+
+**Answers.**
+1. *Production.* `round dev-open` refuses `production`, but that is an
+   accident guard read from an environment variable, not a security boundary.
+   `round create/publish/lock` and `account …` run in any environment. Per the
+   repository records no production competition database exists: hosted Supabase is
+   Phase 10 and there is no production scheduler in 6C.5 (L-12).
+2. *Beta / Official.* `create`/`publish` make **beta** rounds (series `beta`;
+   tested); nothing can create an official round (D-38 gate; `counts_toward_official_championship`
+   is always false). `lock` can lock a beta round, but only after its deadline,
+   which the database trigger enforces and which the scheduled lock would do anyway;
+   it is idempotent and changes no entry. `dev-open` makes development rounds only.
+3. *Impersonation by a non-operator.* Over the web: **no**, these commands have no
+   web route. Through the CLI: naming one's *own* non-operator address, an unknown
+   address or an unverified address is refused with nothing written (tested). But a
+   person who can run the CLI **with the application's database credentials** can
+   name an operator's or owner's address and act as them without a password; the
+   audit log then attributes the action to that operator or owner (tested for
+   `dev-open` and `grant-role`).
+4. *Trust boundary.* The commands rely on a trusted server shell plus
+   `DISKI9_APP_DATABASE_URL`. That credential is already decisive: the runtime role
+   `diski9_app` has `SELECT/INSERT/UPDATE/DELETE` on `user_roles` and the other
+   projection tables (`app_0001` `_grants`, RLS policy `runtime_access` `USING (true)`
+   in `app_0002`), so its holder can grant themselves any role by SQL. The email-only
+   path therefore gives **no capability beyond what the credential already gives**;
+   what it loses is the S-07 principle that database credentials are never proof of
+   operator authority, and reliable attribution.
+5. *Audit.* Every write is audited in the same transaction (`round.created`,
+   `round.published`, `round.locked` jobs, `role.granted`, `account.suspended`, …),
+   but the actor is whoever was named, so attribution is only as trustworthy as the
+   shell user.
+6. *Recency bypass.* Yes for `account` role, entitlement and status changes: they
+   take no `Principal`, so the T-14 15-minute recency that the settlement path
+   enforces for `MANAGE_ROLES`, `MANAGE_ENTITLEMENTS` and `SUSPEND_USER` never
+   applies. `round` commands need only non-sensitive capabilities (`PUBLISH_ROUND`,
+   `RUN_JOBS`); `cli_principal` stamps `authenticated_at = now`.
+7. *F1 runner.* Protected: password at a terminal prompt via Supabase Auth, 12-hour
+   operator session with one re-authentication, owner 15-minute recency before a
+   reopen; refused in production; development participants only.
+8. *Other commands sharing it.* `round create/publish` and the `account` role,
+   entitlement and status commands (table above).
+
+**Minor rough edge (not a security gap).** When `round dev-open` is refused by the
+service (`Forbidden: missing_capability:round.publish`) or by the `dev-` prefix check,
+the CLI prints a Python traceback (exit 1) instead of a clean `error:` line (exit 2).
+The refusal happens before any write (tested). Not changed in F2.
+
+**Severity.** *Current exposure: low.* Exploiting it needs shell access with the
+application's database credentials, which already permit the same changes directly;
+there is no web path, no production database, and official rounds cannot be created.
+*Before any hosted or official deployment: medium* (misattributable audit records
+and a T-14 bypass for role, entitlement and status changes).
+
+**Reproduction (isolated data only).** Run
+`tests/backend/test_backend_f2_s07_assessment.py` with
+`DISKI9_APP_TEST_DATABASE_URL` pointing at a `_test` database; it creates throwaway
+accounts with verified addresses and drives `diski9 round …` and
+`diski9 account grant-role …` through a pseudo-terminal.
+
+**Recommendation (Phase 6C.6, and a release gate before Phase 10 hosting or D-38
+activation).**
+* Move `round create/publish/lock/dev-open` and the `account` role, entitlement and
+  status commands onto `authenticate_operator` (`--operator`, hidden password
+  prompt, terminal required), with T-14 recency for `MANAGE_ROLES`,
+  `MANAGE_ENTITLEMENTS` and `SUSPEND_USER`.
+* Keep an explicit, separately named scheduler identity for `round lock` (the
+  existing `SYSTEM` path) for the future 6C.6 scheduler, distinguished in the audit.
+* Keep `bootstrap-owner` as the documented break-glass step (only while no owner
+  exists).
+* Consider a separate, narrower database role for the web runtime, so the web
+  process's credential cannot write `user_roles` (defence in depth).
+* Clean `error:` handling for `Forbidden`/`ValueError` in `cmd_round`.
+
+**Decision boundary.** The issue cannot change genuine competition data without the
+application database credential, which already allows those changes; it is limited
+to a trusted server shell; no production or official data exists. **Deferral to
+Phase 6C.6 is safe**, so F2 continued without remediation. Nothing was weakened.
+F2's operator tests use the authenticated commands; the legacy `round` commands are
+used in F2 only on isolated development databases, as in F1.
+
+**Impact on F2.** None blocking. The browser-journey data is built with the F1
+runner (authenticated) and the services directly in test databases.
