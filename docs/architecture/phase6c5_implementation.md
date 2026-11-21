@@ -1304,3 +1304,216 @@ needs a separate authorisation. The closure and Stage F handover record is
 
   The handover (§8 and §9) lists them all.
 * The accepted Stage E choices (§5.9, §5.12, §5.13) change no business rule.
+
+## 6. Stage F1: development tooling and resumable championship scenarios (21 Nov 2026)
+Stage F has four checkpoints, each reviewed separately:
+* F1 development tooling;
+* F2 integration and security;
+* F3 performance and concurrency;
+* F4 regression and the Stage G handover.
+
+Only F1 is authorised, and this records it. **F1 is implemented and awaits owner
+review; F2–F4 and Stage G have not begun.** Starting point: `51c28b3` (Stage E
+closure), CI run 69 passed, fingerprint `88bcd717deca6c1c…`, migration head
+`app_0007`.
+
+### 6.1 Delivered (no migration, no business-rule change)
+* **`backend/dev_championship.py`** (new; development only, refused in production).
+  * **Development participants.**
+    - Accounts `devp-0001` … with one identity each, of provider `development`
+      (subject `dev-participant-0001` …). Supabase Auth never issues that provider, so
+      nobody can sign in as them. They have no e-mail address and no role.
+    - Created idempotently (the identity is unique), at most 500 (ordinary testing),
+      by an operator, with the audit event `dev_participants_created`.
+    - `participant_principal` builds a server-side principal *only* for an account
+      whose sole identity is a development one.
+  * **Bulk entries (`submit_all`).**
+    - One confirmed entry per development participant, through the existing
+      `settlement_scenarios.submit_test_entry`, so drafts, entries, deadline,
+      eligibility, frozen odds, the 4/3/2 buckets and the accumulators are all
+      checked as usual.
+    - Variants are deterministic: `spread`, `groups` (three shared portfolios) or
+      `pairs` (identical pairs).
+    - Participants who already have an entry are skipped. Refused for
+      non-development rounds.
+  * **Plans and ten presets**, as required by §17.2. Round scenarios are limited to
+    the 6C.4 scenarios that finalise without alert handling. Actions are `correct`
+    (owner reopening with one valid-to-valid correction) or `invalidate` (owner
+    reopening, then the operator's invalidation), at most one per round.
+  * **The runner (`run_plan`).** Per round:
+    1. create and publish a development round, with a real deadline
+       `deadline_seconds` away (default 60);
+    2. submit entries;
+    3. wait for the deadline on the database clock;
+    4. lock;
+    5. set the synthetic result mode and record the 6C.4 scenario;
+    6. settle `as_of` the cutoff;
+    7. finalise `as_of` the earliest finalisation (the existing development-only
+       overrides);
+    8. `verify_stream("development")`.
+
+    Every step is one existing service call. A note is printed when D-32b or the
+    five-entry minimum turns a round void or practice unexpectedly.
+  * **State, from the database only.**
+    - Round codes are `dev-<run-id>-<plan hash>-rNN`. Before each step `inspect_run`
+      reads the round's real status, entries, result mode, evidence, settlement and
+      score sets, and the runner does only the next missing step.
+    - No runner table, file or audit lookup is needed. A different plan under an
+      existing run id is refused.
+    - `stop()` is checked before every step; waits poll it each second.
+  * **Authentication.**
+    - Before every write the principal is re-evaluated at the database clock
+      (`refresh_clock`), then authorised for the capability: operator 12 h; reopening
+      and invalidation 15 min (T-14).
+    - When a check has lapsed, the runner calls `reauthenticate(role)` (the CLI asks
+      for the password again) or stops safely.
+    - No password is stored, and there is no bypass.
+* **CLI (in `settlement_cli.py`; dispatched from `cli.py`):**
+  - `dev-results participants --count N [--preview-only]` (operator);
+  - `dev-results test-entry --all-dev-participants [--count] [--variants] [--seed]`
+    (operator; the per-participant form with the participant's own password is
+    unchanged);
+  - `dev-championship presets | plan | run | status`.
+
+  `run` takes `--preset` or `--scenario-plan`, plus `--run-id`, `--rounds K` (pause),
+  `--operator` and `--owner`. The first SIGINT (Ctrl-C) stops at the next safe point;
+  a second aborts. `status` is read-only and needs no password.
+* **Unchanged:** scoring, settlement, corrections, publication, championship
+  processing, authentication, the schema, the existing operator commands and their
+  safeguards.
+
+### 6.2 Naming and interpretation (deviations from the §17.2 proposal)
+* **`--rounds K`** pauses after round K instead of setting the plan's length (a plan
+  defines its rounds and its fingerprint).
+* **Added:** `dev-championship` gained `presets`, `plan` and `status`.
+* **Operator password:** `participants` and the bulk test-entry form need one. The
+  specification did not say, and creating accounts should be audited.
+* **The runner's own lock** checks the operator's `RUN_JOBS` capability after a
+  password check. The older `round lock` and `round dev-open` commands (S-07,
+  deferred) are unchanged.
+* **Defaults:** 40 fixtures, because the first real run found 20 too few (§6.4).
+* **Presets** are built for the stream's rounds per championship R: real runs use 10;
+  the automated tests use 3 for speed (an isolated database setting).
+
+### 6.3 Tests
+* **`tests/backend/test_backend_dev_championship.py`:** 22 tests on real PostgreSQL,
+  each scenario in its own database:
+  - participants: idempotent, audited, development-only, no role, no e-mail; refused
+    for ordinary participants and in production; real accounts refused;
+  - bulk entries: nine valid predictions in 4/3/2 buckets on nine fixtures, varied,
+    deterministic, resumable, refused for beta;
+  - the real ten-round preset (8 participants, 40 fixtures, 5 s deadlines), completed
+    10/10;
+  - with-practice, with-invalidated, rollover, both historical invalidations (L-33
+    reopen; D-30a boundary kept with R-1 rounds) and reopen-and-correct
+    (republication, standings recalculated);
+  - championship tie (joint champions; shared weekly ranks with equal points), zero
+    points (no champion) and weekly ties;
+  - interruption before settle, after lock, after finalise and before entries, then
+    resume and a repeated resume;
+  - graceful stop; a crash in the middle of the entries step; `--rounds` pause; a
+    different plan refused;
+  - operator 12-hour expiry (stop, or one re-authentication); owner 15-minute recency
+    before reopening; failed verification stops; plan validation.
+  - Every scenario ends with integrity checks:
+    - no duplicate entries, points or memberships;
+    - development participants only in development rounds;
+    - no championships outside development;
+    - verify consistent.
+* **`test_backend_operator_cli.py`:** 2 new genuine-terminal tests (real local
+  Supabase Auth, password at the hidden prompt):
+  - `participants`: an ordinary participant is refused, then preview, create and
+    repeat as the operator;
+  - `dev-championship run` with a plan file: participant refused; `--rounds 1` pause
+    (deadline wait visible); `status`; resume ("already final" … "Scenario
+    complete"); `presets`.
+* **Result:** both files passed (22 and 2).
+
+### 6.4 Real ten-round runs through the CLI
+Run on the dedicated development database `diski9_f1_e2e` (local test server, real
+local Supabase Auth, owner account onboarded through the web sign-in, password typed
+at the hidden prompt, default 60 s deadlines).
+
+1. **First run (20 fixtures, the then default):** 10 rounds in 606 s.
+   - Round 4 (`entry-all-void`) cancelled matches shared by so many other entries that
+     at least half of all locked predictions were void. D-32b correctly made the round
+     void, so the championship ended *in progress, 9/10*.
+   - This was a preset problem, not a rule problem. The default became 40 fixtures
+     (the 6C.4 guidance for that scenario), and the runner now prints a note when a
+     round becomes void unexpectedly.
+   - Log: `tmp/f1/real10_first_20fixtures.log` (local).
+2. **Second run (40 fixtures, fresh database):**
+   - Rounds 1–6 ran; the process was then **killed** while waiting for round 7's
+     deadline.
+   - The same command resumed: rounds 1–6 "already final", round 7 locked and
+     finalised, round 8 done.
+   - A **SIGINT** during round 9's wait printed "Stopping after the current
+     operation", then "Stopped safely … run the same command again", exit 4.
+   - The same command resumed again: rounds 1–8 "already final", rounds 9–10 done.
+   - **Championship Nov-26: completed 10/10, champion `devp-0001`.**
+   - Integrity on that database: 0 duplicate entries, 0 duplicate round scores, 0
+     duplicate memberships, 10 score sets for 10 rounds, and `verify_stream`
+     consistent.
+   - About one minute per round. Log: `tmp/f1/real10_resume.log` (local).
+
+### 6.5 My Challenge Current result panel (closes a Stage E limitation)
+* **Setup:** on `diski9_f1_e2e`, using only the documented CLI commands
+  (`tools/e2e_6c5/f1_current_steps.py`; the operator guide lists them):
+  1. `round dev-open`;
+  2. the signed-in participant's own `test-entry`, with their password;
+  3. `test-entry --all-dev-participants` (9 entries, so competitive);
+  4. lock after the real deadline;
+  5. synthetic `all-correct`;
+  6. `settle run --as-of`;
+  7. later, `round finalise --as-of`.
+* **Check:** `tools/e2e_6c5/f1_current.js` ran at 1360 and 390 px, provisional and
+  then final.
+  - The Current tab's "Your result" panel shows the four statistics-style cards: violet
+    Allocated, green Returned, blue Net with a green value, and teal "Recovered 100+".
+  - The layout audit found 0 problems.
+  - Screenshots: `docs/screenshots/phase6c5/refined/f1_*_current_result_*.png`.
+* **Not covered here:** refunded and void states on the Current tab use the same
+  component; they were checked in the History drill-downs (§5.13). The full browser
+  journeys belong to F2.
+
+### 6.6 Performance boundary
+F1 is not the performance stage.
+* **Per-round reads:** `inspect_run` makes one query per planned round (bounded by
+  the plan, at most 40), and the work in each round is the services' own.
+* **Participants:** each runner step loads one principal per participant (at most
+  500).
+* **Real-run cost:** the real ten-round run spent almost all of its time waiting for
+  deadlines.
+* **Not started:** no F3 multi-process or 10,000-participant work.
+
+### 6.7 Limitations and assumptions
+* **Ctrl-C under test:** the test pseudo-terminal is not the controlling terminal, so
+  a typed Ctrl-C there is just a character. The real run delivered Ctrl-C as SIGINT to
+  the process, as a terminal does.
+* **Reopen actions** wait until the round's last synthetic evidence time has passed
+  (up to 4 minutes with the default `evidence_seconds`), so a correction always comes
+  after the evidence.
+* **An interrupted action** (reopened, not re-finalised) is completed only by running
+  the original plan again; `run` explains this.
+* **Shared development stream:** a database's development stream is shared, so a new
+  run continues the current development championship. Use a dedicated development
+  database for clean preset expectations.
+* **Development participants stay** in the database. There is no removal command;
+  they are excluded by being development-only.
+
+### 6.8 Regression and verification
+* **Full suite on the F1 code: 1,658 passed, 1 failed** (25 min 52 s; real PostgreSQL,
+  local Supabase Auth, browser tests). That is 1,634 + 1 from §5.13, plus the 24 new
+  F1 tests.
+  - The failure is the known intermittent Match Lab browser test
+    `tests/test_match_context.py::test_browser_section_b_alignment_and_bookmaker_layout`.
+    Neither it nor Match Lab changed.
+  - Rerun alone it passed 3 of 3. It stays carried forward; it was not weakened.
+* **Focused runs:** `test_backend_dev_championship.py`, 22 passed; the two new
+  terminal tests, 2 passed.
+* **Fingerprint** `88bcd717deca6c1c…` unchanged. Migration head `app_0007` (no
+  migration). Lint and formatting clean.
+* **Owner's databases:** `diski9` (`app_0006`), the scratch copy
+  `diski9_6c5_acceptance` (`app_0007`) and the backup were not touched. All F1 work
+  used isolated `_test` databases and the dedicated `diski9_f1_e2e` on the local test
+  server.

@@ -50,3 +50,16 @@ the element checks.
 It writes screenshots to `docs/screenshots/phase6c5/refined/` and its results to the
 git-ignored `tmp/e2e_6c5/refined_results.json`. The second viewer (`pat`) has a
 24-character account name in the showcase database.
+
+## Phase 6C.5 Stage F1 scripts (local development only)
+These need a dedicated development database (`diski9_f1_e2e` on the test server, at
+`app_0007`), `tmp/f1/serve.env` (as `serve.env`, but with that database and port
+8053) and the local Supabase Auth harness.
+
+| Script | What it does |
+|---|---|
+| `f1_env.py` | Shared settings: reads `tmp/f1/serve.env` and `tmp/f1/accounts.json` |
+| `f1_accounts.js` | Creates two throw-away local accounts and onboards them through the real sign-in flow. Make the first the owner with `account bootstrap-owner` |
+| `f1_real_run.py` | Runs `dev-championship run --preset ten-round-complete` in a pseudo-terminal, typing the password at the hidden prompt. It sends SIGINT (what Ctrl-C delivers) in round 9, then resumes with the same command |
+| `f1_current_steps.py settle` then `... finalise` | The documented CLI steps for a populated My Challenge Current result panel |
+| `f1_current.js <label>` | Browser check of that panel at 1360 and 390 px: four statistics-style cards, layout audit, screenshots `f1_*_current_result_<label>.png` |

@@ -818,7 +818,7 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_app_db(args)
     if args.command == "account":
         return cmd_account(args)
-    if args.command in ("results", "settle", "dev-results", "competition") or (
+    if args.command in ("results", "settle", "dev-results", "competition", "dev-championship") or (
         args.command == "round" and args.action in ROUND_ACTIONS
     ):
         from diski9.settlement_cli import run as run_settlement

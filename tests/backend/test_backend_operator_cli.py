@@ -468,3 +468,41 @@ def test_competition_repair_through_the_cli(engine, env, accounts, dev_round):
         a = conn.execute(text("SELECT actor_user_id, reason FROM app.audit_log WHERE action = "
                               "'competition.repair' ORDER BY id DESC LIMIT 1")).one()  # fmt: skip
     assert a.actor_user_id == accounts["operator"][1] and a.reason == "manual edit undone"
+
+
+# ------------------------------------------------------------------ Phase 6C.5 Stage F1
+def test_dev_participants_need_an_operator_password(engine, env, accounts):
+    rc, out = cli(env, accounts, "participant", "dev-results", "participants", "--count", "3")
+    assert rc == 3 and "does not have permission" in out
+    rc, out = cli(env, accounts, "operator", "dev-results", "participants", "--count", "3",
+                  "--preview-only")  # fmt: skip
+    assert rc == 0 and "would be created. Nothing changed." in out, out
+    rc, out = cli(env, accounts, "operator", "dev-results", "participants", "--count", "6")
+    assert rc == 0 and "created (no sign-in possible; audited)" in out, out
+    assert PASSWORD not in out
+    rc, out = cli(env, accounts, "operator", "dev-results", "participants", "--count", "6")
+    assert rc == 0 and "6 already existed, 0 created" in out, out
+
+
+def test_dev_championship_cli_pauses_resumes_and_reports(engine, env, accounts, tmp_path):
+    import json
+
+    plan = {"name": "cli-check", "participants": 6, "deadline_seconds": 5,
+            "evidence_seconds": 2, "rounds": [{"scenario": "all-correct"},
+                                              {"scenario": "one-bucket-wins"}]}  # fmt: skip
+    path = tmp_path / "plan.json"
+    path.write_text(json.dumps(plan))
+    run = ["dev-championship", "run", "--scenario-plan", str(path), "--run-id", "clichk"]
+    rc, out = cli(env, accounts, "participant", *run)
+    assert rc == 3 and "does not have permission" in out
+    rc, out = cli(env, accounts, "operator", *run, "--rounds", "1")
+    assert rc == 0 and "Paused after round 1" in out and "locked (6 entries)" in out, out
+    assert "waiting for the" in out and PASSWORD not in out
+    rc, out = run_cli(["dev-championship", "status", "--scenario-plan", str(path),
+                       "--run-id", "clichk"], env)  # fmt: skip
+    assert rc == 0 and "round  1/2" in out and "final (championship" in out and \
+        "round  2/2" in out and "not created" in out, out  # fmt: skip
+    rc, out = cli(env, accounts, "operator", *run)  # resume: round 1 is not repeated
+    assert rc == 0 and "already final" in out and "Scenario complete" in out, out
+    rc, out = run_cli(["dev-championship", "presets"], env)
+    assert rc == 0 and "historical-invalidation-after-next" in out

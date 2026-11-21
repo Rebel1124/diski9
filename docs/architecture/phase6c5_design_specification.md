@@ -1196,6 +1196,15 @@ Stream: development rounds (`is_development`) form their own championship stream
 Automated tests build the same scenarios directly through the services; no CLI is
 needed in pytest.
 
+*As implemented in Stage F1 (21 Nov 2026; implementation record §6):*
+* **Commands:** the proposed commands exist. `dev-championship` also has `presets`,
+  `plan` (prints a preset as JSON) and `status` (read-only).
+* **`run` takes `--preset` or `--scenario-plan`.** `--rounds K` pauses after round K
+  instead of setting the plan's length (the plan defines its rounds).
+* **The participant and bulk-entry commands need an operator password** (audited).
+* **Defaults:** 40 synthetic fixtures by default, so `entry-all-void` keeps the round
+  valid. Each round's deadline is 60 s away by default.
+
 ### 17.3 Browser acceptance journeys
 
 1. Provisional weekly view.

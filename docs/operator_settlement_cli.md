@@ -206,6 +206,167 @@ reopen at the real clock. Scenarios whose evidence lies at the real cutoff
 (`cutoff-boundary`, `late-notification`) can only be settled with `--as-of`, and
 corrections of those fixtures wait for the real cutoff.
 
+## Development championships (Phase 6C.5 Stage F1; development only)
+
+These commands run whole championships locally through the real services. They are
+refused in production and act on development rounds only. They never rank, score,
+settle, assign or publish anything themselves: every step is the same service call
+the operator commands make.
+
+### Development participants
+```
+uv run diski9 dev-results participants --count 8 --operator EMAIL [--preview-only]
+```
+* **Accounts created:** `devp-0001` … `devp-0008`. Each is a development identity
+  (provider `development`, never issued by Supabase Auth), so **nobody can sign in as
+  them**. They have no e-mail address and no role.
+* **Repeatable:** an existing participant is reused, never duplicated.
+* **Audited:** each creation writes the audit event `dev_participants_created`.
+* **Who may run it:** an operator only, after the password prompt. At most 500
+  participants (ordinary testing; large-scale generation belongs to F3).
+* **Use:** only by the development tools, and only for development rounds.
+
+### Entries for every development participant
+```
+uv run diski9 dev-results test-entry --round CODE --all-dev-participants --operator EMAIL \
+    [--count N] [--variants spread|groups|pairs] [--seed 2026]
+```
+* **How:** one confirmed entry per participant, through the ordinary draft and entry
+  services. Deadline, eligibility, frozen odds, the 4/3/2 buckets and the four
+  accumulators are all checked as usual.
+* **Variants:** deterministic.
+  - `spread`: every participant different;
+  - `groups`: three shared portfolios, so weekly ties;
+  - `pairs`: participants 2j and 2j+1 identical, so championship ties.
+* **Repeatable:** participants who already have an entry are skipped.
+* **Refused** for non-development rounds.
+
+### `dev-championship`
+```
+uv run diski9 dev-championship presets
+uv run diski9 dev-championship plan --preset NAME [--required 10] > plan.json
+uv run diski9 dev-championship run (--preset NAME | --scenario-plan plan.json) \
+    --operator EMAIL [--owner EMAIL] [--run-id ID] [--rounds K]
+uv run diski9 dev-championship status (--preset NAME | --scenario-plan plan.json) --run-id ID
+```
+For each round, `run`:
+1. opens a development round whose real deadline is `deadline_seconds` away (default
+   60 s; 20 synthetic fixtures, kickoffs a minute apart);
+2. creates the participants (first round only) and submits their entries;
+3. **waits for the real deadline** on the database clock;
+4. locks the round;
+5. sets the synthetic result mode and records the round's 6C.4 scenario (evidence
+   `evidence_seconds` after the deadline);
+6. settles with `as_of` just after the cutoff;
+7. finalises at the printed earliest finalisation, using the existing
+   development-only time overrides;
+8. checks that `competition verify` reports the development stream consistent.
+
+Plan actions then reopen a finalised round, through the owner's audited service with
+reason, evidence and preview token. The round is either corrected (valid to valid)
+or invalidated by the operator, and then re-finalised.
+
+**Duration:** about one minute per round (the 60 s deadline plus a few seconds of
+work). The measured ten-round run took about **10 minutes**. Reopen actions also wait for the round's synthetic evidence
+time (up to 4 minutes with the default plan).
+
+**Progress:** every step is printed as it happens (round n/K, opened, entries,
+waiting for the deadline with a countdown, locked, results, settled, final, verify),
+followed by a closing championship summary.
+
+**Presets** (each built for the stream's rounds per championship R; real streams use
+10):
+
+| Preset | Exercises |
+|---|---|
+| `ten-round-complete` | R valid competitive rounds with varied results (refunds included) |
+| `with-practice` | round 2 has three entries (practice): it does not count, so R+1 rounds complete it |
+| `with-invalidated` | round 2 fails D-32b (void): it does not count |
+| `weekly-ties` | shared portfolios: shared weekly ranks with the same points |
+| `championship-tie` | identical pairs: joint champions |
+| `zero-points` | nobody recovers: completed, no champion |
+| `rollover` | R+2 rounds: the next championship starts |
+| `historical-invalidation-before-next` | after R rounds, round 2 is invalidated before the next championship starts (L-33: it reopens and round R+1 completes it) |
+| `historical-invalidation-after-next` | after R+1 rounds, round 2 is invalidated (D-30a: the completed championship keeps its boundary with R-1 rounds) |
+| `reopen-and-correct` | round 2 reopened and corrected (valid to valid): republished, standings recalculated |
+
+**Example: a ten-round development championship from start to finish**
+```
+uv run diski9 dev-championship run --preset ten-round-complete --operator EMAIL --run-id demo1
+# ... about 10 minutes of progress lines; Ctrl-C once to stop safely, then the same command resumes
+uv run diski9 dev-championship status --preset ten-round-complete --run-id demo1
+uv run diski9 competition verify --operator EMAIL
+```
+Then open Leaderboards and My Challenge (`DISKI9_SHOW_DEVELOPMENT_ROUNDS=1`), and
+choose **Development**.
+
+**A populated My Challenge Current "Your result" panel** (you, signed in,
+competing with the development participants):
+```
+uv run diski9 round dev-open --by-email EMAIL --deadline-minutes 1 --spacing-minutes 1 --fixtures 40 --code dev-mine
+uv run diski9 dev-results test-entry --round dev-mine --participant YOUR_EMAIL --variant 1
+uv run diski9 dev-results test-entry --round dev-mine --all-dev-participants --operator EMAIL
+# after the deadline:
+uv run diski9 round lock --code dev-mine
+uv run diski9 dev-results set-mode --round dev-mine --mode synthetic --operator EMAIL
+uv run diski9 dev-results scenario --round dev-mine --name all-correct --operator EMAIL
+uv run diski9 settle run --round dev-mine --as-of CUTOFF_PLUS_1S --operator EMAIL   # provisional
+uv run diski9 round finalise-check --code dev-mine --operator EMAIL                 # prints --as-of
+uv run diski9 round finalise --code dev-mine --as-of T --operator EMAIL             # final
+```
+`tools/e2e_6c5/f1_current_steps.py` scripts exactly these steps.
+
+**Scenario-plan file** (`dev-championship plan` prints one):
+```json
+{"name": "my-plan", "participants": 8, "seed": 2026, "deadline_seconds": 60,
+ "evidence_seconds": 480, "fixtures": 20,
+ "rounds": [{"scenario": "all-correct", "participants": null, "variants": "spread"}],
+ "actions": [{"after": 2, "action": "correct", "round": 2}]}
+```
+* **Round scenarios:** only those that finalise without alert handling: `all-correct`,
+  `all-incorrect`, `one-bucket-wins`, `partial-void`, `bucket-all-void`,
+  `entry-all-void`, `round-invalid-majority` and `repeat`.
+* **Participants per round:** `participants` can lower a round's count; below five,
+  the round is a practice round.
+* **Actions:** each is `correct` or `invalidate`, with at most one action per round.
+
+**Stopping and resuming:**
+* **The runner keeps no state of its own.** Round codes are `dev-<run-id>-<plan
+  hash>-r01` …, and before every step the runner reads the round's real state
+  (status, entries, result mode, evidence, settlement, publications) and does only
+  the next missing step. Duplicate entries, settlements, memberships or points are
+  therefore impossible on resume.
+* **Ctrl-C once** stops at the next safe point, between two service calls. **Ctrl-C
+  twice** aborts at once: the step in progress either committed or rolled back as a
+  whole, because each step is one service transaction.
+* **To resume,** run the same command with the same `--run-id`. The id is printed at
+  the start; a new id is generated if you leave it out.
+* **A different plan** under an existing run id is refused.
+* **`--rounds K`** pauses after round K, so you can look at the app part way through.
+* **`status`** shows each planned round's stage and the championships. It is read-only
+  and needs no password.
+
+**Passwords:**
+* The operator password is asked once at the start, and the owner's when a plan
+  reopens a round (`--owner`, default the operator).
+* Before every write, the principal is re-evaluated at the database clock: the
+  operator needs a password check within 12 hours, and reopening and invalidation need
+  one within 15 minutes.
+* When a check is too old, the runner asks for the password again at a terminal.
+  Without a terminal it stops safely: run the same command again.
+* No password is stored, logged or written to the plan.
+
+**Troubleshooting:**
+
+| Message | Meaning |
+|---|---|
+| `Development tooling is refused in production.` | The database settings say production |
+| `Run 'X' already exists with a different scenario plan` | Use the original plan, or a new `--run-id` |
+| `re-authentication required` | The password check is too old and no terminal is attached; run the same command again in a terminal |
+| `verification failed: …` | `competition verify` found a problem; the run stops; inspect with `competition verify` |
+| `… is reopened (under review)` | A previous run stopped in the middle of an action; run the same plan again to finish it |
+| A practice round where you expected a competitive one | Fewer than five entries at lock (rule unchanged): create more participants |
+
 ## Operational notes (real rounds)
 
 * **Before finalising**, run `results import --full` so every relevant fixture is

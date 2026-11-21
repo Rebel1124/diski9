@@ -82,3 +82,13 @@ These come from `tools/e2e_6c5/final.js`: 71 checks at 1360, 768, 390 and 320 px
 | `final_{desktop,mobile,mobile320}_result_cards_refunded.png` | Refunded entry (all nine void); the long value wraps at 320 px |
 | `final_{desktop,mobile,mobile320}_chart_headings.png` | Both chart headings bold at the "Your statistics" size |
 | `final_mobile320_chart_headings_placeholders.png` | Both headings with the three-round placeholders, wrapping at 320 px |
+
+## Stage F1: My Challenge Current result panel (21 Nov 2026)
+| File | Shows |
+|---|---|
+| `f1_{desktop,mobile}_current_result_provisional.png` | My Challenge **Current**, a signed-in participant's competitive development round after settlement (provisional): the four coloured result cards |
+| `f1_{desktop,mobile}_current_result_final.png` | The same after finalisation ("Final result") |
+
+These were produced with the F1 tooling (`tools/e2e_6c5/f1_current_steps.py`,
+`f1_current.js`). They close the Stage E limitation that the Current result panel had
+not been checked with a populated round.

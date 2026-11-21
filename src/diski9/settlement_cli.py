@@ -184,11 +184,76 @@ def add_parsers(sub) -> None:
     )
     p = ds.add_parser(
         "test-entry",
-        help="confirm a deterministic portfolio for a test participant (their password)",
+        help="confirm a deterministic portfolio for a test participant (their password), "
+        "or for every development participant (--all-dev-participants, operator)",
     )
     _round_arg(p)
     p.add_argument("--participant", metavar="EMAIL", help="the test participant's email")
     p.add_argument("--variant", type=int, default=0, help="portfolio variant (0, 1, 2 ...)")
+    p.add_argument(
+        "--all-dev-participants",
+        action="store_true",
+        help="one entry for each development participant (Phase 6C.5 F1)",
+    )
+    p.add_argument("--count", type=int, help="with --all-dev-participants: only the first N")
+    p.add_argument(
+        "--variants",
+        choices=("spread", "groups", "pairs"),
+        default="spread",
+        help="spread: all different; groups: three shared portfolios (weekly "
+        "ties); pairs: participants 2j and 2j+1 identical (championship ties)",
+    )
+    p.add_argument("--seed", type=int, default=2026, help="deterministic portfolio seed")
+    p.add_argument(
+        "--operator",
+        metavar="EMAIL",
+        help="with --all-dev-participants: the operator (password prompt)",
+    )
+    p = ds.add_parser(
+        "participants",
+        help="create development-only participants devp-0001 ... (no sign-in; audited)",
+    )
+    p.add_argument("--count", type=int, required=True, help="how many (1 to 500)")
+    p.add_argument("--preview-only", action="store_true", help="show what would change")
+    _operator_args(p)
+
+    s = sub.add_parser(
+        "dev-championship",
+        help="development only: resumable championship scenarios through the real services",
+    )
+    cs = s.add_subparsers(dest="action", required=True)
+    cs.add_parser("presets", help="list the scenario presets")
+    p = cs.add_parser("plan", help="print a preset as a scenario-plan JSON file")
+    p.add_argument("--preset", required=True)
+    p.add_argument(
+        "--required",
+        type=int,
+        default=10,
+        help="rounds per championship the preset is built for (default 10)",
+    )
+    for name in ("run", "status"):
+        p = cs.add_parser(
+            name,
+            help="run or resume a scenario"
+            if name == "run"
+            else "read-only: each planned round's state and the championships",
+        )
+        g = p.add_mutually_exclusive_group(required=True)
+        g.add_argument("--preset", help="a preset name (built for 10-round championships)")
+        g.add_argument("--scenario-plan", metavar="FILE", help="a scenario-plan JSON file")
+        p.add_argument(
+            "--run-id",
+            required=name == "status",
+            help="1-12 lower-case letters or digits; the same id resumes a run",
+        )
+    p = cs.choices["run"]
+    p.add_argument("--rounds", type=int, help="stop after this many rounds (default: all)")
+    _operator_args(p)
+    p.add_argument(
+        "--owner",
+        metavar="EMAIL",
+        help="the owner, for plans that reopen a round (default: the operator)",
+    )
 
     s = sub.add_parser(
         "competition",
@@ -518,7 +583,29 @@ def _dev(args, engine) -> int:
         for name in sc.SCENARIOS:
             print(f"{name:24} {sc.DESCRIPTIONS[name]}")
         return 0
+    if args.action == "participants":
+        from diski9.backend import dev_championship as dc
+
+        dc.require_development()
+        p = _principal(engine, args.operator)
+        have, made = dc.ensure_participants(engine, p, args.count, preview=args.preview_only)
+        if args.preview_only:
+            print(f"Preview: {have} of devp-0001..{args.count:04d} exist; "
+                  f"{args.count - have} would be created. Nothing changed.")  # fmt: skip
+        else:
+            print(f"Development participants: {have} already existed, {made} created "
+                  "(no sign-in possible; audited).")  # fmt: skip
+        return 0
     rid = _round_id(engine, args.code)
+    if args.action == "test-entry" and args.all_dev_participants:
+        from diski9.backend import dev_championship as dc
+
+        dc.require_development()
+        p = _principal(engine, args.operator)
+        skipped, made = dc.submit_all(engine, p, rid, count=args.count, mode=args.variants,
+                                      seed=args.seed)  # fmt: skip
+        print(f"Confirmed {made} development entries ({skipped} already had one).")
+        return 0
     if args.action == "test-entry":
         participant = _principal(engine, args.participant, who="Participant")
         view = sc.submit_test_entry(engine, participant, rid, args.variant)
@@ -719,7 +806,79 @@ def _round(args, engine) -> int:
     return 2
 
 
+def _dev_championship(args, engine) -> int:
+    import signal
+
+    from diski9.backend import dev_championship as dc
+
+    dc.require_development()
+    if args.action == "presets":
+        for name, text in dc.PRESETS.items():
+            print(f"{name:38} {text}")
+        return 0
+    if args.action == "plan":
+        print(json.dumps(dc.plan_to_dict(dc.preset(args.preset, args.required)), indent=2))
+        return 0
+    if args.preset:
+        plan = dc.preset(args.preset)
+    else:
+        try:
+            with open(args.scenario_plan, encoding="utf-8") as fh:
+                plan = dc.plan_from_dict(json.load(fh))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise _Usage(f"cannot read the scenario plan: {exc}") from None
+    if args.action == "status":
+        for st in dc.inspect_run(engine, args.run_id, plan):
+            print(f"round {st.number:2}/{len(plan.rounds)} {st.code}: {st.stage}"
+                  + (f", {st.entries} entries" if st.status else ""))  # fmt: skip
+        for c in dc.championships(engine):
+            print(f"{c.name}: {c.status}, {c.counted}/{c.required} valid rounds"
+                  + (f", champion(s): {', '.join(c.champions)}" if c.champions else "")
+                  + (" [under review]" if c.under_review else ""))  # fmt: skip
+        return 0
+    if args.rounds is not None and not 1 <= args.rounds <= len(plan.rounds):
+        raise _Usage(f"--rounds must be between 1 and {len(plan.rounds)}")
+    run_id = args.run_id or dc.random_run_id()
+    print(f"Run id: {run_id} (resume with --run-id {run_id}; stop with Ctrl-C once)")
+    operator_email = args.operator or _ask("Operator email: ")
+    op = authenticate_operator(engine, operator_email, out=sys.stdout)
+    owner_email = args.owner or operator_email
+    owner = op if owner_email == operator_email else None
+
+    def reauth(role: str):
+        email = owner_email if role == "owner" else operator_email
+        if not _interactive():
+            raise dc.Stopped("re-authentication required", "run the same command again")
+        print(f"Password check needed for the {role} ({email}).")
+        return authenticate_operator(engine, email, out=sys.stdout)
+
+    flag = {"stop": False}
+
+    def on_int(signum, frame):  # first Ctrl-C: stop at the next safe point
+        if flag["stop"]:
+            raise KeyboardInterrupt
+        flag["stop"] = True
+        print("\nStopping after the current operation (Ctrl-C again to abort now)...")
+
+    previous = signal.signal(signal.SIGINT, on_int)
+    try:
+        rep = dc.run_plan(engine, plan, run_id, op, owner=owner, reauthenticate=reauth,
+                          stop=lambda: flag["stop"], rounds=args.rounds)  # fmt: skip
+    finally:
+        signal.signal(signal.SIGINT, previous)
+    if rep.paused:
+        print(f"Paused after round {args.rounds}; continue with the same command without "
+              f"--rounds (or a larger value) and --run-id {run_id}.")  # fmt: skip
+        return 0
+    if rep.done:
+        source = f"--preset {args.preset}" if args.preset else "--scenario-plan FILE"
+        print(f"Scenario complete. Inspect: dev-championship status --run-id {run_id} {source}")
+        return 0
+    return 4
+
+
 HANDLERS = {
+    "dev-championship": _dev_championship,
     "results": _results,
     "settle": _settle,
     "dev-results": _dev,
@@ -739,6 +898,12 @@ def run(args) -> int:
     from diski9.backend.db import make_app_engine
     from diski9.backend.services.common import ServiceError
 
+    if args.command == "dev-championship" and args.action in ("presets", "plan"):
+        try:
+            return _dev_championship(args, None)  # no database needed
+        except ServiceError as exc:
+            print(f"error: {exc.message}", file=sys.stderr)
+            return 2
     engine = make_app_engine()
     try:
         return HANDLERS[args.command](args, engine)
