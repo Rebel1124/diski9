@@ -440,7 +440,11 @@ reach finalisation on the real clock; real rounds keep 24 h):
 * Documentation after the candidate (this record, plan status) uses the
   documentation-only path.
 
-## 5. Stage D: operational monitoring, alerts and recovery — **monitoring accepted (21 Nov 2026); scheduler-locking remediation open**
+## 5. Stage D: operational monitoring, alerts and recovery — **formally accepted and closed (21 Nov 2026)**
+
+**Closure (21 Nov 2026).** With the owner's acceptance of the scheduler-locking
+remediation (§6), Stage D is closed for operational readiness. Monitoring
+acceptance below is unchanged.
 
 **Owner decision (21 Nov 2026).** The Stage D monitoring, alerting and recovery
 deliverables are formally accepted on this evidence: final application-code commit
@@ -582,7 +586,7 @@ password), invalid configuration; bounded timings with 150,000 job runs.
 ### 5.9 Outstanding risks and owner decisions (Stage D)
 | Item | Note |
 |---|---|
-| **Scheduler locking (defect, §5.5)** | demonstrated under `idle_in_transaction_session_timeout`; remediation R1–R6 proposed and awaiting approval; required before hosted Beta |
+| **Scheduler locking (defect, §5.5)** | demonstrated under `idle_in_transaction_session_timeout`; **remediated (R1–R6, §6) and accepted by the owner (21 Nov 2026)** |
 | Notification destination (Q-08) | no real webhook configured; provider, destination and activation need approval |
 | Database-down alerts | no webhook while the database is unreachable (ledger in the database); rely on the trigger's failure reporting, or approve a small file-based state for that one case |
 | Provider limits | still provisional; live calls off (Stage C decision) |
@@ -599,7 +603,24 @@ password), invalid configuration; bounded timings with 150,000 job runs.
   suite 24 min 54 s; job 26 min 20 s (within the 40-minute timeout).
 * Documentation after the candidate uses the documentation-only path.
 
-## 6. Stage D remediation: scheduler locking (R1–R6) (21 Nov 2026; checkpoint)
+## 6. Stage D remediation: scheduler locking (R1–R6) — **formally accepted (21 Nov 2026)**
+
+**Owner acceptance (21 Nov 2026).** The remediation is formally accepted on this
+evidence: final application-code commit `0f3c0b1`, GitHub CI run 95 passed (1,778
+passed, 0 failed, 0 skipped; all 13 browser tests); documentation-only head
+`f5458a3`, CI run 96 passed; migration head `app_0007`; fingerprint
+`88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`; `broad60-432-v1`
+and `points-150-75-v2`. Accepted and not to be reopened without a material defect:
+the session-level tick lock on a dedicated connection outside transactions; the
+direct/session-mode connection requirement and transaction-pooler refusal; unique
+tick ownership checks; safe lock-loss handling; conservative abandonment (young
+uncertain work indeterminate, old work recoverable after 20 minutes); the 240-second
+new-step budget; bounded provider timeout and retry; safe cleanup; and the pre-send
+provider request ledger (crashes conservatively consume budget). **Standing
+condition:** the 20-minute abandonment threshold must always exceed the maximum
+possible in-flight duration (provider, database and cleanup waits); any change to
+these limits requires review. Provider limits stay provisional, live calls off;
+Q-07 and Q-08 remain open. **Stage D is closed.**
 
 Authorised with the Stage D monitoring acceptance. Code: `backend/jobs/locking.py`
 (new), `backend/jobs/reconciler.py`, `backend/jobs/provider.py`,

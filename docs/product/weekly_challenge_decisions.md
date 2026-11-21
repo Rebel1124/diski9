@@ -67,6 +67,22 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage D closure and Stage E authorisation (21 Nov 2026):**
+* **Scheduler-locking remediation (R1–R6) formally accepted** (`0f3c0b1`, CI run 95:
+  1,778 passed, 0 failed, 0 skipped, all 13 browser tests; documentation head
+  `f5458a3`, CI run 96). **Stage D closed.** Accepted Stage D architecture is not
+  reopened without a material defect. The 20-minute abandonment threshold must
+  always exceed the maximum in-flight duration; changes to those limits need review.
+* **Stage E (operational administration and remaining backlog) authorised:** backlog
+  reconciliation and scope matrix first; administrative CLI usability, round
+  investigation, documented recovery, S-07 account-command clarity, publication
+  readiness assessment, operator guide. Any new privileged capability, new kind of
+  competition-state change or security-boundary change is presented for approval
+  first. Not authorised: force-finalise, emergency owner recovery or break-glass,
+  autonomous publication, account deletion without an approved design, ML-01
+  change without a focused authorisation, D-29 trial restart, Official activation,
+  live provider calls, webhook activation, migrations, CI timeout change, Stages F–G.
+
 **Phase 6C.6 Stage D acceptance and scheduler-locking remediation (21 Nov 2026):**
 * **Stage D monitoring, alerts and recovery formally accepted** (`45faeac`, CI run
   92: 1,765 passed, 0 skipped; documentation head `f4e0447`, CI run 93).
