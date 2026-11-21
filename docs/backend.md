@@ -378,6 +378,14 @@ Stage E (read services for the Leaderboards and My Challenge History pages):
 * `leaderboards.round_list`, `default_round`, `round_id_for` and
   `stream_options`; `weekly_board.championship_round`.
 * UI: `app/challenge/leaderboards_ui.py` and `history_ui.py`.
+* Owner refinements (accepted 21 Nov 2026):
+  - a display-only `window` label (`leaderboards.window_label`, the SAST match window)
+    on round summaries, weekly boards, history rows and chart points;
+  - `PersonalStats.allocation_rounds` and `points_rounds` for the three-round chart
+    rule.
+
+  Both are read-only. Stage E is closed; see
+  `architecture/phase6c5_stage_e_closure_handover.md`.
 
 Ranks and points come from the unchanged `challenge/scoring.py`. Specification:
 `docs/architecture/phase6c5_design_specification.md`; record:

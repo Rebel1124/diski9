@@ -494,3 +494,22 @@ needed. Then check:
    - Recovery in teal when recovered, amber for a refund, neutral otherwise.
 3. **History.** Both chart headings are bold and the same size as "Your statistics",
    including when a chart is still waiting for three eligible rounds.
+
+### 15.8 Stage E acceptance record (21 Nov 2026)
+* **20 Nov:** the scratch copy `diski9_6c5_acceptance` was missing from the Docker
+  database server. Your own `diski9` database was confirmed intact (`app_0006`; 3
+  users, 7 rounds, 10 entries).
+* **With your approval**, the scratch copy was rebuilt from `diski9-before-6c5.dump`,
+  upgraded to `app_0007`, and backfilled. The backfill created two championships, one
+  for development and one for beta, and assigned 7 rounds. `competition verify` then
+  reported both streams consistent.
+* **You then inspected Stage E in the app** (Leaderboards, Championship, My Challenge
+  Current and History, and phone widths) and approved the overall interface. You
+  requested refinements (§15.6) and three final ones (§15.7); all were implemented
+  and reviewed with the screenshot evidence.
+* **21 Nov:** you formally approved and closed Stage E.
+* **Not checked by hand:** your scratch data has no competitive round and no current
+  round with a populated result panel. Competitive states and result cards were
+  reviewed in the screenshots, and the Current-tab result panel was not tested by hand.
+* Your `diski9` database (`app_0006`), the scratch copy (`app_0007`) and the backup
+  are kept unchanged.

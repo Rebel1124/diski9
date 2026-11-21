@@ -7,6 +7,16 @@ are approved, with decisions **CH-01 to CH-12** (the Stage A questions Q-1 to Q-
 and the amendment **D-30a** below. Stage B is authorised; Stage C needs separate
 approval. Private mini-leagues are removed from the MVP roadmap.
 
+**Phase 6C.5 Stage E (owner approval and closure, 21 Nov 2026):**
+* Stage E (Leaderboards and Historical Performance UI) is approved and closed. No
+  business rule changed.
+* The owner added one presentation rule: each My Challenge History chart is shown
+  only from **three eligible rounds**. The allocation chart counts the counted
+  competitive rounds played in the scope; the points chart counts the counted rounds
+  played in its one championship. Below three, a compact placeholder appears.
+* Record: [`docs/architecture/phase6c5_stage_e_closure_handover.md`](../architecture/phase6c5_stage_e_closure_handover.md).
+  Stage F needs separate authorisation.
+
 **Phase 6C.4 Stage A review (owner approval, 19 Nov 2026):** decisions S-01 to S-11
 below (the assessment's Q-1 to Q-13, as finally approved) and the amendment of
 `settle/v1` to a completion-based cutoff. Detail and rationale:

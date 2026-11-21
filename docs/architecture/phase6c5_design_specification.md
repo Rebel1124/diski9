@@ -1521,3 +1521,11 @@ are presentation only and change no business rule:
 * **Round labels:** rounds are labelled by their SAST match window, and the code
   remains the identity.
 * **Phones:** compact cards, and a 2 × 2 main navigation at 480 px or below.
+
+### 23.13 Stage E approved and closed (21 Nov 2026)
+* The owner formally approved Stage E after local visual acceptance and two rounds of
+  presentation refinements (implementation record §5.12 to §5.14).
+* The implementation choices above, the three-eligible-round chart rule and the
+  Build Portfolio-style metric cards are accepted. No business rule changed.
+* Stage F has not begun. Closure and handover:
+  [`phase6c5_stage_e_closure_handover.md`](phase6c5_stage_e_closure_handover.md).

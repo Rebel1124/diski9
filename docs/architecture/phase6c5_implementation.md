@@ -1270,3 +1270,37 @@ and no schema.
     (`test_backend_participant_results.py`, `test_backend_stage_e_history.py`,
     `test_stage_e_ui.py`): 47 passed.
   - Fingerprint `88bcd717deca6c1c…` unchanged. Lint and formatting clean.
+
+### 5.14 Owner approval and formal closure of Stage E (21 Nov 2026)
+**Stage E: complete, owner-approved and formally closed.** Stage F has not begun and
+needs a separate authorisation. The closure and Stage F handover record is
+[`phase6c5_stage_e_closure_handover.md`](phase6c5_stage_e_closure_handover.md).
+
+* **Acceptance sequence.**
+  1. The owner inspected the application locally on the scratch copy (§15 of the Mac
+     guide) and approved the overall interface.
+  2. The owner requested refinements (§5.12), then three final ones (§5.13). All were
+     implemented and tested.
+  3. ChatGPT independently inspected the final screenshot evidence on GitHub.
+  4. The owner authorised formal closure on 21 Nov 2026.
+* **Accepted baseline:**
+  - commits `b983bba`, `70667e7`, `eb12eec`, `a02cb68` and `e820790`;
+  - head `e820790` verified locally and on the remote, with a clean worktree;
+  - CI run 68 passed on `e820790`;
+  - fingerprint `88bcd717deca6c1c…` unchanged;
+  - migration head `app_0007`, with no Stage E migration.
+* **Evidence:**
+  - full suite 1,634 passed and 0 failed on the final code;
+  - the PostgreSQL refund card test, added after that run started, passed in a
+    focused run of 47 tests;
+  - browser checks: 108 at 6 widths (first refinements) and 71 at 4 widths (final),
+    0 problems each.
+* **Carried forward:**
+  - the intermittent Match Lab browser test (still unresolved; passed in the latest
+    runs);
+  - representative multi-process testing;
+  - the unexecuted 10,000-participant runs;
+  - the Current-tab result panel, which has no manual test.
+
+  The handover (§8 and §9) lists them all.
+* The accepted Stage E choices (§5.9, §5.12, §5.13) change no business rule.
