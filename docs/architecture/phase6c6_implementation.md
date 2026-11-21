@@ -725,7 +725,7 @@ through the ledger).
   for owner awareness.
 * Documentation after the candidate uses the documentation-only path.
 
-## 7. Stage E: operational administration and remaining backlog (21 Nov 2026; checkpoint)
+## 7. Stage E: operational administration and remaining backlog (21 Nov 2026; checkpoint, awaiting owner acceptance)
 
 Authorised with the Stage D closure (decision register, 21 Nov 2026). Operator
 guide: [`../operations_guide.md`](../operations_guide.md). Code:
@@ -886,5 +886,10 @@ readiness output limited to the pinned fields with no account or credential data
   failed, 0 skipped** (1,778 at the remediation + 16 Stage E tests), all 13 browser
   tests included; migration from an empty database, real Supabase Auth integration,
   lint and formatting passed. Test suite 28 min 20 s; job 29 min 47 s.
-* Final candidate (owner-review additions: approved-fingerprint guard, three
-  tests, decisions documentation including Stage E.1): recorded below.
+* **Final application-code candidate `c49de86`, CI run 99: passed.** Scope full
+  (owner-review additions: approved-fingerprint guard, three tests, decisions
+  documentation including Stage E.1). **1,797 passed, 0 failed, 0 skipped** (1,794 +
+  3), all 13 browser tests included (`DISKI9_REQUIRE_BROWSER=1`); migration from an
+  empty database, real Supabase Auth integration, lint and formatting passed. Test
+  suite 26 min 11 s; job 27 min 33 s, within the 40-minute timeout.
+* Documentation after the candidate uses the documentation-only path.
