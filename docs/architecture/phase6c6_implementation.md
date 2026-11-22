@@ -1137,7 +1137,12 @@ with real timing in the budget file) — no assertion was weakened.
   cache 1.2–1.4 s (measured on a scratchpad copy of the real store); readiness
   0.1–0.2 s. Longest possible tick with the activation values: 240 s + 20 × (10 s +
   3 s) + 30 s = 530 s, below the 20-minute abandonment threshold (validated).
-* Level 3 (GitHub CI) for the application candidate: recorded at the checkpoint.
+* **Level 3 — application-code candidate `4394485`, CI run 109: passed.** Scope
+  full. **1,908 passed, 0 failed, 0 skipped** (1,835 at E.1a + 73 E.1b tests), all
+  13 browser tests included (`DISKI9_REQUIRE_BROWSER=1`); lint, formatting, migration
+  from an empty database and real Supabase Auth integration passed. Test suite
+  26 min 45 s; job 28 min 1 s — within the 40-minute timeout (margin about 12
+  minutes; the previous run was 30 min 25 s, so no CI time was added).
 
 ### 10.5 Deviations and risks
 | Item | Note |
@@ -1146,4 +1151,4 @@ with real timing in the budget file) — no assertion was weakened.
 | Pre-check of 4 requests per league | under a 10-request cap a tick runs two leagues after `/status` (9 → 6 → 3 left), so a sweep takes three ticks at the default cap (as planned) |
 | Back-off of a failing league | counted within the slot (so the next slot always retries), as planned; uses the existing retry base/maximum |
 | `provider_quota_low` CRITICAL threshold | fixed at 600 (client reserve 500 + 100) rather than "500 + projected results need" — simpler and conservative |
-| Unresolved | active subscription limits and at-limit billing unverified (activation gate); provider update time measured on few days; results-import volume estimated; same-host SQLite requirement with Q-07 and D-39 open; other users of the key visible only through lagging observations; CI margin (measured at the checkpoint) |
+| Unresolved | active subscription limits and at-limit billing unverified (activation gate); provider update time measured on few days; results-import volume estimated; same-host SQLite requirement with Q-07 and D-39 open; other users of the key visible only through lagging observations; CI margin about 12 minutes (run 109) |
