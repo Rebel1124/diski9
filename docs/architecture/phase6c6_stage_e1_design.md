@@ -3,7 +3,7 @@
 **Status:** design **approved in principle by the owner (21 Nov 2026)** — ADP-01
 to ADP-10, ADP-14 to ADP-19, ADP-21 and ADP-22 approved for E.1a; ADP-11, ADP-12,
 ADP-13 and ADP-20 provisional wherever they concern automated API-Football refresh
-(revisited before E.1b). **E.1a is the next implementation candidate, awaiting
+(revisited before E.1b). **E.1b refinement (22 Nov 2026):** [`phase6c6_stage_e1b_design.md`](phase6c6_stage_e1b_design.md) proposes REF-01 to REF-17 for those topics; where a REF differs from ADP-11/12/13/20 (notably the 03:00 UTC first refresh and the 60/24 h preparation sub-cap) the ADP text stands until the owner approves the REF. **E.1a is the next implementation candidate, awaiting
 authorisation**; its plan: [`phase6c6_stage_e1a_plan.md`](phase6c6_stage_e1a_plan.md).
 No application code is authorised. The 78-hour preparation lead was confirmed as
 consistent with the schedule (Tuesday 00:00 UTC to the Friday 08:00 SAST / 06:00

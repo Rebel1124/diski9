@@ -1034,3 +1034,18 @@ the service; production refuses nothing extra because only beta is preparable.
   suite 29 min 26 s; job 30 min 25 s — within the 40-minute timeout (margin about
   9.5 minutes; noted, no change proposed).
 * Documentation after the candidate uses the documentation-only path.
+
+## 9. Stage E.1b: automated API-Football data refresh — **design refinement (proposal; not implemented)**
+
+Design refinement authorised by the owner on 22 Nov 2026 (design only: no
+application code, migration, provider-limit change, live provider call, hosting
+selection, webhook or activation). Baseline `4612f46` (E.1a closed, CI run 106).
+Proposal: [`phase6c6_stage_e1b_design.md`](phase6c6_stage_e1b_design.md),
+decisions REF-01 to REF-17, awaiting owner approval. Main findings: a preparation
+sweep costs about 22 requests (fixtures 8 + odds 14; standings are display-only);
+the provider updates odds once a day at about 02:00–03:30 UTC, so the first
+publication refresh should run after about 04:00 UTC (not 03:00); the existing
+ingestion functions hold the SQLite write lock during provider requests (fetch,
+then apply, proposed); an unbounded `Retry-After` wait is a pre-existing gap; no
+migration and no Stage D locking change is needed. E.1b implementation, Stage F
+and Stage G are not authorised.

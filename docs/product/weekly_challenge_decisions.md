@@ -67,6 +67,27 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E.1b design refinement authorised and delivered (22 Nov 2026):**
+* **E.1b design refinement authorised** (design only; baseline `4612f46`). No
+  application code, migration, provider-limit change, live API-Football call,
+  automated refresh, hosting selection, webhook, Official activation, merge, tag,
+  release or deployment. E.1b implementation, Stage F and Stage G not authorised.
+* **Delivered for review:** `docs/architecture/phase6c6_stage_e1b_design.md`,
+  decisions **REF-01 to REF-17** (proposals, not approvals). Recommended: Balanced
+  schedule (daily sweep 04:15 UTC Tue–Thu; Friday 04:15 and 05:15; hourly during
+  the grace while unpublished; stop at publication or grace end); budgets 20/tick,
+  450/24 h total, non-essential ≤ 300 (maintenance ≤ 50), results reserve ≥ 150;
+  pacing ≥ 3 s per request; preparation stops below 2,000 provider-reported daily
+  remaining (results keep the existing 500 reserve); class-aware caps in the
+  existing ledger; fetch-then-apply store writes; single host with the SQLite store
+  for the Beta week (Q-07 and the D-39 ruling remain owner decisions).
+* **Earlier provisional decisions preserved:** ADP-11/12/13/20 stand until the
+  owner approves the corresponding REF entries (REF-01 would move the first
+  publication refresh from 03:00 to 04:15 UTC because the provider's daily odds
+  update arrives at about 02:00–03:30 UTC; REF-05 would replace the 60/24 h
+  preparation sub-cap and the E.1a plan's Appendix A hypothesis). The advertised
+  7,500/day allowance remains a ceiling, not an operating budget.
+
 **Phase 6C.6 Stage E.1a formal acceptance and closure:**
 * **Stage E.1a formally accepted and closed** (`3ed0301`, CI run 104: 1,835
   passed, 0 failed, 0 skipped, 13 browser tests; documentation `67433d9`, CI run
