@@ -27,6 +27,10 @@ Variable                                    Default  Meaning
                                                      not ready becomes INFO (earlier: none)
 ``DISKI9_OPS_PREPARE_PUBLISH_WARNING_HOURS`` 2       a READY draft unpublished this long after
                                                      the target: WARNING
+``DISKI9_OPS_BACKUP_EXPECTED``             off      check backup evidence (Stage F2)
+``DISKI9_OPS_BACKUP_WARNING_HOURS``         26       no backup of a kind for this long: WARNING
+``DISKI9_OPS_BACKUP_CRITICAL_HOURS``        50       ... CRITICAL
+``DISKI9_OPS_RESTORE_DRILL_DAYS``           35       off-host restore drill older than this: WARNING
 ``DISKI9_OPS_NOTIFY``                       off      send notifications (``ops check --notify``)
 ``DISKI9_OPS_WEBHOOK_URL``                  (none)   https endpoint (secret; never printed)
 ``DISKI9_OPS_NOTIFY_MIN_SEVERITY``          warning  ``warning`` or ``critical``
@@ -67,6 +71,10 @@ class OpsConfig:
     budget_warning_percent: int = 80
     prepare_attention: timedelta = timedelta(hours=3)
     prepare_publish_warning: timedelta = timedelta(hours=2)
+    backup_expected: bool = False
+    backup_warning: timedelta = timedelta(hours=26)
+    backup_critical: timedelta = timedelta(hours=50)
+    drill_max_age: timedelta = timedelta(days=35)
     notify: bool = False
     webhook_url: str | None = None  # secret: never printed or logged
     notify_min_severity: str = "warning"
@@ -125,6 +133,10 @@ def load_ops_config(env: Mapping[str, str] | None = None) -> OpsConfig:
         budget_warning_percent=_int(env, "DISKI9_OPS_BUDGET_WARNING_PERCENT", 80, 1, 100),
         prepare_attention=hours("PREPARE_ATTENTION", 3, 1, 24),
         prepare_publish_warning=hours("PREPARE_PUBLISH_WARNING", 2, 1, 24),
+        backup_expected=_flag(env, "DISKI9_OPS_BACKUP_EXPECTED"),
+        backup_warning=hours("BACKUP_WARNING", 26, 1, 720),
+        backup_critical=hours("BACKUP_CRITICAL", 50, 1, 720),
+        drill_max_age=timedelta(days=_int(env, "DISKI9_OPS_RESTORE_DRILL_DAYS", 35, 1, 366)),
         notify=_flag(env, "DISKI9_OPS_NOTIFY"),
         webhook_url=_check_url(u) if (u := env.get("DISKI9_OPS_WEBHOOK_URL", "").strip()) else None,
         notify_min_severity=env.get("DISKI9_OPS_NOTIFY_MIN_SEVERITY", "warning").strip().lower()
@@ -141,6 +153,7 @@ def load_ops_config(env: Mapping[str, str] | None = None) -> OpsConfig:
         (cfg.settle_warning, cfg.settle_critical, "SETTLE"),
         (cfg.finalise_warning, cfg.finalise_critical, "FINALISE"),
         (cfg.step_failures_warning, cfg.step_failures_critical, "STEP_FAILURES"),
+        (cfg.backup_warning, cfg.backup_critical, "BACKUP"),
     ):
         if c < w:
             raise ConfigError(f"DISKI9_OPS_{name} critical threshold must be at least the warning")

@@ -41,7 +41,7 @@ import socket
 import time
 import uuid
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from enum import StrEnum
 from typing import Any, Protocol
@@ -690,6 +690,15 @@ def tick(
             _end(engine, rid, Outcome.SKIPPED, detail)
             report = TickReport("indeterminate", tick_run_id=rid, detail=detail)
             return report
+        hold = None
+        if cfg.provider_calls:  # Stage F2 safeguard D: no provider calls after a DB restore
+            from diski9.backup.records import provider_hold
+
+            with transaction(engine) as conn:
+                hold = provider_hold(conn)
+            if hold is not None:
+                cfg = replace(cfg, provider_calls=False, prepare_refresh=False)
+                provider_factory = None
         tick_id = _begin(engine, TICK, "global",
                          {"streams": list(cfg.streams), "provider_calls": cfg.provider_calls,
                           "run_token": token, "holder_pid": lock.pid, "os_pid": os.getpid(),
@@ -703,6 +712,8 @@ def tick(
                    snapshot_builder=snapshot_builder, store_factory=store_factory,
                    sleep=sleep or time.sleep)  # fmt: skip
         report = TickReport("completed", tick_run_id=tick_id)
+        if hold is not None:
+            report.notes.append(hold.describe())
         if n_abandoned:
             report.notes.append(f"{n_abandoned} step(s) of a tick that lost its lock more than "
                                 f"{cfg.abandon_after} ago were recorded as abandoned")  # fmt: skip

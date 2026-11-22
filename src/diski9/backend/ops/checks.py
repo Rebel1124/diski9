@@ -377,6 +377,9 @@ def evaluate(snap: Snapshot, ops: OpsConfig, jobs: SchedulerConfig | None) -> li
     # ------------------------------------------------------------ preparation (E.1a)
     _preparation(snap, ops, jobs, add)
     _refresh(snap, ops, jobs, add)
+    from .backups import backup_findings
+
+    backup_findings(snap, ops, add)
 
     # ------------------------------------------------------------ provider
     if jobs is not None:

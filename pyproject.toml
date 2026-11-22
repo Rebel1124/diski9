@@ -14,6 +14,11 @@ dependencies = [
     "supabase-auth>=2.20",
 ]
 
+[project.optional-dependencies]
+# Production WSGI server (Phase 6C.6 Stage F2, SF-13). Not installed by default:
+# `uv sync --extra server` on a host. CI installs it for the WSGI test.
+server = ["gunicorn==26.2.0"]
+
 [project.scripts]
 diski9 = "diski9.cli:main"
 

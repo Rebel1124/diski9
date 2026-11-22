@@ -29,6 +29,14 @@ KNOWN_JOBS = (
     "lock",
     "publish",
     "results-import",
+    # Stage F2: backup, restore and recovery records
+    "ops.backup_store",
+    "ops.backup_postgres",
+    "ops.backup_offhost",
+    "ops.restore_store",
+    "ops.restore_drill",
+    "ops.restore_postgres",
+    "ops.provider_resume",
 )
 
 

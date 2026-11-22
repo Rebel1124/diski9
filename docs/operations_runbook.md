@@ -164,3 +164,21 @@ refresh" lines under Preparation) and `round readiness` ("data refresh:" line).
 Rules: do not run bulk manual store commands (`setup`, `refresh-data`,
 `collect-odds`) on Friday between 03:30 and 12:00 UTC while refresh is on — pause it
 first; a collision is safe but wastes requests. Never clear `job_runs` rows by hand.
+
+## 13. Backups, restores and the provider hold (Stage F2)
+Full procedures: [operations_hosting.md](operations_hosting.md) (sections 4–9).
+
+| Finding | What to do |
+|---|---|
+| `backup_monitoring_off` (INFO) | Backup evidence is not being checked. Turn on `DISKI9_OPS_BACKUP_EXPECTED` once the nightly backup and the off-host hook run on the host. |
+| `backup_store_stale` / `backup_postgres_stale` | No verified local backup of that kind recently (or ever). Run `diski9 backup store --out …` or the `pg_dump` + `backup record --kind postgres` step; check the backup timer (`systemctl status diski9-backup`). |
+| `backup_failed` | The latest attempt failed verification (the copy was deleted). Check disk space and `diski9 backup verify` on the previous backup; rerun. |
+| `backup_offhost_stale` | The host's copy hook has not reported an encrypted off-host copy. A local backup does **not** count. Check the hook's own log. |
+| `offhost_restore_unverified` / `restore_drill_stale` | Off-host recovery is not verified: restore an off-host copy in a drill (`restore store --purpose drill --source-origin offhost`; the PostgreSQL drill, then `backup record --kind postgres-drill`). |
+| `store_restored` (INFO) | The football store was restored for recovery within 7 days; refresh sweeps before it no longer count. Make sure a sweep or `refresh-data --with-odds` ran before readiness. |
+| `provider_hold_after_restore` (WARNING) | The competition database was restored: the scheduler makes no provider calls. Reconcile (operations_hosting.md §8), then `diski9 ops provider-resume --operator EMAIL --reason "…"`. |
+
+Never copy the live SQLite file by hand, never restore over a live store or database,
+and never lift the hold before reconciliation. In-place replacement of the live
+football store is disabled in F2 (`--replace-live` is always refused).
+

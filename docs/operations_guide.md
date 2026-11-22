@@ -132,6 +132,10 @@ tick holds the scheduler lock now. Details and every finding:
   no new evidence and `results import` are all idempotent.
 * A failed command prints one line and exits non-zero; the failing transaction is
   rolled back. Re-check with `round inspect` before retrying.
+* Backups, restores and recovery (Stage F2): [`operations_hosting.md`](operations_hosting.md)
+  and runbook §13. A competition-database restore holds provider calls until an
+  operator reconciles and runs `ops provider-resume`; live football-store
+  replacement is disabled (restore to a new path, then the offline switch).
 
 ## 7. Championship verification
 `competition status` (each stream's current championship and waiting rounds) and

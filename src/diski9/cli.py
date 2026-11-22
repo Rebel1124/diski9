@@ -349,22 +349,14 @@ def cmd_refresh_data(args, engine) -> None:
 
 
 def cmd_serve(args, engine) -> None:
-    from diski9.app import ScreenerData, create_app
+    from diski9.app.factory import build_app
 
-    auth = None
-    from diski9.backend.auth.settings import AuthSettings
-
-    auth_settings = AuthSettings()
-    if auth_settings.enabled:
-        from diski9.backend.auth.web import AuthRuntime
-        from diski9.backend.db import make_app_engine
-
-        auth = AuthRuntime.create(make_app_engine(), auth_settings)
+    built = build_app(engine, ttl_seconds=args.ttl, tz=args.tz)
+    if built.accounts_enabled:
         print("Accounts enabled (Supabase Auth)")
     else:
         print("Accounts disabled: DISKI9_SUPABASE_AUTH_URL / _PUBLISHABLE_KEY not set (guest mode)")
-    app = create_app(ScreenerData(engine, ttl_seconds=args.ttl, tz=args.tz), auth=auth)
-    app.run(host=args.host, port=args.port, debug=args.debug)
+    built.app.run(host=args.host, port=args.port, debug=args.debug)
 
 
 BY_EMAIL_REMOVED = (
@@ -933,6 +925,9 @@ def build_parser() -> argparse.ArgumentParser:
     from diski9.admin_cli import add_parsers as add_admin_parsers
 
     add_admin_parsers(sub)
+    from diski9.backup_cli import add_parsers as add_backup_parsers
+
+    add_backup_parsers(sub)
 
     s = sub.add_parser("app-db", help="competition database (PostgreSQL): migrations, health")
     s.add_argument("action", choices=["upgrade", "downgrade", "current", "check"])
@@ -955,6 +950,10 @@ def main(argv: list[str] | None = None) -> int:
         from diski9.ops_cli import run as run_ops
 
         return run_ops(args)
+    if args.command in ("backup", "restore"):
+        from diski9.backup_cli import run as run_backup
+
+        return run_backup(args)
     if args.command == "audit":
         from diski9.admin_cli import run_audit
 

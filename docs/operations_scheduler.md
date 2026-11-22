@@ -88,7 +88,7 @@ invalid value is a configuration error (exit 2, nothing done).
 | `DISKI9_JOBS_STREAMS` | (none) | `beta`, `development` | required when enabled; **`official` is refused** and cannot be configured |
 | `DISKI9_JOBS_PAUSED` | off | on/off | emergency pause: a tick records itself as paused and stops |
 | `DISKI9_JOBS_PAUSE_FILE` | (none) | a path | pause while this file exists (`touch` to pause, `rm` to resume) |
-| `DISKI9_JOBS_PROVIDER_CALLS` | off | on/off | allow results import from API-Football; off holds real-round finalisation (it needs the full re-check) |
+| `DISKI9_JOBS_PROVIDER_CALLS` | off | on/off | allow results import from API-Football; off holds real-round finalisation (it needs the full re-check). Overridden to off (with refresh) while a Stage F2 **provider hold** is active after a competition-database restore, until an operator runs `ops provider-resume` ([operations_hosting.md §8](operations_hosting.md#8-postgresql-restore-and-the-recovery-gate-safeguard-d)) |
 | `DISKI9_JOBS_MAX_REQUESTS_PER_TICK` | 10 | 1–100 | provider requests one tick may send (retries included) |
 | `DISKI9_JOBS_MAX_REQUESTS_PER_DAY` | 100 | 1–5000 | scheduler provider requests in any rolling 24 hours |
 | `DISKI9_JOBS_RESULTS_REFRESH_MINUTES` | 60 | 5–1440 | minimum gap between results imports for one round |

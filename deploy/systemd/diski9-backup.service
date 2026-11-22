@@ -1,0 +1,22 @@
+# Nightly football-store backup (Stage F2): verified, checksummed, recorded as
+# evidence levels 1-2. The off-host copy hook runs only if the backup succeeded and
+# records level 3 only if the copy itself succeeded. Neither proves a restore.
+[Unit]
+Description=Diski 9 football-store backup and off-host copy
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=diski9
+Group=diski9
+WorkingDirectory=/opt/diski9
+EnvironmentFile=/etc/diski9/diski9.env
+ExecStart=/opt/diski9/.venv/bin/diski9 backup store --out /var/lib/diski9/backups --keep 14
+ExecStartPost=/opt/diski9/deploy/bin/diski9-offhost-copy
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/diski9
+UMask=0077

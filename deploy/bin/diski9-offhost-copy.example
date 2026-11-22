@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Placeholder for the host's ENCRYPTED off-host copy (Stage F2, safeguard B).
+# Copy to deploy/bin/diski9-offhost-copy, make it executable, and replace the
+# marked section with the host's own tool (for example age + rsync to a second
+# machine, or restic to an object store). Keys and destination credentials live in
+# the host's secret store, never in this file or the environment template.
+#
+# Evidence: `backup record --kind offhost-copy` runs ONLY after the copy command
+# succeeded, and records level 3 ("reported, not verified by Diski 9"). Off-host
+# recovery is proven only by a restore drill (docs/operations_hosting.md).
+set -euo pipefail
+dir=/var/lib/diski9/backups
+latest=$(ls -1 "$dir"/diski9-store-*.sqlite 2>/dev/null | sort | tail -n 1)
+[ -n "$latest" ] || { echo "no backup to copy" >&2; exit 1; }
+
+# ---- replace with the host's encrypted copy of "$latest" and "$latest.manifest.json" ----
+echo "off-host copy is not configured on this host; nothing was copied" >&2
+exit 1
+# -------------------------------------------------------------------------------------------
+
+/opt/diski9/.venv/bin/diski9 backup record --kind offhost-copy --file "$latest" --label "<destination-nickname>"

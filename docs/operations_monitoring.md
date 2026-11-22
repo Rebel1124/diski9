@@ -118,6 +118,23 @@ configurable (fail closed on invalid values):
 | `DISKI9_OPS_BUDGET_WARNING_PERCENT` | 80 |
 | `DISKI9_OPS_PREPARE_ATTENTION_HOURS` | 3 |
 | `DISKI9_OPS_PREPARE_PUBLISH_WARNING_HOURS` | 2 |
+| `DISKI9_OPS_BACKUP_EXPECTED` | off (Stage F2: backup findings on/off) |
+| `DISKI9_OPS_BACKUP_WARNING_HOURS` / `_CRITICAL_HOURS` | 26 / 50 |
+| `DISKI9_OPS_RESTORE_DRILL_DAYS` | 35 |
+
+**Backup health (Stage F2).** `ops status` (and `--json`, key `backups`) lists four
+evidence levels separately: (1–2) football store created and verified locally;
+(1–2) PostgreSQL dump recorded (header and checksum); (3) off-host copy *reported* by
+the host hook (not verified by Diski 9); (4) an off-host copy restored in a drill whose
+content matched a recorded backup (origin operator-declared). With
+`DISKI9_OPS_BACKUP_EXPECTED=on`, `ops check` reports each gap on its own:
+`backup_store_stale`, `backup_postgres_stale`, `backup_offhost_stale` (WARNING after
+26 h, CRITICAL after 50 h or never), `backup_failed` (WARNING), and
+`offhost_restore_unverified` / `restore_drill_stale` (WARNING). Off: one INFO
+`backup_monitoring_off`. Whatever the setting: `provider_hold_after_restore` (WARNING)
+while a competition-database restore holds provider calls, and `store_restored`
+(INFO) for 7 days after a football-store recovery restore. `ops jobs` lists the
+records (`ops.backup_*`, `ops.restore_*`, `ops.provider_resume`).
 
 **Preparation states (Stage E.1a)** are derived from rounds and job records (no
 state of their own) and shown in `ops status` (and `--json`, key `preparation`) and

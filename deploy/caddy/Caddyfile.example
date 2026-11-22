@@ -1,0 +1,46 @@
+# Diski 9 reverse proxy (Caddy). Template only: no domain, address or credential.
+# Replace <site-name> with the host name you control; replace the allowlist with
+# the operators' addresses (Stage F3/F4 are private: SF-12, D-39a).
+<site-name> {
+	encode zstd gzip
+
+	# private access for Stage F: only allowlisted sources reach the app
+	@outsiders not remote_ip <allowlisted-address-or-range>
+	respond @outsiders "Not available" 403
+
+	# readiness detail is for the host itself only (liveness may be checked remotely)
+	@readyz_remote {
+		path /readyz
+		not remote_ip 127.0.0.1 ::1
+	}
+	respond @readyz_remote 404
+
+	request_body {
+		max_size 1MB
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "same-origin"
+		Content-Security-Policy "frame-ancestors 'none'"
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	reverse_proxy 127.0.0.1:8050
+
+	log {
+		output file /var/log/caddy/diski9-access.log {
+			roll_size 20MiB
+			roll_keep 10
+		}
+		format filter {
+			request>uri query {
+				delete *
+			}
+			request>headers>Cookie delete
+			request>headers>Authorization delete
+		}
+	}
+}

@@ -62,6 +62,13 @@ def add_parsers(sub) -> None:
     p.add_argument("--round", dest="round_code", default=None, help="one round code")
     p.add_argument("--failed", action="store_true", help="failed runs only")
     p.add_argument("--json", action="store_true", help="structured output")
+    p = os_.add_parser(
+        "provider-resume",
+        help="lift the provider hold after a competition-database restore (operator; "
+        "password check; after reconciliation)",
+    )
+    p.add_argument("--operator", metavar="EMAIL", help="your own sign-in email (operator)")
+    p.add_argument("--reason", required=True, help="what was reconciled (recorded and audited)")
 
 
 def _configs():
@@ -124,6 +131,26 @@ def _gather(ops, jobs, environment):
     return snap, evaluate(snap, ops, jobs)
 
 
+def _backups_doc(snap, ops) -> dict | None:
+    ev = snap.backups
+    if ev is None:
+        return None
+
+    def r(rec):
+        return None if rec is None else {"at": rec.at, "job_run": rec.id, "args": rec.args}
+
+    return {
+        "monitoring": ops.backup_expected,
+        "local_store_created_and_verified": r(ev.store_ok),
+        "local_postgres_dump_recorded": r(ev.postgres_ok),
+        "offhost_copy_reported": r(ev.offhost),
+        "offhost_restore_drill": r(ev.drill_offhost),
+        "store_restore": r(ev.store_restore),
+        "postgres_restore": r(ev.postgres_restore),
+        "provider_hold": ev.hold.describe() if ev.hold else None,
+    }
+
+
 def _status(args) -> int:
     from diski9.backend.ops import Severity
 
@@ -166,6 +193,7 @@ def _status(args) -> int:
                 "provider_calls": bool(jobs and jobs.provider_calls),
             },
             "preparation": snap.preparation.as_dict() if snap.preparation else None,
+            "backups": _backups_doc(snap, ops),
             "rounds": {k: [r.as_dict() for r in v] for k, v in by_cat.items()},
             "active_tick": snap.active_tick,
             "orphan_ticks": snap.orphan_ticks,
@@ -216,6 +244,10 @@ def _status(args) -> int:
 
         for line in preparation_lines(snap.preparation):
             print(line)
+    from diski9.backend.ops.backups import evidence_lines
+
+    for line in evidence_lines(snap, ops):
+        print(line)
     print("rounds:")
     for key, label in CATEGORY_LABELS:
         rs = by_cat.get(key)
@@ -355,5 +387,82 @@ def _jobs(args) -> int:
     return 0
 
 
+RESUME_CHECKLIST = (
+    "competition state reconciled: active rounds, publication, entries and settlement "
+    "reviewed (round inspect, competition verify, ops check --deep)",
+    "provider usage reconciled: the provider's own remaining-requests figure reviewed, "
+    "because requests sent after the dump are no longer counted by the ledger",
+    "lost audit records and other evidence gaps written into the incident record",
+)
+
+
+def _provider_resume(args, *, authenticate=None, confirm=None, engine=None) -> int:
+    """Lift the Stage F2 provider hold (safeguard D). A person, not the scheduler:
+    the operator's password is verified with Supabase Auth (S-07), the capability is
+    checked, the operator confirms the reconciliation checklist, and the resume is
+    recorded and audited. It does not turn provider calls on by itself:
+    ``DISKI9_JOBS_PROVIDER_CALLS`` still decides."""
+    from diski9.backend.auth.operator_cli import OperatorAuthFailed, authenticate_operator
+    from diski9.backend.auth.permissions import AuthorizationError, Capability, authorize
+    from diski9.backend.db import transaction
+    from diski9.backend.repositories.ops import record_audit
+    from diski9.backup import records
+
+    reason = (args.reason or "").strip()
+    if len(reason) < 10:
+        print("provider-resume: --reason must describe what was reconciled (10+ characters); "
+              "nothing was changed", file=sys.stderr)  # fmt: skip
+        return 2
+    engine = engine or _engine()
+    with transaction(engine) as conn:
+        hold = records.provider_hold(conn)
+    if hold is None:
+        print("provider-resume: there is no provider hold; nothing was changed")
+        return 0
+    print(hold.describe())
+    if not args.operator:
+        print("provider-resume: --operator EMAIL is required; nothing was changed",
+              file=sys.stderr)  # fmt: skip
+        return 2
+    authenticate = authenticate or (
+        lambda eng, email: authenticate_operator(eng, email, out=sys.stdout)
+    )
+    try:
+        principal = authenticate(engine, args.operator)
+        authorize(principal, Capability.RUN_JOBS)
+    except OperatorAuthFailed as exc:
+        print(f"provider-resume: {exc}", file=sys.stderr)
+        return 2
+    except AuthorizationError as exc:
+        print(f"provider-resume: not permitted ({exc}); nothing was changed", file=sys.stderr)
+        return 2
+    print("Before resuming, confirm each of these is done:")
+    for item in RESUME_CHECKLIST:
+        print(f"  - {item}")
+    ask = confirm or (lambda prompt: input(prompt))
+    if not sys.stdin.isatty() and confirm is None:
+        print("provider-resume: needs an interactive terminal; nothing was changed",
+              file=sys.stderr)  # fmt: skip
+        return 2
+    if ask("Type RESUME to lift the hold: ").strip() != "RESUME":
+        print("provider-resume: not confirmed; nothing was changed")
+        return 1
+    with transaction(engine) as conn:
+        if records.provider_hold(conn) is None:
+            print("provider-resume: the hold was already lifted; nothing was changed")
+            return 0
+        rid = records.record(conn, records.PROVIDER_RESUME, {
+            "restore_job_run": hold.restore.id, "actor_user_id": str(principal.user_id),
+            "reason": reason[:500], "checklist_confirmed": True})  # fmt: skip
+        record_audit(conn, action="ops.provider_resume", target_type="job_run",
+                     target_id=str(hold.restore.id), actor=principal.user_id,
+                     actor_role="operator", reason=reason[:500], job_run_id=rid)  # fmt: skip
+    print(f"provider-resume: hold lifted (job run {rid}, audited). Provider calls follow "
+          "DISKI9_JOBS_PROVIDER_CALLS again; check the caps before turning it on.")  # fmt: skip
+    return 0
+
+
 def run(args: argparse.Namespace) -> int:
+    if args.action == "provider-resume":
+        return _provider_resume(args)
     return {"status": _status, "check": _check, "jobs": _jobs}[args.action](args)

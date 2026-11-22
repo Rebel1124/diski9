@@ -1,0 +1,21 @@
+# One scheduler tick (Stage C/D). A oneshot unit never overlaps itself; the Stage D
+# database lock still protects against a manual tick running at the same time.
+[Unit]
+Description=Diski 9 scheduler tick
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=diski9
+Group=diski9
+WorkingDirectory=/opt/diski9
+EnvironmentFile=/etc/diski9/diski9.env
+ExecStart=/opt/diski9/.venv/bin/diski9 jobs tick
+TimeoutStartSec=15min
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/diski9
+UMask=0027

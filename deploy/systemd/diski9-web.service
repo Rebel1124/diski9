@@ -1,0 +1,32 @@
+# Diski 9 web app (Gunicorn). Template: adjust paths; nothing provider-specific.
+# Install: /etc/systemd/system/diski9-web.service ; see docs/operations_hosting.md
+[Unit]
+Description=Diski 9 web app (Gunicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=diski9
+Group=diski9
+WorkingDirectory=/opt/diski9
+EnvironmentFile=/etc/diski9/diski9.env
+ExecStart=/opt/diski9/.venv/bin/gunicorn diski9.wsgi:server --workers 2 --bind 127.0.0.1:8050 --timeout 60 --access-logfile - --access-logformat '%%(h)s "%%(m)s %%(U)s" %%(s)s %%(b)s %%(L)s'
+Restart=on-failure
+RestartSec=5
+# sandboxing
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+ReadWritePaths=/var/lib/diski9
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

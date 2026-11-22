@@ -39,6 +39,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import Engine, select, text
+from sqlalchemy import func as sa_func
 
 from ..db import db_now, transaction
 from ..db.schema import job_runs
@@ -172,10 +173,11 @@ def sweep_state(conn, week, slot: Slot) -> SweepState:
     names = leagues()
     st = SweepState(key, slot, len(names))
     jr = job_runs.c
+    since = _restore_filter(conn)
     rows = conn.execute(
         select(jr.scope, jr.status, jr.finished_at, jr.error, jr.args)
         .where(jr.job == PREPARE_REFRESH, jr.scope.like(f"{week.code}:%"),
-               jr.args["slot"].astext == key)
+               jr.args["slot"].astext == key, *since)
         .order_by(jr.id)
     ).all()  # fmt: skip
     for r in rows:
@@ -198,7 +200,7 @@ def sweep_state(conn, week, slot: Slot) -> SweepState:
     closed = conn.execute(
         select(jr.args, jr.finished_at)
         .where(jr.job == PREPARE_SCREENER, jr.scope == week.code, jr.status == "succeeded",
-               jr.args["slot"].astext == key)
+               jr.args["slot"].astext == key, *since)
         .order_by(jr.id.desc()).limit(1)
     ).one_or_none()  # fmt: skip
     if closed is not None:
@@ -218,12 +220,30 @@ def _backoff_until(st: SweepState, league: int, cfg: SchedulerConfig) -> datetim
     return st.last_fail_at[league] + min(cfg.retry_base * (2 ** (n - 1)), cfg.retry_max)
 
 
+STORE_RESTORE_JOB = "ops.restore_store"  # == diski9.backup.records.RESTORE_STORE
+
+
+def _restore_filter(conn) -> tuple:
+    """Stage F2 consistency safeguard: after a football-store restore for recovery
+    (an ``ops.restore_store`` record), refresh steps that started before it describe
+    the old store, so they no longer count (the slot is swept again; readiness says
+    ``data=none`` until then)."""
+    jr = job_runs.c
+    cutoff = conn.execute(
+        select(sa_func.max(jr.finished_at))
+        .where(jr.job == STORE_RESTORE_JOB, jr.status == "succeeded")
+    ).scalar_one()  # fmt: skip
+    return () if cutoff is None else (jr.started_at > cutoff,)
+
+
 def latest_closed(conn, code: str) -> dict | None:
-    """The most recent closed sweep of the week (for readiness labels and status)."""
+    """The most recent closed sweep of the week (for readiness labels and status),
+    ignoring sweeps from before the latest football-store restore."""
     jr = job_runs.c
     row = conn.execute(
         select(jr.args, jr.finished_at)
-        .where(jr.job == PREPARE_SCREENER, jr.scope == code, jr.status == "succeeded")
+        .where(jr.job == PREPARE_SCREENER, jr.scope == code, jr.status == "succeeded",
+               *_restore_filter(conn))
         .order_by(jr.id.desc()).limit(1)
     ).one_or_none()  # fmt: skip
     if row is None:

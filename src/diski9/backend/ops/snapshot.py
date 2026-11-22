@@ -140,6 +140,7 @@ class Snapshot:
     lock_lost: list[JobRow] = field(default_factory=list)  # ticks that lost the lock (24 h)
     preparation: Any = None  # Stage E.1a: jobs.prepare.PreparationStatus (derived)
     preparation_error: str | None = None
+    backups: Any = None  # Stage F2: backup.records.Evidence
 
     @property
     def last_tick(self) -> JobRow | None:
@@ -306,6 +307,9 @@ def _collect(engine: Engine, *, environment: str, finalise_warning: timedelta) -
             snap.orphan_ticks.append(
                 {"tick_id": t.tick_id, "started_at": t.started_at, "jobs": list(t.job_ids)}
             )
+        from diski9.backup.records import evidence
+
+        snap.backups = evidence(conn)
         snap.provider_day_requests = conn.execute(
             text(
                 "SELECT coalesce(sum(api_requests), 0) FROM app.job_runs "

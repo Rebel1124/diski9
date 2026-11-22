@@ -228,6 +228,9 @@ def create_app(data: ScreenerData, auth=None) -> Dash:
     app.layout = lambda: build_shell(data, service)
     register_callbacks(app, data, service)
     register_challenge(app, data, service)
+    from .health import register_health
+
+    register_health(app.server, data.engine, auth.engine if auth is not None else None)
     if auth is not None:
         from diski9.backend.auth.web import init_auth
 
