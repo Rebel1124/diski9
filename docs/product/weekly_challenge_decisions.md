@@ -84,7 +84,11 @@ approval. Private mini-leagues are removed from the MVP roadmap.
 * The provisional 24-hour PostgreSQL RPO remains restricted to operator-only testing;
   a tighter RPO remains a gate before F5.
 * **F3 implementation planning authorised** (planning only):
-  `docs/architecture/phase6c6_stage_f3_plan.md`, with owner decisions F3-D1 to F3-D13.
+  `docs/architecture/phase6c6_stage_f3_plan.md`, with owner decisions F3-D1 to F3-D14;
+  addendum A.2 (owner request) compares Hostinger KVM 2 (Black Friday 24-month promo),
+  Hetzner CX33 and DigitalOcean, ranks them, and proposes a spending ceiling
+  (≤ $60/month average, $75 cap, one-off prepayment ≤ $250, 24-month cap ≈ $1,200);
+  research only, nothing purchased.
   No provisioning, purchase, hosted Supabase project, deployment or F3 implementation.
   F3 boundaries: D-39a, human-only publication, Stage D locking and provider
   safeguards, refresh and provider calls off, no live API-Football calls, Official off,

@@ -47,12 +47,102 @@ region close to the Supabase database (B).
 | 4. Hyperscaler VM (AWS Lightsail/EC2, Azure, GCP) | EU or South Africa (AWS Cape Town, Azure/GCP Johannesburg) | ≈ $20–$45/month for 2 vCPU / 4 GB + egress | enterprise controls; same cloud as Supabase (AWS) | more configuration, egress charges, higher cost |
 | 5. Local South African VPS (e.g. ZA hosts) | Johannesburg / Cape Town | ≈ R260–R320/month (VAT incl.) | local billing, lowest user latency | same database-latency problem as option 3; variable snapshot/support quality |
 
-**Recommendation:** **Option 2 (DigitalOcean, Frankfurt)** or **Option 1 (Hetzner,
-Germany)** in the **same metro area as the Supabase database**, sized 2 vCPU / 4 GB /
-≥ 50 GB SSD, Ubuntu 24.04 LTS, with weekly provider snapshots enabled. DigitalOcean is
-proposed as the default for predictable plan availability and managed firewall;
-Hetzner is the lower-cost alternative if its plan is orderable at selection. Final
-choice is owner decision **F3-D1**.
+**Recommendation:** see **A.2** (owner-requested addendum, 22 Nov 2026), which adds
+Hostinger and the Black Friday / Cyber Monday 2026 promotions and supersedes the
+earlier DigitalOcean-first recommendation. Final choice is owner decision **F3-D1**.
+
+### A.2 Addendum: Hostinger, Hetzner and DigitalOcean with 2026 promotions
+
+Research and planning only: nothing has been purchased, reserved or provisioned.
+Researched 22 Nov 2026 from provider pages and third-party price listings; promotional
+figures in particular came from deal sites that disagree with each other, so **every
+price, term and date must be re-checked at checkout** before the owner approves a
+purchase. USD unless stated; exchange rate assumed €1 ≈ $1.16.
+
+**Like-for-like specification and terms**
+
+| | **Hostinger KVM 2** | **Hetzner CX33** (cost-optimised, shared) | **DigitalOcean Basic** 2 vCPU / 4 GB |
+|---|---|---|---|
+| CPU / RAM | 2 vCPU (shared) / **8 GB** | 4 vCPU (shared) / 8 GB | 2 vCPU (shared) / 4 GB |
+| Storage / transfer | 100 GB NVMe / 8 TB | 80 GB SSD / 20 TB (EU) | 80 GB SSD / 4 TB |
+| Virtualisation | KVM, full root | KVM, full root | KVM, full root |
+| Regions relevant to Diski 9 | Europe: France, Germany, Lithuania, UK (Netherlands also listed by a third party); **no Africa**; location **cannot be changed after setup** (reinstall to move) | Germany (Nuremberg, Falkenstein), Finland; no Africa | **Frankfurt, London**, Amsterdam; no Africa |
+| Latency to the Supabase database (Frankfurt/London) | low if the data centre is in Germany or the UK (city to confirm at setup) | < 10 ms (Germany ↔ AWS Frankfurt) | ≈ 1–2 ms (same metro) |
+| Latency to South African users | ≈ 160–180 ms per HTTP request from any EU site (the app must sit next to the database; see B) | same | same |
+| Backups / snapshots | **weekly automatic backups included**; manual snapshot(s) included (one per third party); daily backups a paid add-on | paid backups (≈ 20 % of the server price; unverified for 2026) and paid snapshots | weekly backups **+20 %** ($4.80); daily +30 %; snapshots per GB |
+| Firewall | hPanel VPS firewall + `ufw` (hPanel feature to be confirmed) | Hetzner Cloud Firewall (free) + `ufw` | DigitalOcean Cloud Firewall (free) + `ufw` |
+| Billing model | **prepaid term**; promotional price applies to the first term only; billing starts **at purchase**, not at setup | monthly, billed hourly; no prepayment | monthly cap, per-second billing from 2026; no prepayment |
+| Promotion (Black Friday / Cyber Monday 2026) | **Live:** KVM 2 ≈ **$8.79/month on a 24-month prepay** ($210.96 upfront; some listings show $8.99), renews at **$14.99/month**; sale reported to run **19 Oct – 14 Dec 2026**; a 12-month promotional price was not confirmed | **none found**; a 15 % price cut for Helsinki cloud servers from 10 Nov 2026 is standing, not a sale; **"limited availability of cloud instances" for some new customers since 26 Jun 2026** | **none announced** (third parties expect something 27–30 Nov; unconfirmed); new-account credit offers exist but were not verified |
+| Regular / renewal price | $14.99/month after the promo term | €8.49/month + IPv4 (≈ €0.60) — June 2026 list price (+31 %) | $24/month |
+| Reliability signal | large shared-hosting provider; VPS track record less established for production workloads; SLA terms to be read | solid hardware; 2026 price waves and capacity limits | mature cloud, 99.99 % Droplet SLA advertised |
+| Tax (South African buyer) | 15 % SA VAT expected on foreign electronic services (Hostinger's practice not confirmed) | VAT treatment for a South African customer to be confirmed | DigitalOcean documents South African VAT on its invoices |
+
+**Total cost of the server alone** (excluding Supabase, storage and domain; "+VAT" adds 15 %)
+
+| Horizon | Hostinger KVM 2 (24-month promo, then renewal) | Hetzner CX33 + IPv4 + backups (≈ €10.80 ≈ $12.50/month) | DigitalOcean $24 + weekly backups ($28.80/month) |
+|---|---|---|---|
+| Upfront payment | **$210.96** (+VAT ≈ $242.60) | none | none |
+| 12 months | $210.96 already paid for 24 months (no refund after the money-back window); a monthly plan without the promo ≈ $179.88 | ≈ $150 (+VAT ≈ $173) | $345.60 (+VAT ≈ $397) |
+| 24 months | **$210.96** (+VAT ≈ $243) | ≈ $300 (+VAT ≈ $345) | $691.20 (+VAT ≈ $795) |
+| 36 months | $210.96 + 12 × $14.99 = **$390.84** (+VAT ≈ $449) | ≈ $450 (+VAT ≈ $518) | $1,036.80 (+VAT ≈ $1,192) |
+
+Common costs for every option: Supabase Pro ≈ $25/month (Micro compute covered by the
+included credit; $300 / $600 / $900 over 12 / 24 / 36 months before any VAT),
+off-host encrypted storage ≈ $1–5/month, domain ≈ $15/year.
+
+**Is Hostinger KVM 2 technically suitable for Diski 9's single-host design?** Yes,
+subject to four checks before purchase.
+
+| Requirement | Assessment |
+|---|---|
+| Gunicorn (2–4 workers at ~300–500 MB each) | ✅ 8 GB RAM is ample (twice DigitalOcean's 4 GB); 2 shared vCPUs match the F3 load profile |
+| systemd units and timers (web, 5-minute tick, nightly backup) | ✅ full-root KVM with Ubuntu 24.04 templates |
+| Caddy with automatic TLS, IP allowlist | ✅ ports 80/443 available; private access via `ufw`/hPanel firewall plus the Caddy allowlist |
+| SQLite in WAL mode | ✅ local NVMe block storage under KVM (not a network or container filesystem) |
+| Scheduled jobs and Stage D locking to Supabase | ✅ outbound PostgreSQL; ⚠ **confirm IPv6** for the Supabase direct endpoint, otherwise use the session pooler (E) |
+| Encrypted off-host backups (`age` + object storage) | ✅ outbound HTTPS; the included weekly Hostinger backup is an extra convenience, not the verified backup |
+| Data-centre location | ⚠ choose **Germany or the UK** at setup (cannot be changed later); confirm the city before buying |
+| Commercial | ⚠ 24-month prepayment and renewal at ~1.7× the promo price; shared-vCPU contention; less mature VPS support than DigitalOcean |
+
+Pre-purchase checks: (1) the German/UK data-centre city and a test of latency to the
+Supabase region; (2) IPv6 availability; (3) the money-back/refund terms for VPS; (4)
+the exact checkout total including VAT and the renewal price.
+
+**Can the discount be secured without provisioning or activating a server?** Partly.
+Hostinger lets a VPS order be paid and **set up later** (Billing → Subscriptions →
+Set up), so no server needs to exist on day one. **But the billing term starts at the
+purchase date, whatever the setup date**, so the 24-month clock (and any money-back
+window) runs from purchase. Buying in the sale window (reported to end **14 Dec
+2026**; Black Friday 27 Nov, Cyber Monday 30 Nov) costs ≈ $8.79 for each idle month
+before F3 implementation is authorised. Hetzner and DigitalOcean need no early
+purchase: they bill only while a server exists.
+
+**Ranked recommendation (for F3-D1)**
+
+1. **Hostinger KVM 2, 24-month promotional term, data centre in Germany or the UK**:
+   lowest cost over 24–36 months and the most memory, technically suitable. This holds
+   only if the four pre-purchase checks pass and the owner accepts a ≈ $243 prepayment
+   (incl. VAT), the renewal step-up and less mature VPS support. Buy only after F3
+   implementation is authorised, or with the explicit acceptance that the term starts
+   immediately.
+2. **DigitalOcean Basic 2 vCPU / 4 GB, Frankfurt**: the best fallback and the right
+   choice if F3 may be short-lived, if the checks fail, or if no prepayment is wanted.
+   No lock-in, mature networking/firewall/backups, same metro as Supabase; ≈ 2–3× the
+   server cost.
+3. **Hetzner CX33, Germany**: best monthly value with no prepayment, but new-customer
+   cloud availability has been restricted since June 2026 and prices changed twice in
+   2026. Treat it as an opportunistic alternative only if an account can create servers.
+
+**Proposed spending ceiling (for F3-D3):**
+* monthly run-rate (Supabase + storage + domain, plus the server where billed monthly)
+  ≤ **US $60 average**, hard alert at $60, absolute cap **$75/month**;
+* **one-off prepayment ≤ US $250 incl. VAT**, and only for the Hostinger option;
+* **24-month programme cap ≈ US $1,200 incl. VAT** for F3 infrastructure (Hostinger
+  ≈ $243 + Supabase ≈ $690 incl. VAT + storage and domain ≈ $100 leaves headroom; the
+  DigitalOcean path ≈ $795 + $690 + $100 ≈ $1,585 would need the cap raised to
+  ≈ $1,600);
+* no annual prepayment to Supabase or the storage provider, and no purchase before
+  explicit owner approval.
 
 ## B. Region selection, Supabase connectivity and South African latency
 
@@ -92,7 +182,8 @@ choice is owner decision **F3-D1**.
 | API-Football Pro (existing subscription) | ($16) | ($16) | already paid; **no F3 calls** — not an F3 cost |
 | **Estimated F3 total (new spend)** | **≈ $37–$55** | **≈ $56–$66** | excludes the existing API-Football plan |
 
-**Proposed budget ceiling for F3: US $75 per month** of new spend (≈ R1,400 at the
+**Proposed budget ceiling for F3: US $75 per month** of new spend (superseded in
+detail by A.2: ≤ $60 average, $75 cap, one-off prepayment ≤ $250, 24-month cap) (≈ R1,400 at the
 current rate; to be re-checked), with a hard alert at $60 and no annual prepayments.
 Provider billing alerts are configured before anything is created. Decision **F3-D3**.
 All prices are indicative (third-party listings and provider pages, Nov 2026) and must
@@ -363,9 +454,9 @@ simulated.
 
 | ID | Decision | Recommendation |
 |---|---|---|
-| F3-D1 | Hosting provider and plan | DigitalOcean Basic 2 vCPU / 4 GB (Hetzner as lower-cost alternative) |
+| F3-D1 | Hosting provider and plan | ranked in A.2: Hostinger KVM 2 (24-month promo, DE/UK) if the pre-purchase checks pass; else DigitalOcean Basic 2 vCPU / 4 GB Frankfurt; Hetzner CX33 opportunistically |
 | F3-D2 | Region | Frankfurt for both Supabase and the VM (London equivalent) |
-| F3-D3 | Monthly budget ceiling and billing alerts | ≤ US $75/month new spend; alert at $60; no prepayment |
+| F3-D3 | Budget ceiling and billing alerts | ≤ $60/month average, $75 cap; one-off prepayment ≤ $250 incl. VAT (Hostinger only); 24-month cap ≈ $1,200 (≈ $1,600 on the DigitalOcean path) |
 | F3-D4 | Create the hosted Supabase project (owner action) and plan/compute | Pro, Micro, Frankfurt, signups disabled after bootstrap |
 | F3-D5 | Database connection mode | direct IPv6 if available, else session pooler; IPv4 add-on only if both fail |
 | F3-D6 | Private-access method | provider firewall + Caddy allowlist; WireGuard if addresses are dynamic |
@@ -376,6 +467,7 @@ simulated.
 | F3-D11 | Manual provider-command coverage (for F4) | extend the hold to the shared client factory |
 | F3-D12 | External uptime monitor | optional; free tier on `/healthz` only |
 | F3-D13 | Operator account in F3 | owner plus at most one operator; no participants |
+| F3-D14 | Whether to buy a promotional prepaid term before F3 implementation is authorised (Hostinger sale reported to end 14 Dec 2026; the term starts at purchase) | owner's call; recommended only if F3 implementation is expected within weeks |
 
 Nothing is purchased or created until D1–D4 (and D6–D8 for the host build) are
 approved. F3 implementation itself needs separate authorisation after this plan.
@@ -393,3 +485,29 @@ approved. F3 implementation itself needs separate authorisation after this plan.
   tighter RPO is a gate before F5.
 * Before F4: SF-14 shared-key schedule analysis; before F5: tighter RPO, ML-01, D-36
   workflow and retention statement, participant-access approval.
+
+## Sources for A–C and A.2 (consulted 22 Nov 2026; re-verify before purchase)
+
+* Supabase: [regions](https://supabase.com/docs/guides/platform/regions),
+  [South Africa region removal](https://www.github.com/supabase/supabase/discussions/3515),
+  [pricing](https://supabase.com/pricing),
+  [compute usage](https://supabase.com/docs/guides/platform/manage-your-usage/compute).
+* Hostinger: [VPS plans](https://www.hostinger.com/vps-hosting.md),
+  [server locations](https://www.hostinger.com/support/1583267-where-are-hostinger-servers-located/),
+  [setting up orders (billing starts at purchase)](https://www.hostinger.com/support/4598546-how-to-set-up-orders-at-hostinger/),
+  [purchasing a VPS](https://www.hostinger.com/support/1583582-how-and-why-to-purchase-vps-hosting-at-hostinger/),
+  [Black Friday VPS deals](https://www.hostinger.com/ae/black-friday-vps-deals);
+  third-party promo listings: [CriticNest](https://criticnest.com/hostinger-vps-coupon-code),
+  [gauravtiwari.org](https://gauravtiwari.org/deal/vps-black-friday-deals/),
+  [Findstack](https://findstack.com/resources/hostinger-black-friday-2026),
+  [VPSBenchmarks](https://www.vpsbenchmarks.com/hosters/hostinger).
+* Hetzner: [price adjustment](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/),
+  [Helsinki price reduction](https://www.hetzner.com/pressroom/price-reduction-cloud-servers-in-helsinki-now-15-percent-cheaper/),
+  [Black Friday baseline](https://findstack.com/resources/black-friday-vps-deals-2026),
+  [2026 pricing summary](https://www.bitdoze.com/hetzner-cloud-cost-optimized-plans/).
+* DigitalOcean: [Droplet pricing](https://www.digitalocean.com/pricing/droplets),
+  [backups pricing](https://docs.digitalocean.com/products/backups/details/pricing/),
+  [South Africa tax](https://docs.digitalocean.com/products/billing/taxes/zaf).
+* South African VAT on foreign electronic services:
+  [SARS FAQ](https://www.sars.gov.za/lapd-vat-g16-vat-faqs-supplies-of-electronic-services).
+* Johannesburg VPS listings (Vultr, local hosts): [valebyte](https://valebyte.com/en/vps/south-africa/?provider=vultr).
