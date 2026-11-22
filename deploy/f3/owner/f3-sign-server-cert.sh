@@ -73,8 +73,8 @@ openssl x509 -req -in "$csr" -CA "$out/diski9-f3-ca.crt" -CAkey "$cakey" \
   -extfile "$F3_RAMDIR/leaf.cnf" -out "$out/server.crt" 2>/dev/null
 
 # the CA key is no longer needed: destroy it now, before anything else can go wrong
-f3_ramdir_destroy
-trap - EXIT INT TERM
+f3_ramdir_destroy || f3_die "the CA key's RAM disk could not be removed: remove it now (see above) before using the certificate"
+trap - EXIT INT TERM HUP
 
 openssl verify -CAfile "$out/diski9-f3-ca.crt" -verify_ip "$ip" "$out/server.crt" >/dev/null \
   || f3_die "server certificate does not verify for $ip"

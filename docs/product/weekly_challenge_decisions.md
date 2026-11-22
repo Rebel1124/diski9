@@ -111,6 +111,10 @@ approval. Private mini-leagues are removed from the MVP roadmap.
     owner review);
   * a RAM-disk cleanup failure prints CLEANUP FAILED with the removal command and an
     instruction to rotate the master key, and the run exits with an error;
+  * RAM-disk initialisation is cleaned up on every failure path (trap installed before
+    attaching; a partially attached macOS device is detached; a partial Linux tmpfs
+    directory is removed), and signals during initialisation exit rather than
+    continue;
   * the cache lives on a RAM disk;
   * one cleanup path, with interrupts turned into an exit;
   * it fails closed on privacy, Object Lock, lifecycle, retention mode and the canary
