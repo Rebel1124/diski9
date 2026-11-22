@@ -668,8 +668,8 @@ Any mismatch fails **G5**.
 
 ### 8.2 Checkpoint 1 (owner evidence; Claude reviews)
 - [x] O-1: SSH key fingerprint (received 22 Nov 2026; key login from the owner's Mac works).
-- [ ] O-2: two `age1…` recipients; both identities passed the round trip.
-  **Evidence-complete except one item; not yet PASSED.**
+- [x] O-2: two `age1…` recipients; both identities passed the round trip.
+  **PASSED (22 Nov 2026): all criteria evidenced.**
   * Public recipients (bech32 checksums verified):
     * primary `age19sqxj3etzcl03gqzvcsn86p7v2xp8nheu4t2j6y9wpkd27ggyptqwkkty7`;
     * offline-recovery `age1vdhzrg30tplkq9ahcx2dkffynrshh8qkscjme3kself0jc63m5wqsssfrt`.
@@ -685,11 +685,13 @@ Any mismatch fails **G5**.
     * the encrypted offline identity is on the separate, approved recovery MacBook
       (FileVault on, stored securely, disconnected when not in use);
     * it was decrypted with its passphrase (age v1.3.2) and its format verified.
-  * **OUTSTANDING:** a **ciphertext round trip for the offline identity**. Encrypt a test
-    message to `age1vdhzrg30…` and decrypt it with the offline identity on the recovery
-    MacBook, checking the exact plaintext. Alternatively, return the `offline-recovery:
-    OK` line from the original generation run. The checks so far prove the passphrase
-    and the file format, not that this identity matches its published recipient.
+  * **PASSED: offline recovery round trip** (recovery MacBook, age v1.3.2):
+    * a test message was encrypted to the offline recipient;
+    * the passphrase-protected `diski9-f3-age-offline-recovery.age` was decrypted into a
+      temporary 64 MB RAM disk;
+    * the recovered identity decrypted the ciphertext to the exact expected plaintext;
+    * the RAM disk was detached and the ciphertext deleted; cleanup checks "RAM DISK
+      DETACHED" and "TEST FILE REMOVED".
   * Decrypting a real Diski 9 backup is still proven in the Checkpoint 5 drills.
 - [ ] O-3: Supabase Pro, spend cap on; project `diski9-f3` in `eu-central-1`, Micro; SSL
   enforcement on; signups off; leaked-password protection on; CA certificate saved;

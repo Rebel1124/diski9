@@ -67,6 +67,17 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 Checkpoint 1, O-2: PASSED (22 Nov 2026):**
+* **Offline recovery round trip** on the recovery MacBook (age v1.3.2):
+  * encrypted to `age1vdhzrg30tplkq9ahcx2dkffynrshh8qkscjme3kself0jc63m5wqsssfrt`;
+  * identity decrypted into a temporary RAM disk;
+  * exact expected plaintext recovered;
+  * RAM disk detached and test file removed.
+* With the primary round trip, the primary storage and the offline custody recorded
+  earlier, **every O-2 criterion is satisfied: O-2 PASSED**.
+* Both public recipients are preserved as the approved backup-encryption recipients.
+* No private material is recorded.
+
 **Phase 6C.6 Stage F3 Checkpoint 1, O-2: `age` identity evidence (22 Nov 2026):**
 * **Public recipients recorded**, with bech32 checksums verified: primary
   `age19sqxj3etzcl03gqzvcsn86p7v2xp8nheu4t2j6y9wpkd27ggyptqwkkty7`; offline-recovery `age1vdhzrg30tplkq9ahcx2dkffynrshh8qkscjme3kself0jc63m5wqsssfrt`.

@@ -1582,7 +1582,7 @@ Nothing is changed until these are approved.
 | Item | Status | Outstanding |
 |---|---|---|
 | O-1 SSH key | **PASSED** | – |
-| O-2 `age` identities | OPEN (one item) | the offline identity's ciphertext round trip against its recipient (see §13.8). Recipients, primary storage and the primary recovery test are PASSED |
+| O-2 `age` identities | **PASSED** | – (§13.8: recipients recorded; round trip with each identity; primary in the password manager; offline copy on the approved device) |
 | O-3 Supabase | OPEN | spend cap on; SSL enforcement on; leaked-password protection on; CA certificate saved; account MFA; project name; invoice and tax; confirmation that no key was shared (Auth settings recorded) |
 | O-4 Hostinger | OPEN (minor) | the day-25 reminder (17 Dec 2026); the hPanel password-login setting |
 | O-5 day-one check | OPEN | the full JSON: zero-success check (final acceptance of F3-D1a/F3-D2a), system facts, listening-port baseline (IT-1, IT-2 and IT-9 already PASS) |
@@ -1598,13 +1598,17 @@ Nothing is changed until these are approved.
 | Primary recovery test | age and age-keygen v1.3.2. The test message was encrypted to the primary recipient. The primary identity was decrypted into a temporary 64 MB macOS RAM disk, and the recovered identity decrypted the ciphertext to the exact expected plaintext. The RAM disk was detached, the test file deleted, and both cleanup checks succeeded | **PASSED** |
 | Offline custody | the encrypted identity is on the separate, approved recovery MacBook (FileVault on, stored securely, disconnected when not in use) | **PASSED** |
 | Offline identity check | decrypted with its passphrase (age v1.3.2); format verified | **PASSED** |
-| Offline recipient round trip | **not evidenced**: the checks above do not prove that this identity decrypts data encrypted to `age1vdhzrg30…` | **OUTSTANDING** |
+| Offline recipient round trip | recovery MacBook, age v1.3.2. A test message was encrypted to `age1vdhzrg30tplkq9ahcx2dkffynrshh8qkscjme3kself0jc63m5wqsssfrt`. `diski9-f3-age-offline-recovery.age` was decrypted into a temporary 64 MB RAM disk, and the recovered identity decrypted the ciphertext to the exact expected plaintext. Cleanup: "RAM DISK DETACHED", "TEST FILE REMOVED" | **PASSED** |
 
-**O-2 status:** evidence-complete except for the offline round trip, so **not PASSED**. To
-close it, do one of the following:
-* on the recovery MacBook, encrypt a test message to the offline recipient and decrypt
-  it with the offline identity, checking the exact plaintext;
-* return the `offline-recovery: OK` line from the original generation run.
+**O-2 status: PASSED (22 Nov 2026).** Every criterion is evidenced:
+* both public recipients are recorded (distinct; bech32 checksums valid);
+* a ciphertext round trip passed with **each** identity against its own recipient;
+* the primary identity is in the password manager;
+* the offline identity is on the approved separate recovery device.
+
+The two recipients are the approved backup-encryption recipients. Every backup and
+manifest is encrypted to both (§X.3.5), and only these public values go to the VPS
+(Checkpoint 4).
 
 No private identity, passphrase or decrypted key material is recorded. Backup decryption
 is still proven in the Checkpoint 5 drills.
