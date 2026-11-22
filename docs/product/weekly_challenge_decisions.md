@@ -67,6 +67,24 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 O-6: canary verification incident and remediation (22 Nov 2026):**
+* **Live run:** Governance 30 days was configured and re-verified on
+  `diski9-f3-3cd4db18`, and the canary was uploaded. The script then stopped at
+  upload parsing, so the canary's retention is unverified. The owner rotated the master
+  key.
+* **Cause (confirmed):** B2 CLI 5.0.3 prints two `URL by …` lines before the upload
+  JSON.
+* **Owner-authorised remediation:**
+  * the parser now handles the URL lines and cross-checks the file IDs;
+  * read-only `--verify-canary` mode, which fails closed unless exactly one uploaded
+    canary is identified (hide markers recognised) and verifies that version's
+    Governance lock and expiry;
+  * regression tests for the failure and every fail-closed case;
+  * a test proving verify mode cannot update, upload, hide or delete.
+* Unchanged: Governance (never Compliance), RAM-disk isolation, output sanitisation,
+  cleanup rules, explicit owner approval for live runs.
+* **O-6 remains open.** The live verify-only run needs separate owner authorisation.
+
 **Phase 6C.6 Stage F3 Checkpoint 1: owner evidence update (22 Nov 2026):**
 * **Owner decision:** the second MacBook is the **official offline recovery device**
   for the `age` offline-recovery identity. It is stored securely and disconnected when

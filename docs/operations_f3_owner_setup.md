@@ -417,6 +417,104 @@ explicit owner authorisation.***
 * the cap values;
 * "master key regenerated after use; no other keys exist".
 
+#### O-6 incident (22 Nov 2026) and verify-only procedure — **O-6 stays open**
+
+**What happened** (owner-reported, script at `5a9183e`, B2 CLI 5.0.3, bucket
+`diski9-f3-3cd4db18`):
+* authentication passed;
+* the bucket checks passed;
+* the 30-day Governance default was applied and re-verified (private, Object Lock,
+  retention, lifecycle);
+* `b2 file upload` returned success;
+* the script then stopped: "the upload returned no usable file ID".
+* The canary's retention was never read and no evidence block was produced.
+* The owner rotated the master key afterwards.
+
+**Confirmed cause:** B2 CLI 5.0.3's `file upload` prints `URL by file name: …` and
+`URL by fileId: …` **before** its JSON (source `console_tool.py`, upload `_run`). The
+script parsed the whole output as JSON. The test double printed JSON only, so the tests
+missed it.
+
+**Likely, not verified:**
+* the canary was stored (the CLI prints those lines only after Backblaze accepted the
+  upload);
+* it is Governance-locked until about 30 days after upload (the verified bucket
+  default applies at upload).
+
+No credential was exposed: the URL lines went to the RAM-disk file, and they contain
+only the download host, bucket name and file ID.
+
+**Fix (`deploy/f3/owner/f3-b2-configure-governance.sh`):**
+* the upload parser reads the JSON after the URL lines and requires the file ID in the
+  `URL by fileId:` line to match the JSON's; otherwise it stops;
+* new **`--verify-canary`** mode, which is **read-only**:
+  * re-checks the bucket (private, Object Lock on, approved lifecycle, default
+    retention already exactly Governance/30 days);
+  * lists `diski9/canary/` with `b2 ls --json --versions -r`;
+  * requires **exactly one uploaded** `setup-<UTC>.txt` version. Lifecycle **hide
+    markers** for that same name, newer than the upload, are recognised and ignored;
+    anything else (none, several uploads, other names or actions, a malformed listing)
+    fails closed;
+  * reads **that** version by file ID and requires Governance, an expiry of upload +
+    30 days (± 1 hour) and no legal hold;
+  * prints evidence `diski9-f3-b2-canary-verification/1`.
+* It never uploads, updates the bucket, hides or deletes anything, and asks for no
+  confirmation because it changes nothing.
+* The same RAM-disk credential cache, discarded sign-in output, fixed failure messages,
+  single cleanup path and CLEANUP FAILED rule apply.
+* **Do not re-run the configure mode**: no second canary, no reapplied retention.
+
+**Credential-free residue check** (run on the Mac at any time; prints counts or
+presence only):
+* expect `0`:
+
+  ```bash
+  ls /Volumes | grep -c '^diski9f3'
+  ```
+
+* expect `0`, unless you use other RAM disks:
+
+  ```bash
+  hdiutil info | grep -c 'ram://'
+  ```
+
+* expect `absent`:
+
+  ```bash
+  test -e ~/.b2_account_info && echo PRESENT || echo absent
+  ```
+
+* expect no output:
+
+  ```bash
+  ls -d ~/.config/b2 2>/dev/null
+  ```
+
+* expect `0`:
+
+  ```bash
+  env | grep -c '^B2_'
+  ```
+
+**Verify-only run** (needs separate explicit owner authorisation):
+1. Update your clone to the reviewed commit and run the residue check above.
+2. Web UI: **App Keys → Generate New Master Application Key** (shown once; not saved).
+3. Run:
+
+   ```bash
+   deploy/f3/owner/f3-b2-configure-governance.sh --verify-canary diski9-f3-3cd4db18
+   ```
+
+   Paste the keyID at the script's hidden prompt and the key at b2's hidden prompt.
+4. Immediately afterwards, whatever the result, generate a new master key again (not
+   saved), confirm no other application keys exist, and close Terminal.
+5. Run the residue check again.
+6. **Return:** the evidence block (`diski9-f3-b2-canary-verification/1`), "master key
+   rotated after use", and the residue-check results. If the script stops, return its
+   message (it never contains b2 output).
+7. O-6 closes only when the evidence shows the canary in **Governance** mode with an
+   expiry about 30 days after its upload, and the evidence is recorded.
+
 ### O-7 Peer devices (no cost)
 
 Install the official WireGuard app on the laptop and the phone. Nothing else yet:
@@ -604,8 +702,11 @@ Any mismatch fails **G5**.
   (plan §Z.8), the system facts and the listening-port baseline.
 - [ ] O-6: B2 EU Central; bucket with Object Lock Governance 30 days; lifecycle rules;
   caps; **no keys created yet**. *Status:* account 2FA on and EU Central region chosen;
-  bucket **not created**. The live procedure is **on hold** pending final security review
-  and explicit owner authorisation (plan §Y.6).
+  bucket **created** (`diski9-f3-3cd4db18`; private; Object Lock; Governance 30 days
+  applied and re-verified by the script; lifecycle verified). The canary upload
+  succeeded, but the script stopped at the upload-parsing step (incident above), so
+  **the canary's retention is unverified**. **Open** until the `--verify-canary`
+  evidence is recorded (separate owner authorisation).
 - [x] O-7: WireGuard app installed on both devices: the official client on the owner's
   MacBook and iPhone (22 Nov 2026). No tunnels configured. The WireGuard server and VPS
   hardening belong to Checkpoint 2 and are not authorised by this item.

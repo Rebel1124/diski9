@@ -1777,6 +1777,25 @@ The procedure is in the runbook O-6 and in `deploy/f3/owner/f3-b2-configure-gove
 | Lifecycle vs lock | Backblaze: "Lifecycle Rules are applied once per day"; a lifecycle deletion of a locked version "does not occur". Timing: canary locked to day 30, hidden day 1, deletion due day 31; daily backups locked to day 30, deletion due day 44; weekly copies deletion due day 86 | **no deletion ever falls inside a lock**, so the rules are compatible. Whether a *locked* version can be hidden is not documented: if it cannot, hiding happens after day 30 and deletion 30 days later (the canary is gone by about day 61; storage cost negligible) |
 | `bypassGovernance` | the master key has it implicitly while it is used once; no key is ever created with it | the restriction on operational credentials is unchanged |
 
+**Incident (22 Nov 2026), O-6 still open:**
+* The live run (script `5a9183e`, B2 CLI 5.0.3) configured and re-verified Governance
+  30 days on `diski9-f3-3cd4db18` and uploaded the canary. It then stopped, because
+  `file upload` prints two `URL by …` lines before its JSON (confirmed from the CLI
+  source), which the parser did not expect.
+* The canary's retention was not read. Storage and Governance lock are likely, not
+  verified. No credential was exposed. The master key was rotated.
+* **Remediation:**
+  * the parser takes the JSON after the URL lines and requires the two file IDs to
+    agree;
+  * new read-only `--verify-canary` mode: bucket re-check; `b2 ls --json --versions -r`;
+    exactly one uploaded canary, with hide markers recognised and anything ambiguous
+    failing closed; `file info` by that file ID; Governance, ~30-day expiry, no legal
+    hold;
+  * no upload, update, hide or deletion, which tests enforce statically and at run
+    time;
+  * the test double now emits the real 5.0.3 output.
+* Live verification needs separate owner authorisation (runbook O-6).
+
 Irreversible actions, each confirmed by the owner when it is done:
 * the bucket name;
 * enabling Object Lock;

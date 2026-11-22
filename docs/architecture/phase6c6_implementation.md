@@ -1482,3 +1482,47 @@ for the owner to confirm.
 * Running cost against the $65 alert and $75 ceiling, once the Supabase invoice is
   known.
 
+### 13.6 Checkpoint 1, O-6: canary verification incident and remediation (22 Nov 2026)
+**Live run (owner, script `5a9183e`, B2 CLI 5.0.3, bucket `diski9-f3-3cd4db18`):**
+* authentication passed;
+* the initial bucket checks passed;
+* Governance 30 days was applied;
+* re-verification passed (privacy, Object Lock, retention, lifecycle);
+* the canary upload returned success;
+* the script then stopped with "the upload returned no usable file ID".
+* The canary's retention was not read, and no evidence was produced.
+* The owner rotated the master key.
+
+**Cause (confirmed from the CLI source):** `b2 file upload` prints `URL by file name:`
+and `URL by fileId:` lines before the JSON file version. The script parsed the whole
+output as JSON. The fake `b2` in the tests printed JSON only.
+
+**Status of the canary:**
+* likely stored and Governance-locked to about upload + 30 days, but **not verified**;
+* no credential exposure (the output went to the RAM disk; the URL lines hold no
+  secret);
+* cleanup ran through the normal exit path (the owner reported no CLEANUP FAILED
+  message).
+
+**Remediation (owner-authorised):**
+* the upload parser reads the JSON after the URL lines and cross-checks the file IDs;
+* read-only `--verify-canary` mode, as in the runbook O-6;
+* credential-free residue check;
+* tests:
+  * the fake `b2` now emits the real 5.0.3 upload format and `ls --json` with hide
+    markers;
+  * the regression test reproduces the live error on the old script;
+  * mismatched IDs, a missing URL line and non-JSON output stop the run;
+  * verify mode passes with an upload alone and with an upload plus a hide marker;
+  * it fails closed for: no canary, a hide marker only, two uploads, a hide marker older
+    than the upload or with another name, an unexpected name, an unfinished upload,
+    Compliance, no lock, a short lock, a legal hold, a bucket not on Governance/30
+    days, and a malformed listing;
+  * a cleanup failure gives exit 70;
+  * verify mode is checked at run time against forbidden commands and statically
+    across the code path;
+  * extra arguments are rejected.
+
+**O-6 remains open** until the live `--verify-canary` evidence (separately authorised)
+shows Governance with a ~30-day expiry and is recorded.
+
