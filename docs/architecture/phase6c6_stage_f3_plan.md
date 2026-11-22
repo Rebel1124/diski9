@@ -1627,7 +1627,7 @@ values):**
 | N2 | list: `b2_list_file_names`, `b2_list_file_versions`, S3 `ListObjectsV2`, `ListObjectVersions` | refused |
 | N3 | delete: `b2_delete_file_version` (with and without `bypassGovernance=true`), S3 `DeleteObject` **with** a version ID | refused |
 | N4 | overwrite: upload the same name with different content | accepted **as a new version**; with the owner's list key, the original version still exists with unchanged SHA-1/size and its retention date |
-| N5 | hide: `b2_hide_file`, S3 `DeleteObject` without a version ID | **expected to succeed** (documented limitation); the owner's inventory shows the hide marker; the hidden version still exists and is locked |
+| N5 | hide: `b2_hide_file`, S3 `DeleteObject` without a version ID | **expected to succeed** (documented limitation), **or to be refused for a locked version** (Backblaze does not document whether a locked version can be hidden; a refusal is stronger and is recorded as such); the owner's inventory shows the hide marker; the hidden version still exists and is locked |
 | N6 | change retention or hold: `b2_update_file_retention` (shorten, remove, with `bypassGovernance`), S3 `PutObjectRetention`, `PutObjectLegalHold`; upload carrying a shorter retention or legal-hold header | refused. If a header upload is accepted, the owner verifies that object's retention is the bucket default (not shorter). Existing versions are unaffected either way, because upload headers apply only to the new object |
 | N7 | bucket settings: `b2_update_bucket` (lifecycle, default retention), S3 `PutBucketLifecycleConfiguration`, `PutObjectLockConfiguration` | refused |
 | N8 | key management: `b2_create_key`, `b2_list_keys`, `b2_delete_key` | refused |
@@ -1742,6 +1742,49 @@ computer on a schedule. Either way, the residual risk is recorded.
     inventory;
   * edit the Supabase email templates;
   * install and later remove the root certificate on each peer device.
+
+### Y.6 Backblaze configuration procedure (O-6) — **architecture approved; execution not yet authorised**
+
+Owner decisions (22 Nov 2026, final review):
+
+| Decision | Status |
+|---|---|
+| **A** private B2 EU Central bucket, Object Lock enabled, **30-day Governance default retention** set through the verified CLI procedure (web UI bucket with no default, then the script) | **approved** (architecture) |
+| **B** the list-only inventory key adds `readFileRetentions` and `readBucketRetentions`; still no file-content access, modification, deletion or Governance bypass | **approved** |
+| **C** one-time master-key use, with a temporary RAM-disk credential cache and immediate master-key rotation | **conditionally approved**, subject to final source-code and test review before execution |
+
+**Execution is separately gated.** These decisions do not authorise:
+* creating the bucket;
+* generating a master key;
+* accessing Backblaze;
+* running `f3-b2-configure-governance.sh`.
+
+Each waits for an explicit owner authorisation.
+
+The procedure is in the runbook O-6 and in `deploy/f3/owner/f3-b2-configure-governance.sh`.
+
+| Topic | Verified | Consequence |
+|---|---|---|
+| CLI syntax | **B2 CLI 5.0.3** (current; installed and inspected, help and source). `b2 account authorize [keyId] [key]` prompts when omitted: the key ID with `input()`, the key with `getpass` (hidden). `b2 bucket get NAME`. `b2 bucket update --default-retention-mode {compliance,governance,none} --default-retention-period "X days\|years" NAME` (regex `^\d+ (days\|years)$`). `b2 file upload [--no-progress] BUCKET LOCALFILE B2NAME`. `b2 file info b2://BUCKET/NAME \| b2id://FILEID`. `b2 account clear`. All accepted offline by 5.0.3; a malformed period is rejected. `bucket create` can enable Object Lock but **cannot set a default retention**; only `bucket update` can | the script uses exactly these forms |
+| Exposure: output | `b2 account authorize` **prints `applicationKey` and `accountAuthToken` as JSON on success**; `b2 account get` does the same (`format_account_info`) | authorize output discarded; `account get` never used |
+| Exposure: cache | b2 stores the application key **in plain text** in its SQLite cache (`application_key` column). The location is `B2_ACCOUNT_INFO`, which takes precedence over `~/.b2_account_info` | cache on a RAM disk; `account clear` plus RAM-disk destruction on every exit |
+| Exposure: history, environment, arguments | the key ID is read without echo and passed only in the authorize process's environment; the key is typed at b2's `getpass` prompt; neither is an argument or exported. No `--verbose` or `--debug-logs` (debug logging can include request headers) | nothing in shell history or `ps` |
+| Output on success **and failure** | every `b2` call except sign-in and log-out runs through `b2run`, which captures **both** output streams in the RAM disk. Nothing b2 prints reaches the terminal. On failure only a scrubbed 3-line excerpt is shown: any 12+ character token containing a digit becomes `<redacted>`. `account authorize` and `account clear` discard all output (`>/dev/null 2>&1`) whether they succeed or fail. Unreadable or unexpected responses fail the checks (fail closed). Evidence prints only selected fields: no account ID, bucket ID, file ID, key or token | tested: secret printed on authorise failure, token in an update error, non-JSON response; a static test checks that every `b2` call is wrapped |
+| Interrupted run | one cleanup path: the EXIT trap runs `b2 account clear` and destroys the RAM disk. INT, TERM and HUP are turned into an exit, so the script never continues after an interrupt. SIGKILL, a force-quit or power loss cannot be trapped and leave the RAM disk mounted until detached or rebooted | tested with SIGINT, SIGTERM and SIGHUP at the confirmation prompt; manual `hdiutil detach` step; the master key is regenerated regardless, which is the real revocation |
+| Master-key regeneration | Backblaze: "Your master app key becomes invalid if you generate a new one"; "standard app keys continue to work even when the master app key is changed" | regenerate right after use, both now and in Checkpoint 4 |
+| Old tokens after regeneration | **not documented**; tokens expire after 24 hours | residual risk: the token existed only in the RAM cache, which is destroyed |
+| Canary verification | `file upload` returns the new version's `fileId`; `file info b2id://<fileId>` returns that version's `fileRetention {mode, retainUntilTimestamp}` and `uploadTimestamp` (b2sdk `FileVersion.as_dict`); the master key has `readFileRetentions` | the script uses the exact `fileId` from the upload response (validated form). It requires the returned record to carry the same `fileId` and the canary name, mode `governance`, an expiry of upload + 30 days ± 1 hour, and no legal hold |
+| Lifecycle vs lock | Backblaze: "Lifecycle Rules are applied once per day"; a lifecycle deletion of a locked version "does not occur". Timing: canary locked to day 30, hidden day 1, deletion due day 31; daily backups locked to day 30, deletion due day 44; weekly copies deletion due day 86 | **no deletion ever falls inside a lock**, so the rules are compatible. Whether a *locked* version can be hidden is not documented: if it cannot, hiding happens after day 30 and deletion 30 days later (the canary is gone by about day 61; storage cost negligible) |
+| `bypassGovernance` | the master key has it implicitly while it is used once; no key is ever created with it | the restriction on operational credentials is unchanged |
+
+Irreversible actions, each confirmed by the owner when it is done:
+* the bucket name;
+* enabling Object Lock;
+* the canary's 30-day Governance lock (deletable before expiry only with
+  `bypassGovernance`, which no key has);
+* a Compliance retention, which this procedure never sets.
+
+The account region is already fixed.
 
 ### Y.5 Remaining blockers before implementation authorisation
 

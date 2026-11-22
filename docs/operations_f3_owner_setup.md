@@ -315,14 +315,24 @@ The check is read-only:
 
 ### O-6 Backblaze B2 (no payment until data is stored; first 10 GB free)
 
-1. Create the account and **choose region "EU Central" at sign-up**. The region cannot be
-   changed later; EU Central is Amsterdam. Turn **MFA on**. Add the card.
-2. **Create the bucket:**
-   * private;
-   * name `diski9-f3-<8 random hex characters>`;
-   * **Object Lock enabled at creation**;
-   * default retention **Governance, 30 days**.
-3. **Lifecycle rules** (custom), exactly:
+*Revised 22 Nov 2026: the web UI only offers a Compliance-mode default retention, so the
+approved Governance 30-day default is set with the B2 CLI (plan §Y.6). Decisions A and B
+are approved and C is conditionally approved. **Executing steps 2–5 needs a separate
+explicit owner authorisation.***
+
+1. **Account:**
+   * Region **EU Central** chosen at sign-up (fixed for ever; Amsterdam).
+   * **2FA on.** Card added. *(Done: 2FA on, EU Central.)*
+2. **Create the bucket in the web UI. Irreversible: the name, and Object Lock being on.**
+   * Name `diski9-f3-<8 hex>` (from `openssl rand -hex 4`).
+   * **Private.**
+   * Default encryption left as offered.
+   * **Object Lock: Enable.**
+   * **Do not set any default retention in the web UI** (it would be Compliance).
+   * If the form insists on a retention period, stop and report; do not create the
+     bucket.
+   * Upload **nothing** until step 5 has passed: until then files are not locked.
+3. **Lifecycle Settings → custom rules**, exactly:
 
    ```json
    [
@@ -332,20 +342,75 @@ The check is read-only:
    ]
    ```
 
-4. **Caps & Alerts:** set daily caps on storage and on Class A, B and C transactions
-   (for example $0.10/day each; Class D cannot be capped). Alerts go to your email.
-5. **Do not create any application key yet.** The upload key, list-only inventory key
-   and retrieval keys are created in Checkpoint 4, each moved directly to its place
-   (§1.2).
-6. **Never create a key with `bypassGovernance`.** Never store the master application
-   key anywhere.
+4. **Caps & Alerts:** daily caps on storage and Class A, B and C transactions (for
+   example $0.10/day each; Class D cannot be capped).
+5. **Set and prove Governance 30 days**, using the master key once.
+   1. Install the CLI:
+
+      ```bash
+      brew install b2-tools
+      ```
+
+      `b2 version` should report 4.x or 5.x; 5.0.3 was verified.
+   2. In the web UI: **App Keys → Generate New Master Application Key.** It is shown
+      once. Keep the page open and do **not** save it anywhere.
+   3. Run:
+
+      ```bash
+      deploy/f3/owner/f3-b2-configure-governance.sh diski9-f3-<suffix>
+      ```
+
+      * Paste the **keyID** at the script's hidden prompt.
+      * Paste the **application key** at b2's hidden prompt ("Backblaze application
+        key:").
+      * Type `GOVERNANCE` to confirm.
+   4. The script, step by step:
+      * refuses keys in the environment;
+      * keeps b2's login cache (which stores the key) on a RAM disk;
+      * discards `b2 account authorize` output (it prints the key and token);
+      * checks the bucket: private, Object Lock on, no Compliance default, approved
+        lifecycle rules;
+      * sets **governance / "30 days"**: the mode is fixed in the script; compliance
+        is never used;
+      * re-reads the bucket;
+      * uploads one canary under `diski9/canary/`;
+      * reads **that version** by file ID (`b2 file info b2id://<fileId>`), requiring
+        mode `governance` and an expiry 30 days (± 1 hour) after upload;
+      * prints sanitised evidence;
+      * on **any** exit, including errors and Ctrl-C, runs `b2 account clear` and
+        destroys the RAM disk.
+   5. **Immediately afterwards**, whether the script passed or failed:
+      * web UI → **Generate New Master Application Key** again. Backblaze: "Your master
+        app key becomes invalid if you generate a new one", and "standard app keys
+        continue to work even when the master app key is changed". Do not save the new
+        one;
+      * confirm that **no other application keys** exist;
+      * close the Terminal window.
+   6. **If the script, Terminal or the Mac was force-quit** (SIGKILL cannot be trapped,
+      so cleanup did not run):
+      * run `hdiutil info`;
+      * find the entry whose mount point is `/Volumes/diski9f3<number>` and note its
+        device (`/dev/diskN`);
+      * run `hdiutil detach /dev/diskN -force`;
+      * check that `ls /Volumes` no longer lists it.
+      * A restart also discards a RAM disk.
+      * Then do step 5. Regenerating the master key is the revocation that counts, even
+        if the RAM disk is already gone.
+      * Never run `b2 account get` (it prints the key), and never add `--verbose` or
+        `--debug-logs`.
+      * On Ctrl-C or a Terminal close, the script cleans up itself and stops.
+6. **No other keys yet.**
+   * The upload key, the list-only inventory key and the retrieval keys are created in
+     Checkpoint 4, using the same one-time master-key procedure.
+   * The inventory key gets `listBuckets`, `listFiles`, `readBucketRetentions` and
+     `readFileRetentions` only.
+   * **No operational key ever gets `bypassGovernance`.**
 
 **Return:**
-* the region shown;
-* the bucket name;
-* "Object Lock on, Governance 30 days";
-* the lifecycle rules as shown;
-* the cap values.
+* the script's evidence block (`diski9-f3-b2-governance/1`): bucket name, type, Object
+  Lock, default retention, lifecycle rules, canary retention and expiry;
+* the cap values;
+* "master key regenerated after use; no other keys exist".
 
 ### O-7 Peer devices (no cost)
 

@@ -67,6 +67,32 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 O-6: Backblaze Governance configuration — decisions A–C (22 Nov 2026):**
+* **A approved (architecture):** private B2 EU Central bucket with Object Lock and a
+  **30-day Governance default retention**, configured through the verified CLI
+  procedure. The web UI offers only Compliance defaults, so the bucket is created there
+  with no default and Governance is set with B2 CLI `bucket update`.
+* **B approved:** the list-only inventory key adds `readFileRetentions` and
+  `readBucketRetentions`. Still no file-content access, modification, deletion or
+  Governance bypass.
+* **C conditionally approved:** one-time master-key use with a RAM-disk credential cache
+  and immediate master-key rotation, subject to final source-code and test review.
+* **Execution is not authorised by these decisions.** Creating the bucket, generating a
+  master key, accessing Backblaze and running `f3-b2-configure-governance.sh` each wait
+  for an explicit owner authorisation.
+* **Findings from the B2 CLI 5.0.3 source:**
+  * `account authorize` and `account get` print the key and token;
+  * the login cache stores the key in plain text;
+  * `bucket create` cannot set a default retention.
+* **How the script handles them:**
+  * all `b2` output is captured or discarded, with scrubbed excerpts on failure;
+  * the cache lives on a RAM disk;
+  * one cleanup path, with interrupts turned into an exit;
+  * it fails closed on privacy, Object Lock, lifecycle, retention mode and the canary
+    check (exact file ID, Governance, ~30-day expiry, no legal hold).
+* Unchanged: no operational key ever receives `bypassGovernance`. Recorded in plan
+  §Y.6, runbook O-6 and `deploy/f3/owner/f3-b2-configure-governance.sh`.
+
 **Phase 6C.6 Stage F3 Checkpoint 1: owner verification results (22 Nov 2026):**
 * **Owner-reported results:**
   * dedicated SSH key login works (fingerprint recorded);
