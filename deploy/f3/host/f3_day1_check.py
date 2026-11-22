@@ -21,8 +21,9 @@ It never contacts API-Football or any other third party you did not name.
 
 Public IP addresses are masked in the output, so the evidence can be returned as is.
 Checks evaluated:
-  IT-1  VPS-to-Supabase database RTT: p95 strictly below 10 ms for every Supabase target
-        (each address family that connects; at least 95 % of samples must succeed)
+  IT-1  VPS-to-Supabase database RTT: p95 strictly below 10 ms for every Supabase target,
+        in every address family that resolves for it (a resolving family with fewer
+        than 95 % successful samples, including none, fails)
   IT-2  IPv6: a global IPv6 address, an IPv6 default route and an IPv6 connection to a
         target that resolves to IPv6 (the direct database host is IPv6-only)
   IT-9  is a manual check (the provider's browser console) and is only listed.
@@ -190,7 +191,10 @@ def evaluate(report: dict) -> dict:
     else:
         it1 = "PASS"
         for t in targets.values():
-            measured = [r for r in (t["ipv4"], t["ipv6"]) if r.get("ok")]
+            # every address family that RESOLVES is measured: a family that resolves
+            # but never connects fails (clients may try it first); a family with no
+            # address for this host is not part of its path and is ignored
+            measured = [r for r in (t["ipv4"], t["ipv6"]) if r.get("resolved")]
             if (
                 not measured
                 or not all(_family_ok(r) for r in measured)

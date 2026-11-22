@@ -214,7 +214,8 @@ def test_day1_it1_is_rtt_p95_strictly_below_10_ms():
     d1 = _load_day1()
 
     def fam(p95, ok=100, samples=100):
-        return {"samples": samples, "ok": ok, "failed": samples - ok, "p95_ms": p95}
+        return {"resolved": True, "samples": samples, "ok": ok, "failed": samples - ok,
+                "p95_ms": p95}  # fmt: skip
 
     base = {"addresses": [{"family": "inet6"}], "ipv6_default_route": True}
 
@@ -240,6 +241,15 @@ def test_day1_it1_is_rtt_p95_strictly_below_10_ms():
     assert it({"db:5432": {"ipv4": {}, "ipv6": {"resolved": False}}})["IT-1"] == "FAIL"
     assert it({})["IT-1"] == "NOT RUN"
     assert it({"pooler:5432": {"ipv4": fam(3.0), "ipv6": {}}})["IT-2"] == "FAIL"  # no IPv6 path
+    # a family that resolves but never connects is not ignored (0/100 must not pass
+    # when 1/100 fails); a family with no address for the host is ignored
+    dead = {"resolved": True, "samples": 100, "ok": 0, "failed": 100, "errors": ["TimeoutError"]}
+    unresolved = {"resolved": False, "error": "no address"}
+    assert it({"pooler:5432": {"ipv4": fam(5.7), "ipv6": dead}})["IT-1"] == "FAIL"
+    assert it({"pooler:5432": {"ipv4": fam(5.7), "ipv6": fam(3.0, ok=1)}})["IT-1"] == "FAIL"
+    owner_shape = {"pooler:5432": {"ipv4": fam(5.73), "ipv6": unresolved},
+                   "db:5432": {"ipv4": unresolved, "ipv6": fam(4.533)}}  # fmt: skip
+    assert it(owner_shape) == {**it(owner_shape), "IT-1": "PASS", "IT-2": "PASS"}
 
 
 def test_day1_runs_read_only_against_loopback(tmp_path):
