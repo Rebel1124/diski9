@@ -67,6 +67,22 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3: hosting quality and final provider selection (22 Nov 2026):**
+* Owner direction: quality, reliability, security, operational simplicity and
+  scalability over small savings; Supabase Pro from the start; monthly VPS billing;
+  Hostinger reconsidered on merit. Recorded in `docs/architecture/phase6c6_stage_f3_plan.md`
+  §U (research only; nothing purchased or provisioned).
+* Hostinger website-hosting plans (e.g. "Unlimited" $18.99/month) are shared hosting,
+  not VPS, and are excluded; only KVM VPS products qualify.
+* **Proposed ranking (open, F3-D1):** (1) DigitalOcean Basic 2 vCPU / 4 GB Frankfurt,
+  monthly, ≈ $64/month all-in incl. assumed VAT (99.99 % per-Droplet SLA with credits,
+  in-place resize); (2) Hostinger KVM 2 Frankfurt one-month term, ≈ $59/month, co-equal
+  if pre-sales confirm the one-month price, IPv6, written uptime terms and refund terms;
+  (3) Vultr ≈ $59/month; (4) Hetzner only if orderable. Proposed: F3-D16 Supabase Pro
+  from the start; F3-D17 monthly billing, 2 vCPU / 4 GB class; F3-D3 ≤ $75/month, no
+  prepayment; F3-D14 decline the 24-month promotion; F3-D18 withdrawn; F3-D19
+  leaked-password protection on from the start. All safeguards unchanged.
+
 **Phase 6C.6 Stage F3: Lean MVP hosting and cost-optimisation assessment (22 Nov 2026):**
 * Assessment only (`docs/architecture/phase6c6_stage_f3_plan.md` §T); no earlier decision
   superseded. Measured: ≈ 94 MB per warm Gunicorn worker (≈ 214 MB for master + 2
