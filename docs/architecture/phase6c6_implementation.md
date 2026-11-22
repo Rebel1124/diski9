@@ -1035,7 +1035,7 @@ the service; production refuses nothing extra because only beta is preparable.
   9.5 minutes; noted, no change proposed).
 * Documentation after the candidate uses the documentation-only path.
 
-## 9. Stage E.1b: automated API-Football data refresh — **design refinement (proposal; not implemented)**
+## 9. Stage E.1b: automated API-Football data refresh — **design approved in principle; implementation plan prepared (not implemented)**
 
 Design refinement authorised by the owner on 22 Nov 2026 (design only: no
 application code, migration, provider-limit change, live provider call, hosting
@@ -1049,3 +1049,12 @@ ingestion functions hold the SQLite write lock during provider requests (fetch,
 then apply, proposed); an unbounded `Retry-After` wait is a pre-existing gap; no
 migration and no Stage D locking change is needed. E.1b implementation, Stage F
 and Stage G are not authorised.
+
+**Owner review (22 Nov 2026).** Design approved in principle: REF-01 to REF-10,
+REF-15, REF-16; limits (20/tick, 450/24 h, 300 non-essential, 150 results reserve,
+3 s pacing, floor 2,000) a planning baseline only. Deferred: REF-11, REF-12 (hosting
+Q-07 and D-39 open), REF-13, REF-14, REF-17. Clarifications A–D resolved in the
+implementation plan [`phase6c6_stage_e1b_plan.md`](phase6c6_stage_e1b_plan.md) (no
+migration; existing cap defaults kept until activation; about 87 offline tests;
+decisions D-1 to D-3 requested with the authorisation). **E.1b implementation not
+authorised**; Stage F and Stage G not authorised.

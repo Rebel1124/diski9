@@ -1,9 +1,26 @@
 # Phase 6C.6 Stage E.1b — Automated API-Football Data Refresh: design refinement
 
-**Status:** design refinement for owner review (authorised 22 Nov 2026). **Not
-implemented.** No application code, migration, provider limit, live provider call,
-hosting choice or activation is part of this document. Implementation needs the
-owner's approval of this design and a separate authorisation.
+**Status:** **approved in principle by the owner (22 Nov 2026)**, with
+clarifications. **Approved in principle:** REF-01 to REF-10, REF-15, REF-16 (Balanced
+schedule; fixtures and odds for all eight leagues; no standings in preparation;
+existing pipeline; fetch-then-write; resumable per-league steps in `jobs tick`;
+Stage D locking preserved; class-aware budgets; planning baseline 20/tick, 450/24 h,
+300 non-essential, 150 results reserve, 3 s pacing, preparation floor 2,000; refresh
+off by default; human publication and competition rules unchanged). The limits are a
+**planning baseline, not authorised for application or live use**. **Deferred:**
+REF-11 (snapshot read transaction — only if testing justifies it), REF-12 (single-
+host SQLite accepted as the proposed technical architecture for the supervised Beta
+exercise; hosting Q-07 and the D-39 interpretation stay open; no host selected, D-39
+not waived), REF-13 (Screener maintenance — not in the initial scope), REF-14
+(simple approach, no thin-week optimisation), REF-17 (all live-activation conditions
+retained; no activation authorised). **Clarifications A–D** (multi-tick sweeps,
+readiness and store consistency, pacing and `Retry-After`, provider quota
+observations) are resolved in the implementation plan
+[`phase6c6_stage_e1b_plan.md`](phase6c6_stage_e1b_plan.md) §3, §5 and §7 (summary in
+§16 below). **Implementation planning complete; implementation not authorised.**
+Original status: design refinement for owner review (authorised 22 Nov 2026); no
+application code, migration, provider limit, live provider call, hosting choice or
+activation is part of this document.
 
 **Baseline verified (22 Nov 2026):** branch `feature/phase-6c6-operations` at
 `4612f46` (E.1a closure, documentation CI run 106 passed); E.1a application
@@ -775,3 +792,14 @@ Stage F authorisation.
 *Prepared under the E.1b design-refinement authorisation of 22 Nov 2026. No
 application code, migration, provider limit, live provider call, hosting selection,
 webhook or activation changed. Stage F and Stage G remain unauthorised.*
+
+---
+
+## 16. Owner review (22 Nov 2026) and resolution of clarifications
+
+| Clarification | Resolution (plan section) |
+|---|---|
+| **A** Sweeps spanning ticks | Sweep = (week, slot); league done iff a succeeded `scheduler.prepare_refresh` row with `args.slot`; resumed in fixed order each tick while allowance ≥ 4; done leagues never re-requested in the slot; a new slot supersedes and finalises the old sweep as partial; complete only with all eight leagues and a `complete` screener row; Friday 04:15/05:15 sweeps complete by about 04:21/05:21 (20/tick) or 04:26/05:26 (10/tick) — plan §5 |
+| **B** Readiness and consistency | Per-league atomic commits → sweep → screener → readiness; scheduler readiness deferred during a sweep (≤ 30 min), triggered after it, labelled `data=complete/partial/none`; publication unchanged; handled by job-state coordination without changing the snapshot builder; REF-11 not proposed — plan §7 |
+| **C** Pacing and `Retry-After` | Pacing from the last ledger reservation time in PostgreSQL (holds across ticks and restarts, no daemon); waits ≤ 30 s; longer `Retry-After`, 429 without retries and minute-window waits > 30 s end the step and write a persisted cooldown honoured by results and refresh; no transaction open during waits; worst step 134 s, longest tick ≈ 6.3 min < 20 min; results get the same protection — plan §3.1, §12 |
+| **D** Quota observations | Observations recorded as completed `scheduler.provider_quota` rows; usable only if < 30 min old and from the current UTC provider day; otherwise one `/status` (quota-free at the provider, reserved as one preparation request in our ledger); lower value wins on disagreement; floor 2,000 for preparation only; lower daily limit stops preparation for the provider day; rolling 24 h internal caps versus provider calendar-day quota explained — plan §3.2 |

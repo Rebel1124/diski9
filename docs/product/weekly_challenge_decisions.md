@@ -67,6 +67,28 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E.1b design approved in principle; implementation planning (22 Nov 2026):**
+* **Approved in principle:** REF-01 to REF-10, REF-15, REF-16 — Balanced schedule,
+  fixtures and odds for all eight leagues, standings excluded from preparation,
+  existing pipeline reused, fetch-then-write with short SQLite transactions,
+  resumable per-league steps in `jobs tick`, Stage D locking and recovery preserved,
+  class-aware budgets protecting results imports and corrections, refresh off by
+  default, human publication and competition rules unchanged.
+* **Planning baseline (not authorised for application or live use):** 20
+  requests/tick, 450/24 h, 300 non-essential, 150 protected for results, 3-second
+  pacing, preparation floor 2,000 provider-reported remaining.
+* **Deferred:** REF-11 (only if testing justifies it); REF-12 (single-host SQLite
+  acceptable as the proposed technical architecture for the supervised Beta
+  exercise; hosting Q-07 and the D-39 interpretation open; no host selected, D-39
+  not waived); REF-13 (not in the initial scope); REF-14 (no thin-week
+  optimisation); REF-17 (all live-activation conditions retained).
+* **Clarifications A–D** (multi-tick sweeps, readiness and store consistency,
+  pacing and `Retry-After`, provider quota observations) resolved in
+  `docs/architecture/phase6c6_stage_e1b_plan.md`; no migration requested.
+* **Implementation not authorised**; no live API-Football call, provider-limit
+  change, hosting selection, activation or deployment. Stage F and Stage G not
+  authorised.
+
 **Phase 6C.6 Stage E.1b design refinement authorised and delivered (22 Nov 2026):**
 * **E.1b design refinement authorised** (design only; baseline `4612f46`). No
   application code, migration, provider-limit change, live API-Football call,
