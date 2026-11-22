@@ -299,7 +299,8 @@ The check is read-only:
 
 **G1:**
 * **IT-1** PASS needs the **RTT p95 strictly below 10 ms** to every Supabase host, in
-  every address family that connects, with at least 95 % of samples succeeding.
+  every address family that **resolves** for it, with at least 95 % of samples
+  succeeding. A family that resolves but never connects fails.
   * Each sample is one TCP handshake: no TLS, no login, no data.
   * 100 samples per host and family, 0.2 s apart (about 1–2 minutes in total).
   * Methodology: plan §Z.8.
@@ -480,17 +481,30 @@ Any mismatch fails **G5**.
     on the server.
 
 ### 8.2 Checkpoint 1 (owner evidence; Claude reviews)
-- [ ] O-1: SSH key fingerprint.
-- [ ] O-2: two `age1…` recipients; both identities passed the round trip.
+- [x] O-1: SSH key fingerprint (received 22 Nov 2026; key login from the owner's Mac works).
+- [ ] O-2: two `age1…` recipients; both identities passed the round trip. *Received so
+  far:* the offline-recovery identity copied to a second MacBook, decrypted with its
+  passphrase and checked as a valid identity file. A decryption of a real Diski 9
+  backup is proven later, in the Checkpoint 5 drills. *Outstanding:* the two
+  recipients, the generation round-trip result, and confirmation that the primary is
+  stored in the password manager.
 - [ ] O-3: Supabase Pro, spend cap on; project `diski9-f3` in `eu-central-1`, Micro; SSL
   enforcement on; signups off; leaked-password protection on; CA certificate saved;
   host names noted; no key shared.
 - [ ] O-4: Hostinger KVM 2, 1-month, Germany (provisioned in Düsseldorf: F3-D1a/F3-D2a
   conditionally approved, final on IT-1 PASS), Ubuntu 24.04, no add-ons; MFA on;
   SSH key login; console works; purchase date and day-25 reminder recorded; invoice
-  amounts.
+  amounts. *Received:* console (IT-9) works, SSH key login works, host-key fingerprint,
+  invoice amount and dates. *Outstanding:* the data-centre name as hPanel shows it;
+  account MFA on; password login disabled where offered; no add-ons; day-25 reminder.
 - [ ] O-5: day-one JSON (`diski9-f3-day1/2`): IT-1 PASS (RTT p95 < 10 ms); IT-2 PASS or the fallback path recorded; system
-  facts (2 vCPU / 8 GB / ~100 GB).
+  facts (2 vCPU / 8 GB / ~100 GB). *Owner-reported:*
+  * pooler IPv4 100/100, p95 5.730 ms;
+  * direct IPv6 100/100, p95 4.533 ms;
+  * IT-1 PASS and IT-2 PASS.
+
+  *Outstanding:* the full JSON, for the zero-success check of the unreported families
+  (plan §Z.8), the system facts and the listening-port baseline.
 - [ ] O-6: B2 EU Central; bucket with Object Lock Governance 30 days; lifecycle rules;
   caps; **no keys created yet**.
 - [ ] O-7: WireGuard app installed on both devices.

@@ -67,6 +67,25 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 Checkpoint 1: owner verification results (22 Nov 2026):**
+* **Owner-reported results:**
+  * dedicated SSH key login works (fingerprint recorded);
+  * the server host-key fingerprint is recorded;
+  * IT-9 hPanel console **PASS**;
+  * **IT-1:** pooler IPv4 100/100, p95 5.730 ms; direct IPv6 100/100, p95 4.533 ms;
+    **PASS** (p95 strictly below 10 ms);
+  * IT-2 IPv6 **PASS**;
+  * the offline-recovery `age` identity was copied to a second MacBook and verified as
+    decryptable and well formed. Its decryption of a real backup is proven in the
+    Checkpoint 5 drills.
+* **IT-1 review:** a resolving address family with zero successful connections was
+  ignored by the evaluation. It is corrected to fail (stricter; plan §Z.8, for explicit
+  review).
+* F3-D1a/F3-D2a remain conditionally approved. Final acceptance waits for the full JSON
+  confirming the unreported families did not resolve (or a re-run).
+* **For owner confirmation:** the offline copy is on a second computer rather than an
+  encrypted USB drive or paper (§X.3.5).
+
 **Phase 6C.6 Stage F3: Düsseldorf VPS location amendment — conditionally approved (22 Nov 2026):**
 * **Owner-reported:**
   * the Hostinger KVM 2 VPS was provisioned in **Düsseldorf** (reported as Hostinger's

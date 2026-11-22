@@ -1422,3 +1422,41 @@ not recorded in the repository.
 * O-5 day-one check (IT-1, IT-2);
 * O-6 Backblaze;
 * O-7 WireGuard apps.
+
+### 13.4 Checkpoint 1: owner verification results (22 Nov 2026, owner-reported)
+| Check | Result |
+|---|---|
+| O-1 dedicated SSH key | fingerprint `SHA256:WYTt4IaKlrOHAMhZ7d/Guqp3z+a03MVi5zzuYAonuKM` (public key hash); key login from the owner's MacBook works |
+| Server SSH host key | fingerprint `SHA256:vTc7smos5C7DZTx2pTJdApI6wHC41K3wZ0nqI6D5+zE`, recorded so that later checkpoints can detect a host-key change |
+| IT-9 emergency console | **PASS** (manually verified: hPanel browser console, root) |
+| IT-1 VPS-to-Supabase RTT | session pooler IPv4: 100/100, p95 **5.730 ms**; direct database IPv6: 100/100, p95 **4.533 ms**; script result **PASS** (approved criterion: p95 strictly below 10 ms) |
+| IT-2 IPv6 | **PASS**: the direct database endpoint is reachable over IPv6 |
+| O-2 offline recovery identity | copied to a second MacBook; decrypted with its passphrase; identity-format check "RECOVERY IDENTITY VERIFIED". This proves the copy, **not yet its ability to decrypt a Diski 9 backup** (Checkpoint 5) |
+
+Public fingerprints only. No IP address, host name, key or passphrase is recorded.
+
+**IT-1 review: zero-success address family.** Reviewing the evaluation before
+finalising IT-1 found a gap in the script:
+* A family that resolves but connects **0 of 100** times was dropped from IT-1, so it
+  could pass, while 1 of 100 successful samples failed.
+* IT-2 did not cover this either: it needs only one working IPv6 target, and says
+  nothing about IPv4, or about IPv6 to the other target.
+
+**Correction (stricter, documented for review in plan §Z.8):** every family that
+**resolves** is evaluated, and a resolving family below 95 % success, including none,
+fails. Unresolved families are ignored. The tests now cover:
+* a dead resolving family (FAIL);
+* 1 of 100 successes (FAIL);
+* the owner-reported shape (PASS, provided the unreported families did not resolve).
+
+**Status:** IT-1 and IT-2 reported PASS. The Düsseldorf amendment (F3-D1a/F3-D2a)
+stays **conditionally approved**. Final acceptance is recorded once the full day-one
+JSON confirms that the pooler's IPv6 and the direct host's IPv4 entries show
+`"resolved": false`; a re-run with the corrected script is the alternative.
+
+**Deviation to note:** the offline-recovery copy is held on a second MacBook. The plan
+(§X.3.5) foresaw an encrypted USB drive or paper kept offline in a separate place. The
+copy is passphrase-encrypted and separate from the primary, so recoverability is met.
+Whether a second, normally online computer is acceptable as the "offline" location is
+for the owner to confirm.
+

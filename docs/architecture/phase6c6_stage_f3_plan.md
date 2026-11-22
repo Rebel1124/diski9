@@ -1766,6 +1766,13 @@ corrections, **for Stage F3 only**.
   permitting Düsseldorf: the location is accepted only through this explicit amendment.
 * **Final acceptance of the Düsseldorf location requires the hosted IT-1 measurement to
   pass**, with IT-1 exactly as originally approved (Z.5).
+* **Hosted result (22 Nov 2026, owner-reported):**
+  * session pooler, IPv4: 100/100 successful, p95 5.730 ms;
+  * direct database host, IPv6: 100/100 successful, p95 4.533 ms;
+  * the script reported **PASS**.
+  * Final acceptance is recorded once the full JSON confirms the zero-success check
+    (§Z.8 correction): the pooler's IPv6 and the direct host's IPv4 entries must show
+    `"resolved": false`, or else 95 % success with p95 < 10 ms.
 * Until IT-1 passes, the location is conditional. If IT-1 fails persistently, the
   existing DigitalOcean Frankfurt fallback and the refund-window decision process apply.
 * No VPS or Supabase access was made in preparing this section. The public address,
@@ -1935,11 +1942,17 @@ required.
     interpolation);
   * min, p50 and max are reported alongside.
 * **Pass rule:**
-  * for **every** Supabase target, every address family that connects has **p95 < 10 ms
-    (strict)**;
-  * at least 95 % of that family's samples succeed;
-  * at least one family per target connects.
-  * Otherwise IT-1 = FAIL, and an unreachable target fails.
+  * for **every** Supabase target, every address family that **resolves** for it has
+    **p95 < 10 ms (strict)**;
+  * at least 95 % of that family's samples succeed. A resolving family with no
+    successful sample fails;
+  * a family with no address for the host is ignored;
+  * a target with no resolving family fails.
+  * Otherwise IT-1 = FAIL.
+  * *Correction (22 Nov 2026), stricter, for explicit review:* the first wording
+    ("every address family that connects") let a family that resolves but connects 0 of
+    100 times be ignored, while 1 of 100 failed. Clients such as libpq may try such a
+    family first and wait for its timeout, so it now fails.
 * **Persistence:**
   * a single FAIL is investigated and repeated at a different time of day;
   * "fails persistently" means FAIL in runs on at least two different days.
