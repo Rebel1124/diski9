@@ -1185,7 +1185,7 @@ with real timing in the budget file) — no assertion was weakened.
 | `provider_quota_low` CRITICAL threshold | fixed at 600 (client reserve 500 + 100) rather than "500 + projected results need" — simpler and conservative |
 | Carried forward (activation gates) | active subscription limits and at-limit billing unverified (activation gate); provider update time measured on few days; results-import volume estimated; same-host SQLite requirement with Q-07 and D-39 open; other users of the key visible only through lagging observations; CI margin about 12 minutes (run 109) |
 
-## 11. Stage F: integration and genuine Beta-week validation — **architecture approved; F1 accepted; F2 implemented, awaiting owner acceptance (§12)**
+## 11. Stage F: integration and genuine Beta-week validation — **architecture approved; F1 accepted; F2 formally accepted and closed (§12); F3 implementation plan prepared (not implemented)**
 
 Authorised on 22 Nov 2026 as design and readiness assessment only (baseline `77f22ad`,
 CI run 111). Proposal: [`phase6c6_stage_f_design.md`](phase6c6_stage_f_design.md),
@@ -1213,12 +1213,34 @@ offline full-week rehearsal on an isolated database, local restore drills, secur
 tests; no migration. **F2 implementation not authorised**; F3–F6 and Stage G not
 authorised.
 
-## 12. Stage F2: offline deployment readiness — **implemented, awaiting owner acceptance**
+## 12. Stage F2: offline deployment readiness — **formally accepted and closed**
+
+**Owner acceptance (22 Nov 2026).** Stage F2 formally accepted and closed after
+independent review. Accepted baseline: application `c7630fe`; evidence `0c46526`;
+full CI run 114 passed (1,987 tests, 0 skipped, all 13 browser tests); documentation
+CI run 115 passed; head `app_0007`; fingerprint unchanged; `broad60-432-v1` and
+`points-150-75-v2` unchanged. All four mandatory safeguards accepted; the decision to
+disable live SQLite replacement and use verified new-path restoration with a
+supervised offline switch is **explicitly accepted**, as are the deviations in §12.5.
+F2 is offline readiness evidence only: it is **not** evidence of hosted operational
+readiness or of genuine real-clock Beta validation. Residual risks carried to F3:
+**F3-R1** (provider-hold activation depends on recording the restore; manual provider
+commands not covered — before F4: fail-closed hosted recovery procedure, explicit
+confirmation that the hold is active before database cutover, assessment of manual
+provider-command bypasses) and **F3-R2** (encrypted off-host backups, retrieval and
+genuine off-host restore drills not yet demonstrated — F3 must verify them on the
+selected private host before operational acceptance). The provisional 24-hour
+PostgreSQL RPO stays restricted to operator-only testing; a tighter RPO remains a gate
+before F5. **F3 implementation planning authorised and delivered:**
+[`phase6c6_stage_f3_plan.md`](phase6c6_stage_f3_plan.md); F3 implementation,
+provisioning and spending not authorised.
+
+Original heading: implemented, awaiting owner acceptance.
 
 Authorised on 22 Nov 2026 (plan [`phase6c6_stage_f2_plan.md`](phase6c6_stage_f2_plan.md),
 commit `fa80245`, CI run 113) with four additional mandatory safeguards (A–D below).
-Application commit `c7630fe` (full CI run 114: passed — 1,987 tests, 0 skipped, all 13 browser tests enforced (DISKI9_REQUIRE_BROWSER=1); suite 27 min 07 s, job 28 min 30 s, margin ≈ 11.5 min within the unchanged 40-minute timeout (application baseline run 109: 1,908 tests)). **Not accepted or
-closed**: awaiting independent owner review. No hosting, infrastructure, Supabase
+Application commit `c7630fe` (full CI run 114: passed — 1,987 tests, 0 skipped, all 13 browser tests enforced (DISKI9_REQUIRE_BROWSER=1); suite 27 min 07 s, job 28 min 30 s, margin ≈ 11.5 min within the unchanged 40-minute timeout (application baseline run 109: 1,908 tests)). Accepted and closed on 22 Nov 2026 (above); at the time of this
+record it was awaiting independent owner review. No hosting, infrastructure, Supabase
 project, live provider call, refresh activation, participant account, D-29b change,
 webhook, Official activation, merge, tag, release or deployment. No migration (head
 `app_0007`); fingerprint

@@ -67,7 +67,30 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
-**Phase 6C.6 Stage F2 offline deployment readiness — implemented, awaiting owner acceptance (22 Nov 2026):**
+**Phase 6C.6 Stage F2 formally accepted and closed; F3 implementation planning authorised (22 Nov 2026):**
+* **F2 accepted and closed.** Baseline: application `c7630fe`; evidence `0c46526`; full
+  CI run 114 passed (1,987 tests, 0 skipped, 13 browser tests); documentation CI run
+  115 passed; head `app_0007`; fingerprint and configurations unchanged. All four
+  mandatory safeguards accepted. **Explicitly accepted:** live SQLite replacement
+  disabled; verified new-path restoration with a supervised offline switch. F2 is not
+  evidence of hosted operational readiness or real-clock Beta validation.
+* **F3-R1 (residual risk):** provider-hold activation depends on recording the
+  restore, and manual provider commands are not covered. **Before F4:** a fail-closed
+  hosted recovery procedure, explicit confirmation that the hold is active before
+  database cutover, and an assessment of manual provider-command bypasses.
+* **F3-R2 (residual risk):** encrypted off-host backups, successful retrieval and
+  genuine off-host restore drills not yet demonstrated. **F3 must verify these on the
+  selected private host before operational acceptance.**
+* The provisional 24-hour PostgreSQL RPO remains restricted to operator-only testing;
+  a tighter RPO remains a gate before F5.
+* **F3 implementation planning authorised** (planning only):
+  `docs/architecture/phase6c6_stage_f3_plan.md`, with owner decisions F3-D1 to F3-D13.
+  No provisioning, purchase, hosted Supabase project, deployment or F3 implementation.
+  F3 boundaries: D-39a, human-only publication, Stage D locking and provider
+  safeguards, refresh and provider calls off, no live API-Football calls, Official off,
+  D-29b unchanged, no participant accounts, no public exposure, no merge/tag/release.
+
+**Phase 6C.6 Stage F2 offline deployment readiness — implemented (22 Nov 2026; accepted above):**
 * **F2 implementation authorised** (plan `fa80245`, CI run 113) with four mandatory
   safeguards; application commit `c7630fe` (CI run 114 passed: 1,987 tests, 0 skipped, 13 browser tests). **Not accepted or closed.**
 * **Safeguard A:** live replacement of the SQLite football store is **disabled in F2**

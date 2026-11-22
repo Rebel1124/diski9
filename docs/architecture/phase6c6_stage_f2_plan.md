@@ -1,6 +1,6 @@
 # Phase 6C.6 Stage F2 — Offline Deployment Readiness: implementation plan
 
-**Status: F2 implemented, awaiting owner acceptance** (implementation authorised 22 Nov
+**Status: F2 formally accepted and closed (22 Nov 2026; `c7630fe`, CI run 114; `0c46526`, CI run 115)** — earlier: F2 implemented, awaiting owner acceptance (implementation authorised 22 Nov
 2026 with four mandatory safeguards; record:
 [`phase6c6_implementation.md`](phase6c6_implementation.md) §12; drill report:
 [`phase6c6_stage_f2_drill_report.md`](phase6c6_stage_f2_drill_report.md)). Original

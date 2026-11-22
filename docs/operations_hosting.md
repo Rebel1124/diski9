@@ -1,6 +1,6 @@
 # Hosting, backups and recovery (Phase 6C.6 Stage F2)
 
-**Status: F2 implemented, awaiting owner acceptance.** This guide is provider-neutral
+**Status: F2 formally accepted and closed (22 Nov 2026); F3 planned ([`architecture/phase6c6_stage_f3_plan.md`](architecture/phase6c6_stage_f3_plan.md)), not implemented.** This guide is provider-neutral
 and nothing in it has been deployed. No hosting provider, region, spending limit,
 domain or Supabase project has been chosen (SF-02/SF-03; selection is a gate before
 F3). Templates live in [`deploy/`](../deploy/README.md).
