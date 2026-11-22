@@ -67,6 +67,22 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3: final recovery clarifications (22 Nov 2026):**
+* **Auth recovery** (`docs/architecture/phase6c6_stage_f3_plan.md` §S.8): backup scope
+  extended to the `auth` schema and roles via Supabase's supported CLI dump plus an
+  encrypted export of project Auth configuration; recovery methods distinguished (M1
+  in-place daily backup, M2 restore-to-new-project **beta, never the only path**, M3
+  off-host CLI dump into a new project as the supported fallback, M4 local restore =
+  partial). The hosted acceptance test must show an **existing operator signing in**
+  after recovery; otherwise the method is partial recovery and an F3 blocker. New open
+  decision F3-D15 (where the CLI dump runs and who holds the owner password).
+* **Provider-hold sequencing** (§S.9; runbook `docs/operations_hosting.md` §8): the hold
+  is recorded and verified **in the restored target** through an operator-only
+  connection before any scheduler or provider-capable process connects; the original
+  database's hold state is insufficient; cutover happens only afterwards and the drill
+  records ordering evidence. Manual provider-command bypasses still to be addressed
+  before F4. Planning only; no implementation, purchase or provisioning.
+
 **Phase 6C.6 Stage F3 plan accepted in principle; final hosting decision preparation (22 Nov 2026):**
 * F3 implementation plan **accepted in principle** subject to refinements, recorded in
   `docs/architecture/phase6c6_stage_f3_plan.md` §S; documentation and research only.

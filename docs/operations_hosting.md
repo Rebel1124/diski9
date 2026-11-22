@@ -175,9 +175,11 @@ service manager; it is not part of F2.
 
 ## 8. PostgreSQL restore and the recovery gate (safeguard D)
 
-A restore is always into a **new, empty database**; no command restores over the live
-competition database, and switching the application is an explicit configuration
-change. A restore is an incident: everything written after the dump is lost.
+No Diski 9 command restores over the live competition database. A restore is either
+into a **new** project/database (switching the application is an explicit
+configuration change) or a Supabase daily-backup restore **in place**, an owner
+decision taken with every service stopped. A restore is an incident: everything
+written after the backup is lost.
 
 What is lost and what follows from it:
 
@@ -189,25 +191,41 @@ What is lost and what follows from it:
 | audit records | evidence gap | record the gap in the incident record; exported evidence packs survive outside the database |
 | entries, publications, settlement and corrections after the dump | competition state rolled back | review every active round before anything resumes |
 
-Procedure:
+Backup scope: the off-host dump must include the `auth` schema and roles (Supabase's
+supported CLI dump) plus an encrypted export of the project's Auth configuration;
+an `app`-schema-only dump cannot restore operator identities. Methods and what each
+restores: [F3 plan §S.8](architecture/phase6c6_stage_f3_plan.md).
 
-1. Pause the scheduler (pause file) and stop the timers. Keep
-   `DISKI9_JOBS_PROVIDER_CALLS=off` and `DISKI9_JOBS_PREPARE_REFRESH=off` in the
-   environment file.
-2. Create the new empty database; `pg_restore --no-owner --exit-on-error --dbname
-   <new> <dump>`; `diski9 app-db check` (head `app_0007`).
-3. **Before** pointing anything at it, with `DISKI9_APP_DATABASE_URL` set to the new
-   database: `diski9 backup record --kind postgres-restore --file <dump>`. This places a
-   **provider hold** in the restored database: every tick runs with provider calls
-   and refresh off, whatever the environment says, until an operator lifts it. An
-   ordinary scheduler restart does not lift it.
-4. Reconcile: `diski9 competition verify`, `diski9 ops check --deep`, `diski9 round
-   list` and `round inspect` for every open, locked or settling round; publication
-   state, entries and settlement; the provider's own quota figures.
-5. Record the incident and every evidence gap (lost audit records, lost entries).
-6. Switch the application to the new database, start the web app, then the timers
-   (provider calls still off and held).
-7. Only after reconciliation: `diski9 ops provider-resume --operator <your email>
+Procedure (the hold is written to and verified in the restored **target** before any
+scheduler or provider-capable process connects to it; the old database's hold state
+does not count):
+
+1. **Freeze the host:** create the pause file; `systemctl disable --now
+   diski9-tick.timer diski9-backup.timer`; `systemctl stop diski9-tick.service
+   diski9-web`; all `inactive`; no `diski9` process left. Do **not** edit
+   `/etc/diski9/diski9.env` yet. Provider calls and refresh stay off.
+2. **Restore the target:** Supabase daily backup in place, Supabase restore to a new
+   project, or the off-host CLI dump into a new project followed by re-applying the
+   exported Auth configuration.
+3. **Connect to the target as the operator only:** put the target connection settings
+   in `/etc/diski9/restore-target.env` (0600) with `DISKI9_JOBS_ENABLED=off`,
+   `DISKI9_JOBS_PROVIDER_CALLS=off`, `DISKI9_JOBS_PREPARE_REFRESH=off`, and run the next
+   commands as `diski9` in a subshell that loads only that file. Never put the URL on a
+   command line.
+4. **Record the restore in the target:** `diski9 app-db check` (head `app_0007`);
+   `diski9 backup record --kind postgres-restore --file <dump, or a restore-note file
+   naming the Supabase backup>`.
+5. **Verify the hold in the target:** `diski9 ops status` shows `PROVIDER HOLD` and
+   `diski9 ops check` reports `provider_hold_after_restore`. If not, **stop**.
+6. **Reconcile against the target:** `diski9 competition verify`, `diski9 ops check
+   --deep`, `round list` / `round inspect` for every open, locked or settling round,
+   publication state, entries, settlement and the provider's own quota figures. Record
+   the incident and every evidence gap (lost audit records, lost entries).
+7. **Cutover:** edit `/etc/diski9/diski9.env` to the target (for a new project also
+   the Supabase Auth URL and publishable key); start `diski9-web`; check `/readyz` and
+   that an existing operator can sign in; then remove the pause file and re-enable the
+   timers (provider calls still off and held). Delete the temporary file.
+8. Only after reconciliation: `diski9 ops provider-resume --operator <your email>
    --reason "<what was reconciled>"`. It verifies your password with Supabase Auth
    (S-07), needs an operator role, shows the checklist, needs `RESUME` typed, and is
    recorded (`ops.provider_resume`) and audited. It does not switch provider calls on:
@@ -215,7 +233,8 @@ Procedure:
 
 `ops check` reports `provider_hold_after_restore` (WARNING) while the hold is active.
 Manual provider commands (`refresh-data`, `collect-odds`) are the operator's own
-explicit action and are not covered by the hold: do not run them before step 7.
+explicit action and are not covered by the hold: do not run them before step 8
+(their bypass must be addressed before F4).
 
 ## 9. Restore drills
 

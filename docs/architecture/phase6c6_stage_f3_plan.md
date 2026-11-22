@@ -293,9 +293,10 @@ Per [`../operations_hosting.md`](../operations_hosting.md) §1, applied and evid
   Backblaze B2 / Cloudflare R2 / another provider's object storage, EU), with an
   upload-only, bucket-scoped credential; then `backup record --kind offhost-copy`
   (level 3, reported).
-* **PostgreSQL:** nightly `pg_dump --format=custom --no-owner` on the VM via the
-  service user's `pgpass` (0600) with a **read-only backup role** (decision: create
-  role in D); `backup record --kind postgres`; same encryption and upload; level 3.
+* **PostgreSQL:** nightly dump, encrypted and uploaded as above; level 3. **Scope
+  superseded by §S.8:** the off-host dump must include the `auth` schema and roles
+  through Supabase's supported CLI dump, plus an encrypted export of the project
+  configuration; an `app`-schema-only `pg_dump` is partial recovery.
 * Retention: 14 daily + 8 weekly copies off-host (lifecycle rule); object lock /
   versioning if the storage supports it, so the VM's credential cannot delete history.
 * Supabase's own daily backups remain a baseline, **not** verified recovery.
@@ -565,6 +566,10 @@ endpoint, or a different host with IPv6). No Stage D code change is made in F3.
 * **Local versus hosted:** a restore into a local disposable PostgreSQL (as in the F2
   drill) proves the dump is restorable and measures a **local drill time only**; it is
   never reported as hosted Supabase recovery time.
+* **Methods, Auth scope and ordering:** see §S.8 (what each restore method preserves,
+  supported fallback for the beta feature, operator sign-in test) and §S.9 (hold
+  recorded and verified in the restored target before any scheduler or
+  provider-capable process connects). Where they differ, S.8/S.9 apply.
 * **Hosted recovery drill (recommended, affordable):** restore into a **temporary second
   Supabase project** in the same organisation — preferably via Supabase "restore to a new
   project" from a daily backup (paid plans; feature status beta [V-doc]), and also via
@@ -664,8 +669,11 @@ the host and provider egress blocked.
 **F3 operational-acceptance gates:** Q-1–Q-15; S.3 hosted locking tests passed (hard
 stop otherwise); **F3-R2:** encrypted off-host backups of both databases for ≥ 3 nights,
 retrieval on another machine, and genuine off-host restore drills (store and hosted
-PostgreSQL per S.4); **F3-R1 (procedure part):** the hold confirmed active before the
-rehearsed database cutover; manual provider commands shown to fail closed on the F3 host.
+PostgreSQL per S.4); **F3-R1 (procedure part):** the hold recorded and verified **in the restored target**
+before any scheduler or provider-capable process connected (S.9 ordering evidence);
+manual provider commands shown to fail closed on the F3 host; **Auth recovery:** an
+existing operator signed in after M1 and after M3 (S.8), otherwise the method is
+partial recovery and an F3 blocker.
 
 **F4 live-provider gates:** F3 accepted; **F3-R1 fully resolved** — a fail-closed hosted
 recovery procedure, explicit confirmation that the hold is active before database
@@ -678,6 +686,98 @@ stays restricted to operator-only testing); ML-01 fixed; D-36 deletion workflow 
 retention statement approved (including EU data residency of Supabase); participant
 access approved; public-architecture decisions (domain, public TLS, football-store
 PostgreSQL migration per D-39a).
+
+### S.8 Supabase Auth recovery: scope, methods and the acceptance test
+
+Supabase stores Auth **users and identities** (including password hashes) in the
+`auth` schema of the project database, but Auth **settings** (site URL, redirect
+allow-list, signup switch, password policy, email templates/SMTP), **API keys and
+JWT signing configuration**, the **project ref/URL**, Storage objects and Edge
+Functions live **outside** the database [V-doc]. Diski 9 links its accounts to
+Supabase identities by subject (`auth.users.id`) in `app.users`; operator sign-in
+needs (i) the `auth` identity with its password hash, (ii) the matching `app.users`
+and role rows, and (iii) a project whose Auth settings and keys match the app's
+environment (`DISKI9_SUPABASE_AUTH_URL`, publishable key, JWT issuer). Server-side
+Diski 9 sessions do not survive a move to a different project (new signing keys), so
+everyone signs in again; that is acceptable.
+
+**Backup scope (replaces the PostgreSQL bullet of §I):**
+
+| Item | How it is backed up | Notes |
+|---|---|---|
+| Project database: `app` **and** `auth` schemas, roles | Supabase's supported CLI path (`supabase db dump` for roles, schema and data, as in Supabase's backup-and-restore guide), encrypted off-host nightly | a raw `pg_dump --no-owner` of the `app` schema alone does **not** recreate identities; raw `pg_dump` of the whole database is discouraged by Supabase (internal objects, permission errors) [V-doc]; the CLI dump needs the database owner password → held in `~diski9/.pgpass` (0600) on the VM, or the dump is run from the owner's machine (decision **F3-D15**) |
+| Project configuration | exported after every change with the Management API (Auth config: site URL, redirect URLs, signup disabled, password policy, email templates/SMTP; SSL enforcement; network restrictions) to a JSON file kept **encrypted off-host**; secrets in it redacted and held in the password manager | not in any database backup |
+| Keys and secrets | password manager (owner): database owner password, publishable key, app secret/encryption keys | new project ⇒ new publishable key and URL; app environment updated at cutover |
+| Supabase-native daily backups | automatic (Pro, 7 days) [V-doc] | contain the whole database incl. `auth`; restore in place keeps project settings |
+
+**Recovery methods and what each actually restores:**
+
+| Method | Status | Restores | Operator sign-in after recovery | Classification |
+|---|---|---|---|---|
+| **M1** Supabase daily backup restored **in place** (same project) | supported (Pro) [V-doc] | whole database as of the backup, incl. `auth`; project ref, URL, keys and Auth settings unchanged (they are not part of the restore) | expected without config changes; **must be demonstrated** | full recovery if demonstrated; destructive to newer data and the project is unavailable while it runs |
+| **M2** Supabase "restore to a new project" | **beta** [V-doc] | whole database (binary) incl. `auth`, encryption root key; **not** Auth settings, API keys, Realtime/Storage/Edge Functions; new ref and URL | only after re-applying the exported Auth configuration and switching the app to the new URL/key | full recovery if demonstrated; **never the only path** (beta) |
+| **M3** off-host CLI dump (roles + schema + data incl. `auth`) restored into a **new** project with `psql`, then the exported configuration re-applied | supported CLI path [V-doc] | database incl. `auth.users` and hashes; configuration from the export; new keys/URL | yes, after config re-apply and app switch; **must be demonstrated** | **the supported fallback for M2**; full recovery if demonstrated |
+| **M4** off-host dump restored into a **local** PostgreSQL | local drill | application data only (no Supabase Auth service) | no | **partial recovery** — data verification and local timing only |
+| app-schema-only `pg_dump`/`pg_restore` into a Supabase project | not used | `app` data without identities | no (identities missing) | **partial recovery**; gap would be a blocker |
+
+**Hosted recovery acceptance test (Auth):** for the method(s) drilled, an **existing**
+operator account (created before the backup) signs in with its password on the web
+app and authenticates the operator CLI (S-07 path, e.g. `ops provider-resume` in the
+rehearsal) against the recovered target. If a method cannot achieve this, it is
+recorded as **partial recovery** and the gap stays an **F3 blocker**.
+
+**Drill plan (affordable):** a dedicated temporary **drill project** (Micro, billed
+hourly, deleted afterwards) seeded from the F3 schema with the owner/operator accounts:
+(1) wait for one Supabase daily backup, change data, run **M1** in place on the drill
+project and test sign-in; (2) run **M3** from the encrypted off-host CLI dump into a
+second temporary project, re-apply the exported configuration, switch a staging copy
+of the app environment and test sign-in; (3) optionally run **M2** for comparison.
+The primary F3 project is never restored in place during a drill. Estimated cost: a
+few dollars of hourly compute [A].
+
+### S.9 Provider-hold sequencing: the restored target first
+
+The hold lives in the database the scheduler will use. **The original database's hold
+state is irrelevant**: what matters is that the restored **target** carries an
+`ops.restore_postgres` record, newer than any `ops.provider_resume`, **before any
+scheduler or provider-capable process connects to it**.
+
+Ordered procedure (runbook [`../operations_hosting.md`](../operations_hosting.md) §8):
+
+1. **Freeze the host:** create the pause file; `systemctl disable --now
+   diski9-tick.timer diski9-backup.timer` and `systemctl stop diski9-tick.service
+   diski9-web`; `systemctl is-active` reports `inactive` for all; confirm no
+   `diski9` process remains (`pgrep -u diski9`). The environment file still points at
+   the old database and is **not** edited yet.
+2. **Restore the target** (M1, M2 or M3). For M1 the target is the same project:
+   the units are already stopped, so the rule is unchanged.
+3. **Operator-only connection to the target:** write the target's connection settings
+   to a temporary file `/etc/diski9/restore-target.env` (0600, never on a command line)
+   containing the target `DISKI9_APP_DATABASE_URL` plus `DISKI9_JOBS_ENABLED=off`,
+   `DISKI9_JOBS_PROVIDER_CALLS=off`, `DISKI9_JOBS_PREPARE_REFRESH=off`; run commands as
+   the `diski9` user in a subshell that loads only that file. No unit, timer or
+   provider-capable command is run in this step (the F3 host has no API-Football key
+   and blocked provider egress in any case).
+4. **Record the restore in the target:** `diski9 app-db check` (head `app_0007`), then
+   `diski9 backup record --kind postgres-restore --file <dump, or a restore-note file
+   naming the Supabase backup timestamp for M1/M2>`.
+5. **Verify the hold in the target**, still through the temporary file: `diski9 ops
+   status` shows `PROVIDER HOLD`; `diski9 ops check` reports
+   `provider_hold_after_restore`; the evidence records the restore record's job-run id
+   and time. **If the hold is not visible, stop**: no cutover.
+6. **Reconcile against the target** (`competition verify`, `ops check --deep`, round
+   inspection, ledger review) through the same temporary file.
+7. **Cutover:** only now edit `/etc/diski9/diski9.env` to the target (and, for a new
+   project, the Supabase Auth URL and publishable key), keeping provider calls and
+   refresh off; start `diski9-web`; check `/readyz` and the operator sign-in (S.8); then
+   remove the pause file and re-enable the timers. Delete the temporary file.
+8. **Evidence of ordering:** in the target, the `ops.restore_postgres` job-run id is
+   lower than the id of every `scheduler.tick` row written after the restore, and no
+   `scheduler.provider` row exists after it; both queries are part of the drill report.
+
+The hosted drill (S.4, S.8) performs and records exactly this sequence. Manual
+provider commands remain outside the hold; their bypass must be addressed before F4
+(F3-D11, F3-R1).
 
 ## R. Decision record: owner decisions required (none approved yet)
 
@@ -694,11 +794,12 @@ technical recommendation is not an owner decision.
 | F3-D6 | Private-access method | Tailscale (no inbound ports, `ts.net` HTTPS); fallback self-hosted WireGuard | Tailscale Personal free up to 6 users, non-commercial [V-doc] | eligibility under "non-commercial" for Diski 9 | open |
 | F3-D7 | Domain | none in F3 (`ts.net` name); owner domain only for the later public architecture | – | – | open |
 | F3-D8 | Off-host storage provider and key custody | EU object storage at a different provider, versioning/object lock; `age` private key held by the owner off the VM | – | storage price ≈ $3/month [A] | open |
-| F3-D9 | Hosted PostgreSQL recovery drill | temporary second Supabase project (restore-to-new-project and off-host `pg_restore`), deleted afterwards; local disposable drill reported separately | hourly compute billing, restore-to-new-project on paid plans (beta) [V-doc] | drill cost < $5 [A] | open |
+| F3-D9 | Hosted PostgreSQL recovery drill | temporary drill project(s), deleted afterwards: M1 in place on the drill project and M3 from the off-host CLI dump with configuration re-applied (M2 optional, beta); local M4 reported separately as partial | hourly compute billing, restore-to-new-project on paid plans (beta) [V-doc] | drill cost < $5 [A] | open |
 | F3-D10 | Automatic hold activation (before F4) | option (c): cutover check + rolled-back-database detection | F2 hold behaviour (accepted) | – | open |
 | F3-D11 | Manual provider-command coverage (before F4) | extend the hold to the shared API-Football client factory | inventory in K | – | open |
 | F3-D12 | External uptime monitor | not used in F3 (no public endpoint); on-host timer + tailnet check | – | – | open |
 | F3-D13 | Accounts in F3 | owner plus at most one operator; no participants | – | – | open |
+| F3-D15 | Where the off-host CLI dump (incl. `auth`) runs and who holds the database owner password | on the VM with the owner password in `~diski9/.pgpass` (0600) and encrypted upload, or from the owner's machine; recommendation: VM, with the credential scoped and rotated after F3 | Supabase CLI backup path includes `auth.users` [V-doc] | – | open |
 | F3-D14 | Buy the Hostinger promotion before F3 implementation is authorised | only if S.1 checks pass **and** F3 implementation will be authorised within ≈ 30 days of purchase; otherwise wait (S.6); auto-renew off | promo ends 14 Dec 2026; term starts at purchase [V-owner/V-doc] | non-promo 24-month price [A] | open |
 
 Nothing is purchased, reserved or created until the relevant decisions are approved in
@@ -753,3 +854,7 @@ writing, and F3 implementation needs its own separate authorisation.
   [Supabase restore to a new project](https://supabase.com/docs/guides/platform/clone-project),
   [Tailscale pricing](https://tailscale.com/pricing/),
   [Tailscale HTTPS certificates](https://tailscale.com/kb/1153/enabling-https/).
+* Auth-recovery sources (§S.8): [Supabase backup and restore using the CLI](https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore),
+  [migrating Auth users between projects](https://supabase.com/docs/guides/troubleshooting/migrating-auth-users-between-projects),
+  [restore to a new project (what is not copied)](https://supabase.com/docs/guides/platform/clone-project),
+  [database backups (Storage objects excluded; in-place restore replaces data)](https://supabase.com/docs/guides/platform/backups).
