@@ -67,6 +67,22 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F design and readiness assessment authorised and delivered (22 Nov 2026):**
+* **Design and readiness assessment only** (baseline `77f22ad`). No implementation,
+  deployment, provisioning, hosting selection or purchase, live provider call,
+  refresh activation, migration, participant account, webhook or Official activation.
+  Stage G not authorised.
+* **Delivered for review:** `docs/architecture/phase6c6_stage_f_design.md`, decisions
+  **SF-01 to SF-14** (proposals, not approvals): six checkpoints (F1 architecture,
+  F2 offline deployment readiness, F3 environment and recovery, F4 supervised live
+  integration with an operator-only practice week, F5 invited private Beta,
+  F6 regression and handover); one small VM with private access and Supabase Pro
+  (Q-07 recommendation; no host selected); a requested **D-39 ruling** (recommended
+  clarification: "hosted deployment" = public/production deployment, so a private
+  single-host Stage F environment may use SQLite; migration remains a pre-launch
+  gate — not a waiver); staged API-Football activation; independent verified backups
+  and drills; ML-01 and a minimum D-36 workflow before real participants.
+
 **Phase 6C.6 Stage E.1b formal acceptance and closure (22 Nov 2026):**
 * **Stage E.1b formally accepted and closed** (`4394485`, CI run 109: 1,908 passed,
   0 failed, 0 skipped, 13 browser tests; Level 1 243 passed twice; Level 2 916

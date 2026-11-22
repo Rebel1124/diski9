@@ -1184,3 +1184,18 @@ with real timing in the budget file) — no assertion was weakened.
 | Back-off of a failing league | counted within the slot (so the next slot always retries), as planned; uses the existing retry base/maximum |
 | `provider_quota_low` CRITICAL threshold | fixed at 600 (client reserve 500 + 100) rather than "500 + projected results need" — simpler and conservative |
 | Carried forward (activation gates) | active subscription limits and at-limit billing unverified (activation gate); provider update time measured on few days; results-import volume estimated; same-host SQLite requirement with Q-07 and D-39 open; other users of the key visible only through lagging observations; CI margin about 12 minutes (run 109) |
+
+## 11. Stage F: integration and genuine Beta-week validation — **design and readiness assessment (proposal; not implemented)**
+
+Authorised on 22 Nov 2026 as design and readiness assessment only (baseline `77f22ad`,
+CI run 111). Proposal: [`phase6c6_stage_f_design.md`](phase6c6_stage_f_design.md),
+decisions SF-01 to SF-14, awaiting owner approval. Main findings: the web app has no
+packaged production WSGI entry point or `/healthz` (Q-10); no hosted Supabase project
+or database exists yet (hosted Supabase acceptance remains an open gate); the SQLite
+store requires the web app and scheduler on one host; D-39 needs an owner ruling on
+"hosted deployment" before any hosted Stage F environment; a competitive Beta round
+needs ≥ 5 real entrants and Beta championship rounds are permanent, so the
+operator-only supervised week is proposed as a practice round, with competitive and
+championship evidence from an invited private Beta after ML-01 and a minimum D-36
+workflow; the D-29b research capture uses the same API key at the Friday publication
+target. Stage F implementation and Stage G are not authorised.
