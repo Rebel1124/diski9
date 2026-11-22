@@ -1360,6 +1360,23 @@ records); full CI run 127 passed: **2,005 passed, 0 skipped** (1,987 before F3, 
 12 Checkpoint 0 tests and 6 new template-scan cases for the `deploy/f3/` files), in 28 min 43 s
 within the 40-minute timeout.
 
+### 13.2 Checkpoint 0 accepted; Checkpoint 1 preparation
+The owner accepted Checkpoint 0 (22 Nov 2026; CI runs 127 and 128 verified) and
+authorised Checkpoint 1 preparation. Changes made after reviewing the scripts against
+macOS:
+* the RAM-disk cleanup now strips the padding that macOS `wc` adds;
+* the CA script refuses LibreSSL (the macOS built-in `openssl`) and requires OpenSSL 3
+  or later;
+* the age script requires age ≥ 1.1 and warns that an empty passphrase makes age invent
+  one;
+* new read-only `f3-check-mac-prereqs.sh`;
+* the day-one script is copied to the server with `scp` (no GitHub credentials on the
+  server).
+
+The age scripts were tested end to end with age 1.1.1 and with **age 1.3.2**, the current
+Homebrew version, built from the official module. The macOS RAM-disk path (`hdiutil`) is
+first exercised on the owner's Mac in step O-2. Three new tests.
+
 **STOP:** Checkpoint 1 (the owner's accounts and purchases, then the day-one check)
 starts only on the owner's instruction.
 

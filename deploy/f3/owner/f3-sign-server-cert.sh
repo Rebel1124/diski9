@@ -27,6 +27,12 @@ out=${2:-./diski9-f3-tls}
 ip=${F3_IP:-10.88.0.1}
 days=${F3_DAYS:-180}
 command -v openssl >/dev/null || f3_die "openssl is required"
+case "$(openssl version)" in
+  "OpenSSL 3."* | "OpenSSL 4."*) ;;
+  *) f3_die "OpenSSL 3 or later is required (found: $(openssl version)). On macOS the built-in
+       LibreSSL is not enough: brew install openssl@3, then put \$(brew --prefix openssl@3)/bin
+       first on PATH (see docs/operations_f3_owner_setup.md)" ;;
+esac
 [ -f "$csr" ] || f3_die "CSR not found: $csr"
 [[ "$ip" =~ ^10\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]] || f3_die "F3_IP must be a 10.x tunnel address"
 [ "$days" -ge 1 ] && [ "$days" -le 397 ] || f3_die "F3_DAYS must be 1..397"

@@ -108,18 +108,46 @@ on the owner's instruction.
 
 ## 3. Prerequisites (before Checkpoint 1)
 
-### 3.1 On the owner's computer
-* **macOS** (preferred) or Linux, up to date. Full-disk encryption on: FileVault on
-  macOS, or LUKS on Linux. On Linux, swap encrypted or off (see §5.1).
-* **Tools:**
-  * `openssl` (macOS ships LibreSSL; install OpenSSL 3 with `brew install openssl@3` and
-    put it first on `PATH`);
-  * `age` (`brew install age` or `apt install age`);
-  * `ssh-keygen` (built in);
-  * the official **WireGuard** app (App Store, or `wireguard-tools` on Linux);
-  * PostgreSQL 17 client tools (`brew install postgresql@17`), needed from Checkpoint 4
-    for the owner-run `postgres` tasks.
-* A clone of this repository at the branch `feature/phase-6c6-operations`.
+### 3.1 On the owner's computer (macOS)
+* macOS, up to date, with **FileVault on** (System Settings → Privacy & Security →
+  FileVault).
+* **Homebrew** (https://brew.sh) and these tools:
+
+  | Tool | Install | Why |
+  |---|---|---|
+  | Git | `brew install git` (or Apple's command line tools) | the repository |
+  | GitHub CLI | `brew install gh`, then `gh auth login` (browser sign-in; no token is ever pasted anywhere) | cloning the private repository |
+  | OpenSSL 3 | `brew install openssl@3`; it is *keg-only*, so put it first on `PATH` (below) | the one-shot CA (Checkpoint 2); macOS's built-in `openssl` is LibreSSL and is refused by the script |
+  | age | `brew install age` (1.3.2 at the time of writing; Apple Silicon has a ready-made bottle, Intel Macs build it from source automatically) | backup identities |
+  | SSH | built into macOS (`ssh`, `ssh-keygen`) | server login |
+  | WireGuard | App Store | Checkpoint 2 |
+  | PostgreSQL 17 client | `brew install postgresql@17` | from Checkpoint 4 only |
+
+* **OpenSSL 3 on PATH** (zsh, the macOS default shell):
+
+  ```bash
+  echo 'export PATH="$(brew --prefix openssl@3)/bin:$PATH"' >> ~/.zprofile
+  ```
+
+  Then open a new Terminal window.
+* **Check everything with the read-only checker** (changes nothing; its output is safe
+  to share):
+
+  ```bash
+  deploy/f3/owner/f3-check-mac-prereqs.sh
+  ```
+
+* **`age` compatibility:**
+  * The scripts need age ≥ 1.1 (passphrase-encrypted identity files used with `-i`) and
+    refuse older versions.
+  * They were tested end to end with **age 1.1.1 and 1.3.2** (the Homebrew version on
+    22 Nov 2026).
+  * The identity format is the standard X25519 `age1…` / `AGE-SECRET-KEY-1…`. The
+    optional post-quantum keys of age 1.3 (`-pq`) are **not** used.
+  * Each identity is stored as an ASCII-armoured, passphrase-encrypted age file
+    (`-----BEGIN AGE ENCRYPTED FILE-----`).
+  * `age -d -i <identity>.age <file>` asks for the identity's passphrase, then decrypts.
+* Linux works too: tmpfs `/dev/shm` instead of a RAM disk, and swap encrypted or off.
 
 ### 3.2 Accounts and means
 * A **password manager** with MFA. Create empty entries now, named exactly as in §7.
@@ -240,15 +268,23 @@ as possible.
 
 ### O-5 Day-one host check (gate G1, read-only)
 
-From your computer, log in with
-`ssh -i ~/.ssh/diski9_f3 root@<server IP>`. Then:
+The server does not need GitHub access: copy the one script from your Mac. Run this in
+your diski9 clone; it copies a file, nothing secret:
 
 ```bash
-git clone --depth 1 --branch feature/phase-6c6-operations https://github.com/Rebel1124/diski9.git /root/diski9-f3
+scp -i ~/.ssh/diski9_f3 deploy/f3/host/f3_day1_check.py root@<server IP>:/root/
 ```
 
+Log in:
+
 ```bash
-python3 /root/diski9-f3/deploy/f3/host/f3_day1_check.py --target <pooler host>:5432 --target db.<ref>.supabase.co:5432 --json /root/f3-day1.json
+ssh -i ~/.ssh/diski9_f3 root@<server IP>
+```
+
+On the server, run:
+
+```bash
+python3 /root/f3_day1_check.py --target <pooler host>:5432 --target db.<ref>.supabase.co:5432 --json /root/f3-day1.json
 ```
 
 The check is read-only:
@@ -425,6 +461,12 @@ Any mismatch fails **G5**.
 - [x] Completeness criteria for the Supabase backup defined (§6).
 - [x] Hard-stop gates restated (§2).
 - [x] F3-D7 references corrected to the WireGuard IP origin.
+- [x] Checkpoint 1 preparation:
+  - macOS prerequisites and a read-only checker (`f3-check-mac-prereqs.sh`);
+  - scripts verified with age 1.1.1 and 1.3.2;
+  - refusals added: LibreSSL refused, age older than 1.1 refused;
+  - the day-one script reaches the server by `scp`, so no GitHub credentials are needed
+    on the server.
 
 ### 8.2 Checkpoint 1 (owner evidence; Claude reviews)
 - [ ] O-1: SSH key fingerprint.

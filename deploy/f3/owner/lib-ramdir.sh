@@ -43,7 +43,7 @@ f3_ramdir_destroy() {
   if [ -d "$F3_RAMDIR" ]; then
     # overwrite in place (meaningful for RAM-backed files), then remove
     find "$F3_RAMDIR" -type f -exec sh -c 'for f; do
-      n=$(wc -c < "$f"); dd if=/dev/zero of="$f" bs=1 count="$n" conv=notrunc 2>/dev/null; rm -f "$f"; done' sh {} +
+      n=$(wc -c < "$f" | tr -d " "); dd if=/dev/zero of="$f" bs=1 count="$n" conv=notrunc 2>/dev/null; rm -f "$f"; done' sh {} +
     rm -rf "$F3_RAMDIR"
   fi
   if [ -n "$F3_RAMDEV" ]; then

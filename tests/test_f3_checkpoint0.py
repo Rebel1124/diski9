@@ -223,3 +223,39 @@ def test_day1_runs_read_only_against_loopback(tmp_path):
     assert report["check"] == "diski9-f3-day1/1" and json.loads(r.stdout) == report
     assert report["targets"]["127.0.0.1:9"]["ipv4"]["failed"] == 10  # closed port, no data sent
     assert report["result"]["IT-1"] == "FAIL"
+
+
+# ------------------------------------------------------------------ macOS readiness
+def _fake_tool(tmp_path, name: str, version_line: str) -> dict:
+    bindir = tmp_path / "fakebin"
+    bindir.mkdir(exist_ok=True)
+    tool = bindir / name
+    tool.write_text(f"#!/bin/sh\necho '{version_line}'\n")
+    tool.chmod(0o755)
+    return {**os.environ, "PATH": f"{bindir}:{os.environ['PATH']}"}
+
+
+def test_ca_script_refuses_libressl(tmp_path):
+    env = _fake_tool(tmp_path, "openssl", "LibreSSL 3.3.6")  # the macOS built-in
+    r = subprocess.run([str(OWNER / "f3-sign-server-cert.sh"), str(tmp_path / "x.csr"),
+                        str(tmp_path / "out")], env=env, capture_output=True, text=True)  # fmt: skip
+    assert r.returncode != 0 and "OpenSSL 3 or later is required" in r.stderr
+    assert not (tmp_path / "out").exists()
+
+
+def test_age_script_refuses_an_age_without_encrypted_identity_support(tmp_path):
+    env = _fake_tool(tmp_path, "age", "v1.0.0")
+    _fake_tool(tmp_path, "age-keygen", "v1.0.0")
+    r = subprocess.run([str(OWNER / "f3-make-age-identities.sh"), str(tmp_path / "out")],
+                       env=env, capture_output=True, text=True)  # fmt: skip
+    assert r.returncode != 0 and "age 1.1 or later" in r.stderr
+    assert not (tmp_path / "out").exists()
+
+
+def test_prerequisite_check_is_read_only_and_reports_every_item():
+    r = subprocess.run([str(OWNER / "f3-check-mac-prereqs.sh")], cwd=ROOT, capture_output=True,
+                       text=True, check=True)  # fmt: skip
+    for item in ("git", "openssl (on PATH)", "age", "repository"):
+        assert item in r.stdout
+    assert "prerequisite" in r.stdout.splitlines()[-1]
+    assert not re.search(r"/(Users|home)/[^/\s]+", r.stdout)  # no personal paths

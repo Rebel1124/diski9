@@ -22,6 +22,13 @@ here=$(cd "$(dirname "$0")" && pwd)
 
 command -v age >/dev/null && command -v age-keygen >/dev/null \
   || f3_die "install age (macOS: brew install age; Ubuntu: apt install age)"
+# encrypted identity files (-i with a passphrase-encrypted file) need age >= 1.1;
+# verified with age 1.1.1 and 1.3.2
+ver=$(age --version 2>/dev/null | sed 's/^v//')
+case "$ver" in
+  1.[1-9]* | 1.[1-9][0-9]* | [2-9].*) ;;
+  *) f3_die "age 1.1 or later is required (found: ${ver:-unknown})" ;;
+esac
 out=${1:-./diski9-f3-age}
 [ -e "$out" ] && f3_die "$out already exists: refusing to overwrite identities"
 umask 077
@@ -31,7 +38,8 @@ f3_ramdir_create
 recipients="$out/diski9-f3-age-recipients.txt"
 : > "$recipients"
 for name in primary offline-recovery; do
-  echo "== identity '$name': enter its passphrase (from your password manager) twice"
+  echo "== identity '$name': paste its passphrase (from your password manager) twice."
+  echo "   Do NOT leave it empty: age would invent a passphrase and print it on screen."
   # age-keygen writes the public key line to stderr when stdout is not a terminal
   age-keygen 2> "$F3_RAMDIR/$name.pub" | age -p -a -o "$out/diski9-f3-age-$name.age"
   pub=$(sed -n 's/^Public key: //p' "$F3_RAMDIR/$name.pub")

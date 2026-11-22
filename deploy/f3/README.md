@@ -8,6 +8,7 @@ gates are in [`docs/operations_f3_owner_setup.md`](../../docs/operations_f3_owne
 |---|---|---|
 | `owner/f3-make-age-identities.sh` | owner's computer | two passphrase-encrypted `age` identities (plaintext keys only in memory), public recipients, round-trip check |
 | `owner/f3-sign-server-cert.sh` | owner's computer | one-shot private CA in a RAM disk: signs the server CSR with `subjectAltName=IP:10.88.0.1`, verifies it, destroys the CA key |
+| `owner/f3-check-mac-prereqs.sh` | owner's computer | read-only prerequisite check (macOS, FileVault, Homebrew, Git, SSH, OpenSSL 3, age ≥ 1.1, repository state) |
 | `owner/lib-ramdir.sh` | (sourced) | RAM-disk / tmpfs scratch directory, refused if not memory-backed |
 | `host/f3-make-server-csr.sh` | server (root) | server TLS key (stays on the server) and CSR |
 | `host/f3_day1_check.py` | server | read-only day-one check: system facts, IPv6, listening ports, TCP timing to the named database hosts; public IPs masked |
