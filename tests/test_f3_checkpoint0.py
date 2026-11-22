@@ -202,26 +202,55 @@ def test_day1_masks_public_addresses_and_keeps_private_ones():
     assert d1.listening("tcp LISTEN 0 4096 198.51.100.20:22 0.0.0.0:*") == ["tcp 198.51.x.x:22"]
 
 
-def test_day1_evaluation_rules():
+def test_day1_p95_is_nearest_rank():
     d1 = _load_day1()
-    fast = {"ok": 10, "median_ms": 1.5}
+    assert d1.p95([float(x) for x in range(1, 101)]) == 95.0  # ceil(0.95 * 100) = 95th value
+    assert d1.p95([1.0] * 19 + [50.0]) == 1.0  # 19th of 20 values
+    assert d1.p95([1.0] * 18 + [50.0, 50.0]) == 50.0
+    assert d1.p95([3.0]) == 3.0
+
+
+def test_day1_it1_is_rtt_p95_strictly_below_10_ms():
+    d1 = _load_day1()
+
+    def fam(p95, ok=100, samples=100):
+        return {"samples": samples, "ok": ok, "failed": samples - ok, "p95_ms": p95}
+
     base = {"addresses": [{"family": "inet6"}], "ipv6_default_route": True}
-    good = {**base, "targets": {"db:5432": {"ipv4": {}, "ipv6": fast},
-                                "pooler:5432": {"ipv4": fast, "ipv6": {}}}}  # fmt: skip
-    assert d1.evaluate(good)["IT-1"] == "PASS" and d1.evaluate(good)["IT-2"] == "PASS"
-    slow = {**good, "targets": {"pooler:5432": {"ipv4": {"ok": 10, "median_ms": 40}, "ipv6": {}}}}
-    assert d1.evaluate(slow)["IT-1"] == "FAIL" and d1.evaluate(slow)["IT-2"] == "FAIL"
-    none = {**base, "targets": {}}
-    assert d1.evaluate(none)["IT-1"] == "NOT RUN"
+
+    def it(targets):
+        return d1.evaluate({**base, "targets": targets})
+
+    good = {
+        "db:5432": {"ipv4": {}, "ipv6": fam(4.2)},
+        "pooler:5432": {"ipv4": fam(3.9), "ipv6": {}},
+    }
+    assert it(good) == {**it(good), "IT-1": "PASS", "IT-2": "PASS"}
+    # the approved criterion is strict: p95 of exactly 10 ms fails
+    edge = {"pooler:5432": {"ipv4": fam(10.0), "ipv6": {}}}
+    assert it(edge)["IT-1"] == "FAIL"
+    assert it({"pooler:5432": {"ipv4": fam(9.999), "ipv6": {}}})["IT-1"] == "PASS"
+    # every measured family must pass, not just the faster one
+    mixed = {"db:5432": {"ipv4": fam(3.0), "ipv6": fam(12.0)}}
+    assert it(mixed)["IT-1"] == "FAIL"
+    # fewer than 95 % successful samples is not evidence
+    lossy = {"pooler:5432": {"ipv4": fam(2.0, ok=90), "ipv6": {}}}
+    assert it(lossy)["IT-1"] == "FAIL"
+    # an unreachable target fails; no targets means not run
+    assert it({"db:5432": {"ipv4": {}, "ipv6": {"resolved": False}}})["IT-1"] == "FAIL"
+    assert it({})["IT-1"] == "NOT RUN"
+    assert it({"pooler:5432": {"ipv4": fam(3.0), "ipv6": {}}})["IT-2"] == "FAIL"  # no IPv6 path
 
 
 def test_day1_runs_read_only_against_loopback(tmp_path):
     out = tmp_path / "day1.json"
-    r = subprocess.run(["python3", str(HOST / "f3_day1_check.py"), "--target", "127.0.0.1:9",
-                        "--json", str(out)], capture_output=True, text=True, check=True)  # fmt: skip
+    cmd = ["python3", str(HOST / "f3_day1_check.py"), "--target", "127.0.0.1:9",
+           "--json", str(out), "--samples", "20", "--interval", "0"]  # fmt: skip
+    r = subprocess.run(cmd, capture_output=True, text=True, check=True)
     report = json.loads(out.read_text())
-    assert report["check"] == "diski9-f3-day1/1" and json.loads(r.stdout) == report
-    assert report["targets"]["127.0.0.1:9"]["ipv4"]["failed"] == 10  # closed port, no data sent
+    assert report["check"] == "diski9-f3-day1/2" and json.loads(r.stdout) == report
+    assert report["it1_rule"] == "RTT p95 < 10 ms (TCP handshake, nearest-rank)"
+    assert report["targets"]["127.0.0.1:9"]["ipv4"]["failed"] == 20  # closed port, no data sent
     assert report["result"]["IT-1"] == "FAIL"
 
 
