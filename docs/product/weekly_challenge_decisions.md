@@ -67,6 +67,34 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E.1b formal acceptance and closure (22 Nov 2026):**
+* **Stage E.1b formally accepted and closed** (`4394485`, CI run 109: 1,908 passed,
+  0 failed, 0 skipped, 13 browser tests; Level 1 243 passed twice; Level 2 916
+  passed, one known environment-specific skip covered by CI; evidence `27f7396`, CI
+  run 110; head `app_0007`, fingerprint, `broad60-432-v1` and `points-150-75-v2`
+  unchanged; no live API-Football call, migration, deployment or activation).
+* Accepted: Balanced scheduling, ingestion reuse, fetch-then-write, resumable
+  per-league steps, complete/partial sweeps, Screener and readiness coordination,
+  class-aware budgets with protected results capacity, cross-process pacing and
+  persisted cooldowns, bounded waits, quota observations and preparation floors,
+  monitoring, the read-only `round readiness` refresh line, Stage D locking and
+  recovery preserved, Beta-only and disabled by default, human-authenticated
+  publication preserved. **D-1, D-2, D-3 accepted and implemented.**
+* **Accepted deviations (documented decisions):** zero pacing in fake-provider
+  scheduler tests (real pacing and concurrency tested separately); low-quota
+  CRITICAL threshold fixed at 600; three ticks per sweep at the default 10-request cap.
+* **Activation gates carried forward:** subscription, quotas and billing; odds-update
+  timing in a real Beta week; actual results-import consumption; hosting Q-07; D-39
+  interpretation before hosted deployment; SQLite backup and recovery; shared-key
+  consumption and quota observations; supervised first live refresh; genuine
+  Beta-week lifecycle and real-clock finalisation. **No live activation authorised;
+  refresh stays disabled.**
+* **Next: Stage F** (integration and genuine Beta-week validation: hosting,
+  deployment architecture, real provider integration, backups, authentication,
+  scheduler operation, publication, results, settlement, corrections, Beta-week
+  validation), awaiting separate review and authorisation of scope, checkpoints and
+  dependencies. Stage G not authorised.
+
 **Phase 6C.6 Stage E.1b implementation authorised (22 Nov 2026):**
 * **Implementation authorised** on the plan at `bda1b14` (CI run 108): implementation,
   offline tests, documentation and CI verification only. No live API-Football call,

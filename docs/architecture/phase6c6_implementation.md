@@ -1059,7 +1059,39 @@ migration; existing cap defaults kept until activation; about 87 offline tests;
 decisions D-1 to D-3 requested with the authorisation). **E.1b implementation not
 authorised**; Stage F and Stage G not authorised.
 
-## 10. Stage E.1b: automated API-Football data refresh — **implemented; awaiting owner acceptance**
+## 10. Stage E.1b: automated API-Football data refresh — **formally accepted and closed**
+
+**Owner acceptance (22 Nov 2026).** Stage E.1b is formally accepted on this evidence:
+application commit `4394485`, GitHub CI run 109 passed (1,908 passed, 0 failed, 0
+skipped; all 13 browser tests); Level 1 243 passed twice (no failures or skips);
+Level 2 916 passed, 0 failed, one known environment-specific skip covered by GitHub
+CI; documentation evidence commit `27f7396`, documentation-only CI run 110 passed;
+migration head `app_0007`, fingerprint
+`88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`,
+`broad60-432-v1` and `points-150-75-v2` unchanged; no live API-Football call,
+migration, deployment or activation. **Accepted:** Balanced refresh scheduling;
+reuse of the existing fixture and odds ingestion; fetch-then-write SQLite
+transactions; per-league resumable steps; complete and partial sweep tracking;
+Screener cache and readiness coordination; class-aware provider budgets with
+protected results capacity; cross-process pacing and persisted cooldowns; bounded
+provider waits; quota observations and preparation floors; monitoring and operator
+visibility; the read-only refresh line in `round readiness`; preservation of Stage D
+locking and recovery; Beta-only scope with refresh disabled by default; preservation
+of human-authenticated publication. **D-1, D-2 and D-3 accepted and implemented.**
+**Accepted deviations (documented decisions, not failures):** (1) scheduler tests
+use zero pacing with fake providers while dedicated tests verify real pacing and
+concurrency; (2) the low-provider-quota CRITICAL threshold is fixed at 600 requests;
+(3) a sweep uses three ticks under the unchanged default 10-request cap. **Carried
+forward as activation gates (not closed):** verify the active API-Football
+subscription, quotas and billing behaviour; confirm odds-update timing in a real Beta
+week; measure actual results-import consumption; resolve hosting Q-07; resolve the
+D-39 PostgreSQL interpretation before hosted deployment; establish SQLite backup and
+recovery; validate shared API-key consumption and quota observations; a supervised
+first live refresh; genuine Beta-week lifecycle and real-clock finalisation testing.
+**Acceptance does not authorise live activation; refresh stays disabled.** **Stage
+E.1b is closed.** Next: Stage F — integration and genuine Beta-week validation,
+awaiting separate authorisation (scope, checkpoints and dependencies to be reviewed
+first); Stage G not started.
 
 Authorised on 22 Nov 2026 on the plan at `bda1b14` (CI run 108), with decisions
 D-1 to D-3 and three mandatory safeguards. Implementation, offline tests,
@@ -1151,4 +1183,4 @@ with real timing in the budget file) — no assertion was weakened.
 | Pre-check of 4 requests per league | under a 10-request cap a tick runs two leagues after `/status` (9 → 6 → 3 left), so a sweep takes three ticks at the default cap (as planned) |
 | Back-off of a failing league | counted within the slot (so the next slot always retries), as planned; uses the existing retry base/maximum |
 | `provider_quota_low` CRITICAL threshold | fixed at 600 (client reserve 500 + 100) rather than "500 + projected results need" — simpler and conservative |
-| Unresolved | active subscription limits and at-limit billing unverified (activation gate); provider update time measured on few days; results-import volume estimated; same-host SQLite requirement with Q-07 and D-39 open; other users of the key visible only through lagging observations; CI margin about 12 minutes (run 109) |
+| Carried forward (activation gates) | active subscription limits and at-limit billing unverified (activation gate); provider update time measured on few days; results-import volume estimated; same-host SQLite requirement with Q-07 and D-39 open; other users of the key visible only through lagging observations; CI margin about 12 minutes (run 109) |
