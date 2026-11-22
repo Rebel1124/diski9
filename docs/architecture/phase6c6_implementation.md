@@ -1185,7 +1185,7 @@ with real timing in the budget file) — no assertion was weakened.
 | `provider_quota_low` CRITICAL threshold | fixed at 600 (client reserve 500 + 100) rather than "500 + projected results need" — simpler and conservative |
 | Carried forward (activation gates) | active subscription limits and at-limit billing unverified (activation gate); provider update time measured on few days; results-import volume estimated; same-host SQLite requirement with Q-07 and D-39 open; other users of the key visible only through lagging observations; CI margin about 12 minutes (run 109) |
 
-## 11. Stage F: integration and genuine Beta-week validation — **architecture approved; F1 accepted; F2 implementation plan prepared (not implemented)**
+## 11. Stage F: integration and genuine Beta-week validation — **architecture approved; F1 accepted; F2 implemented, awaiting owner acceptance (§12)**
 
 Authorised on 22 Nov 2026 as design and readiness assessment only (baseline `77f22ad`,
 CI run 111). Proposal: [`phase6c6_stage_f_design.md`](phase6c6_stage_f_design.md),
@@ -1212,3 +1212,93 @@ provider-neutral systemd/reverse-proxy/environment templates, host-hardening gui
 offline full-week rehearsal on an isolated database, local restore drills, security
 tests; no migration. **F2 implementation not authorised**; F3–F6 and Stage G not
 authorised.
+
+## 12. Stage F2: offline deployment readiness — **implemented, awaiting owner acceptance**
+
+Authorised on 22 Nov 2026 (plan [`phase6c6_stage_f2_plan.md`](phase6c6_stage_f2_plan.md),
+commit `fa80245`, CI run 113) with four additional mandatory safeguards (A–D below).
+Application commit `c7630fe` (full CI run 114: passed — 1,987 tests, 0 skipped, all 13 browser tests enforced (DISKI9_REQUIRE_BROWSER=1); suite 27 min 07 s, job 28 min 30 s, margin ≈ 11.5 min within the unchanged 40-minute timeout (application baseline run 109: 1,908 tests)). **Not accepted or
+closed**: awaiting independent owner review. No hosting, infrastructure, Supabase
+project, live provider call, refresh activation, participant account, D-29b change,
+webhook, Official activation, merge, tag, release or deployment. No migration (head
+`app_0007`); fingerprint
+`88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`, `broad60-432-v1`
+and `points-150-75-v2` unchanged.
+
+### 12.1 What was built
+| Area | Implementation |
+|---|---|
+| Shared app factory | `src/diski9/app/factory.py` `build_app()`: the one construction used by `diski9 serve`, `diski9.wsgi` and `tools/f3_wsgi.py` (now a thin import of `diski9.wsgi`) |
+| Production WSGI | `src/diski9/wsgi.py` (`gunicorn diski9.wsgi:server`); no `chdir`; refuses a relative SQLite store in production. Gunicorn `26.2.0` pinned as the optional `server` extra (default install unchanged; CI installs the extra) |
+| Health | `src/diski9/app/health.py`: `/healthz` (liveness) and `/readyz` (competition DB `SELECT 1` with a 2 s statement timeout when accounts are configured; football store present with its tables, never created by the probe) served by a WSGI middleware in front of Flask/Dash: no cookies, no session/CSRF hooks, no Dash first-request layout build, fixed words only, `no-store`, GET/HEAD only |
+| Backup | `src/diski9/backup/store.py`, `diski9 backup store|verify`: SQLite online backup from a read-only connection (one consistent snapshot), single-file journal mode, `0600`, `fsync`, integrity + foreign keys + 17 tables + version `0004`, SHA-256 manifest, prune of own files only; a failed copy is deleted |
+| Restore | `src/diski9/backup/restore.py`, `diski9 restore store --purpose recovery|drill`: new, unused paths only (safeguard A) |
+| Evidence records | `src/diski9/backup/records.py`, `diski9 backup record --kind postgres|offhost-copy|postgres-drill|postgres-restore`: completed `job_runs` rows (`ops.backup_*`, `ops.restore_*`, `ops.provider_resume`), insert-only |
+| Monitoring | `src/diski9/backend/ops/backups.py`: four evidence levels in `ops status`; backup findings in `ops check` (off by default); `ops jobs` lists the records |
+| Provider hold | after a recorded PostgreSQL restore every tick runs with provider calls and refresh off; `diski9 ops provider-resume` (operator, password, checklist, typed `RESUME`, audited) lifts it |
+| Refresh consistency | `refresh.py`: sweeps that started before the latest recovery restore of the football store no longer count (`data=none`; the slot is swept again) |
+| Templates | `deploy/`: systemd web/tick/backup units and timers, off-host copy hook placeholder, Caddy reverse proxy, environment template (safe defaults) |
+| Documentation | new [`../operations_hosting.md`](../operations_hosting.md) (hardening, install, health, backups, evidence levels, restore and offline switch, PostgreSQL runbook and recovery gate, drills, never-do list); runbook §13; monitoring, scheduler and operator guides; `.env.example` |
+| Rehearsal and drill | `src/diski9/backup/isolation.py` (disposable targets), `tests/backend/test_backend_f2_rehearsal.py`, `tools/f2_restore_drill.py` |
+
+### 12.2 Mandatory safeguards and their tests
+| Safeguard | Implementation | Tests / evidence |
+|---|---|---|
+| **A. SQLite live-restore safety** | A reliable, fail-closed proof that every consumer has stopped needs the host's service manager, so **live replacement is disabled in F2**: `--replace-live` is always refused; the configured store, its `-wal`/`-shm`/`-journal` files, symlinks, hard links and path aliases can never be a target; existing targets and side files are refused; the source must verify; temporary copy, checksum, `os.link` (never overwrites), verification in place; the previous store and its WAL/SHM stay untouched; recorded. The manual offline switch for F3 is documented (hosting §6). | `test_f2_backup_restore.py`: `test_replace_live_is_always_refused`, `test_restore_refuses_the_live_store_and_every_alias`, `…existing_targets_side_files_and_bad_folders`, `…unverified_sources`, `test_restore_into_a_new_path_verifies_and_preserves_the_previous_store` (byte-identical store, WAL and SHM) |
+| **B. Backup evidence** | Four levels kept apart; the backup establishes levels 1–2 only; level 3 is *reported* by the host hook; level 4 requires a drill whose content matches a recorded backup checksum, with origin always "operator-declared"; monitoring off by default | `test_backend_f2_backup.py`: `test_cli_records_each_evidence_level_truthfully`, `test_a_drill_not_matching_any_recorded_backup_is_not_restore_evidence`, `test_monitoring_on_with_nothing_recorded_reports_every_gap`, `test_backup_monitoring_is_off_by_default`, `test_stale_and_failed_backups` |
+| **C. Rehearsal isolation** | Disposable PostgreSQL created by the harness under a random name (never adopts an existing DB), empty at creation, random marker token re-checked before every destructive step and at teardown; loopback servers only; production, protected and configured databases refused; temporary football store with its own marker, live store and repository `data` refused; network blocked except loopback; mock transports; evidence labelled simulated | `test_backend_f2_rehearsal.py`: the rehearsal plus `test_production_is_refused…`, `test_protected_configured_and_foreign_targets_are_refused`, `test_an_existing_database_is_never_adopted_or_dropped`, `test_a_created_target_is_unique_marked_and_dropped`, `test_store_isolation_refuses_the_live_store`, `test_no_network_allows_only_loopback_and_mock_transports` |
+| **D. PostgreSQL restore recovery** | Runbook (hosting §8) lists every loss (ledger, cooldowns, quota observations, job history, audit, competition changes) and the procedure; a recorded restore places a database-held provider hold that survives scheduler restarts and overrides `DISKI9_JOBS_PROVIDER_CALLS`/refresh; only an authenticated operator lifts it after the checklist; `ops check` WARNING while held; templates default to provider calls and refresh off. No change to Stage D locking or provider accounting (the hold only switches provider work off for the tick). | `test_backend_f2_backup.py`: `test_provider_hold_after_restore_survives_scheduler_restarts` (3 ticks, no provider call, no ledger row, refresh also held), `test_only_an_authenticated_operator_lifts_the_hold`, `test_resume_lets_the_scheduler_use_the_provider_again`, `test_restored_dump_with_interrupted_steps_recovers_under_stage_d_rules`; local drill |
+
+### 12.3 Tests
+79 new tests in six files (the plan estimated 35–45; the safeguards added the
+refusal matrices): `tests/test_f2_wsgi_health.py` (20), `tests/test_f2_backup_restore.py`
+(18), `tests/test_f2_deploy_templates.py` (17), `tests/backend/test_backend_f2_health.py`
+(4), `tests/backend/test_backend_f2_backup.py` (13), `tests/backend/test_backend_f2_rehearsal.py`
+(7). No existing test changed or weakened.
+
+### 12.4 Verification
+* **Level 1** (new tests plus auth web, ops, refresh, scheduler, scheduler locking,
+  prepare and app suites; 251 tests): passed twice (339.8 s, 333.9 s).
+* **Level 2** (full local suite on PostgreSQL 16 and the local Supabase Auth harness):
+  1,987 passed, 0 skipped (32 min 50 s); the 1,908-test baseline plus the 79 new tests.
+* **Level 3** (full GitHub CI): run 114 on `c7630fe`: passed — 1,987 tests, 0 skipped, all 13 browser tests enforced (DISKI9_REQUIRE_BROWSER=1); suite 27 min 07 s, job 28 min 30 s, margin ≈ 11.5 min within the unchanged 40-minute timeout (application baseline run 109: 1,908 tests).
+* **Local drill** ([`phase6c6_stage_f2_drill_report.md`](phase6c6_stage_f2_drill_report.md)):
+  PASSED — 44 tables identical by content hash and count after `pg_dump`/`pg_restore`
+  (PostgreSQL 16.15), head `app_0007` before/after, `competition verify` consistent
+  before/after, football store tables and checksum equal, fingerprint unchanged,
+  provider hold active with no provider call; failure drills (store corruption →
+  restore, database unavailable, scheduler killed mid-step) passed; interrupted refresh
+  covered by the E.1b CI tests.
+* **Measurements:** online backup of the 36.8 MB local store 0.18–0.26 s including
+  verification; CLI restore 0.16–0.28 s; drill `pg_dump` 0.16 s, `pg_restore` 0.48 s
+  (0.32 MB dump); rehearsal ≈ 16 s; the source store's checksum was unchanged by every
+  backup.
+* Migration head `app_0007`; fingerprint recomputed and unchanged; configurations
+  unchanged.
+
+### 12.5 Deviations, limitations and risks
+* **Live football-store replacement disabled** (safeguard A, as the owner allowed):
+  restore to a new path plus an offline, supervised configuration switch; an in-place,
+  host-verified procedure may be designed in F3 with the chosen service manager.
+* **Health checks are WSGI middleware**, not Flask routes (the plan said "registered on
+  the Flask server"): Dash builds its layout from the football store on the first
+  request to any Flask route, which would make probes fail with 500 on a fresh worker
+  with a missing store, and the middleware keeps probes outside the session hooks.
+* **Provider hold** (database record, operator resume command) goes beyond the
+  documentation-only minimum allowed for safeguard D; it adds no migration, table or
+  change to locking or accounting.
+* **`restore store --purpose`** is required (recovery vs drill), so drills never make
+  refresh data stale; recovery restores make refresh labels conservative even before
+  the switch.
+* **Gunicorn 26.2.0** pinned (latest release older than two weeks at implementation;
+  the plan named no version); CI installs the `server` extra (`uv sync --frozen
+  --extra server`), the only workflow change; timeout unchanged.
+* **79 tests** instead of 35–45; CI time impact recorded in §12.4.
+* **Limitations:** PostgreSQL dump/restore runs only in the local drill (CI has no
+  `pg_dump`); off-host copy and off-host restore (levels 3–4) cannot be evidenced until
+  a host exists; the hold depends on the operator recording the restore (runbook step
+  3) and covers the scheduler only, not manual provider commands; the 24-hour
+  PostgreSQL recovery point stays provisional (tighter-RPO evaluation before F5).
+* Gates carried forward: before F3 provider/region/spending selection and hosted
+  Supabase acceptance; before F4 the SF-14 analysis; before F5 tighter RPO, ML-01 and
+  D-36.

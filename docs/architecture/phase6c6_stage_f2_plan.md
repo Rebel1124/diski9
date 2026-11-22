@@ -1,7 +1,11 @@
 # Phase 6C.6 Stage F2 — Offline Deployment Readiness: implementation plan
 
-**Status:** implementation plan for owner review (planning authorised 22 Nov 2026).
-**F2 implementation is not authorised.** No application code, migration, dependency,
+**Status: F2 implemented, awaiting owner acceptance** (implementation authorised 22 Nov
+2026 with four mandatory safeguards; record:
+[`phase6c6_implementation.md`](phase6c6_implementation.md) §12; drill report:
+[`phase6c6_stage_f2_drill_report.md`](phase6c6_stage_f2_drill_report.md)). Original
+status: implementation plan for owner review (planning authorised 22 Nov 2026);
+F2 implementation was not then authorised. No application code, migration, dependency,
 infrastructure, hosting choice, Supabase project, live provider call, refresh
 activation, D-29b schedule change, participant account, webhook or deployment is part
 of this plan. Design: [`phase6c6_stage_f_design.md`](phase6c6_stage_f_design.md) (approved

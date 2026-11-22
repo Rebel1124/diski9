@@ -67,6 +67,31 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F2 offline deployment readiness — implemented, awaiting owner acceptance (22 Nov 2026):**
+* **F2 implementation authorised** (plan `fa80245`, CI run 113) with four mandatory
+  safeguards; application commit `c7630fe` (CI run 114 passed: 1,987 tests, 0 skipped, 13 browser tests). **Not accepted or closed.**
+* **Safeguard A:** live replacement of the SQLite football store is **disabled in F2**
+  (an SQLite lock cannot prove every consumer has stopped; that needs the host's
+  service manager). Restores go to new, unused paths only; the offline, supervised
+  switch procedure is documented for F3.
+* **Safeguard B:** four backup evidence levels are recorded and reported separately
+  (local created; local verified; off-host copy reported by the host; off-host copy
+  restored in a drill matching a recorded backup). F2 establishes levels 1–2 only.
+  Backup monitoring is off by default.
+* **Safeguard C:** rehearsals and drills run only on disposable PostgreSQL databases
+  created by the harness (random name, empty, marker token re-checked before every
+  destructive step), loopback servers, temporary football stores and mock transports;
+  production, protected and configured targets refused; evidence labelled simulated.
+* **Safeguard D:** a recorded competition-database restore places a **provider hold**
+  (scheduler provider calls and refresh off across restarts) until an authenticated
+  operator reconciles and runs `ops provider-resume`; runbook lists every loss. No
+  change to Stage D locking or provider accounting; no migration.
+* Health checks implemented as WSGI middleware (deviation from "Flask routes", for
+  first-request and cookie isolation); Gunicorn `26.2.0` as an optional extra.
+* Not done: hosting, provisioning, Supabase project, live provider calls, refresh
+  activation, participant accounts, D-29b change, webhooks, Official, merge, tag,
+  release, deployment. F3–F6 and Stage G not authorised.
+
 **Phase 6C.6 Stage F design approval and F2 implementation planning (22 Nov 2026):**
 * **Stage F architecture approved** (design `0953375`, CI run 112); **F1 accepted**;
   **F2 implementation planning authorised** — not F2 implementation, provisioning,

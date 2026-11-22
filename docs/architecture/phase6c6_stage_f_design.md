@@ -3,8 +3,9 @@
 **Status:** **architecture approved by the owner (22 Nov 2026)** with the decisions and
 qualifications in §16; **F1 (architecture and readiness) accepted**; **F2
 implementation planning authorised and delivered**
-([`phase6c6_stage_f2_plan.md`](phase6c6_stage_f2_plan.md)); F2 implementation, F3–F6
-and Stage G not authorised. No provider, region, Supabase project or spending limit is
+([`phase6c6_stage_f2_plan.md`](phase6c6_stage_f2_plan.md)); **F2 implemented, awaiting
+owner acceptance** ([`phase6c6_implementation.md`](phase6c6_implementation.md) §12);
+F3–F6 and Stage G not authorised. No provider, region, Supabase project or spending limit is
 chosen. Original status: design and readiness assessment for owner review (authorised
 22 Nov 2026); not implemented.
 
