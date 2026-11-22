@@ -146,6 +146,10 @@ jobs:
           npm ci --ignore-scripts
           npx --no-install playwright install --with-deps --only-shell chromium
 
+      - name: Install age (Stage F3 owner-script tests)
+        if: steps.scope.outputs.scope != 'docs'
+        run: sudo apt-get install -y --no-install-recommends age
+
       - name: Test suite (PostgreSQL, real Supabase Auth and browser tests)
         if: steps.scope.outputs.scope != 'docs'
         env:
