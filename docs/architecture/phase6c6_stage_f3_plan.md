@@ -9,8 +9,11 @@ implementation-authorisation package (ordered plan, owner actions, private acces
 off-host backups) are in §X**, with the **final technical clarifications (private HTTPS,
 Object Lock negative tests, backup least privilege) in §Y**; §Y and §X take precedence over earlier sections where they
 differ. Provider selection closed by the owner on 22 Nov 2026.
-Planning authorised 22 Nov 2026. **F3 implementation, provisioning and purchasing are
-not authorised** (awaiting the owner's Step 0, §X.5). Nothing in this plan has been provisioned,
+Planning authorised 22 Nov 2026. **F3 implementation authorised by the owner on 22 Nov 2026**
+(Stage F3 only; not F4, F5, public deployment, live API-Football calls, participant
+onboarding or production release). Checkpoint 0 (owner setup sequence, scripts,
+checklists): [`../operations_f3_owner_setup.md`](../operations_f3_owner_setup.md). All
+purchases are made by the owner personally. Nothing in this plan has been provisioned,
 purchased, created or deployed: no hosting account, VM, domain, hosted Supabase
 project, off-host storage, live API-Football call or participant account. Every
 provisioning and spending step below waits for the owner decisions in §R.
@@ -493,6 +496,11 @@ or (4), or a total above the proposed $250 ceiling, moves the recommendation to
 DigitalOcean.
 
 ### S.2 Private access: allowlist versus authenticated private network
+
+*Superseded: the owner chose self-hosted WireGuard with no Tailscale (F3-D6) and no
+domain (F3-D7); the origin is `https://10.88.0.1` with the IP-SAN certificate (§X.2,
+§Y.1). Tailscale and `ts.net` mentions in §S–§V are kept only as the record of the
+options compared.*
 
 | Option | Residential IP changes | Inbound exposure | TLS | Notes |
 |---|---|---|---|---|
@@ -1177,7 +1185,7 @@ happens without it).
 **Before the host is built (day one of F3):**
 * F3-D6 private access (Tailscale; WireGuard fallback; confirm Tailscale "non-commercial"
   eligibility or choose a paid plan/WireGuard) — *open*;
-* F3-D7 no domain in F3 (`ts.net`) — *open*;
+* F3-D7 no domain in F3 (origin `https://10.88.0.1` over WireGuard, §Y.1) — *open*;
 * F3-D13 accounts: owner plus at most one operator — *open*;
 * F3-D19 leaked-password protection on from the start — *open*;
 * F3-D5 connection-mode decision rule (app: session pooler; scheduler: direct over IPv6,
@@ -1765,7 +1773,7 @@ position yet; **withdrawn**.
 | F3-D4 | Create the hosted Supabase project (owner action) | Pro, Micro, Frankfurt, SSL enforcement on, signups off after bootstrap | Pro/Micro pricing [V-doc] | – | approved |
 | F3-D5 | Database connection-mode rule | app: session pooler; scheduler: direct over IPv6, else session pooler, else IPv4 add-on (≈ $4); any lock-test failure is a hard stop | session pooler IPv4; direct IPv6 unless add-on [V-doc] | VPS IPv6 [AI]; pooler keeps advisory locks [T] | approved |
 | F3-D6 | Private-access method | **self-hosted WireGuard**; no Tailscale (Personal or paid); one-shot private CA with IP-SAN certificate (§Y.1) | Tailscale Personal "for non-commercial use" [V-doc]; local TLS/cookie PoC [L-PoC] | trust on the owner's real devices (IT-6) | approved |
-| F3-D7 | Domain | none in F3 (`ts.net`); owner domain only for the public architecture | – | – | approved |
+| F3-D7 | Domain | none in F3: the canonical origin is `https://10.88.0.1` over WireGuard with the IP-SAN certificate (§Y.1); an owner domain only for the public architecture | – | – | approved |
 | F3-D8 | Off-host storage and key custody | Backblaze B2 EU Central (Amsterdam); Object Lock governance 30 days; hide-to-delete 30 days; weekly owner inventory with a list-only key; bucket- and prefix-restricted `writeFiles` upload key on the VPS; expiring read-only retrieval key held by the owner; two owner-held `age` identities, no private key on the VPS (§X.3, §Y.2) | B2 capabilities, Object Lock, lifecycle, caps, region [V-doc] | negative tests N1–N9/P1 (IT-7) | approved |
 | F3-D9 | Hosted recovery drill | temporary drill project(s), deleted afterwards: M1 in place and M3 from the off-host CLI dump with configuration re-applied; M2 optional (beta); local M4 reported separately as partial | hourly compute billing; restore-to-new-project beta [V-doc] | drill cost < $5 [A] | approved |
 | F3-D10 | Automatic hold activation (before F4) | option (c): cutover check + rolled-back-database detection | accepted F2 hold behaviour | – | open (before F4) |

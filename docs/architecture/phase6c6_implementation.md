@@ -1324,3 +1324,37 @@ refusal matrices): `tests/test_f2_wsgi_health.py` (20), `tests/test_f2_backup_re
 * Gates carried forward: before F3 provider/region/spending selection and hosted
   Supabase acceptance; before F4 the SF-14 analysis; before F5 tighter RPO, ML-01 and
   D-36.
+
+## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 prepared**
+
+Authorised by the owner on 22 Nov 2026 (plan [`phase6c6_stage_f3_plan.md`](phase6c6_stage_f3_plan.md)
+§X–§Y, commit `fa6a4ae`, CI run 126), for Stage F3 only: Hostinger KVM 2 monthly in
+Germany/Frankfurt, Supabase Pro (Frankfurt, smallest compute), self-hosted WireGuard,
+private HTTPS with the IP-SAN certificate, Backblaze B2 EU Central, ≤ $75/month all-in
+(alert $65), no prepayment and no Hostinger daily backups. Decisions in §X and §Y
+approved, subject to their implementation-time checks. F3-D10 and F3-D11 deferred until
+before F4. Not authorised: F4, F5, public deployment, live API-Football calls,
+participant onboarding, production release, merge, tag or release.
+
+### 13.1 Checkpoint 0: owner setup preparation
+Nothing purchased, provisioned or accessed. Deliverables:
+
+| Deliverable | Content |
+|---|---|
+| [`../operations_f3_owner_setup.md`](../operations_f3_owner_setup.md) | ground rules (owner does every purchase, account and secret; nothing secret in chat or on command lines; evidence redaction); checkpoints CP0–CP7 with the hard-stop gates (private network access, database TLS, hosted advisory locking, backup credential restrictions, recovery validation); prerequisites; the owner setup sequence O-1 to O-7 (Supabase now before Hostinger so the day-one check has its targets and the refund clock starts later); key-handling residual risks; backup completeness criteria (per-table counts and content hashes, Auth identities, operator sign-in; a command exit is never sufficient); password-manager entries; checklists |
+| `deploy/f3/owner/f3-make-age-identities.sh` | two passphrase-encrypted `age` identities; plaintext private keys exist only in a pipe; round-trip decryption with each identity |
+| `deploy/f3/owner/f3-sign-server-cert.sh`, `lib-ramdir.sh` | one-shot private CA generated in a RAM disk (macOS `hdiutil`) or tmpfs (Linux; refused otherwise); signs one EC P-256 server certificate with `subjectAltName=IP:10.88.0.1` only, 180 days, no name constraints; verifies; destroys the CA key and the RAM disk |
+| `deploy/f3/host/f3-make-server-csr.sh` | server key generated on the server (never leaves it), CSR for the owner to sign; refuses to replace a key without `--rotate` |
+| `deploy/f3/host/f3_day1_check.py` | read-only day-one check (IT-1 RTT ≤ 10 ms to the Supabase hosts, IT-2 IPv6, listening ports, system facts); public IPs masked; contacts only the hosts the owner names |
+| `tests/test_f3_checkpoint0.py` | 12 tests: strict, parseable scripts; no secret from the environment; CA end to end (one IP-SAN leaf matching the server key, no DNS SAN, no name constraints, 180 days, wrong IP refused, no key left in output or tmpfs); refusals (non-tunnel IP, > 397 days, existing output, non-P-256 CSR); `age` identities on a pseudo-terminal (encrypted at rest, two distinct recipients, both decrypt, no secret printed, no overwrite); day-one masking and evaluation rules; read-only run |
+| CI | installs `age` for the new tests (the only workflow change; timeout unchanged) |
+| Documentation | F3-D7 now states the WireGuard IP origin `https://10.88.0.1` (stale `ts.net` reference corrected; Tailscale/`ts.net` sections marked superseded); plan, roadmap and hosting status updated |
+
+Key-handling residual risk (owner instruction 8): deleting or overwriting a file on an
+SSD does not guarantee erasure, so the CA key is never written to persistent storage.
+The remaining exposure (swap, sleep images, malware during the seconds the key exists)
+is documented with mitigations in the runbook §5.
+
+**STOP:** Checkpoint 1 (the owner's accounts and purchases, then the day-one check)
+starts only on the owner's instruction.
+

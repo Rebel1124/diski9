@@ -67,6 +67,33 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3: controlled implementation authorisation; Checkpoint 0 (22 Nov 2026):**
+* **Owner authorisation:** the owner authorised Stage F3 implementation, subject to the
+  approved architecture, decisions, spending limits and checkpoint controls.
+  * Infrastructure: Hostinger KVM 2 monthly (Germany/Frankfurt); Supabase Pro
+    (Frankfurt, smallest compute); self-hosted WireGuard; private HTTPS with the IP-SAN
+    certificate; Backblaze B2 EU Central.
+  * Budget: ≤ $75/month all-in, alert at $65; no long-term prepayment; no Hostinger daily
+    backups.
+  * Decisions: §X and §Y approved, including F3-D6, D8, D12, D15 and D22, subject to
+    their implementation-time checks. F3-D10 and F3-D11 deferred until before F4.
+  * Not authorised: F4, F5, public deployment, live API-Football calls, participant
+    onboarding or production release.
+* **Owner instructions:**
+  * the owner makes every purchase personally;
+  * no secrets through chat;
+  * version-controlled scripts run by the owner, with redacted evidence;
+  * hard-stop gates kept;
+  * backup completeness verified against the managed database including Auth
+    identities (not by exit status);
+  * no reliance on file deletion for SSD key erasure;
+  * F3-D7 corrected;
+  * Stage F safeguards preserved.
+* **Checkpoint 0 delivered:** `docs/operations_f3_owner_setup.md` (owner sequence O-1–O-7,
+  gates CP0–CP7, residual risks, completeness criteria, checklists) and `deploy/f3/`
+  scripts with tests. Nothing purchased, provisioned or accessed. STOP before
+  Checkpoint 1.
+
 **Phase 6C.6 Stage F3: final technical clarifications before implementation authorisation (22 Nov 2026):**
 * Recorded in `docs/architecture/phase6c6_stage_f3_plan.md` §Y. Not F3 implementation
   authorisation; nothing purchased, created or deployed.
