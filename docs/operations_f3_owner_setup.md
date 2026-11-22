@@ -669,16 +669,28 @@ Any mismatch fails **G5**.
 ### 8.2 Checkpoint 1 (owner evidence; Claude reviews)
 - [x] O-1: SSH key fingerprint (received 22 Nov 2026; key login from the owner's Mac works).
 - [ ] O-2: two `age1…` recipients; both identities passed the round trip.
-  * *Received:*
-    * the offline-recovery identity is on a second MacBook, which the owner formally
-      approved (22 Nov 2026) as Diski 9's **official offline recovery device**;
-    * the device is stored securely and disconnected when not in use;
-    * the identity was decrypted with its passphrase and its format verified.
-  * *Outstanding:*
-    * the two public `age1…` recipients;
-    * the generation round-trip result (`primary: OK` / `offline-recovery: OK`);
-    * confirmation that the primary identity is stored in the password manager.
-  * Decrypting a real Diski 9 backup is proven later, in the Checkpoint 5 drills.
+  **Evidence-complete except one item; not yet PASSED.**
+  * Public recipients (bech32 checksums verified):
+    * primary `age19sqxj3etzcl03gqzvcsn86p7v2xp8nheu4t2j6y9wpkd27ggyptqwkkty7`;
+    * offline-recovery `age1vdhzrg30tplkq9ahcx2dkffynrshh8qkscjme3kself0jc63m5wqsssfrt`.
+  * **PASSED: primary recovery test** (age and age-keygen v1.3.2):
+    * a test message was encrypted to the primary recipient;
+    * the passphrase-protected primary identity (stored in 1Password) was decrypted
+      into a temporary 64 MB macOS RAM disk;
+    * the recovered identity decrypted the test ciphertext to the exact expected
+      plaintext;
+    * the RAM disk was detached and the test file deleted; both cleanup checks
+      succeeded.
+  * **PASSED: offline custody and identity check:**
+    * the encrypted offline identity is on the separate, approved recovery MacBook
+      (FileVault on, stored securely, disconnected when not in use);
+    * it was decrypted with its passphrase (age v1.3.2) and its format verified.
+  * **OUTSTANDING:** a **ciphertext round trip for the offline identity**. Encrypt a test
+    message to `age1vdhzrg30…` and decrypt it with the offline identity on the recovery
+    MacBook, checking the exact plaintext. Alternatively, return the `offline-recovery:
+    OK` line from the original generation run. The checks so far prove the passphrase
+    and the file format, not that this identity matches its published recipient.
+  * Decrypting a real Diski 9 backup is still proven in the Checkpoint 5 drills.
 - [ ] O-3: Supabase Pro, spend cap on; project `diski9-f3` in `eu-central-1`, Micro; SSL
   enforcement on; signups off; leaked-password protection on; CA certificate saved;
   host names noted; no key shared.

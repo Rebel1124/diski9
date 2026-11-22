@@ -67,6 +67,20 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 Checkpoint 1, O-2: `age` identity evidence (22 Nov 2026):**
+* **Public recipients recorded**, with bech32 checksums verified: primary
+  `age19sqxj3etzcl03gqzvcsn86p7v2xp8nheu4t2j6y9wpkd27ggyptqwkkty7`; offline-recovery `age1vdhzrg30tplkq9ahcx2dkffynrshh8qkscjme3kself0jc63m5wqsssfrt`.
+* **PASSED:**
+  * primary storage (passphrase-protected file in 1Password);
+  * primary recovery test (age v1.3.2: encrypted to the recipient, identity decrypted
+    into a RAM disk, exact plaintext recovered, cleanup verified);
+  * offline custody (separate MacBook, FileVault, stored securely);
+  * offline passphrase and format check.
+* **O-2 not yet PASSED:** a ciphertext round trip for the offline identity against its
+  recipient is not yet evidenced.
+* No private material is recorded. Recorded in
+  `docs/architecture/phase6c6_implementation.md` §13.8 and the runbook §8.2.
+
 **Phase 6C.6 Stage F3 O-6: live canary verification PASSED; spending control open (22 Nov 2026):**
 * **Owner-run `--verify-canary`** at `c332cd9` (evidence
   `diski9-f3-b2-canary-verification/1`, 2026-11-22T18:38:03Z):
