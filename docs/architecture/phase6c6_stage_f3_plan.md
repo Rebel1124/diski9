@@ -6,7 +6,8 @@ quality-first provider assessment is in §U; the **owner's preferred hosting
 configuration (Hostinger KVM 2 monthly in Germany + Supabase Pro from the start,
 DigitalOcean as fallback) is in §V**, the **Hostinger pre-sales findings are in §W**, and the **final owner decisions and the
 implementation-authorisation package (ordered plan, owner actions, private access,
-off-host backups) are in §X**, which takes precedence over earlier sections where they
+off-host backups) are in §X**, with the **final technical clarifications (private HTTPS,
+Object Lock negative tests, backup least privilege) in §Y**; §Y and §X take precedence over earlier sections where they
 differ. Provider selection closed by the owner on 22 Nov 2026.
 Planning authorised 22 Nov 2026. **F3 implementation, provisioning and purchasing are
 not authorised** (awaiting the owner's Step 0, §X.5). Nothing in this plan has been provisioned,
@@ -1234,6 +1235,8 @@ money is spent before that.
 
 All previously accepted Stage F safeguards are unchanged (X.6).
 
+*(b) and (c) below were settled by the owner on 22 Nov 2026: see §Y.*
+
 **(b) Approved as a rule; one owner statement still needed:**
 * **F3-D6 private access.** The owner approved Tailscale **only if** the intended use
   complies with its licence and fits the budget, otherwise WireGuard. X.2 applies the
@@ -1267,7 +1270,8 @@ none of them can be settled on paper):
 | IT-7 Off-host storage: region is EU; the upload key **cannot** read, list or delete (recorded negative tests); Object Lock active | before the first backup | fix the key or bucket before any backup counts |
 | IT-8 Taxes on the first Hostinger invoice and VAT on Supabase/storage; spend within $65 | first invoices | review the ceiling with the owner |
 | IT-9 Hostinger browser console works (break-glass) | day 1 | must work before SSH is closed to the public |
-| IT-10 Supabase settings: SSL enforcement, signups off after bootstrap, leaked-password protection, spend cap | build | stop until set |
+| IT-10 Supabase settings: SSL enforcement, signups off after bootstrap, leaked-password protection, spend cap, IP Site URL and `token_hash` email templates | build | stop until set |
+| IT-11 Minimum Supabase backup privileges (§Y.3) | before the first backup | isolated elevated credential (§Y.3 fallback) |
 
 **Refund window:** IT-1, IT-2, IT-6 and IT-9 are scheduled for day 1, and IT-3 as soon
 as the database is reachable. A fallback decision can then be made well inside
@@ -1305,7 +1309,7 @@ documents do not show that it is. Applying the owner's rule:
 | No routing | `net.ipv4.ip_forward = 0` and the IPv6 equivalent. Peers cannot reach each other, the internet or anything else through the VPS |
 | Firewall (hPanel **and** host nftables/ufw, default deny inbound) | public interface: only the WireGuard UDP port. `wg0`: 443 for all peers; 22 for the owner peers only. Egress per §S.2, with API-Football blocked |
 | Services | Caddy binds `10.88.0.1:443`; OpenSSH `ListenAddress 10.88.0.1` (keys only, no root, no passwords); Gunicorn `127.0.0.1:8050`; nothing listens on the public address except WireGuard |
-| Name and TLS (no domain, F3-D7) | Canonical origin `https://10.88.0.1`. TLS from a **private CA created on the owner's computer, name-constrained to IP `10.88.0.1`**: the CA key stays offline with the owner; only the server certificate and key go to the VPS; the CA certificate is installed on the peer devices. Because of the name constraint, a leaked CA cannot impersonate any other site. Supabase Site URL and redirect allow-list are set to that origin only; `__Host-` cookies work over HTTPS (checked in IT-6) |
+| Name and TLS (no domain, F3-D7) | Canonical origin `https://10.88.0.1`. *Superseded by §Y.1 (one-shot private CA, IP-SAN certificate, CA key destroyed after signing; no name constraints relied on).* Supabase Site URL and redirect allow-list are set to that origin only; `__Host-` cookies work over HTTPS (checked in IT-6) |
 | Keys | peer revoked by deleting its block + `wg syncconf` (lost device, operator leaves, end of F3); all keys rotated at the end of F3 |
 | Break-glass | Hostinger browser console (hPanel MFA); temporary SSH to the owner's current IP only, recorded in the incident log and closed again |
 | Monitoring | `wg show` latest-handshake in the on-host check; a failed tunnel never opens a public port automatically |
@@ -1334,7 +1338,8 @@ licence rule.
 **X.3.2 Bucket design**
 * One private bucket (random suffix in the name). **Object Lock enabled at creation**,
   default retention **governance mode, 14 days**: the VPS credential cannot shorten or
-  remove it; only the owner's master key can, in an emergency.
+  remove it; only the owner's master key can, in an emergency. *Superseded by §Y.2
+  (30-day retention, 30-day hide-to-delete window, weekly owner inventory).*
 * Unique, timestamped object names. Lifecycle rules: `daily/` hidden after 14 days,
   `weekly/` after 56 days (8 weekly copies), deleted 1 day after hiding (never before
   retention expires).
@@ -1353,7 +1358,9 @@ IT-7 records negative tests showing the upload key cannot list, read or delete.
   `diski9`. A compromise of the web process cannot read the upload key or the database
   owner password.
 
-**X.3.4 Database dump (F3-D15, recommended).** The full Supabase CLI dump (roles, schema,
+*§X.3.3 upload-key capabilities superseded by §Y.2.*
+
+**X.3.4 Database dump (F3-D15, recommended; superseded by §Y.3).** The full Supabase CLI dump (roles, schema,
 data including `auth`) runs nightly on the VPS as `diski9-backup`:
 * The database owner password is held in `~diski9-backup/.pgpass` (0600) over
   `verify-full` TLS. It never appears on a command line, in the environment or in logs.
@@ -1399,7 +1406,7 @@ repository and executed under F3-D22. Gates are hard stops.
 |---|---|---|---|
 | 0 | **Give the F3 implementation authorisation.** Confirm F3-D6 (commercial status → WireGuard or Tailscale Personal), F3-D8, F3-D15, F3-D22, F3-D12 | **Owner** | written instruction; register entry |
 | O-1 | Prepare: password manager with MFA; authenticator app; the owner's computer ready for key generation | **Owner** | – |
-| O-2 | Generate the two `age` key pairs and (if WireGuard) the name-constrained private CA on the owner's computer, using Claude's scripted instructions; store the private material as in X.3.5 / X.2 | **Owner** (Claude provides the script) | public recipients and CA certificate only are shared with the host |
+| O-2 | Generate the two `age` key pairs and the one-shot private CA (§Y.1) on the owner's computer, using Claude's scripted instructions; store the private material as in X.3.5 / X.2 | **Owner** (Claude provides the script) | public recipients and CA certificate only are shared with the host |
 | O-3 | **Buy Hostinger KVM 2:** account with MFA; 1-month term; **Germany/Frankfurt**; Ubuntu 24.04 LTS; **no daily backups**; pay by card; owner's SSH public key, password login disabled where offered | **Owner** | invoice (amount, tax), data-centre name recorded |
 | O-4 | **Subscribe to Supabase Pro:** organisation with MFA; upgrade to Pro (card); spend cap left **on**; create project in **Frankfurt `eu-central-1`**, **Micro** compute; database password generated in the password manager; SSL enforcement on; download the CA certificate; leaked-password protection on | **Owner** | screenshots without keys; invoice |
 | O-5 | **Backblaze B2:** account with MFA in **EU Central**; private bucket with Object Lock (governance, 14 days); lifecycle rules; create the **upload key** only (X.3.3) | **Owner** | key capability list recorded (not the key) |
@@ -1410,7 +1417,7 @@ repository and executed under F3-D22. Gates are hard stops.
 | 4 | Install the application at a recorded commit (no merge or tag); env file from `deploy/` with provider calls, refresh, notifications off and **no API-Football key**; egress to API-Football blocked; systemd units; Caddy with the private certificate | Claude script, owner runs | commit hash, unit status, `/healthz` over the tunnel |
 | 5 | Supabase: apply existing migrations to head `app_0007` (no new migration); Auth settings (Site URL, redirects, signups off after the owner bootstraps the owner account; optional operator); app role and connection modes per F3-D5; TLS checks | Claude + **owner** (secrets typed only on the host) | IT-4, IT-10 |
 | 6 | Hosted advisory-lock tests (`scheduler_lock_probe.py`, two concurrent ticks, holder termination, R1–R6, real `jobs tick` with provider calls off) | Claude script, owner runs | **G3 hard stop** (IT-3) |
-| 7 | Backups: nightly football-store backup, full CLI dump incl. `auth` + configuration export, `age` to both recipients, upload, `backup record --kind offhost-copy`; upload-key negative tests | Claude script, owner runs | **G4**: levels 1–3 in `ops status`; IT-7 |
+| 7 | Backups: nightly football-store backup, full CLI dump incl. `auth` + configuration export, `age` to both recipients, upload, `backup record --kind offhost-copy`; upload-key negative tests N1–N9/P1 (§Y.2); restricted backup role (§Y.3) | Claude script, owner runs | **G4**: levels 1–3 in `ops status`; IT-7; IT-11 |
 | 8 | Recovery drills with the retrieval key on temporary drill projects: **M1** and **M3**; target-first hold sequence (§S.9) with `PROVIDER HOLD` verified in the restored target **before** cutover; **operator sign-in after recovery**; SQLite restore to a new path + offline switch; decryption with each `age` identity; RPO/RTO measured; drill projects deleted | Claude + **owner** (creates/deletes drill projects, retrieval key) | **G5**: level 4 evidence; F3-R2 closed on the host; hosted part of F3-R1 demonstrated |
 | 9 | Failure injection (§M), 72-hour scheduler soak with provider calls off, browser smoke and South African timings (§N) | Claude + owner | soak report; IT-5 |
 | 10 | F3 acceptance report: hosted evidence labelled separately from local evidence; cost reconciliation; residual risks (F3-D21, F3-R1 manual-command part before F4) | Claude | **owner acceptance** (separate decision) |
@@ -1450,6 +1457,298 @@ or production deployment.
 
 Month 1 is ≈ $45 (first Hostinger month $13.99).
 
+## Y. Final technical clarifications before implementation authorisation (22 Nov 2026)
+
+**Owner choices recorded (22 Nov 2026).** These complete the §X decisions. Like those,
+they take effect only with the separate F3 implementation authorisation:
+* **F3-D6:** self-hosted WireGuard. **No Tailscale** (neither Personal nor paid).
+* **F3-D8:** Backblaze B2 EU Central as the independent off-host provider. Two
+  owner-controlled `age` identities. **No private decryption key on the VPS.**
+* **F3-D15:** the separate backup-user model is accepted, **subject to verifying the
+  minimum database privileges** for a complete backup including Auth (Y.3).
+* **F3-D22:** Claude prepares version-controlled scripts and runbooks. The owner runs
+  them on the owner's computer or the server and returns secret-free evidence. **No
+  production credential passes through chat.**
+* **F3-D12:** no external uptime monitoring service in private F3. Internal and
+  owner-device monitoring are kept.
+
+Where Y differs from §X.2 or §X.3, Y takes precedence. In particular, **the IP
+name-constrained CA of §X.2 is withdrawn**: it is not relied on, as Y.1 explains.
+
+Evidence labels used in this section:
+* **[L-PoC]** local proof of concept in the development container (22 Nov 2026). It is
+  not hosted evidence and was not run on the owner's real devices.
+* **[V-doc]** provider documentation.
+* **[IT]** check performed at implementation time.
+
+### Y.1 Private HTTPS for the WireGuard address
+
+**Design: a one-shot private CA plus an IP-SAN server certificate.** No reliance on name
+constraints.
+
+| Item | Setting | Why |
+|---|---|---|
+| Root CA | generated **on the owner's computer**; EC P-256; `basicConstraints=critical,CA:TRUE,pathlen:0`; `keyUsage=critical,keyCertSign,cRLSign`; 180 days | used to sign exactly one server certificate |
+| Server certificate | EC P-256; `basicConstraints=critical,CA:FALSE`; `keyUsage=critical,digitalSignature`; `extendedKeyUsage=serverAuth`; **`subjectAltName=IP:10.88.0.1`** (an iPAddress entry, not a DNS name); 180 days | browsers match an IP URL only against an iPAddress SAN and ignore the CN. 180 days is under the 398-day public limit and Apple's 825-day limit for user-installed roots |
+| **CA private key** | **destroyed (`shred`) immediately after signing the server certificate** | nobody, including an attacker on the owner's computer or the VPS, can later issue another certificate under the trusted root. This replaces the name-constraint idea: X.509 does define iPAddress name constraints, but client enforcement for user-installed roots varies, so they are **not** used or relied on |
+| What goes to the VPS | the server certificate and its key only (`/etc/diski9/tls/`, root:caddy, key 0640) | the root's public certificate goes to the peer devices only |
+| Renewal / end of F3 | new root and certificate (F3 lasts weeks; 180 days is ample); remove the root from every device at the end of F3 or when a device is lost | no long-lived trust anchor |
+| Caddy | site address `https://10.88.0.1`, `bind 10.88.0.1`, `tls /etc/diski9/tls/server.crt /etc/diski9/tls/server.key` (manual certificate, so no ACME attempt); reverse proxy to `127.0.0.1:8050` | the F3 Caddyfile replaces the template's allowlist with the WireGuard-only bind [IT] |
+| HSTS | the template header is harmless. Browsers do not record HSTS for IP-address hosts (RFC 6797), so HSTS gives no protection here; the tunnel and the trusted certificate do | – |
+
+**Browser trust on the peer devices (owner action, [IT] on each real device):**
+* **macOS:** import into the login keychain and set "Always Trust" for SSL. Safari,
+  Chrome and Edge use it.
+* **Windows:** Trusted Root Certification Authorities (current user).
+* **iOS/iPadOS:** install the profile, then turn on full trust in Settings → General →
+  About → Certificate Trust Settings.
+* **Android:** install it as a user CA certificate. Chrome trusts user CAs; some other
+  apps do not.
+* **Firefox:** uses its own store. Import the root there, or allow it to use the
+  operating system's roots.
+
+**Cookies and application settings:**
+* `DISKI9_APP_ENVIRONMENT=production` and `DISKI9_APP_SITE_URL=https://10.88.0.1`.
+  These satisfy the production rule that the site URL uses HTTPS, so cookies are Secure
+  and the `__Host-` names are used (`settings.py`).
+* `DISKI9_APP_TRUSTED_PROXIES=1` for Caddy.
+* The Origin check compares against `https://10.88.0.1`. Browsers omit the default port,
+  so the check matches.
+
+**Supabase Auth: no browser redirect is involved.**
+* Diski 9 does not use Supabase's redirect flow. Confirmation and recovery emails link
+  straight to the app: `{{ .SiteURL }}/auth/confirm?token_hash=…&type=…`.
+* The GET shows a confirmation page. The POST verifies the token server-side
+  (`verify_otp`), as `provider.py` and `web.py` do.
+* Supabase therefore never redirects to, or connects to, the VPS. Every Auth call is
+  outbound from the VPS.
+
+Settings (owner action):
+* Site URL `https://10.88.0.1`.
+* Redirect allow-list containing only that origin (unused by the flow, kept minimal).
+* Confirm-signup and reset-password email templates edited to the `token_hash` link
+  form.
+* Signups off after the owner account is bootstrapped.
+
+A link opened on a device that is not on the tunnel does not load, so it fails closed.
+[IT] Supabase accepts the IP Site URL and the edited templates.
+
+**Local proof of concept [L-PoC]** (OpenSSL 3.0.13, Chromium 153, test address
+`10.88.0.1` added to the container's loopback and removed afterwards; CA key shredded
+after signing):
+
+| Test | Result |
+|---|---|
+| `openssl verify -verify_ip 10.88.0.1` on the IP-SAN certificate | OK. With `10.88.0.2` → "IP address mismatch" |
+| Chromium with the root trusted in a dedicated NSS store, `https://10.88.0.1:8443` | loads with no certificate exception; `isSecureContext = true` |
+| Same, with the root **not** trusted | `ERR_CERT_AUTHORITY_INVALID` |
+| Certificate with the IP **only in the CN** (no SAN), same trusted root | Chromium `ERR_CERT_COMMON_NAME_INVALID`. **curl accepted it** (CN fallback), so curl is not a valid stand-in for browser checks |
+| Cookies set exactly as Diski 9 does (`__Host-d9_session` Secure, HttpOnly, SameSite=Lax, Path=/; `__Host-d9_csrf` Strict) | both stored as host-only cookies for `10.88.0.1`; hidden from `document.cookie` |
+| Same-origin POST | both cookies sent; `Origin: https://10.88.0.1:8443` (on port 443 this becomes `https://10.88.0.1`) |
+| Top-level navigation from another site (as from an email link) | session cookie (Lax) sent; CSRF cookie (Strict) not sent, as designed |
+
+### Y.2 Backblaze Object Lock against the VPS upload credential
+
+**What the documentation establishes [V-doc]:**
+* `b2_delete_file_version` requires `deleteFiles`. For a governance-locked version it
+  also needs `bypassGovernance`, and locked versions return `access_denied`.
+* Downloads require `readFiles`. Listing names or versions requires `listFiles`.
+* `b2_update_file_retention` requires `writeFileRetentions`. Shortening or removing
+  governance retention also requires `bypassGovernance`.
+* Setting retention or legal hold at upload requires `writeFileRetentions` /
+  `writeFileLegalHolds`.
+* Lifecycle rules, bucket default retention and bucket settings need `writeBuckets`,
+  which **bucket-restricted keys cannot have**.
+* An upload with an existing name **creates a new version; the old version is kept**
+  (and hidden).
+* A lifecycle rule does not delete a version while its Object Lock retention is active.
+* **Compliance** retention "cannot be removed by any user". **Governance** retention can
+  be shortened or removed only by a key with `bypassGovernance`.
+
+**The limitation found: hiding.**
+* `b2_hide_file` requires only **`writeFiles`**, the capability any upload key must
+  have. An S3 `DeleteObject` without a version ID (a delete marker) is presumably the
+  same; the documentation does not state its capability.
+* So the upload key **cannot delete or alter a stored version**, but it **can hide
+  one**. A hidden version still exists and stays locked, but it is then subject to the
+  lifecycle rule's "days from hiding to deleting" once the lock expires.
+* The design must therefore guarantee a **detection window** longer than the time it
+  takes to notice an attack.
+
+**Revised bucket design (supersedes §X.3.2):**
+* **Object Lock: governance mode, default retention 30 days.** Every version survives at
+  least 30 days from upload whatever the VPS key does.
+* **Lifecycle:** `daily/` hidden after 14 days and `weekly/` after 56 days.
+  **`daysFromHidingToDeleting = 30`** for both. Any hidden version, whether hidden
+  legitimately or by an attacker, persists at least 30 more days.
+* Storage effect: about 44 days of dailies plus about 86 days of weeklies, still at
+  most a few GB (≈ $0).
+* **Weekly owner inventory:** a **list-only key** (`listBuckets`, `listFiles`; no read,
+  write or delete) kept on the **owner's computer**, never on the VPS. It lists all
+  versions and hide markers and compares them with the VPS's recorded uploads
+  (`backup record`). Any unexpected hide marker, version or gap is an incident.
+* Detection within 7 days, against a purge no earlier than 30 days after hiding.
+* **Daily caps and alerts** on storage and Class A/B/C transactions (Class D cannot be
+  capped [V-doc]). This limits a cost-abuse attack with the upload key.
+* The upload key is restricted to the bucket **and to a name prefix** (`diski9/`).
+
+**Upload key capabilities (supersedes §X.3.3):**
+* `writeFiles` only, plus `listBuckets` **only if** the upload tool proves it needs it to
+  resolve the bucket.
+* No `readFiles`, `listFiles`, `deleteFiles`, `bypassGovernance`,
+  `writeFileRetentions`, `writeFileLegalHolds`, `shareFiles`, `writeBuckets` or key
+  capabilities.
+
+**Governance-mode limitations (why governance is still chosen for F3):**
+
+| Limitation | Effect | Mitigation |
+|---|---|---|
+| Any key with `bypassGovernance` can shorten or remove retention | owner-account compromise defeats the lock | no key with `bypassGovernance` is ever created; the master key is never stored on a device or service; account MFA |
+| Retention is finite | after 30 days, a hidden version can be purged | 30-day hide-to-delete window plus the weekly inventory and the monthly restore drill |
+| The hide operation is allowed to the upload key | an attacker can make backups invisible in normal listings | hidden versions remain listable and restorable with the owner's keys; inventory alarms |
+| Compliance mode would resist even owner-account compromise | not chosen, because compliance data cannot be removed early by anyone, including after a mistaken upload. That later conflicts with D-36 deletion and retention duties | **revisit before F5** (participant data) |
+
+**Negative tests (IT-7, upload key, on the VPS, against a canary object under
+`diski9/canary/`; evidence = API name, HTTP status and error code only, never key
+values):**
+
+| # | Attempt with the upload key (native API **and** S3 API) | Required result |
+|---|---|---|
+| N1 | read: `b2_download_file_by_name`, `b2_download_file_by_id`, S3 `GetObject` | refused (401/403) |
+| N2 | list: `b2_list_file_names`, `b2_list_file_versions`, S3 `ListObjectsV2`, `ListObjectVersions` | refused |
+| N3 | delete: `b2_delete_file_version` (with and without `bypassGovernance=true`), S3 `DeleteObject` **with** a version ID | refused |
+| N4 | overwrite: upload the same name with different content | accepted **as a new version**; with the owner's list key, the original version still exists with unchanged SHA-1/size and its retention date |
+| N5 | hide: `b2_hide_file`, S3 `DeleteObject` without a version ID | **expected to succeed** (documented limitation); the owner's inventory shows the hide marker; the hidden version still exists and is locked |
+| N6 | change retention or hold: `b2_update_file_retention` (shorten, remove, with `bypassGovernance`), S3 `PutObjectRetention`, `PutObjectLegalHold`; upload carrying a shorter retention or legal-hold header | refused. If a header upload is accepted, the owner verifies that object's retention is the bucket default (not shorter). Existing versions are unaffected either way, because upload headers apply only to the new object |
+| N7 | bucket settings: `b2_update_bucket` (lifecycle, default retention), S3 `PutBucketLifecycleConfiguration`, `PutObjectLockConfiguration` | refused |
+| N8 | key management: `b2_create_key`, `b2_list_keys`, `b2_delete_key` | refused |
+| N9 | upload outside the prefix or to another bucket | refused |
+| P1 | normal upload under `diski9/daily/` | accepted. The owner's list key shows governance retention ≈ upload + 30 days |
+
+A failure of N1–N3 or N6–N9 stops backups from counting until the key is fixed. N5 is
+the documented hide limitation covered by the design above.
+
+**Verdict:** Object Lock retention cannot be bypassed with the VPS upload credential.
+The credential cannot delete, read, list, shorten retention or change bucket rules.
+Its one destructive-looking power, hiding, is bounded by the 30-day lock and the 30-day
+hide-to-delete window and is detected by the weekly inventory.
+
+### Y.3 Least privilege for a complete Supabase backup including Auth
+
+**What the documentation establishes [V-doc]:**
+* Supabase's backup guide runs `supabase db dump` three times (roles `--role-only`,
+  schema, data `--data-only --use-copy`) as **`postgres`** with the database password.
+* `postgres` "has admin privileges" but is **not a superuser**.
+* The CLI "runs `pg_dump` in a container" and the guide's procedure starts by
+  installing Docker.
+* The default schema dump ignores managed schemas including `auth`, which a new project
+  recreates.
+* Since 21 April 2025, `postgres` can no longer create or drop objects in `auth`,
+  `storage` and `realtime`, nor write their migration tables. Reading is not listed as
+  restricted.
+* Custom role passwords are never in backups and must be set again after a restore.
+* The docs do **not** document a read-only backup role, `postgres`'s
+  BYPASSRLS/CREATEROLE attributes, whether `postgres` can grant SELECT on `auth`
+  tables, or whether `auth` tables have RLS enabled.
+
+**Local PostgreSQL 16.15 test [L-PoC]** (disposable database `f3_privtest_*` created,
+used and dropped; stand-in `auth` and `app` schemas; protected databases untouched):
+
+| Test | Result | Consequence |
+|---|---|---|
+| SELECT-only role (no BYPASSRLS) runs `pg_dump --data-only` with an RLS-enabled table present | **fails**: "query would be affected by row-level security policy" | fails closed: never a silent partial dump |
+| Same role with `--enable-row-security` | **succeeds but dumps zero rows** for the RLS table | **prohibited**: a silent incomplete backup. The script must never pass this flag |
+| Role with `BYPASSRLS` (SELECT only, no write grants) | complete data dump | BYPASSRLS is needed **only if** dumped tables have RLS enabled |
+| The backup role attempts a DELETE | refused by `default_transaction_read_only` | a guard only: a session can switch that setting off, so **the real control is having no write grants** |
+| Roles dump (`pg_dumpall --roles-only`) as a non-superuser | fails on `pg_authid` | use `--no-role-passwords`: it **succeeds** from `pg_roles`. Passwords are never backed up anyway |
+| A non-superuser with CREATEROLE but without BYPASSRLS creates a BYPASSRLS role | **refused** (PostgreSQL 16 rule) | whether `postgres` can create the backup role with BYPASSRLS depends on `postgres` itself having BYPASSRLS [IT] |
+
+**Recommended design (F3-D15, revised):**
+1. **Restricted role `diski9_backup`** for the nightly backup on the VPS, connecting over
+   `verify-full`:
+   * `LOGIN`, `NOINHERIT`, no write grants; `USAGE` on `app` and `auth`;
+   * `SELECT` on all their tables and sequences;
+   * `BYPASSRLS` **only if** a dumped table has RLS enabled;
+   * `default_transaction_read_only = on` as a guard.
+   * It produces:
+     * the data dump (`pg_dump --data-only` of the `app` schema and the `auth` tables
+       the CLI's data dump includes, with the CLI's exclusions);
+     * the `app` schema dump (`--schema-only`, which needs only catalog access and
+       SELECT);
+     * the roles list (`pg_dumpall --roles-only --no-role-passwords`).
+   * **The `postgres` password is then not on the VPS at all.**
+2. **No Docker on the VPS.**
+   * Native `pg_dump`/`pg_dumpall` from the PostgreSQL apt repository, with the client
+     major version at least the server major version.
+   * The exact flags and exclusions come from `supabase db dump --dry-run` (which prints
+     the `pg_dump` script). This is generated once on the owner's computer, reviewed and
+     committed as the backup script. Equivalence is proven by the M3 drill.
+3. **The `postgres` credential (unavoidable, elevated) is used only by the owner, from
+   the owner's computer:**
+   * to create and grant `diski9_backup` once;
+   * to perform M3 restores into new drill/recovery projects;
+   * for any CLI dump that the restricted role is shown to be unable to make.
+   * It is held in the owner's password manager.
+   * Supabase **network restrictions** (database connections only from the VPS and the
+     owner's current IP) are applied if available on the plan [IT].
+   * It is rotated at the end of F3 and after any suspected exposure.
+
+**Implementation check IT-11 (before the first backup; hard stop until resolved):**
+* Read-only catalog queries as `postgres`:
+  * `rolsuper`, `rolbypassrls`, `rolcreaterole` of `postgres`;
+  * `relrowsecurity` of every `auth` and `app` table;
+  * `has_table_privilege('postgres', 'auth.users', 'SELECT WITH GRANT OPTION')` for each
+    `auth` table.
+* Then create `diski9_backup` and prove that it can produce the three dumps.
+* Then restore them into a temporary drill project (M3). Existing operators must be able
+  to sign in, and the content must match.
+
+**If IT-11 fails (fallback, documented and isolated):** if `postgres` cannot grant
+SELECT on the needed `auth` tables, or cannot grant BYPASSRLS where RLS is enabled, the
+complete dump needs the `postgres` credential. It then runs:
+* on the VPS only as the dedicated `diski9-backup` system user (no shell, not in the
+  `diski9` group);
+* from a systemd unit with `LoadCredential=` (the password file root-owned 0600, exposed
+  only to that unit), `ProtectSystem=strict`, `PrivateTmp`, `NoNewPrivileges`, and no
+  network beyond Supabase and B2;
+* never in environment variables, command lines or logs;
+* with Supabase network restrictions limiting the credential's use to the VPS and the
+  owner;
+* with rotation after F3.
+
+The owner decides between this fallback and running the full dump from the owner's own
+computer on a schedule. Either way, the residual risk is recorded.
+
+### Y.4 Effect on §X
+
+* §X.1(b)/(c): F3-D6, F3-D8, F3-D12, F3-D15 (conditional on IT-11) and F3-D22 are now
+  **owner-approved**.
+* §X.2 "Name and TLS": replaced by Y.1.
+* §X.3.2–X.3.4: replaced by Y.2 and Y.3.
+* §X.5 step O-2: the CA is the one-shot CA of Y.1.
+* Step 7 adds IT-11 and the N1–N9/P1 matrix.
+* New owner actions:
+  * set B2 caps and alerts;
+  * create the list-only inventory key on the owner's computer and run the weekly
+    inventory;
+  * edit the Supabase email templates;
+  * install and later remove the root certificate on each peer device.
+
+### Y.5 Remaining blockers before implementation authorisation
+
+**None.** Every open question is now either answered by documentation and local
+evidence, or is an implementation-time check with a defined stop rule and a fallback:
+
+| Check | Stop rule | Fallback |
+|---|---|---|
+| IT-1/IT-2/IT-9 | Hostinger day-one checks | DigitalOcean |
+| IT-3 | hosted locking: **hard stop** | IPv4 add-on or DigitalOcean |
+| IT-6 | real-device certificate trust | – |
+| IT-7 | B2 negative tests | – |
+| IT-11 | Supabase privileges | isolated elevated credential |
+
+None of them can be settled before purchase.
+
 ## R. Decision record
 
 Status values (updated 22 Nov 2026, §X): **approved** = approved by the owner on 22 Nov 2026,
@@ -1465,27 +1764,27 @@ position yet; **withdrawn**.
 | F3-D3 | Spending ceiling | ≤ $75/month all-in recurring infrastructure, alert at $65; no long-term prepayment (estimate ≈ $51–56; worst case ≈ $60, ≈ $65 in a drill month; §X.7) | Supabase Pro $25 incl. $10 credit [V-doc]; Hostinger checkout [C] | VAT on Supabase/storage; storage ≈ $2 | approved |
 | F3-D4 | Create the hosted Supabase project (owner action) | Pro, Micro, Frankfurt, SSL enforcement on, signups off after bootstrap | Pro/Micro pricing [V-doc] | – | approved |
 | F3-D5 | Database connection-mode rule | app: session pooler; scheduler: direct over IPv6, else session pooler, else IPv4 add-on (≈ $4); any lock-test failure is a hard stop | session pooler IPv4; direct IPv6 unless add-on [V-doc] | VPS IPv6 [AI]; pooler keeps advisory locks [T] | approved |
-| F3-D6 | Private-access method | Tailscale Personal only if the owner states the F3 use is non-commercial; otherwise **self-hosted WireGuard (recommended, §X.2)**; paid Tailscale not recommended | Tailscale Personal "for non-commercial use"; Standard $8/user/month [V-doc] | owner's statement on commercial status | approved (rule) |
+| F3-D6 | Private-access method | **self-hosted WireGuard**; no Tailscale (Personal or paid); one-shot private CA with IP-SAN certificate (§Y.1) | Tailscale Personal "for non-commercial use" [V-doc]; local TLS/cookie PoC [L-PoC] | trust on the owner's real devices (IT-6) | approved |
 | F3-D7 | Domain | none in F3 (`ts.net`); owner domain only for the public architecture | – | – | approved |
-| F3-D8 | Off-host storage and key custody | Backblaze B2 EU Central, Object Lock (governance 14 days), lifecycle 14 daily + 8 weekly; bucket-restricted write-only upload key on the VPS; expiring read-only retrieval key held by the owner; two `age` identities generated and held by the owner, public recipients only on the VPS (§X.3) | B2 $6.95/TB/month, 10 GB free, Object Lock free, key capabilities [V-doc] | EU Central location confirmed at sign-up; upload tool works with the minimal capabilities (IT-7) | proposed |
+| F3-D8 | Off-host storage and key custody | Backblaze B2 EU Central (Amsterdam); Object Lock governance 30 days; hide-to-delete 30 days; weekly owner inventory with a list-only key; bucket- and prefix-restricted `writeFiles` upload key on the VPS; expiring read-only retrieval key held by the owner; two owner-held `age` identities, no private key on the VPS (§X.3, §Y.2) | B2 capabilities, Object Lock, lifecycle, caps, region [V-doc] | negative tests N1–N9/P1 (IT-7) | approved |
 | F3-D9 | Hosted recovery drill | temporary drill project(s), deleted afterwards: M1 in place and M3 from the off-host CLI dump with configuration re-applied; M2 optional (beta); local M4 reported separately as partial | hourly compute billing; restore-to-new-project beta [V-doc] | drill cost < $5 [A] | approved |
 | F3-D10 | Automatic hold activation (before F4) | option (c): cutover check + rolled-back-database detection | accepted F2 hold behaviour | – | open (before F4) |
 | F3-D11 | Manual provider-command coverage (before F4) | extend the hold to the shared API-Football client factory | inventory in K | – | open (before F4) |
-| F3-D12 | External uptime monitor | not used in F3 (no public endpoint); on-host timer + check from the owner's device over the private network | – | – | proposed |
+| F3-D12 | External uptime monitor | none in private F3; on-host timer + owner-device check over WireGuard | – | – | approved |
 | F3-D13 | Accounts in F3 | owner plus at most one operator; no participants | – | – | approved |
 | F3-D14 | Hostinger 24-month promotional prepayment | declined; monthly billing only | promotion terms [V-owner] | – | approved |
-| F3-D15 | Where the off-host CLI dump (incl. `auth`) runs; custody of the database owner password | on the VPS as the separate `diski9-backup` user, password in `~diski9-backup/.pgpass` (0600), master copy in the owner's password manager; encrypted upload; rotate after F3 (§X.3.4) | Supabase CLI backup path includes `auth.users` [V-doc] | – | proposed |
+| F3-D15 | Backup credential model | restricted `diski9_backup` role (SELECT, BYPASSRLS only if needed, no writes) for the nightly dump on the VPS as the `diski9-backup` user; native `pg_dump` with the CLI's flags (no Docker); `postgres` password used only by the owner from the owner's computer; isolated fallback if IT-11 fails (§Y.3) | Supabase backup guide, postgres not superuser, April 2025 restrictions [V-doc]; PG16 privilege tests [L-PoC] | `postgres` can grant SELECT on `auth` tables / BYPASSRLS (IT-11) | approved (subject to IT-11) |
 | F3-D16 | Supabase plan | Supabase Pro from the beginning of F3; Pro mandatory for F4/F5 | Pro daily backups, no pausing, IPv4 add-on [V-doc] | – | approved |
 | F3-D17 | Hosting commitment model | monthly VPS billing only | Hostinger one-month term [C] | – | approved |
 | F3-D18 | Accept M3-only Auth recovery on Free (amends S.8) | withdrawn — Supabase Pro from the beginning | – | – | withdrawn |
 | F3-D19 | Leaked-password protection | on from the start of F3 (Pro feature) | available on Pro [V-doc] | – | approved |
 | F3-D20 | Hostinger optional daily backups ($6/month) | not purchased at this stage; Diski 9's independent encrypted off-host backups remain mandatory and are the verified recovery path | $6/month option [C] | included Hostinger backup frequency/retention [open] | approved |
 | F3-D21 | No verified credit-backed VPS uptime SLA | accepted as a documented F3 residual risk; monitoring (72-hour soak, `ops status`/`ops check`, failure injection) and recovery requirements unchanged; DigitalOcean fallback if availability proves inadequate | uptime guarantee advertised at checkout [C]; percentage/compensation not provided [AI] | – | approved |
-| F3-D22 | Execution model | Claude prepares scripts/runbooks in the repository; the owner runs them on the host and returns secret-free output, or attaches the owner's computer via Remote Control (approved each time); no cloud session holds production credentials (§X.1) | the cloud container cannot reach the VPS | – | proposed |
+| F3-D22 | Execution model | Claude prepares version-controlled scripts and runbooks; the owner executes them on the owner's computer or the server and returns secret-free evidence; no production credential through chat | the cloud container cannot reach the VPS | – | approved |
 
 Nothing is purchased, subscribed, provisioned or created until the owner gives the F3
-implementation authorisation (§X.5 step 0) and accepts F3-D8, F3-D15 and F3-D22 and
-states the F3-D6 outcome.
+implementation authorisation (§X.5 step 0). All F3 decisions needed before purchase are
+now recorded (§X, §Y); F3-D10 and F3-D11 remain open for F4.
 
 ## Risks carried forward
 
@@ -1538,6 +1837,20 @@ states the F3-D6 outcome.
   [Tailscale HTTPS certificates](https://tailscale.com/kb/1153/enabling-https/),
   [Tailscale pricing v4 (Apr 2026)](https://tailscale.com/blog/pricing-v4),
   [Tailscale pricing FAQ](https://tailscale.com/kb/1251/pricing-faq).
+* Clarification sources (§Y): [B2 hide file](https://www.backblaze.com/apidocs/b2-hide-file),
+  [B2 delete file version](https://www.backblaze.com/apidocs/b2-delete-file-version),
+  [B2 update file retention](https://www.backblaze.com/apidocs/b2-update-file-retention),
+  [B2 upload file](https://www.backblaze.com/apidocs/b2-upload-file),
+  [B2 lifecycle rules](https://www.backblaze.com/docs/cloud-storage-lifecycle-rules),
+  [B2 file versions](https://www.backblaze.com/docs/cloud-storage-file-versions),
+  [B2 caps and alerts](https://www.backblaze.com/docs/cloud-storage-data-caps-and-alerts),
+  [B2 data regions](https://www.backblaze.com/docs/cloud-storage-data-regions),
+  [Supabase roles](https://supabase.com/docs/guides/database/postgres/roles),
+  [Supabase superuser access](https://supabase.com/docs/guides/database/postgres/roles-superuser),
+  [Supabase CLI db dump](https://supabase.com/docs/reference/cli/supabase-db-dump),
+  [April 2025 auth/storage/realtime restrictions](https://supabase.com/changelog/34270-restricting-access-on-auth-storage-and-realtime-schemas-on-april-21-2025),
+  [PostgreSQL pg_dump (row security)](https://www.postgresql.org/docs/16/app-pgdump.html),
+  [RFC 6797 (HSTS, IP hosts)](https://www.rfc-editor.org/rfc/rfc6797).
 * Off-host storage sources (§X.3): [Backblaze B2 pricing](https://www.backblaze.com/cloud-storage/pricing),
   [B2 application keys](https://www.backblaze.com/docs/cloud-storage-application-keys),
   [B2 key capabilities](https://www.backblaze.com/docs/cloud-storage-application-key-capabilities),

@@ -67,6 +67,45 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3: final technical clarifications before implementation authorisation (22 Nov 2026):**
+* Recorded in `docs/architecture/phase6c6_stage_f3_plan.md` §Y. Not F3 implementation
+  authorisation; nothing purchased, created or deployed.
+* **Owner-approved** (effective with Step 0): F3-D6 self-hosted WireGuard, no Tailscale;
+  F3-D8 Backblaze B2 EU Central, two owner-held `age` identities, no private key on the
+  VPS; F3-D15 separate backup-user model subject to verifying minimum privileges (IT-11);
+  F3-D22 Claude-prepared version-controlled scripts run by the owner, secret-free
+  evidence, no production credential through chat; F3-D12 no external uptime monitor.
+* **Private HTTPS (§Y.1):** a one-shot private CA generated on the owner's computer, a
+  server certificate with `subjectAltName=IP:10.88.0.1`, and the CA key destroyed after
+  signing. The IP name-constrained CA (§X.2) is withdrawn and no name constraint is
+  relied on. Diski 9's email links go straight to the app (`token_hash`, server-side
+  verification), so Supabase never redirects to or connects to the VPS. Local
+  proof of concept (Chromium 153, OpenSSL 3.0.13): trusted IP-SAN certificate loads
+  as a secure context; untrusted root and CN-only certificates are rejected (curl
+  wrongly accepts CN-only); `__Host-` Secure/HttpOnly/Lax/Strict cookies behave as
+  designed.
+* **Object Lock (§Y.2):** the documentation shows the upload key's required `writeFiles`
+  also permits **hiding** versions (not deleting, reading, listing, changing retention
+  or bucket rules). The design was revised accordingly: governance retention 30 days,
+  lifecycle hide-to-delete 30 days, a weekly owner inventory with a list-only key on the
+  owner's computer, daily caps and alerts, and a prefix-restricted key. Negative tests
+  N1–N9 and P1 are defined (IT-7). Governance limitations are documented; compliance
+  mode is to be revisited before F5.
+* **Backup least privilege (§Y.3):** `postgres` is not a superuser; the CLI needs Docker.
+  A local PostgreSQL 16 test showed:
+  * a SELECT-only role fails closed on RLS tables;
+  * `--enable-row-security` silently dumps nothing (prohibited);
+  * BYPASSRLS gives a complete dump;
+  * the roles dump works with `--no-role-passwords`;
+  * granting BYPASSRLS requires holding it.
+
+  Design: a restricted read-only `diski9_backup` role on the VPS and native `pg_dump`
+  using the CLI's `--dry-run` flags; the `postgres` password is used only by the owner
+  from the owner's computer. An isolated fallback applies if IT-11 fails.
+* **Remaining blockers before implementation authorisation: none.** Open items are
+  implementation-time checks with stop rules and fallbacks (IT-1–IT-3, IT-6, IT-7,
+  IT-9, IT-11).
+
 **Phase 6C.6 Stage F3: final owner decisions and implementation-authorisation package (22 Nov 2026):**
 * Provider selection closed by the owner. Recorded in `docs/architecture/phase6c6_stage_f3_plan.md`
   §X. **Not F3 implementation authorisation**: approved decisions take effect only with the
