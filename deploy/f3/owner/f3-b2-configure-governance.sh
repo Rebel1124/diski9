@@ -2,7 +2,14 @@
 # Diski 9 Stage F3 (owner computer): set and verify the B2 bucket's default retention
 # (Governance, 30 days) and prove it on a canary upload. Run once, with the master key.
 #
-#   deploy/f3/owner/f3-b2-configure-governance.sh BUCKET_NAME
+#   deploy/f3/owner/f3-b2-configure-governance.sh BUCKET_NAME                  (configure)
+#   deploy/f3/owner/f3-b2-configure-governance.sh --verify-canary BUCKET_NAME  (read-only)
+#
+# --verify-canary changes nothing: it re-checks the bucket (Governance 30 days already
+# set), finds the ONE uploaded canary version under diski9/canary/ (lifecycle hide
+# markers are recognised and ignored; anything ambiguous fails), reads that exact
+# version's retention by file ID and prints the evidence. It never uploads, never
+# updates the bucket and never deletes or hides anything.
 #
 # Before running: the bucket exists (private, Object Lock enabled, NO default retention
 # set in the web UI, lifecycle rules entered), and you have just generated a master
@@ -26,7 +33,13 @@ here=$(cd "$(dirname "$0")" && pwd)
 # shellcheck source=lib-ramdir.sh
 . "$here/lib-ramdir.sh"
 
-bucket=${1:?usage: f3-b2-configure-governance.sh BUCKET_NAME}
+mode=configure
+if [ "${1:-}" = "--verify-canary" ]; then
+  mode=verify
+  shift
+fi
+bucket=${1:?usage: f3-b2-configure-governance.sh [--verify-canary] BUCKET_NAME}
+[ $# -eq 1 ] || f3_die "usage: f3-b2-configure-governance.sh [--verify-canary] BUCKET_NAME"
 [[ "$bucket" =~ ^diski9-f3-[0-9a-f]{8}$ ]] || f3_die "bucket name must be diski9-f3-<8 hex>"
 command -v b2 >/dev/null || f3_die "install the B2 CLI: brew install b2-tools"
 command -v python3 >/dev/null || f3_die "python3 is required (installed with b2-tools)"
@@ -87,7 +100,7 @@ LIFECYCLE='[{"daysFromHidingToDeleting":30,"daysFromUploadingToHiding":14,"fileN
 export LIFECYCLE
 LC_OK='sorted(map(json.dumps, [{k: r.get(k) for k in ("daysFromHidingToDeleting","daysFromUploadingToHiding","fileNamePrefix")} for r in d.get("lifecycleRules", [])]), key=str) == sorted(map(json.dumps, json.loads(__import__("os").environ["LIFECYCLE"])), key=str)'
 
-echo "== 1/5 sign in with the master key (nothing is printed or stored on disk)"
+echo "== sign in with the master key (nothing is printed or stored on disk)"
 printf 'Master application keyID (input hidden): '
 IFS= read -rs kid
 echo
@@ -99,7 +112,7 @@ if ! B2_APPLICATION_KEY_ID="$kid" b2 account authorize >/dev/null 2>&1; then
 fi
 unset kid
 
-echo "== 2/5 inspect the bucket before any change"
+echo "== inspect the bucket"
 b2run "bucket inspection" "$F3_RAMDIR/before.json" bucket get "$bucket"
 check "$F3_RAMDIR/before.json" 'd.get("bucketName") == __import__("os").environ["F3_BUCKET"]' \
   "b2 returned a different or unreadable bucket record"
@@ -110,7 +123,83 @@ check "$F3_RAMDIR/before.json" '(d.get("defaultRetention") or {}).get("mode") in
   "a COMPLIANCE (or unknown) default retention is set on $bucket: stop and report (do not upload anything)"
 check "$F3_RAMDIR/before.json" "$LC_OK" "lifecycle rules differ from the approved rules: fix them in the web UI first"
 
-echo "== 3/5 set the default retention: GOVERNANCE, 30 days"
+# ---------------------------------------------------------------- helpers
+# upload_file_id FILE: the file ID from `b2 file upload` output. B2 CLI 5.0.3 prints two
+# text lines ("URL by file name: ...", "URL by fileId: ...?fileId=<id>") and THEN the
+# JSON file version. Both IDs must be present and agree; otherwise this fails.
+upload_file_id() {
+  python3 - "$1" <<'PY' 2>/dev/null
+import json, re, sys, urllib.parse
+text = open(sys.argv[1], encoding="utf-8", errors="strict").read()
+lines = text.splitlines()
+url_ids = [urllib.parse.parse_qs(urllib.parse.urlsplit(l.split(": ", 1)[1]).query).get("fileId", [None])[0]
+           for l in lines if l.startswith("URL by fileId: ")]
+starts = [i for i, l in enumerate(lines) if l.startswith("{")]
+if len(url_ids) != 1 or not url_ids[0] or not starts:
+    sys.exit(1)
+body = "\n".join(lines[starts[0]:])
+obj, end = json.JSONDecoder().raw_decode(body)
+if body[end:].strip() or not isinstance(obj, dict):
+    sys.exit(1)
+fid = obj.get("fileId")
+if not isinstance(fid, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", fid) or fid != url_ids[0]:
+    sys.exit(1)
+print(fid)
+PY
+}
+
+# inspect_canary FILEID: read that exact version and require Governance, an expiry
+# ~30 days after upload, the canary name, and no legal hold
+inspect_canary() {
+  export F3_FID="$1"
+  b2run "canary inspection" "$F3_RAMDIR/info.json" file info "b2id://$1"
+  check "$F3_RAMDIR/info.json" 'd.get("fileId") == __import__("os").environ["F3_FID"] and __import__("re").fullmatch(r"diski9/canary/setup-\d{8}T\d{6}Z\.txt", d.get("fileName", ""))' \
+    "file info did not return the canary version that was identified"
+  check "$F3_RAMDIR/info.json" '(d.get("fileRetention") or {}).get("mode") == "governance"' \
+    "the canary is NOT governance-locked: stop, upload nothing, report"
+  check "$F3_RAMDIR/info.json" 'abs(d["fileRetention"]["retainUntilTimestamp"] - d["uploadTimestamp"] - 30*86400000) <= 3600000' \
+    "the canary's lock does not expire ~30 days after upload: stop and report"
+  check "$F3_RAMDIR/info.json" 'd.get("legalHold") in (None, "off", "unset")' \
+    "the canary has an unexpected legal hold: stop and report"
+}
+
+# find_canary FILE: from `b2 ls --json --versions` output, the file ID of the ONE uploaded
+# canary version. Lifecycle hide markers (action "hide") for that same name, newer than
+# the upload, are recognised and ignored. Zero or several uploads, any other action, any
+# other name, or a malformed listing fails: nothing is ever picked arbitrarily.
+find_canary() {
+  python3 - "$1" <<'PY' 2>/dev/null
+import json, re, sys
+items = json.load(open(sys.argv[1]))
+if not isinstance(items, list):
+    sys.exit(1)
+name_re = re.compile(r"diski9/canary/setup-\d{8}T\d{6}Z\.txt")
+uploads, hides = [], []
+for it in items:
+    if not isinstance(it, dict) or not name_re.fullmatch(str(it.get("fileName", ""))):
+        sys.exit(1)
+    action = it.get("action")
+    if action == "upload":
+        uploads.append(it)
+    elif action == "hide":
+        hides.append(it)
+    else:
+        sys.exit(1)
+if len(uploads) != 1:
+    sys.exit(1)
+up = uploads[0]
+for h in hides:
+    if h.get("fileName") != up.get("fileName") or h.get("uploadTimestamp", 0) <= up.get("uploadTimestamp", 0):
+        sys.exit(1)
+fid = up.get("fileId")
+if not isinstance(fid, str) or not re.fullmatch(r"[A-Za-z0-9_-]+", fid):
+    sys.exit(1)
+print(fid, len(hides))
+PY
+}
+
+if [ "$mode" = configure ]; then
+echo "== set the default retention: GOVERNANCE, 30 days"
 printf 'Type GOVERNANCE to set it on %s: ' "$bucket"
 IFS= read -r answer
 [ "$answer" = "GOVERNANCE" ] || f3_die "not confirmed; nothing was changed"
@@ -123,31 +212,38 @@ check "$F3_RAMDIR/after.json" 'd.get("bucketType") == "allPrivate" and d.get("is
   "bucket type or Object Lock changed unexpectedly: stop and report"
 check "$F3_RAMDIR/after.json" "$LC_OK" "lifecycle rules changed unexpectedly: stop and report"
 
-echo "== 4/5 canary: upload one small file and read the retention of THAT version"
+echo "== canary: upload one small file and read the retention of THAT version"
 stamp=$(date -u +%Y%m%dT%H%M%SZ)
 printf 'diski9-f3 retention canary %s\n' "$stamp" > "$F3_RAMDIR/canary.txt"
 b2run "canary upload" "$F3_RAMDIR/upload.json" file upload --no-progress "$bucket" \
   "$F3_RAMDIR/canary.txt" "diski9/canary/setup-$stamp.txt"
-fid=$(python3 -c "import json,re,sys; f=json.load(open(sys.argv[1]))['fileId']; assert re.fullmatch(r'[A-Za-z0-9_-]+', f); print(f)" \
-  "$F3_RAMDIR/upload.json" 2>/dev/null) || f3_die "the upload returned no usable file ID: stop and report"
-export F3_FID="$fid"
-b2run "canary inspection" "$F3_RAMDIR/info.json" file info "b2id://$fid"
-check "$F3_RAMDIR/info.json" 'd.get("fileId") == __import__("os").environ["F3_FID"] and d.get("fileName", "").startswith("diski9/canary/setup-")' \
-  "file info did not return the uploaded version"
-check "$F3_RAMDIR/info.json" '(d.get("fileRetention") or {}).get("mode") == "governance"' \
-  "the canary is NOT governance-locked: stop, upload nothing else, report"
-check "$F3_RAMDIR/info.json" 'abs(d["fileRetention"]["retainUntilTimestamp"] - d["uploadTimestamp"] - 30*86400000) <= 3600000' \
-  "the canary's lock does not expire ~30 days after upload: stop and report"
-check "$F3_RAMDIR/info.json" 'd.get("legalHold") in (None, "off", "unset")' \
-  "the canary has an unexpected legal hold: stop and report"
+fid=$(upload_file_id "$F3_RAMDIR/upload.json") \
+  || f3_die "the upload response could not be parsed or its file IDs disagree: stop and report (do not upload again; verify with --verify-canary)"
+inspect_canary "$fid"
 
-echo "== 5/5 evidence (no account ID, bucket ID, file ID, key or token)"
-python3 - "$F3_RAMDIR/after.json" "$F3_RAMDIR/info.json" <<'PY'
-import datetime as dt, json, sys
+else
+echo "== verify the existing canary (read-only: no upload, no bucket change, no deletion)"
+check "$F3_RAMDIR/before.json" '(d.get("defaultRetention") or {}) == {"mode": "governance", "period": {"duration": 30, "unit": "days"}}' \
+  "the bucket's default retention is not governance/30 days: stop and report"
+b2run "canary listing" "$F3_RAMDIR/list.json" ls --json --versions -r "b2://$bucket/diski9/canary/"
+found=$(find_canary "$F3_RAMDIR/list.json") \
+  || f3_die "the canary cannot be identified unambiguously (none, several uploads, or unexpected entries): stop and report"
+read -r fid hides <<<"$found"
+export F3_HIDES="$hides"
+inspect_canary "$fid"
+cp "$F3_RAMDIR/before.json" "$F3_RAMDIR/after.json"
+
+fi
+
+echo "== evidence (no account ID, bucket ID, file ID, key or token)"
+F3_MODE="$mode" python3 - "$F3_RAMDIR/after.json" "$F3_RAMDIR/info.json" <<'PY'
+import datetime as dt, json, os, sys
 b, f = (json.load(open(p)) for p in sys.argv[1:3])
 iso = lambda ms: dt.datetime.fromtimestamp(ms / 1000, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 print(json.dumps({
-    "evidence": "diski9-f3-b2-governance/1",
+    "evidence": "diski9-f3-b2-governance/1" if os.environ["F3_MODE"] == "configure"
+                else "diski9-f3-b2-canary-verification/1",
+    "verifiedAt": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "bucketName": b["bucketName"], "bucketType": b["bucketType"],
     "isFileLockEnabled": b["isFileLockEnabled"], "defaultRetention": b["defaultRetention"],
     "lifecycleRules": b["lifecycleRules"],
@@ -155,7 +251,8 @@ print(json.dumps({
                "retentionMode": f["fileRetention"]["mode"],
                "retainUntil": iso(f["fileRetention"]["retainUntilTimestamp"]),
                "lockDays": round((f["fileRetention"]["retainUntilTimestamp"] - f["uploadTimestamp"]) / 86400000, 3),
-               "legalHold": f.get("legalHold")},
+               "legalHold": f.get("legalHold"),
+               "hideMarkers": int(os.environ.get("F3_HIDES", "0"))},
 }, indent=2))
 PY
 echo

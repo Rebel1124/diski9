@@ -70,10 +70,31 @@ elif a[:2] == ["file", "upload"]:
     mode = st.get("force_file_mode", r["mode"])
     st["file"] = {"fileId": "4_zfile1", "fileName": a[-1], "uploadTimestamp": now,
                   "fileRetention": {"mode": mode, "retainUntilTimestamp":
-                  now + st.get("lock_days", 30) * 86400000}, "legalHold": st.get("legal_hold")}
-    save(); out(st["file"])
+                  now + st.get("lock_days", 30) * 86400000}, "legalHold": st.get("legal_hold"),
+                  "action": "upload"}
+    save()
+    # exactly what B2 CLI 5.0.3 prints (console_tool.py, file upload _run)
+    url_id = st.get("url_file_id", st["file"]["fileId"])
+    if not st.get("no_url_lines"):
+        print("URL by file name: https://f003.backblazeb2.com/file/" + a[-3] + "/" + a[-1])
+        print("URL by fileId: https://f003.backblazeb2.com/b2api/v3/b2_download_file_by_id?fileId=" + url_id)
+    if st.get("upload_garbage"):
+        print("not json at all")
+    else:
+        out(st["file"])
 elif a[:2] == ["file", "info"]:
-    out(st["file"])
+    files = {f["fileId"]: f for f in st.get("listing", [])}
+    if "file" in st: files[st["file"]["fileId"]] = st["file"]
+    fid = a[2].split("b2id://", 1)[1]
+    out(files[fid])
+elif a[:1] == ["ls"]:
+    items = st.get("listing", [])
+    print("[")  # B2 CLI 5.0.3 --json format: "[", objects joined by ",", "]"
+    print(",".join(json.dumps(i, indent=2) for i in items))
+    print("]")
+elif a[:1] in (["rm"], ["delete-file-version"], ["hide-file"]) or a[:2] in (
+        ["file", "hide"], ["file", "update"], ["bucket", "delete"], ["key", "create"]):
+    sys.exit("fake b2: forbidden " + " ".join(a))
 else:
     sys.exit("fake b2: unsupported " + " ".join(a))
 """
@@ -293,3 +314,188 @@ def test_every_b2_call_is_wrapped():
             if "b2run" in code or m.group(1) in ("version",):
                 continue
             assert ">/dev/null 2>&1" in code, f"line {n}: unwrapped b2 call: {line.strip()}"
+
+
+# ------------------------------------------------------------------ upload parsing (5.0.3)
+def test_real_upload_output_with_url_lines_is_parsed(env):
+    """Regression: B2 CLI 5.0.3 prints two URL lines before the JSON (the live failure)."""
+    _, tmp = env
+    r = _run(env)
+    assert r.returncode == 0, r.stderr
+    info = next(c["argv"] for c in _calls(tmp) if c["argv"][:2] == ["file", "info"])
+    assert info[2] == "b2id://4_zfile1"
+    _no_secrets(r)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{"url_file_id": "4_zOTHERFILE"}, {"no_url_lines": True}, {"upload_garbage": True}],
+    ids=["mismatched-ids", "no-url-line", "no-json"],
+)
+def test_upload_output_that_cannot_be_trusted_stops_before_inspection(env, change):
+    _, tmp = env
+    _set(tmp, **change)
+    r = _run(env)
+    assert r.returncode != 0 and "could not be parsed or its file IDs disagree" in r.stderr
+    assert "--verify-canary" in r.stderr  # tells the owner how to proceed without re-uploading
+    assert not any(c["argv"][:2] == ["file", "info"] for c in _calls(tmp))
+    _no_secrets(r)
+
+
+# ------------------------------------------------------------------ --verify-canary
+GOV30 = {"mode": "governance", "period": {"duration": 30, "unit": "days"}}
+NAME = "diski9/canary/setup-20261122T160000Z.txt"
+
+
+def _canary(fid="4_zcanary1", ts=1795000000000, mode="governance", days=30, hold=None,
+            name=NAME, action="upload"):  # fmt: skip
+    return {"fileId": fid, "fileName": name, "action": action, "uploadTimestamp": ts,
+            "fileRetention": {"mode": mode, "retainUntilTimestamp": ts + days * 86400000},
+            "legalHold": hold}  # fmt: skip
+
+
+def _hide(ts=1795000000000 + 86400000 * 2, name=NAME):
+    return {
+        "fileId": "4_zhide1",
+        "fileName": name,
+        "action": "hide",
+        "uploadTimestamp": ts,
+        "fileRetention": {"mode": None, "retainUntilTimestamp": None},
+        "legalHold": None,
+    }
+
+
+def _verify(env, listing, bucket_retention=GOV30, answers="KEYID123\n"):
+    e, tmp = env
+    _set(tmp, listing=listing, bucket={"defaultRetention": bucket_retention})
+    return subprocess.run([str(SCRIPT), "--verify-canary", BUCKET], input=answers, env=e,
+                          capture_output=True, text=True, timeout=60)  # fmt: skip
+
+
+FORBIDDEN = (["bucket", "update"], ["file", "upload"], ["file", "hide"], ["file", "update"],
+             ["rm"], ["delete-file-version"], ["hide-file"], ["bucket", "delete"],
+             ["key", "create"])  # fmt: skip
+
+
+def _assert_read_only(tmp):
+    argvs = [c["argv"] for c in _calls(tmp)]
+    assert not any(a[: len(f)] == f for a in argvs for f in FORBIDDEN), argvs
+    assert all(a[:2] in (["bucket", "get"], ["file", "info"], ["account", "authorize"],
+                         ["account", "clear"]) or a[:1] in (["ls"], ["version"]) for a in argvs)  # fmt: skip
+
+
+@pytest.mark.parametrize(
+    "listing", [[_canary()], [_hide(), _canary()]], ids=["upload", "upload+hide"]
+)
+def test_verify_canary_reads_the_one_uploaded_version_without_changing_anything(env, listing):
+    _, tmp = env
+    before = _shm()
+    r = _verify(env, listing)
+    assert r.returncode == 0, r.stderr
+    ev = json.loads(r.stdout[r.stdout.index("{") : r.stdout.rindex("}") + 1])
+    assert ev["evidence"] == "diski9-f3-b2-canary-verification/1"
+    assert ev["canary"]["fileName"] == NAME and ev["canary"]["retentionMode"] == "governance"
+    assert ev["canary"]["lockDays"] == 30.0 and ev["canary"]["hideMarkers"] == len(listing) - 1
+    argvs = [c["argv"] for c in _calls(tmp)]
+    assert ["file", "info", "b2id://4_zcanary1"] in argvs  # the identified upload, not the marker
+    assert ["ls", "--json", "--versions", "-r", f"b2://{BUCKET}/diski9/canary/"] in argvs
+    _assert_read_only(tmp)
+    assert "Type GOVERNANCE" not in r.stdout  # no confirmation step: nothing to change
+    assert _shm() == before
+    _no_secrets(r)
+
+
+@pytest.mark.parametrize(
+    ("listing", "bucket_retention", "message"),
+    [
+        ([], GOV30, "cannot be identified unambiguously"),
+        ([_hide()], GOV30, "cannot be identified unambiguously"),
+        ([_canary(), _canary(fid="4_zcanary2", ts=1795000100000)], GOV30, "cannot be identified unambiguously"),
+        ([_canary(), _hide(ts=1795000000000 - 1000)], GOV30, "cannot be identified unambiguously"),
+        ([_canary(), _hide(name="diski9/canary/setup-20261122T170000Z.txt")], GOV30, "cannot be identified unambiguously"),
+        ([_canary(name="diski9/canary/other.txt")], GOV30, "cannot be identified unambiguously"),
+        ([_canary(action="start")], GOV30, "cannot be identified unambiguously"),
+        ([_canary(mode="compliance")], GOV30, "NOT governance-locked"),
+        ([_canary(mode=None)], GOV30, "NOT governance-locked"),
+        ([_canary(days=1)], GOV30, "does not expire ~30 days"),
+        ([_canary(hold="on")], GOV30, "unexpected legal hold"),
+        ([_canary()], {"mode": None}, "default retention is not governance/30 days"),
+    ],
+    ids=["none", "hide-only", "two-uploads", "hide-older-than-upload", "hide-other-name",
+         "unexpected-name", "unfinished-upload", "compliance", "no-lock", "short-lock",
+         "legal-hold", "bucket-not-governance"],
+)  # fmt: skip
+def test_verify_canary_fails_closed(env, listing, bucket_retention, message):
+    _, tmp = env
+    before = _shm()
+    r = _verify(env, listing, bucket_retention)
+    assert r.returncode != 0 and message in r.stderr, r.stderr
+    _assert_read_only(tmp)
+    assert _calls(tmp)[-1]["argv"] == ["account", "clear"] and _shm() == before
+    _no_secrets(r)
+
+
+def test_verify_canary_malformed_listing_fails_closed(env):
+    e, tmp = env
+    fake = tmp / "bin" / "b2"
+    fake.write_text(fake.read_text().replace('print("[")  #', 'print("<html>")  #'))
+    r = _verify(env, [_canary()])
+    assert r.returncode != 0 and "cannot be identified unambiguously" in r.stderr
+    _assert_read_only(tmp)
+
+
+def test_verify_canary_cleanup_failure_is_never_a_success(env, failing_rm):
+    _, tmp = env
+    r = _verify(env, [_canary()])
+    assert r.returncode == 70 and "CLEANUP FAILED" in r.stderr
+    assert "Generate New Master Application Key" in r.stderr
+    _assert_read_only(tmp)
+    _no_secrets(r)
+
+
+def test_verify_mode_code_path_contains_no_mutating_command():
+    """Static proof: the --verify-canary branch and the helpers it uses never contain a
+    bucket update, upload, hide, retention change or deletion."""
+    text = SCRIPT.read_text()
+    verify = text[
+        text.index('echo "== verify the existing canary') : text.index(
+            "\nfi\n", text.index('echo "== verify the existing canary')
+        )
+    ]
+    helpers = text[
+        text.index(
+            "# ---------------------------------------------------------------- helpers"
+        ) : text.index('if [ "$mode" = configure ]; then')
+    ]
+    for part in (verify, helpers):
+        code = "\n".join(line.split("#", 1)[0] for line in part.splitlines())
+        for word in (
+            "bucket update",
+            "file upload",
+            "file hide",
+            "file update",
+            " rm ",
+            "delete",
+            "hide-file",
+            "--default-retention-mode",
+            "bypass",
+        ):
+            assert word not in code, word
+    # and the mutating calls exist only inside the configure branch
+    configure = text[
+        text.index('if [ "$mode" = configure ]; then') : text.index(
+            'echo "== verify the existing canary'
+        )
+    ]
+    assert "bucket update" in configure and "file upload" in configure
+    assert (
+        text.count('b2run "retention update"') == 1 and text.count("file upload --no-progress") == 1
+    )
+
+
+def test_usage_rejects_extra_arguments(env):
+    e, tmp = env
+    r = subprocess.run([str(SCRIPT), "--verify-canary", BUCKET, "extra"], input="", env=e,
+                       capture_output=True, text=True)  # fmt: skip
+    assert r.returncode != 0 and "usage" in r.stderr
+    assert not (tmp / "log.jsonl").exists()
