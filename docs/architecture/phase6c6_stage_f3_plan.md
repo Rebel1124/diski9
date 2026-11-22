@@ -884,7 +884,8 @@ encrypted storage ≈ $2/month [A]; Tailscale Personal $0 (if eligible); domain 
 | **A→B staged (recommended):** Hetzner CX23, Supabase Free for the first 2 months of F3 build and soak, then Pro | $11.76 → $40.51 | none | ≈ $64 | ≈ $186 | ≈ $429 | ≈ $915 |
 | A→B staged with DigitalOcean 2 GB | $18.86 → $47.61 | none | ≈ $85 | ≈ $228 | ≈ $514 | ≈ $1,085 |
 
-Observations: option C is cheaper than B only from about month 20 onwards and carries
+Observations: option C becomes cheaper than B only after ≈ 15 months (against the
+DigitalOcean B) or ≈ 26 months (against the Hetzner B), and carries
 a sunk ≈ $243 that is lost if Diski 9 changes direction (refund only within 30 days),
 for 8 GB RAM that the measurements show is not needed. A and the staged option keep
 every cost cancellable monthly. Optional add-ons (if needed): Supabase IPv4 add-on
@@ -932,7 +933,7 @@ an MVP with a small number of users.
 | ID | Decision | Recommendation | Risk / consequence |
 |---|---|---|---|
 | F3-D16 | Supabase plan per phase | Free for F3 build and soak; Pro before the hosted recovery drills and F3 acceptance; Pro mandatory before F4 and F5 | Free: pausing risk, single recovery path until the upgrade, no IPv4 fallback, no leaked-password check |
-| F3-D17 | Hosting commitment model | monthly-billed 2 vCPU / 4 GB (min 2 GB) server in Germany; no 24-month prepayment at MVP stage (replaces the Hostinger-first ranking in F3-D1 **only if approved**) | higher cost than C only after ≈ 20 months; full flexibility |
+| F3-D17 | Hosting commitment model | monthly-billed 2 vCPU / 4 GB (min 2 GB) server in Germany; no 24-month prepayment at MVP stage (replaces the Hostinger-first ranking in F3-D1 **only if approved**) | costs more than C only after ≈ 15 months (DigitalOcean) or ≈ 26 months (Hetzner); full flexibility |
 | F3-D18 | Accept M3-only Auth recovery for F3 operator-only acceptance on Free (would amend S.8) | **not recommended**; if approved, M1 must be demonstrated before F4 | F3 accepted with one recovery path (off-host dump); no Supabase-native backup during F3 |
 | F3-D19 | Leaked-password protection requirement | required from F5 (participants); optional in F3 (owner/operator only, strong unique passwords and MFA on the Supabase dashboard) | if required in F3, Pro is needed from the start |
 
