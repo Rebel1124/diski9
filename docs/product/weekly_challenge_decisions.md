@@ -67,6 +67,24 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3: owner hosting direction (22 Nov 2026):**
+* **Owner preference (not purchase or implementation authorisation):** Hostinger KVM 2
+  VPS on **monthly billing** in Germany, with **Supabase Pro from the beginning**;
+  DigitalOcean Basic 2 vCPU / 4 GB Frankfurt retained as the fallback. Recorded in
+  `docs/architecture/phase6c6_stage_f3_plan.md` §V.
+* Owner-verified checkout: KVM 2 VPS (not shared hosting), one-month term, **$13.99
+  first month, renewal $24.49/month**, Germany at the same price, taxes displayed $0,
+  optional daily backups $6/month not selected.
+* Remaining checks before purchase: IPv6 on the Germany KVM 2 (not a blocker alone —
+  session pooler or the Supabase IPv4 add-on; lock-test failure still a hard stop),
+  provisioning in Frankfurt, and written uptime, backup and refund terms.
+* Proposed (open): F3-D1 Hostinger KVM 2 monthly subject to the checks; F3-D3 ≤ $75/month
+  all-in subject to final approval (estimated ≈ $51–56/month, worst case ≈ $66 with
+  optional daily backups and IPv4 add-on); F3-D14 24-month prepayment declined; F3-D16
+  Supabase Pro from the beginning; F3-D17 monthly billing only; new F3-D20 (daily
+  Hostinger backups optional) and F3-D21 (uptime-terms residual risk). No safeguard
+  weakened.
+
 **Phase 6C.6 Stage F3: hosting quality and final provider selection (22 Nov 2026):**
 * Owner direction: quality, reliability, security, operational simplicity and
   scalability over small savings; Supabase Pro from the start; monthly VPS billing;

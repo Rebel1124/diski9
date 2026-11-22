@@ -2,8 +2,10 @@
 
 **Status:** **accepted in principle by the owner (22 Nov 2026), subject to the
 refinements in §S**; a Lean MVP cost assessment is in §T and the **current
-quality-first provider recommendation (Supabase Pro from the start, monthly VPS
-billing) is in §U** — proposals, not approved decisions, which take precedence over earlier sections where they differ.
+quality-first provider assessment is in §U; the **owner's preferred hosting
+configuration (Hostinger KVM 2 monthly in Germany + Supabase Pro from the start,
+DigitalOcean as fallback) is in §V** — a preference, not purchase or implementation
+authorisation, which take precedence over earlier sections where they differ.
 Planning authorised 22 Nov 2026. **F3 implementation, provisioning and purchasing are
 not authorised.** Nothing in this plan has been provisioned,
 purchased, created or deployed: no hosting account, VM, domain, hosted Supabase
@@ -1069,6 +1071,67 @@ unchanged, no live API-Football calls.
 | F3-D18 | withdrawn (Pro from the start) |
 | F3-D19 | leaked-password protection **on from the start** |
 
+## V. Owner hosting direction (22 Nov 2026)
+
+**Owner-preferred F3 configuration (a preference, not authorisation to purchase,
+provision or begin F3): Hostinger KVM 2 VPS on monthly billing, in Germany, with
+Supabase Pro from the beginning.** DigitalOcean Basic 2 vCPU / 4 GB in Frankfurt is
+retained as the fallback if any material technical or operational requirement cannot
+be met. This supersedes the §U.4 ranking as the current proposal; §U remains the
+evidence record.
+
+### V.1 Checkout terms verified by the owner [V-owner]
+
+| Item | Verified |
+|---|---|
+| Product | **KVM 2 VPS** (2 vCPU, 8 GB RAM, 100 GB NVMe) — not shared website hosting |
+| Billing | **one-month term** |
+| Price | **$13.99 first month; renewal $24.49/month** |
+| Location | Germany available at the same price |
+| Taxes | displayed as **$0** at checkout (to be confirmed on the final invoice) |
+| Daily automatic backups | optional **$6/month**, not selected (weekly backups included per Hostinger documentation [V-doc]) |
+
+### V.2 Remaining checks before any purchase
+
+| # | Check | Current evidence | How to confirm (without buying) | If it fails |
+|---|---|---|---|---|
+| 1 | **IPv6** on the Germany KVM 2 VPS | not stated in Hostinger documentation; one dedicated IP per VPS [V-doc] | pre-sales chat (written answer) | not a blocker by itself: the app uses the Supabase **session pooler (IPv4)**; the scheduler uses the pooler if it passes the hosted lock tests, otherwise the **Supabase IPv4 add-on** (≈ $4/month) for the direct endpoint. If neither path passes the lock tests → **DigitalOcean fallback** (hard stop rule unchanged) |
+| 2 | **Frankfurt** as the provisioned data centre | Hostinger's German VPS data centre is in Frankfurt am Main [V-doc]; the location list shown at setup is authoritative and cannot be changed later | pre-sales chat; confirm "Germany" = Frankfurt; choose it at setup | another German/EU site with higher latency to Supabase `eu-central-1` → re-measure (§B targets); if targets are missed → DigitalOcean FRA1 |
+| 3a | **Uptime terms** | no published credit-backed uptime commitment found for VPS [A] | ask for the written VPS uptime/compensation terms | accepted as a known difference from DigitalOcean (99.99 % per Droplet) if the owner agrees; recorded as a residual risk, monitored through F3's 72-hour soak and `ops status` |
+| 3b | **Backup terms** | weekly automatic backups and a manual snapshot included; daily backups $6/month optional [V-owner/V-doc] | confirm retention and restore procedure in writing | the verified recovery path does **not** depend on Hostinger backups: Diski 9's own encrypted off-host backups (§I, §S.8) remain mandatory; Hostinger backups are a convenience only, so daily backups are optional |
+| 3c | **Refund terms** | help centre: KVM VPS refundable within 30 days of purchase (not crypto payments; 180-day cool-down); some regional legal pages differ [V-doc] | confirm the terms for a South African checkout in writing | with monthly billing the exposure is one month ($13.99 first month) |
+
+### V.3 Monthly cost (proposed ceiling $75 all-in, subject to approval)
+
+| Line | Month 1 | From month 2 |
+|---|---|---|
+| Hostinger KVM 2 (one-month term, tax displayed $0) | $13.99 | $24.49 |
+| Supabase Pro (Micro covered by the included credit) | $25.00 | $25.00 |
+| Off-host encrypted storage | ≈ $2.00 | ≈ $2.00 |
+| Tailscale / domain / monitoring | $0 | $0 |
+| **Total ex VAT** | **≈ $40.99** | **≈ $51.49** |
+| With 15 % VAT assumed on Supabase and storage only [A] | ≈ $45.04 | ≈ $55.54 |
+| Optional: Hostinger daily backups | +$6.00 | +$6.00 |
+| Optional: Supabase IPv4 add-on (only if needed, check 1) | +$4.00 | +$4.00 |
+| **Worst case with both optional items and assumed VAT** | – | **≈ $66.14** |
+
+All cases stay within the proposed **$75/month** ceiling; the DigitalOcean fallback is
+≈ $64/month incl. assumed VAT. No prepayment; the Hostinger 24-month promotion is
+declined.
+
+### V.4 Unchanged
+
+Technical fit as assessed in §U (full-root KVM: Linux, Gunicorn, systemd, Caddy, SQLite
+WAL, scheduler, Supabase connectivity, Tailscale/WireGuard, encrypted off-host backups
+— no architecture change). All F3 safeguards stay exactly as planned: private access
+with no public endpoint (S.2), TLS `verify-full` and session/direct connections only
+with transaction pooling prohibited and lock-test failure a hard stop (S.3), the Auth
+recovery scope and operator sign-in test (S.8), the provider hold recorded and verified
+in the restored target before any scheduler or provider-capable process connects (S.9),
+F3-R1 and F3-R2 as acceptance gates, D-39a, human-only publication, provider calls,
+refresh and Official off, D-29b unchanged, no live API-Football calls, no participant
+accounts.
+
 ## R. Decision record: owner decisions required (none approved yet)
 
 Every row is a **proposal**. "Status" is *open* until the owner records a decision; a
@@ -1076,9 +1139,9 @@ technical recommendation is not an owner decision.
 
 | ID | Decision for the owner | Technical recommendation | Verified facts it rests on | Unverified assumptions | Status |
 |---|---|---|---|---|---|
-| F3-D1 | Hosting provider and plan | **§U.4:** DigitalOcean Basic 2 vCPU/4 GB FRA1, monthly (rank 1); Hostinger KVM 2 Frankfurt 1-month term co-equal if pre-sales checks pass; Vultr; Hetzner if orderable | KVM 2 specs and promo/renewal prices [V-owner]; Hostinger Frankfurt DC, 30-day VPS refund [V-doc] | IPv6; VAT; refund terms for a South African checkout; renewal billing | open |
+| F3-D1 | Hosting provider and plan | **§V (owner preference):** Hostinger KVM 2, one-month billing, Germany/Frankfurt, subject to the §V.2 checks (IPv6, Frankfurt, uptime/backup/refund terms); fallback DigitalOcean Basic 2 vCPU/4 GB FRA1 | KVM 2 specs and promo/renewal prices [V-owner]; Hostinger Frankfurt DC, 30-day VPS refund [V-doc] | IPv6; VAT; refund terms for a South African checkout; renewal billing | open |
 | F3-D2 | Region | Frankfurt for Supabase and the VM | no Supabase African region; Hostinger/DigitalOcean Frankfurt [V-doc] | ZA page timings meet targets [T] | open |
-| F3-D3 | Spending ceilings | **§U.6:** ≤ $75/month all-in incl. VAT, alert at $65; no prepayment (earlier proposals superseded if approved) | Supabase Pro $25 incl. $10 credit [V-doc] | VAT, FX fees, storage cost | open (proposal only) |
+| F3-D3 | Spending ceilings | **§V.3 (owner proposal):** ≤ $75/month all-in, subject to final approval; alert at $65; no prepayment | Supabase Pro $25 incl. $10 credit [V-doc] | VAT, FX fees, storage cost | open (proposal only) |
 | F3-D4 | Create the hosted Supabase project (owner action) | Pro, Micro, Frankfurt, SSL enforcement on, signups off after bootstrap | Pro/Micro pricing [V-doc] | – | open |
 | F3-D5 | Database connection mode | app: session pooler; scheduler: direct over IPv6 if available, else session pooler; IPv4 add-on ($4/month) only if lock tests fail on the pooler | session pooler is IPv4; direct is IPv6 unless add-on [V-doc] | VPS IPv6 [T]; pooler keeps advisory locks [T] | open |
 | F3-D6 | Private-access method | Tailscale (no inbound ports, `ts.net` HTTPS); fallback self-hosted WireGuard | Tailscale Personal free up to 6 users, non-commercial [V-doc] | eligibility under "non-commercial" for Diski 9 | open |
@@ -1090,11 +1153,13 @@ technical recommendation is not an owner decision.
 | F3-D12 | External uptime monitor | not used in F3 (no public endpoint); on-host timer + tailnet check | – | – | open |
 | F3-D13 | Accounts in F3 | owner plus at most one operator; no participants | – | – | open |
 | F3-D15 | Where the off-host CLI dump (incl. `auth`) runs and who holds the database owner password | on the VM with the owner password in `~diski9/.pgpass` (0600) and encrypted upload, or from the owner's machine; recommendation: VM, with the credential scoped and rotated after F3 | Supabase CLI backup path includes `auth.users` [V-doc] | – | open |
-| F3-D16 | Supabase plan (§T, §U) | **Supabase Pro from the start of F3** (owner preference, §U.5); Pro mandatory for F4/F5 | Free: no backups, pausing, no IPv4 add-on [V-doc] | Free connection limits; leaked-password feature tier | open |
-| F3-D17 | Hosting commitment model (§T, §U) | monthly-billed VPS, 2 vCPU / 4 GB class in Frankfurt; no prepayment | measured ≈ 94 MB per worker [M]; Hetzner CX23 price [V-doc] | CX23 orderable on the day | open |
+| F3-D16 | Supabase plan (§T, §U, §V) | **Supabase Pro from the beginning of F3** (owner preference); Pro mandatory for F4/F5 | Free: no backups, pausing, no IPv4 add-on [V-doc] | Free connection limits; leaked-password feature tier | open |
+| F3-D17 | Hosting commitment model (§T, §U, §V) | **monthly VPS billing only** (owner preference); 2 vCPU class (Hostinger KVM 2: 2 vCPU / 8 GB) | measured ≈ 94 MB per worker [M]; Hetzner CX23 price [V-doc] | CX23 orderable on the day | open |
 | F3-D18 | Accept M3-only Auth recovery for F3 on Free (amends S.8) | **withdrawn** (Supabase Pro from the start) | Free has no daily backups [V-doc] | – | open |
-| F3-D19 | Leaked-password protection requirement | **on from the start of F3** (available on Pro) | – | Free-tier availability | open |
-| F3-D14 | Buy the Hostinger promotion before F3 implementation is authorised | **§U.6: decline** (monthly billing preferred); earlier conditional recommendation in S.6 | promo ends 14 Dec 2026; term starts at purchase [V-owner/V-doc] | non-promo 24-month price [A] | open |
+| F3-D19 | Leaked-password protection requirement | **on from the start of F3** (available on Pro) |
+| F3-D20 | Hostinger daily automatic backups ($6/month) | optional; not required, because Diski 9's encrypted off-host backups are the verified recovery path | – | – | open |
+| F3-D21 | Accept the absence of a published credit-backed VPS uptime commitment (if pre-sales confirms none) | owner's call; residual risk monitored during F3; DigitalOcean fallback otherwise | DigitalOcean 99.99 % per Droplet [V-doc] | Hostinger terms [A] | open | – | Free-tier availability | open |
+| F3-D14 | Buy the Hostinger promotion before F3 implementation is authorised | **declined per owner preference** (monthly billing only; no 24-month prepayment) | promo ends 14 Dec 2026; term starts at purchase [V-owner/V-doc] | non-promo 24-month price [A] | open |
 
 Nothing is purchased, reserved or created until the relevant decisions are approved in
 writing, and F3 implementation needs its own separate authorisation.
