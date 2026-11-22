@@ -98,7 +98,7 @@ on the owner's instruction.
 | CP | Work | Gate (hard stop unless stated) |
 |---|---|---|
 | **0** | owner setup instructions, scripts, prerequisites, checklists (**this document**) | owner review |
-| **1** | owner accounts and purchases (§4); day-one host check | **G1**: IT-1 Frankfurt RTT, IT-2 IPv6 (else session pooler or IPv4 add-on), IT-9 console. A failure means a fallback decision inside the refund window |
+| **1** | owner accounts and purchases (§4); day-one host check | **G1**: IT-1 VPS-to-Supabase database RTT **p95 strictly below 10 ms** (methodology: plan §Z.8; it also decides final acceptance of the Düsseldorf location, F3-D1a/F3-D2a), IT-2 IPv6 (else session pooler or IPv4 add-on), IT-9 console. A failure means a fallback decision inside the refund window |
 | 2 | host hardening; WireGuard; private HTTPS (one-shot CA); public SSH closed | **G2 (private network access)**: only the WireGuard UDP port reachable from the internet (external scan); site and SSH only through the tunnel; certificate trusted on each real device (IT-6) |
 | 3 | application install at a recorded commit; Supabase configuration (migrations to `app_0007`, Auth settings, email templates, owner bootstrap); database TLS | **G3a (database TLS)**: `verify-full` with the pinned CA on every endpoint; plaintext refused (IT-4, IT-10). **G3b (hosted advisory locking)**: the Stage D lock probe passes on the chosen scheduler endpoint (IT-3). Any failure stops F3 |
 | 4 | backups: restricted backup role (IT-11), B2 key tests N1–N9/P1 (IT-7), nightly encrypted copies for ≥ 3 nights, weekly inventory | **G4 (backup credential restrictions)**: every negative test refused as specified; restricted role proven; levels 1–3 in `ops status` |
@@ -241,7 +241,10 @@ as possible.
 1. Create a Hostinger account with **two-factor authentication on**.
 2. **Buy:**
    * product **KVM 2**, **1-month** term;
-   * location **Germany** (confirm that hPanel shows **Frankfurt**);
+   * location **Germany** (confirm that hPanel shows **Frankfurt**). *Provisioned VPS:
+     Düsseldorf, Hostinger's only German location as the owner reports it. Kept under
+     amendment F3-D1a/F3-D2a, **conditionally approved for Stage F3**; final acceptance
+     on IT-1 PASS (plan §Z);*
    * **no** daily backups add-on;
    * **no** other add-ons;
    * pay by card.
@@ -295,11 +298,19 @@ The check is read-only:
 **Return:** the full JSON output.
 
 **G1:**
-* **IT-1** PASS needs the median connection time ≤ 10 ms to the Supabase hosts.
+* **IT-1** PASS needs the **RTT p95 strictly below 10 ms** to every Supabase host, in
+  every address family that connects, with at least 95 % of samples succeeding.
+  * Each sample is one TCP handshake: no TLS, no login, no data.
+  * 100 samples per host and family, 0.2 s apart (about 1–2 minutes in total).
+  * Methodology: plan §Z.8.
+  * IT-1 PASS is also the condition for final acceptance of the Düsseldorf VPS
+    location.
 * **IT-2** PASS needs a working IPv6 connection to the direct host. If IT-2 fails, the
   scheduler uses the session pooler, or the IPv4 add-on if the Checkpoint 3 lock test
   needs it. It is **not** a refund trigger on its own.
-* A persistent IT-1 failure is a fallback trigger (§X.4).
+* A single IT-1 FAIL is repeated at a different time of day. FAIL on two different days
+  is persistent: the DigitalOcean Frankfurt fallback applies (§X.4). Decide before
+  day 25 (17 Dec 2026), inside the refund window and before the 22 Dec auto-renewal.
 
 ### O-6 Backblaze B2 (no payment until data is stored; first 10 GB free)
 
@@ -474,10 +485,11 @@ Any mismatch fails **G5**.
 - [ ] O-3: Supabase Pro, spend cap on; project `diski9-f3` in `eu-central-1`, Micro; SSL
   enforcement on; signups off; leaked-password protection on; CA certificate saved;
   host names noted; no key shared.
-- [ ] O-4: Hostinger KVM 2, 1-month, Germany/Frankfurt, Ubuntu 24.04, no add-ons; MFA on;
+- [ ] O-4: Hostinger KVM 2, 1-month, Germany (provisioned in Düsseldorf: F3-D1a/F3-D2a
+  conditionally approved, final on IT-1 PASS), Ubuntu 24.04, no add-ons; MFA on;
   SSH key login; console works; purchase date and day-25 reminder recorded; invoice
   amounts.
-- [ ] O-5: day-one JSON: IT-1 PASS; IT-2 PASS or the fallback path recorded; system
+- [ ] O-5: day-one JSON (`diski9-f3-day1/2`): IT-1 PASS (RTT p95 < 10 ms); IT-2 PASS or the fallback path recorded; system
   facts (2 vCPU / 8 GB / ~100 GB).
 - [ ] O-6: B2 EU Central; bucket with Object Lock Governance 30 days; lifecycle rules;
   caps; **no keys created yet**.

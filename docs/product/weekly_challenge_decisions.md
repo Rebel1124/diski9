@@ -67,6 +67,35 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3: Düsseldorf VPS location amendment — conditionally approved (22 Nov 2026):**
+* **Owner-reported:**
+  * the Hostinger KVM 2 VPS was provisioned in **Düsseldorf** (reported as Hostinger's
+    only German location);
+  * the Supabase Pro project is in Frankfurt (`eu-central-1`, Micro);
+  * first payment USD 12.64 including USD 1.65 tax.
+* The pre-sales AI statement "Frankfurt" and the checkout's "taxes $0" are contradicted.
+* **Owner decision:** **F3-D1a** (keep the provisioned Hostinger VPS in Düsseldorf;
+  DigitalOcean FRA1 fallback unchanged) and **F3-D2a** (VPS Düsseldorf, Supabase
+  Frankfurt, backups Amsterdam) are **approved in principle for Stage F3 only**, with
+  corrections.
+  * **Final acceptance requires the hosted IT-1 measurement to pass.**
+  * IT-1 is preserved exactly: VPS-to-Supabase database RTT **p95 strictly below
+    10 ms**. Only the location clause "VPS really in Frankfurt" is replaced. It must not
+    be replaced by connection-establishment time, which includes TLS and
+    authentication.
+  * The measurement methodology is documented separately for explicit review (plan
+    §Z.8): TCP-handshake RTT samples, 100 per target and family, nearest-rank p95, a
+    95 % success floor, and persistence meaning FAIL on two different days.
+  * Persistent failure invokes the DigitalOcean Frankfurt fallback and the refund-window
+    decision (by 17 Dec 2026).
+* **Unchanged:** Supabase in Frankfurt; TLS, private-access, backup, recovery,
+  scheduler-locking and spending controls; Stage F3–F6 boundaries.
+* **Kept out of the repository:** the public VPS address, host name and credentials.
+* **Correction:** the Checkpoint 0 day-one script had evaluated a median ≤ 10 ms. It now
+  evaluates the approved p95 < 10 ms.
+* Cost re-estimate with tax: about $59/month from month 2. In a drill month with the
+  IPv4 add-on it is about $69, above the $65 alert and within the $75 ceiling.
+
 **Phase 6C.6 Stage F3: controlled implementation authorisation; Checkpoint 0 (22 Nov 2026):**
 * **Owner authorisation:** the owner authorised Stage F3 implementation, subject to the
   approved architecture, decisions, spending limits and checkpoint controls.

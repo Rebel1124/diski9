@@ -1345,7 +1345,7 @@ Nothing purchased, provisioned or accessed. Deliverables:
 | `deploy/f3/owner/f3-make-age-identities.sh` | two passphrase-encrypted `age` identities; plaintext private keys exist only in a pipe; round-trip decryption with each identity |
 | `deploy/f3/owner/f3-sign-server-cert.sh`, `lib-ramdir.sh` | one-shot private CA generated in a RAM disk (macOS `hdiutil`) or tmpfs (Linux; refused otherwise); signs one EC P-256 server certificate with `subjectAltName=IP:10.88.0.1` only, 180 days, no name constraints; verifies; destroys the CA key and the RAM disk |
 | `deploy/f3/host/f3-make-server-csr.sh` | server key generated on the server (never leaves it), CSR for the owner to sign; refuses to replace a key without `--rotate` |
-| `deploy/f3/host/f3_day1_check.py` | read-only day-one check (IT-1 RTT ≤ 10 ms to the Supabase hosts, IT-2 IPv6, listening ports, system facts); public IPs masked; contacts only the hosts the owner names |
+| `deploy/f3/host/f3_day1_check.py` | read-only day-one check (IT-1 as implemented at Checkpoint 0: median connect ≤ 10 ms, corrected in §13.3 to the approved RTT p95 < 10 ms; to the Supabase hosts, IT-2 IPv6, listening ports, system facts); public IPs masked; contacts only the hosts the owner names |
 | `tests/test_f3_checkpoint0.py` | 12 tests: strict, parseable scripts; no secret from the environment; CA end to end (one IP-SAN leaf matching the server key, no DNS SAN, no name constraints, 180 days, wrong IP refused, no key left in output or tmpfs); refusals (non-tunnel IP, > 397 days, existing output, non-P-256 CSR); `age` identities on a pseudo-terminal (encrypted at rest, two distinct recipients, both decrypt, no secret printed, no overwrite); day-one masking and evaluation rules; read-only run |
 | CI | installs `age` for the new tests (the only workflow change; timeout unchanged) |
 | Documentation | F3-D7 now states the WireGuard IP origin `https://10.88.0.1` (stale `ts.net` reference corrected; Tailscale/`ts.net` sections marked superseded); plan, roadmap and hosting status updated |
@@ -1380,3 +1380,45 @@ first exercised on the owner's Mac in step O-2. Three new tests.
 **STOP:** Checkpoint 1 (the owner's accounts and purchases, then the day-one check)
 starts only on the owner's instruction.
 
+### 13.3 Checkpoint 1: VPS location amendment — **conditionally approved for Stage F3**
+The owner purchased and provisioned the Hostinger KVM 2 VPS (22 Nov 2026; 2 vCPU, 8 GB,
+100 GB, Ubuntu 24.04 LTS, monthly, auto-renewal on; first payment USD 12.64 including
+USD 1.65 tax) and created the Supabase Pro project in Frankfurt (`eu-central-1`, Micro).
+
+The VPS was provisioned in **Düsseldorf**, which the owner reports is Hostinger's only
+German location. The approved F3-D1 and F3-D2 specify Frankfurt.
+
+**Owner decision (22 Nov 2026):** F3-D1a and F3-D2a are approved in principle, with
+corrections, for Stage F3 only (plan
+[`phase6c6_stage_f3_plan.md`](phase6c6_stage_f3_plan.md) §Z).
+* **Final acceptance requires the hosted IT-1 measurement to pass.**
+* IT-1 is preserved exactly as approved: VPS-to-Supabase database RTT, p95 strictly
+  below 10 ms. It is not to be replaced by a connection-establishment time.
+* The measurement methodology is documented separately for review (§Z.8).
+* If IT-1 fails persistently, the DigitalOcean Frankfurt fallback and the refund-window
+  process apply.
+* Supabase stays in Frankfurt, and every other control is unchanged.
+
+**Correction made:** the Checkpoint 0 day-one script and runbook had evaluated IT-1 as a
+median of 10 TCP connection times ≤ 10 ms, a deviation from the approved p95 < 10 ms
+that had not yet been exercised. `f3_day1_check.py` (report format
+`diski9-f3-day1/2`) now:
+* takes 100 spaced RTT samples per target and address family (TCP handshake only);
+* computes the nearest-rank p95;
+* applies the strict `< 10 ms` rule, requires ≥ 95 % successful samples, and evaluates
+  every connecting family.
+
+Tests updated: a nearest-rank p95 test, and a test of the strict IT-1 rule (exactly
+10 ms fails; every family must pass; lossy runs fail).
+
+No VPS or Supabase access was made. The public address, host name and credentials are
+not recorded in the repository.
+
+**Checkpoint 1 evidence outstanding:**
+* O-1 SSH fingerprint;
+* O-2 recipients and the **offline recovery copy**;
+* O-3 Supabase settings confirmation;
+* O-4 data-centre name, console check and SSH host-key fingerprint;
+* O-5 day-one check (IT-1, IT-2);
+* O-6 Backblaze;
+* O-7 WireGuard apps.

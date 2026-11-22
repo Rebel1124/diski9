@@ -1,7 +1,8 @@
 # Phase 6C.6 Stage F3 — Private Environment and Recovery: implementation plan
 
 **Status:** **accepted in principle by the owner (22 Nov 2026), subject to the
-refinements in §S**; a Lean MVP cost assessment is in §T and the **current
+refinements in §S**; **the Düsseldorf VPS location amendment (F3-D1a/F3-D2a,
+conditionally approved for Stage F3; final acceptance on IT-1 PASS) is in §Z**; a Lean MVP cost assessment is in §T and the **current
 quality-first provider assessment is in §U; the **owner's preferred hosting
 configuration (Hostinger KVM 2 monthly in Germany + Supabase Pro from the start,
 DigitalOcean as fallback) is in §V**, the **Hostinger pre-sales findings are in §W**, and the **final owner decisions and the
@@ -1159,7 +1160,7 @@ support agent** (useful, but not a contractual commitment); **[open]** still unk
 | Topic | Finding | Strength | Consequence |
 |---|---|---|---|
 | Product and billing | KVM 2 VPS (not shared hosting), one-month billing, **$13.99 first month, $24.49/month renewal**, Germany available at the same price, taxes displayed **$0**, optional daily backups **$6/month** | **[C]** owner's checkout | basis of the cost estimate (§V.3); taxes to be confirmed on the first invoice |
-| Location | German VPS data centre is in **Frankfurt** | **[AI]**, consistent with Hostinger's published Frankfurt data-centre announcement [V-doc] | select Frankfurt at setup (cannot be changed later); measure latency to Supabase `eu-central-1` on day one (§B) |
+| Location | German VPS data centre is in **Frankfurt** — *contradicted by provisioning: the VPS was provisioned in Düsseldorf (§Z)* | **[AI]**, consistent with Hostinger's published Frankfurt data-centre announcement [V-doc] | select Frankfurt at setup (cannot be changed later); measure latency to Supabase `eu-central-1` on day one (§B) |
 | IPv6 | **outbound IPv6** available on KVM 2 when configured in the OS/network settings | **[AI]** | verify on the host on day one (`ip -6 addr`, `ping -6`, TCP to the Supabase direct endpoint); if absent, session pooler or the Supabase IPv4 add-on (§V.2); lock-test failure remains a hard stop |
 | Uptime | VPS plans "include an uptime guarantee"; **percentage and compensation terms not provided**; checkout advertises an uptime guarantee | **[AI]** + checkout wording; **no verified credit-backed SLA** | owner accepts as a documented F3 residual risk (F3-D21); monitoring and recovery requirements unchanged |
 | Backups | included backup frequency/retention **not confirmed** | **[open]** | irrelevant to acceptance: Diski 9's independent encrypted off-host backups (§I, §S.8) are mandatory; no Hostinger backup is relied on (F3-D20) |
@@ -1269,7 +1270,7 @@ none of them can be settled on paper):
 
 | Check | When | If it fails |
 |---|---|---|
-| IT-1 VPS really in Frankfurt (hPanel data centre; RTT to Supabase `eu-central-1` p95 < 10 ms) | day 1 | cancel within the refund window, then DigitalOcean FRA1 |
+| IT-1 VPS really in Frankfurt (hPanel data centre; RTT to Supabase `eu-central-1` p95 < 10 ms) — *location clause replaced by F3-D1a/F3-D2a (conditionally approved, §Z); the latency requirement RTT p95 < 10 ms is unchanged* | day 1 | cancel within the refund window, then DigitalOcean FRA1 |
 | IT-2 Outbound IPv6 works; direct database endpoint reachable | day 1 | session pooler, else IPv4 add-on (≈ $4) |
 | IT-3 Hosted advisory-lock tests on the chosen scheduler endpoint | before the soak | **hard stop**; owner decides (IPv4 add-on or DigitalOcean) |
 | IT-4 `verify-full` TLS with the pinned Supabase CA on both endpoints; SSL enforcement refuses plaintext | build | stop until fixed |
@@ -1757,6 +1758,202 @@ evidence, or is an implementation-time check with a defined stop rule and a fall
 
 None of them can be settled before purchase.
 
+## Z. Amendment: Hostinger VPS in Düsseldorf (22 Nov 2026) — **conditionally approved for Stage F3**
+
+**Status: CONDITIONALLY APPROVED IN PRINCIPLE** by the owner (22 Nov 2026), with
+corrections, **for Stage F3 only**.
+* F3-D1a and F3-D2a amend F3-D1 and F3-D2. The Frankfurt decision was never read as
+  permitting Düsseldorf: the location is accepted only through this explicit amendment.
+* **Final acceptance of the Düsseldorf location requires the hosted IT-1 measurement to
+  pass**, with IT-1 exactly as originally approved (Z.5).
+* Until IT-1 passes, the location is conditional. If IT-1 fails persistently, the
+  existing DigitalOcean Frankfurt fallback and the refund-window decision process apply.
+* No VPS or Supabase access was made in preparing this section. The public address,
+  host name and credentials are not recorded in the repository.
+
+### Z.1 What happened (owner-reported, Checkpoint 1)
+
+| Item | Owner-reported fact | Evidence label |
+|---|---|---|
+| VPS | Hostinger KVM 2 (2 vCPU, 8 GB, 100 GB), Ubuntu 24.04 LTS, monthly, auto-renewal on, running, SSH public key supplied, root password in the password manager | [V-owner] |
+| **Location** | **Düsseldorf, Germany.** The owner reports Düsseldorf appears to be Hostinger's only German VPS location | [V-owner] |
+| Purchase | 22 Nov 2026; first payment **USD 12.64 including USD 1.65 tax**; expiry 22 Dec 2026 | [V-owner] invoice |
+| Supabase | Pro project created in **Frankfurt (`eu-central-1`)**, Micro compute | [V-owner] |
+
+Consequences for earlier evidence:
+* The pre-sales **[AI]** statement "German VPS data centre is in Frankfurt" (§W.1) is
+  **contradicted** by provisioning. The checkout's "taxes displayed $0" **[C]** is
+  superseded by the invoice: tax is charged at about 15 % (1.65 / 10.99).
+* This confirms why §W.1 kept AI statements apart from binding terms, and why IT-1
+  measures instead of trusting a label.
+
+### Z.2 Everything that depends on "Frankfurt" for the VPS
+
+| Location | Text | Kind | Proposed change |
+|---|---|---|---|
+| §R F3-D1 (decision table) and §X.1(a) F3-D1 | "Hostinger KVM 2 … Germany/Frankfurt" | **approved decision** | superseded by **F3-D1a** if approved (row kept; status note) |
+| §R F3-D2 and §X.1(a) F3-D2 | "Frankfurt for both the VPS and Supabase" | **approved decision** | superseded by **F3-D2a** (VPS Düsseldorf, Supabase Frankfurt) |
+| §X.1(d) IT-1 | "VPS really in Frankfurt (hPanel data centre; RTT to Supabase `eu-central-1` p95 < 10 ms)" | **implementation-time check** | the location clause ("really in Frankfurt") is replaced by the approved Düsseldorf location; **the latency requirement is preserved exactly: VPS-to-Supabase database RTT p95 strictly below 10 ms** (Z.5) |
+| §X.4 fallback trigger 1 | "IT-1 fails (not Frankfurt, or RTT target missed persistently)" | fallback rule | "IT-1 fails (RTT target missed persistently)" |
+| §X.5 step O-3, §W.2, §V | "Germany/Frankfurt" purchase instructions | historical instructions | marked superseded by §Z |
+| §B | "VM in Frankfurt … A Frankfurt VM with a Frankfurt database adds ~1–10 ms per query" | design rationale | **principle unchanged** (the app stays next to the database); Düsseldorf ~180 km away is expected to remain inside the 1–10 ms band, to be measured |
+| §W.1 Location row | Frankfurt [AI] | evidence | annotated as contradicted by provisioning |
+| §W.3, §X.4, F3-D1 fallback | "DigitalOcean … Frankfurt (FRA1)" | fallback | **unchanged**: still the fallback if Z.5 fails |
+| `docs/operations_f3_owner_setup.md` §2 (G1 "IT-1 Frankfurt RTT"), §4 O-4 ("confirm that hPanel shows Frankfurt"), §8.2 ("Germany/Frankfurt") | runbook | owner instructions | reworded (Z.6) |
+| `deploy/f3/host/f3_day1_check.py` | IT-1 evaluated as "median TCP connect ≤ 10 ms" over 10 samples (Checkpoint 0) | script | **corrected to the approved criterion**: RTT p95 strictly below 10 ms over 100 spaced samples per target and address family; methodology in Z.8 |
+| `docs/architecture/phase6c6_implementation.md` §13 "Germany/Frankfurt" | record of the authorisation | historical record | unchanged (it records what was authorised); §13.3 records the discrepancy |
+| `docs/product/weekly_challenge_decisions.md` F3 entries | register | historical record | unchanged; a new proposed-amendment entry |
+| Supabase `eu-central-1` (F3-D4, §S.3, §Y.1, runbook O-3) | database region | approved | **unchanged** |
+
+**Not location-dependent (verified by search):**
+* No test, configuration validator, environment template, systemd unit, Caddy template
+  or application code refers to Frankfurt or to the VPS location.
+* `f3_day1_check.py` evaluates measured times only (no location).
+* **Pre-existing discrepancy found:** the Checkpoint 0 script and runbook evaluated IT-1
+  as a *median ≤ 10 ms* of 10 TCP connections, not the approved *p95 < 10 ms*. This is
+  corrected here, before IT-1 has ever been run.
+* `tests/test_f3_checkpoint0.py` and `tests/test_f2_deploy_templates.py` contain no
+  location assumption.
+
+### Z.3 Technical assessment: Düsseldorf VPS with a Frankfurt database
+
+| Area | Assessment |
+|---|---|
+| Latency | The design rule (§B) is that the app sits next to the database because each page makes several database round trips. Düsseldorf–Frankfurt is ≈ 180 km straight line; typical metro-to-metro fibre round trips are a few milliseconds, against ≈ 1 ms inside one Frankfurt facility. **Expected** to stay below IT-1's 10 ms threshold, but **unmeasured** [T]. For a page with ~10–20 sequential queries, an extra ~3–5 ms per query adds ~30–100 ms server time, small against the ≈ 160–180 ms South Africa–Germany round trip each user already pays. The F3 page targets (§B, IT-5) remain the acceptance test |
+| Advisory locking (Stage D) | The session-scoped lock is held over one connection, so distance changes timing, not semantics. The existing lock and statement timeouts are seconds, orders of magnitude above the added milliseconds. The hosted lock probe (IT-3, **G3b hard stop**) is unchanged and decides |
+| Database TLS | `sslmode=verify-full` checks the **server's** certificate and host name (Supabase endpoints) against the pinned CA. The client's location plays no part. SSL enforcement still refuses plaintext. **Unchanged** (IT-4, G3a) |
+| IPv6 / connection modes | The VPS location does not change the F3-D5 rule. IPv6 availability is a property of the Hostinger network and is measured by IT-2 as before |
+| Private access (WireGuard, IP-SAN HTTPS) | WireGuard terminates on the VPS whatever city it is in. The tunnel address `10.88.0.1`, certificate, cookies and Supabase Auth flow are location-independent. **Unchanged** (G2) |
+| Backups and recovery | B2 EU Central (Amsterdam) is a different provider and city from both the VPS and the database. Off-host independence is unchanged; the VPS is if anything slightly further from the database's failure domain. The drills (M1/M3, target-first hold, operator sign-in, completeness §Y.3/runbook §6) are unchanged |
+| Data residency | VPS and database both in **Germany (EU)**, backups in the Netherlands (EU). No F3 constraint names a city; participant data does not exist in F3. The F5 privacy statement (D-36) must list Düsseldorf, Frankfurt and Amsterdam |
+| Operational complexity | None added: same provider, same services, same scripts. One more fact to record (two cities) |
+| Cost controls | The location has no cost effect. **The invoice shows Hostinger charges ≈ 15 % tax**, which §X.7 assumed was $0 — see Z.4 |
+| Acceptance criteria | Unchanged. IT-1's latency requirement is preserved exactly (RTT p95 < 10 ms); only its location clause changes. No gate is relaxed |
+
+### Z.4 Cost re-estimate (tax now evidenced on Hostinger)
+
+| Line | From month 2 |
+|---|---|
+| Hostinger KVM 2 $24.49 + ≈ 15 % tax | ≈ $28.16 |
+| Supabase Pro $25 + 15 % VAT assumed | ≈ $28.75 |
+| Backblaze B2 allowance (+ VAT) | ≤ $2.30 |
+| **Total** | **≈ $59.21** |
+| + IPv4 add-on if needed (+ VAT) | ≈ $63.81 |
+| + drill-month temporary project compute (estimate ≈ $5) | **≈ $68.81: above the $65 alert, below the $75 ceiling** |
+
+* The ceiling holds in every case.
+* The $65 alert would trigger only in a drill month **and** only if the IPv4 add-on is
+  needed. The alert is doing its job; no spending control changes.
+* Month 1 actual: Hostinger $12.64, plus the Supabase invoice.
+
+### Z.5 Conditions of the amendment and hosted verification
+
+No new service, cost or access is introduced; everything runs in the existing
+checkpoints.
+1. **IT-1, unchanged requirement (Checkpoint 1, O-5, gate G1):**
+   * Requirement: **VPS-to-Supabase database RTT, p95 strictly below 10 ms**, to the
+     Supabase `eu-central-1` endpoints the application uses (the session pooler and
+     `db.<ref>.supabase.co`, port 5432).
+   * Measured with `f3_day1_check.py` per the methodology in Z.8.
+   * **Final acceptance of F3-D1a/F3-D2a requires IT-1 PASS.**
+2. **Representative connection and query latency (Checkpoint 3, informational):**
+   * Measure from the VPS: TLS connection set-up time and the `SELECT 1` round trip
+     (≥ 100 samples, p50/p95) over `verify-full` with the application role.
+   * Also measure a representative page's database time.
+   * These are **reported, not an acceptance condition**. Connection set-up includes TLS
+     and authentication and is not RTT.
+   * Making any of them a gate would be a new requirement for explicit owner review.
+   * The existing F3 page targets (§B, IT-5) remain as approved.
+3. **TLS still enforced (Checkpoint 3, G3a, unchanged):**
+   * `verify-full` succeeds with the pinned CA on every endpoint used.
+   * `sslmode=disable` is refused.
+   * A wrong CA or host name fails.
+4. **Locking (Checkpoint 3, G3b, unchanged):** the hosted lock probe passes. This is a
+   hard stop.
+5. **Controls unchanged (Checkpoints 2–5):**
+   * G2: only the WireGuard UDP port is public;
+   * G4: backup credential restrictions, N1–N9/P1 and IT-11;
+   * G5: recovery validation.
+   * All evidence is labelled hosted.
+6. **If IT-1 fails persistently** (repeated runs on different days and times), the
+   existing §X.4 fallback applies: DigitalOcean Basic 2 vCPU / 4 GB **FRA1**.
+   * The owner decides **before day 25 (17 Dec 2026)**, inside Hostinger's 30-day
+     money-back period (ending about 22 Dec 2026).
+   * Auto-renewal is on, so the decision must precede the 22 Dec renewal.
+
+### Z.6 Decisions
+
+| ID | Decision | Supersedes | Status |
+|---|---|---|---|
+| **F3-D1a** | The Stage F3 VPS is the provisioned **Hostinger KVM 2 in Düsseldorf, Germany** (monthly billing). DigitalOcean Basic 2 vCPU / 4 GB FRA1 remains the fallback | the location part of F3-D1 (provider, plan, billing unchanged) | **conditionally approved** (Stage F3 only; final acceptance on IT-1 PASS) |
+| **F3-D2a** | Region split: **VPS Düsseldorf, Supabase Frankfurt (`eu-central-1`)**, backups Amsterdam (B2 EU Central), all in the EU. IT-1 is unchanged: VPS-to-Supabase database RTT p95 strictly below 10 ms; only the location clause "VPS really in Frankfurt" is replaced | the VPS part of F3-D2 (the Supabase region is unchanged) | **conditionally approved** (Stage F3 only; final acceptance on IT-1 PASS) |
+
+What the approval covers:
+* keeping the existing VPS;
+* continuing Checkpoint 1 with IT-1 as approved;
+* the documentation and script corrections in Z.2.
+
+It changes none of the following:
+* spending limits, services or the Supabase region;
+* TLS, private-access, backup, recovery or scheduler-locking controls;
+* gates, safeguards or Stage F3/F4/F5/F6 boundaries;
+* provider calls, refresh, public access or participants;
+* the D-29b schedule.
+
+### Z.7 Recommendation (accepted by the owner, conditionally)
+**Accept Düsseldorf, conditionally.**
+* The architecture's real requirement is database proximity, not a city name. Düsseldorf
+  to Frankfurt is very likely to meet the unchanged 10 ms criterion.
+* Every security, TLS, private-access, backup and recovery control is
+  location-independent.
+* Changing provider now would add cost and delay for no expected technical gain.
+* If the measurements fail, the pre-approved DigitalOcean FRA1 fallback applies inside
+  the refund window.
+
+### Z.8 IT-1 RTT measurement methodology (for explicit review)
+
+This defines **how** the unchanged requirement is measured. It does not change what is
+required.
+* **What a sample is:**
+  * one TCP handshake from the VPS to the target's port 5432;
+  * `connect()` returns when the server's SYN-ACK arrives, so the elapsed time is one
+    network round trip plus local kernel and scheduling overhead;
+  * the connection is closed immediately;
+  * no TLS, no PostgreSQL authentication, no query and no data are involved.
+  * Each sample therefore slightly *overestimates* RTT, which is conservative.
+* **Why not ICMP ping:** often filtered by cloud networks, and it does not travel the
+  database port's path.
+* **Why not a database connection:** it adds TLS and authentication round trips and is
+  not RTT. The owner's instruction is that it must not be conflated with RTT.
+* **Sampling:**
+  * 100 samples per target and per address family that resolves (`--samples`, minimum
+    20);
+  * spaced 0.2 s apart (`--interval`), so that the run spans about 20 s per family and
+    one burst does not dominate.
+* **Statistic:**
+  * p95 by the nearest-rank method (the ⌈0.95·n⌉-th smallest successful sample; no
+    interpolation);
+  * min, p50 and max are reported alongside.
+* **Pass rule:**
+  * for **every** Supabase target, every address family that connects has **p95 < 10 ms
+    (strict)**;
+  * at least 95 % of that family's samples succeed;
+  * at least one family per target connects.
+  * Otherwise IT-1 = FAIL, and an unreachable target fails.
+* **Persistence:**
+  * a single FAIL is investigated and repeated at a different time of day;
+  * "fails persistently" means FAIL in runs on at least two different days.
+  * Every run's JSON is kept as evidence.
+* **For explicit review:**
+  * using the TCP handshake as the RTT instrument;
+  * the sample count and spacing;
+  * nearest-rank p95;
+  * the 95 % success floor;
+  * the persistence definition.
+
+  The original requirement did not specify these; they are a proposed measurement
+  definition, not a change to the threshold or its strictness.
+
 ## R. Decision record
 
 Status values (updated 22 Nov 2026, §X): **approved** = approved by the owner on 22 Nov 2026,
@@ -1789,6 +1986,8 @@ position yet; **withdrawn**.
 | F3-D20 | Hostinger optional daily backups ($6/month) | not purchased at this stage; Diski 9's independent encrypted off-host backups remain mandatory and are the verified recovery path | $6/month option [C] | included Hostinger backup frequency/retention [open] | approved |
 | F3-D21 | No verified credit-backed VPS uptime SLA | accepted as a documented F3 residual risk; monitoring (72-hour soak, `ops status`/`ops check`, failure injection) and recovery requirements unchanged; DigitalOcean fallback if availability proves inadequate | uptime guarantee advertised at checkout [C]; percentage/compensation not provided [AI] | – | approved |
 | F3-D22 | Execution model | Claude prepares version-controlled scripts and runbooks; the owner executes them on the owner's computer or the server and returns secret-free evidence; no production credential through chat | the cloud container cannot reach the VPS | – | approved |
+| F3-D1a | VPS location (amends F3-D1) | the provisioned Hostinger KVM 2 in **Düsseldorf**, Germany; monthly; DigitalOcean FRA1 fallback unchanged (§Z) | VPS provisioned in Düsseldorf [V-owner]; Düsseldorf reported as Hostinger's only German location [V-owner] | VPS-to-Supabase RTT (IT-1) | **conditionally approved** (Stage F3; final on IT-1 PASS) |
+| F3-D2a | Region split (amends the VPS part of F3-D2) | VPS Düsseldorf, Supabase Frankfurt `eu-central-1`, backups Amsterdam; IT-1 unchanged: VPS-to-Supabase database RTT p95 strictly below 10 ms (methodology §Z.8) | all EU/Germany [V-owner] | IT-1 [T] | **conditionally approved** (Stage F3; final on IT-1 PASS) |
 
 Nothing is purchased, subscribed, provisioned or created until the owner gives the F3
 implementation authorisation (§X.5 step 0). All F3 decisions needed before purchase are
