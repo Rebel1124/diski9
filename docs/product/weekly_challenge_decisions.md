@@ -67,6 +67,38 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3: final owner decisions and implementation-authorisation package (22 Nov 2026):**
+* Provider selection closed by the owner. Recorded in `docs/architecture/phase6c6_stage_f3_plan.md`
+  §X. **Not F3 implementation authorisation**: approved decisions take effect only with the
+  owner's separate Step 0 authorisation; nothing purchased, subscribed, created or deployed.
+* **Owner-approved:** F3-D1 Hostinger KVM 2, monthly, Germany/Frankfurt (DigitalOcean FRA1
+  fallback if a material hosted acceptance test fails); F3-D2 Frankfurt for VPS and Supabase;
+  F3-D3 maximum recurring infrastructure budget $75/month all-in, alert at $65, no long-term
+  prepayment; F3-D4 Supabase Pro, Micro, Frankfurt, created by the owner; F3-D5 existing
+  connection-mode rule, hosted advisory-lock tests and fail-closed behaviour kept; F3-D7 no
+  public domain; F3-D9 hosted M1 and M3 drills, target-database-first hold verification and
+  operator sign-in test; F3-D13 owner plus at most one operator; F3-D14 24-month promotion
+  declined; F3-D16 Supabase Pro from the start; F3-D17 monthly billing; F3-D19 leaked-password
+  protection; F3-D20 $6 Hostinger daily backups declined, independent encrypted off-host
+  backups mandatory; F3-D21 no verified credit-backed uptime SLA accepted as a residual risk,
+  monitoring and recovery unchanged.
+* **Approved as a rule:** F3-D6 Tailscale only if licence-compliant and within budget.
+  Tailscale Personal is "for non-commercial use"; Standard is $8/user/month. Recommendation:
+  self-hosted WireGuard (split tunnel, at most 3 peers, private CA name-constrained to the VPS
+  tunnel address, no public port other than one UDP port) unless the owner states the F3 use
+  is non-commercial and prefers Tailscale Personal.
+* **Proposed (owner acceptance needed):** F3-D8 Backblaze B2 EU Central with Object Lock
+  (governance, 14 days), bucket-restricted write-only upload key on the VPS, expiring
+  read-only retrieval key held by the owner, two owner-held `age` identities (public
+  recipients only on the VPS); F3-D15 full dump on the VPS as a separate `diski9-backup`
+  user; new F3-D22 execution model (owner runs Claude-prepared scripts; no cloud session
+  holds production credentials); F3-D12 no external monitor.
+* Implementation-time checks IT-1 to IT-10, fallback triggers and an ordered plan
+  (Step 0, owner actions O-1 to O-6 including the Hostinger purchase and Supabase Pro
+  subscription, then steps 1–10 with gates G1–G5) recorded in §X. Safeguards unchanged
+  (live SQLite replacement disabled, provider calls and refresh off, Official disabled,
+  human-only publication, D-29b unchanged, D-39a, Stage D locking, provisional RPO).
+
 **Phase 6C.6 Stage F3: Hostinger pre-sales verification and provider selection (22 Nov 2026):**
 * Recorded in `docs/architecture/phase6c6_stage_f3_plan.md` §W; not authorisation to
   purchase, provision, subscribe or begin F3.
