@@ -85,7 +85,11 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   * the login cache stores the key in plain text;
   * `bucket create` cannot set a default retention.
 * **How the script handles them:**
-  * all `b2` output is captured or discarded, with scrubbed excerpts on failure;
+  * all `b2` output is captured or discarded; a failure shows only a fixed step
+    message (raw responses never printed; the digit-based scrubber was replaced after
+    owner review);
+  * a RAM-disk cleanup failure prints CLEANUP FAILED with the removal command and an
+    instruction to rotate the master key, and the run exits with an error;
   * the cache lives on a RAM disk;
   * one cleanup path, with interrupts turned into an exit;
   * it fails closed on privacy, Object Lock, lifecycle, retention mode and the canary

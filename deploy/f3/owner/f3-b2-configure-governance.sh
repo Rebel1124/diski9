@@ -39,9 +39,22 @@ export F3_BUCKET="$bucket"
 f3_ramdir_create
 export B2_ACCOUNT_INFO="$F3_RAMDIR/b2_account_info"
 cleanup() {
+  local rc=$?
   trap - EXIT INT TERM HUP
   b2 account clear >/dev/null 2>&1 || true
-  f3_ramdir_destroy
+  if ! f3_ramdir_destroy; then
+    {
+      echo
+      echo "!!! CLEANUP FAILED: the RAM disk may still hold the b2 login cache, which contains"
+      echo "!!! the MASTER KEY. This run is NOT successful, whatever was printed above."
+      echo "!!!  1. Remove it now: ${F3_RAMDEV_LEFT:+hdiutil detach $F3_RAMDEV_LEFT -force}${F3_RAMDEV_LEFT:-rm -rf $F3_RAMDIR_LEFT}"
+      echo "!!!     (check with: hdiutil info / ls /Volumes; a restart also discards a RAM disk)"
+      echo "!!!  2. Rotate the master key IMMEDIATELY: web UI > App Keys >"
+      echo "!!!     Generate New Master Application Key (do not save the new one)."
+    } >&2
+    exit 70
+  fi
+  exit "$rc"
 }
 # one cleanup path: EXIT always runs it; signals turn into an exit (never continue)
 trap cleanup EXIT
@@ -50,20 +63,14 @@ trap 'exit 143' TERM
 trap 'exit 129' HUP
 
 # b2run STEP OUTFILE ARGS...: run b2 with BOTH output streams captured in the RAM disk.
-# Nothing b2 prints reaches the terminal. On failure only a scrubbed excerpt of its
-# error output is shown (long tokens, key-like and ID-like strings replaced).
+# Nothing b2 prints ever reaches the terminal, on success or failure: a failure shows a
+# fixed, step-specific message only. The raw response stays in the RAM disk (destroyed
+# on exit); it is never printed or scrubbed-and-printed.
 b2run() {
   local step=$1 out=$2
   shift 2
-  if ! b2 "$@" >"$out" 2>"$F3_RAMDIR/stderr"; then
-    echo "error: $step failed. Scrubbed b2 message:" >&2
-    python3 - "$F3_RAMDIR/stderr" <<'PY' >&2 || true
-import re, sys
-text = open(sys.argv[1], errors="replace").read()
-text = re.sub(r"[A-Za-z0-9_+/=.-]{12,}", lambda m: m.group(0) if not re.search(r"\d", m.group(0)) else "<redacted>", text)
-print("\n".join("  " + line for line in text.strip().splitlines()[:3]) or "  (no message)")
-PY
-    f3_die "$step failed; see the runbook (O-6) before retrying"
+  if ! b2 "$@" >"$out" 2>"$F3_RAMDIR/b2-error.txt"; then
+    f3_die "$step failed (b2 reported an error; its raw message is not shown for safety). Nothing further was done; see the runbook (O-6) before retrying"
   fi
 }
 

@@ -38,17 +38,33 @@ f3_ramdir_create() {
   trap f3_ramdir_destroy EXIT INT TERM
 }
 
+# Returns 1 (and keeps the location in F3_RAMDIR_LEFT / F3_RAMDEV_LEFT) if the RAM
+# disk or directory is still present afterwards. Never aborts part-way (safe under set -e
+# and inside traps): every step is attempted, then the result is checked.
+F3_RAMDIR_LEFT=""
+F3_RAMDEV_LEFT=""
 f3_ramdir_destroy() {
   [ -n "$F3_RAMDIR" ] || return 0
-  if [ -d "$F3_RAMDIR" ]; then
+  local dir=$F3_RAMDIR dev=$F3_RAMDEV failed=0
+  if [ -d "$dir" ]; then
     # overwrite in place (meaningful for RAM-backed files), then remove
-    find "$F3_RAMDIR" -type f -exec sh -c 'for f; do
-      n=$(wc -c < "$f" | tr -d " "); dd if=/dev/zero of="$f" bs=1 count="$n" conv=notrunc 2>/dev/null; rm -f "$f"; done' sh {} +
-    rm -rf "$F3_RAMDIR"
+    find "$dir" -type f -exec sh -c 'for f; do
+      n=$(wc -c < "$f" | tr -d " "); dd if=/dev/zero of="$f" bs=1 count="$n" conv=notrunc 2>/dev/null; rm -f "$f"; done' sh {} + 2>/dev/null || true
   fi
-  if [ -n "$F3_RAMDEV" ]; then
-    hdiutil detach "$F3_RAMDEV" -force >/dev/null 2>&1 || echo "warning: eject $F3_RAMDEV manually" >&2
+  if [ -n "$dev" ]; then
+    hdiutil detach "$dev" -force >/dev/null 2>&1 || failed=1  # removes the mount point too
+  else
+    rm -rf "$dir" 2>/dev/null || true
   fi
+  [ -e "$dir" ] && failed=1
   F3_RAMDIR=""
   F3_RAMDEV=""
+  if [ "$failed" -ne 0 ]; then
+    F3_RAMDIR_LEFT=$dir
+    F3_RAMDEV_LEFT=$dev
+    echo "WARNING: the temporary RAM disk could not be removed: $dir${dev:+ (device $dev)}." >&2
+    echo "         Remove it now: ${dev:+hdiutil detach $dev -force}${dev:-rm -rf $dir}" >&2
+    return 1
+  fi
+  return 0
 }

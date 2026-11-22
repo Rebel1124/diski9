@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import time
@@ -18,7 +19,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "deploy" / "f3" / "owner" / "f3-b2-configure-governance.sh"
 BUCKET = "diski9-f3-0a1b2c3d"
-SECRET = "FAKE0MASTER0KEY0NOT0REAL0001"  # fake; shaped like a key so scrubbing is exercised
+SECRET = "FAKE0MASTER0KEY0NOT0REAL0001"  # fake values only
+ALPHA_SECRET = "fakeAlphabeticOnlySecretValueNotReal"  # no digits: defeats digit-based scrubbing
 TOKEN = "FAKE0AUTH0TOKEN0NOT0REAL0002"
 ACCOUNT = "FAKEACCOUNT01"
 LIFECYCLE = [
@@ -52,7 +54,9 @@ elif a[:2] == ["bucket", "get"]:
         print("<html>unexpected</html> token=" + st["token"]); sys.exit(0)
     out(dict(st["bucket"], bucketName=a[2], accountId=st["account"], bucketId="bkt1"))
 elif a[:2] == ["bucket", "update"] and st.get("update_fail"):
-    sys.stderr.write("ERROR: b2 failed, Authorization: " + st["token"] + " account " + st["account"] + "\n")
+    sys.stderr.write("ERROR: b2 failed, Authorization: " + st["token"] + " account " + st["account"]
+                     + " key " + st["alpha"] + "\n")
+    print("raw response " + st["alpha"])
     sys.exit(1)
 elif a[:2] == ["bucket", "update"]:
     m = a[a.index("--default-retention-mode") + 1]
@@ -81,7 +85,7 @@ def env(tmp_path):
     bindir.mkdir()
     (bindir / "b2").write_text(FAKE)
     (bindir / "b2").chmod(0o755)
-    state = {"secret": SECRET, "token": TOKEN, "account": ACCOUNT, "bucket": {"bucketType": "allPrivate", "isFileLockEnabled": True,
+    state = {"secret": SECRET, "token": TOKEN, "account": ACCOUNT, "alpha": ALPHA_SECRET, "bucket": {"bucketType": "allPrivate", "isFileLockEnabled": True,
              "defaultRetention": {"mode": None}, "lifecycleRules": LIFECYCLE}}  # fmt: skip
     (tmp_path / "state.json").write_text(json.dumps(state))
     e = {k: v for k, v in os.environ.items() if not k.startswith("B2_")}
@@ -113,7 +117,7 @@ def _calls(tmp_path):
 
 def _no_secrets(r):
     text = r.stdout + r.stderr
-    for value in (SECRET, TOKEN, ACCOUNT, "KEYID123", "bkt1", "4_zfile1"):
+    for value in (SECRET, TOKEN, ACCOUNT, ALPHA_SECRET, "KEYID123", "bkt1", "4_zfile1"):
         assert value not in text, value
 
 
@@ -209,11 +213,52 @@ def test_refuses_keys_in_the_environment_and_bad_bucket_names(env):
     assert not (tmp / "log.jsonl").exists()  # b2 was never called
 
 
-def test_failure_messages_are_scrubbed(env):
+def test_b2_errors_are_never_printed_only_a_generic_step_message(env):
+    """Raw b2 output never reaches the terminal on failure, even a secret with no digits."""
     _, tmp = env
     _set(tmp, update_fail=True)
     r = _run(env)
-    assert r.returncode != 0 and "<redacted>" in r.stderr and "Scrubbed b2 message" in r.stderr
+    assert r.returncode != 0
+    assert "retention update failed (b2 reported an error; its raw message is not shown" in r.stderr
+    assert ALPHA_SECRET not in r.stdout + r.stderr and "raw response" not in r.stdout + r.stderr
+    assert "Authorization" not in r.stderr and "<redacted>" not in r.stderr
+    _no_secrets(r)
+
+
+@pytest.fixture
+def failing_rm(env, tmp_path):
+    """A fake `rm` that cannot delete the script's RAM directory (simulated cleanup failure)."""
+    e, _ = env
+    fake = tmp_path / "bin" / "rm"
+    fake.write_text('#!/bin/sh\nfor a in "$@"; do case "$a" in */diski9-f3.*) exit 1 ;; esac; done\n'
+                    'exec /bin/rm "$@"\n')  # fmt: skip
+    fake.chmod(0o755)
+    before = _shm()
+    yield
+    for p in Path("/dev/shm").iterdir():  # remove what the simulated failure left behind
+        if p.name not in before and p.name.startswith("diski9-f3."):
+            shutil.rmtree(p)
+
+
+def test_cleanup_failure_is_never_a_success_and_tells_the_owner_what_to_do(env, failing_rm):
+    _, tmp = env
+    r = _run(env)  # every step succeeds, but the RAM disk cannot be removed
+    assert r.returncode == 70, r.stderr
+    assert "CLEANUP FAILED" in r.stderr and "NOT successful" in r.stderr
+    assert "rm -rf /dev/shm/diski9-f3." in r.stderr  # the exact manual removal command
+    assert "Generate New Master Application Key" in r.stderr
+    left = [p for p in Path("/dev/shm").iterdir() if p.name.startswith("diski9-f3.")]
+    assert left  # the simulation really left it behind
+    assert ["account", "clear"] in [c["argv"] for c in _calls(tmp)]
+    _no_secrets(r)
+
+
+def test_cleanup_failure_after_a_failed_step_still_warns(env, failing_rm):
+    _, tmp = env
+    _set(tmp, update_fail=True)
+    r = _run(env)
+    assert r.returncode == 70 and "CLEANUP FAILED" in r.stderr
+    assert "retention update failed" in r.stderr
     _no_secrets(r)
 
 

@@ -379,6 +379,11 @@ explicit owner authorisation.***
       * prints sanitised evidence;
       * on **any** exit, including errors and Ctrl-C, runs `b2 account clear` and
         destroys the RAM disk.
+      * On a failed step it prints only a fixed message naming the step; b2's raw
+        response is never shown.
+      * If the RAM disk cannot be removed, it prints **CLEANUP FAILED** with the exact
+        removal command and exits with an error, even if everything else passed. Then
+        remove the disk as instructed and rotate the master key at once (step 5).
    5. **Immediately afterwards**, whether the script passed or failed:
       * web UI → **Generate New Master Application Key** again. Backblaze: "Your master
         app key becomes invalid if you generate a new one", and "standard app keys
