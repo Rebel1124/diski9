@@ -1,10 +1,12 @@
 # Phase 6C.6 Stage F3 — Private Environment and Recovery: implementation plan
 
-**Status:** implementation plan for owner review (planning authorised 22 Nov 2026).
-**F3 implementation is not authorised.** Nothing in this plan has been provisioned,
+**Status:** **accepted in principle by the owner (22 Nov 2026), subject to the
+refinements in §S**, which take precedence over earlier sections where they differ.
+Planning authorised 22 Nov 2026. **F3 implementation, provisioning and purchasing are
+not authorised.** Nothing in this plan has been provisioned,
 purchased, created or deployed: no hosting account, VM, domain, hosted Supabase
 project, off-host storage, live API-Football call or participant account. Every
-provisioning and spending step below waits for the owner decisions in §18.
+provisioning and spending step below waits for the owner decisions in §R.
 
 Baseline: Stage F2 **formally accepted and closed** (application `c7630fe`, full CI
 run 114: 1,987 passed, 0 skipped, 13 browser tests; evidence `0c46526`, documentation
@@ -168,7 +170,7 @@ purchase: they bill only while a server exists.
 * Data residency: participant data would be stored in the EU (Supabase) — to be noted
   in the F5 privacy/retention statement (D-36); no participant data exists in F3.
 
-## C. Monthly cost estimate and proposed budget ceiling (no commitment)
+## C. Monthly cost estimate and proposed budget ceiling (no commitment; reconciled in §S.5)
 
 | Item | Low (Hetzner) | Default (DigitalOcean) | Notes |
 |---|---|---|---|
@@ -210,7 +212,7 @@ be re-verified on the providers' own pages at selection.
   never on the VM except the application connection string.
 * **Hosted Supabase acceptance (L)** runs before anything else touches the project.
 
-## E. PostgreSQL connection modes and Stage D locking
+## E. PostgreSQL connection modes and Stage D locking (refined in §S.3)
 
 Stage D requires a **session-scoped** advisory lock on a connection that stays the
 same server session for the whole tick (direct connection or a session-mode pooler;
@@ -230,7 +232,7 @@ session pooler; `DISKI9_APP_DATABASE_URL` may use the session pooler. Decision *
 (IPv6 direct vs session pooler vs IPv4 add-on). No change to Stage D code is planned;
 any incompatibility is a stop condition reported to the owner.
 
-## F. VM hardening, firewall, TLS and private access
+## F. VM hardening, firewall, TLS and private access (private access superseded by §S.2)
 
 Per [`../operations_hosting.md`](../operations_hosting.md) §1, applied and evidenced:
 
@@ -298,7 +300,7 @@ Per [`../operations_hosting.md`](../operations_hosting.md) §1, applied and evid
   versioning if the storage supports it, so the VM's credential cannot delete history.
 * Supabase's own daily backups remain a baseline, **not** verified recovery.
 
-## J. Restore verification, RPO and RTO measurement (closes F3-R2 part 2)
+## J. Restore verification, RPO and RTO measurement (closes F3-R2 part 2; hosted evidence per §S.4)
 
 * **Retrieval:** from a machine other than the VM (owner's machine), download the
   latest encrypted copies, decrypt with the off-VM private key, verify the manifest
@@ -450,27 +452,257 @@ connections, no connection strings — plus the implementation record section.
 Real-time items are labelled as such; anything compressed or synthetic is labelled
 simulated.
 
-## R. Owner decisions and spending approvals required before provisioning
+## S. Planning-review refinements (owner review, 22 Nov 2026)
 
-| ID | Decision | Recommendation |
+The owner accepted this plan **in principle** subject to the refinements below
+(documentation and research only; no implementation, provisioning, account creation
+or purchase). Where §S differs from A–R, §S applies. Labels used: **[V-owner]**
+verified by the owner; **[V-doc]** stated in the provider's own documentation (still
+to be re-confirmed at checkout); **[A]** assumption, not verified; **[T]** to be
+tested on the host in F3.
+
+### S.1 Hostinger KVM 2: verified terms and pre-purchase checks
+
+| Item | Status | Value / finding |
 |---|---|---|
-| F3-D1 | Hosting provider and plan | ranked in A.2: Hostinger KVM 2 (24-month promo, DE/UK) if the pre-purchase checks pass; else DigitalOcean Basic 2 vCPU / 4 GB Frankfurt; Hetzner CX33 opportunistically |
-| F3-D2 | Region | Frankfurt for both Supabase and the VM (London equivalent) |
-| F3-D3 | Budget ceiling and billing alerts | ≤ $60/month average, $75 cap; one-off prepayment ≤ $250 incl. VAT (Hostinger only); 24-month cap ≈ $1,200 (≈ $1,600 on the DigitalOcean path) |
-| F3-D4 | Create the hosted Supabase project (owner action) and plan/compute | Pro, Micro, Frankfurt, signups disabled after bootstrap |
-| F3-D5 | Database connection mode | direct IPv6 if available, else session pooler; IPv4 add-on only if both fail |
-| F3-D6 | Private-access method | provider firewall + Caddy allowlist; WireGuard if addresses are dynamic |
-| F3-D7 | Domain / sub-domain for TLS | an owner-controlled private sub-domain |
-| F3-D8 | Off-host storage provider and key custody | EU object storage at a different provider; `age` private key held by the owner off the VM |
-| F3-D9 | Where the PostgreSQL restore drill runs | temporary second Supabase project (measures hosted RTO) or local disposable database |
-| F3-D10 | Automatic hold activation design (for F4-prep) | option (c): cutover check + rolled-back-database detection |
-| F3-D11 | Manual provider-command coverage (for F4) | extend the hold to the shared client factory |
-| F3-D12 | External uptime monitor | optional; free tier on `/healthz` only |
-| F3-D13 | Operator account in F3 | owner plus at most one operator; no participants |
-| F3-D14 | Whether to buy a promotional prepaid term before F3 implementation is authorised (Hostinger sale reported to end 14 Dec 2026; the term starts at purchase) | owner's call; recommended only if F3 implementation is expected within weeks |
+| Plan | [V-owner] | KVM 2: 2 vCPU, 8 GB RAM, 100 GB NVMe |
+| Promotional price | [V-owner] | $8.79/month equivalent; **$210.96 upfront for 24 months before taxes** |
+| Renewal | [V-owner] | $14.99/month equivalent (renewal term length and whether it is billed upfront: **[A] to confirm**) |
+| Promotion end | [V-owner] | advertised 14 Dec 2026 |
+| German location | [V-doc] | Hostinger operates a **Frankfurt am Main** data centre for VPS (announced 2024); the list offered at setup is authoritative and the location cannot be changed after setup |
+| IPv6 | **unverified** | each VPS has one dedicated IP and no add-on addresses; Hostinger documentation does not state IPv6 for the Frankfurt VPS. **Do not assume IPv6**: the design below works without it |
+| Refund | [V-doc], with conflicts | help centre: KVM VPS purchases refundable within **30 days of the purchase date** (not for crypto payments; 180-day cool-down between VPS refunds); some regional legal pages describe different terms. **Confirm the terms that apply to a South African checkout** |
+| Taxes | **unverified** | 15 % South African VAT on foreign electronic services is assumed [A]; Hostinger's practice for South African buyers is not confirmed |
+| Card / currency charges | [A] | a ZAR card paying USD may add ≈ 2–3 % foreign-transaction fees |
+| Billing start | [V-doc] | the term starts at purchase, not at setup |
 
-Nothing is purchased or created until D1–D4 (and D6–D8 for the host build) are
-approved. F3 implementation itself needs separate authorisation after this plan.
+**Pre-purchase checks** (by pre-sales chat and the checkout page, without buying): (1)
+Frankfurt offered for KVM 2 at checkout; (2) IPv6 on that VPS (yes/no); (3) the exact
+checkout total for a South African billing address, including VAT; (4) the refund terms
+for that checkout; (5) renewal term and whether renewal is billed upfront. A "no" on (1)
+or (4), or a total above the proposed $250 ceiling, moves the recommendation to
+DigitalOcean.
+
+### S.2 Private access: allowlist versus authenticated private network
+
+| Option | Residential IP changes | Inbound exposure | TLS | Notes |
+|---|---|---|---|---|
+| (a) Provider firewall + Caddy IP allowlist (original F) | **must be edited every time the owner's IP changes** (common on South African fibre/LTE) | 443 (and 80 for certificates) open to the internet, filtered by IP | public ACME (HTTP-01 needs port 80) | simple; error-prone with dynamic IPs; a mis-edit exposes the app |
+| (b) Self-hosted WireGuard | no edits | one UDP port (silent to unauthenticated packets) | private name; certificate via DNS-01 or an internal CA | no third party; key distribution and peer management by hand |
+| **(c) Tailscale (WireGuard-based mesh)** | **no edits** | **no inbound ports at all** (outbound NAT traversal) | `tailscale cert` issues Let's Encrypt certificates for `<host>.<tailnet>.ts.net` | free Personal plan (up to 6 users, non-commercial use) [V-doc]; identity-provider MFA; ACLs; device approval; Tailscale SSH optional |
+| (d) Cloudflare Tunnel + Access | no edits | none | Cloudflare edge certificate | Cloudflare terminates TLS and sees traffic; adds a dependency on Cloudflare identity |
+
+**Recommendation (technical): (c) Tailscale**, with (b) self-hosted WireGuard as the
+fallback if the owner prefers no third-party control plane or if Diski 9's use is not
+"non-commercial" under the free plan (owner decision **F3-D6**; a paid Tailscale plan is
+the alternative). Design:
+
+* **Owner access from South Africa:** the owner's laptop/phone joins the tailnet; the
+  VM is reachable only as `diski9-f3.<tailnet>.ts.net` (latency is the normal
+  ~160–180 ms to Frankfurt; Tailscale uses a direct WireGuard path where possible).
+* **Web:** Caddy binds to the **Tailscale interface only** and serves the `ts.net` name
+  with the certificate obtained through Tailscale (Caddy's Tailscale certificate
+  integration or `tailscale cert` with renewal by a timer). No public DNS record and no
+  public web port. Certificate issuance publishes the machine and tailnet name in
+  public Certificate Transparency logs [V-doc]: a name becomes known, but access still
+  needs tailnet membership.
+* **SSH:** OpenSSH listens only on the Tailscale interface (`ListenAddress`), keys only,
+  no root, no passwords; or Tailscale SSH under ACLs. Public SSH closed.
+* **Supabase Auth redirects:** Site URL and the redirect allow-list are set to
+  `https://diski9-f3.<tailnet>.ts.net` only. Email links point to Supabase, which
+  redirects the browser to that URL: this works because the operator's browser is on the
+  tailnet. Supabase never needs to reach the VM (no webhooks); the VM calls Supabase
+  outbound. `__Host-` cookies work because the site is HTTPS.
+* **DNS / domain:** none needed (the `ts.net` name is provided). An owner domain is only
+  needed later for the public architecture (S.5).
+* **Firewall:** Hostinger hPanel firewall (or `ufw` if the panel firewall is limited
+  [T]) **denies all inbound** except Tailscale's own needs (none inbound required); egress
+  allowed to Supabase (5432/6543 blocked for the scheduler by code anyway), Tailscale,
+  object storage, OS updates and PyPI; **egress to `v3.football.api-sports.io` blocked**
+  (F3 has no provider calls; see K).
+* **Credential hardening:** Tailscale admin account with MFA through the identity
+  provider; device approval on; key expiry on (VM key renewed deliberately); ACL: owner
+  devices → VM ports 443 and 22 only; operator (if any) → 443 only; no exit nodes, no
+  subnet routing.
+* **Recovery access if the VPN fails:** Hostinger's browser console / VNC from hPanel
+  (protected by Hostinger account MFA) [T]; break-glass procedure: temporarily open SSH
+  (22) in the hPanel firewall to the owner's **current** IP only, fix, close again,
+  record it in the incident log. Tailscale control-plane outages do not drop existing
+  connections; re-authentication waits for recovery.
+* **Public endpoints:** **none are necessary in F3.** No public web, SSH, health or
+  webhook endpoint. External uptime monitoring (F3-D12) is therefore replaced by an
+  on-host timer plus a tailnet check from the owner's device.
+
+### S.3 Supabase and PostgreSQL connectivity, TLS and locking
+
+| Use | Endpoint | Mode | Requirement |
+|---|---|---|---|
+| Web app (`DISKI9_APP_DATABASE_URL`) | Supavisor **session pooler** `aws-…-eu-central-1.pooler.supabase.com:5432` | session, IPv4 | works without VPS IPv6 [V-doc] |
+| Scheduler lock (`DISKI9_JOBS_DATABASE_URL`) | **direct** `db.<ref>.supabase.co:5432` if the VPS has working IPv6 [T]; otherwise the **session pooler**; otherwise the Supabase IPv4 add-on (≈ $4/month [V-doc]) for the direct endpoint | direct or session | Stage D session-scoped advisory lock; **transaction pooler (6543) prohibited** (refused by `locking.check_lock_url`) |
+| `pg_dump` / `pg_restore` | direct (IPv6 or IPv4 add-on) preferred; session pooler acceptable [T] | session | client version ≥ server major version (install the matching `postgresql-client` from the PostgreSQL apt repository if Ubuntu's is older [T]) |
+
+**Connection security (all connections):** `sslmode=verify-full` with
+`sslrootcert=/etc/diski9/supabase-ca.crt` (the project CA downloaded from the
+dashboard's SSL configuration; whether the pooler also presents a publicly trusted
+certificate is reported inconsistently, so pin the Supabase CA and test both endpoints
+[T]); **Supabase SSL enforcement turned on** so non-TLS connections are refused;
+dedicated least-privilege application role (no superuser, no `service_role`);
+separate read-only backup role for `pg_dump`; credentials only in
+`/etc/diski9/diski9.env` and `~diski9/.pgpass` (0600) — never on command lines; existing
+statement/lock timeouts kept; `connect_timeout=10` and TCP keepalives set for the
+scheduler connection.
+
+**Hosted locking tests (hard stop on any failure):** `tools/ops/scheduler_lock_probe.py`
+against the chosen scheduler endpoint: two concurrent ticks (one runs, one `busy`);
+holder termination and lock-loss detection; R1–R6 behaviours; a real `jobs tick` with
+provider calls off; repeated over ≥ 72 hours (Q-6). If the session pooler does not keep
+the advisory lock for the whole tick, or any probe result differs from the local
+Stage D evidence, **F3 stops** and the owner decides (IPv4 add-on for the direct
+endpoint, or a different host with IPv6). No Stage D code change is made in F3.
+
+### S.4 Hosted recovery evidence (F3-R1 and F3-R2 remain acceptance gates)
+
+* **Local versus hosted:** a restore into a local disposable PostgreSQL (as in the F2
+  drill) proves the dump is restorable and measures a **local drill time only**; it is
+  never reported as hosted Supabase recovery time.
+* **Hosted recovery drill (recommended, affordable):** restore into a **temporary second
+  Supabase project** in the same organisation — preferably via Supabase "restore to a new
+  project" from a daily backup (paid plans; feature status beta [V-doc]), and also via
+  `pg_restore` of the encrypted **off-host** dump retrieved on another machine (F3-R2).
+  The temporary project's compute is billed hourly (Micro ≈ $0.0134/hour [V-doc]: a
+  one-day drill costs well under $1 plus any disk/egress) and is deleted after the
+  drill.
+* **Realistic cutover rehearsal (on the temporary project):** pause file and stop units →
+  record the restore with `backup record --kind postgres-restore` **and confirm the
+  provider hold is active** (`ops status` shows `PROVIDER HOLD`; `ops check` shows
+  `provider_hold_after_restore`) **before** the environment file is switched → switch
+  `DISKI9_APP_DATABASE_URL` / `DISKI9_JOBS_DATABASE_URL` (and, for a whole-project
+  restore, the Supabase Auth URL and publishable key) → restart units → `/readyz`,
+  sign in with the existing operator account (proves Auth identities survived the
+  restore together with `app.users`) → reconciliation checklist (rounds, publication,
+  entries, settlement, ledger) → `ops provider-resume` rehearsed by the authenticated
+  operator (provider calls stay **off** in F3 regardless) → switch back to the primary
+  project and delete the temporary one.
+* **Measured and reported separately:** hosted RTO (from "decision to restore" to
+  "operator signed in and reconciliation complete"), retrieval/decrypt time, local drill
+  time, achieved RPO. Targets as in J (hosted ≤ 2 h; store ≤ 30 min), all labelled real
+  measurements on the F3 host.
+* **Auth caveat:** restoring only the `app` schema into a different project would break
+  the link to Supabase Auth identities; the hosted drill therefore restores the whole
+  project database (or uses "restore to a new project"), and the evidence must show an
+  existing account signing in afterwards.
+* No API-Football key is present and no live provider call is made at any point.
+
+### S.5 Budget reconciliation
+
+Totals below include **[A] 15 % VAT** on every line (not verified for Hostinger or
+Supabase; DigitalOcean documents South African VAT [V-doc]) and exclude card FX fees.
+Common lines: Supabase Pro $25/month with Micro covered by the included credit [V-doc]
+($28.75 with VAT); off-host encrypted storage ≈ $3/month [A]; private access $0
+(Tailscale Personal, if eligible) [V-doc]; domain $0 (the `ts.net` name); optional Supabase
+IPv4 add-on $4/month only if needed [V-doc]; optional external monitoring $0 (not used:
+no public endpoint).
+
+| Path | Upfront | 12 months | 24 months | 36 months | Early termination |
+|---|---|---|---|---|---|
+| **Hostinger KVM 2** | **$210.96 [V-owner] → ≈ $242.60 with VAT [A]** | ≈ $623.60 (incl. 12 prepaid months unused: ≈ $121.30 forfeited if stopped at 12) | ≈ **$1,004.60** | ≈ $1,592.46 (renewal 12 × $14.99 + VAT ≈ $206.86) | after the 30-day refund window, unused prepaid months are forfeited (stopping at month 6 forfeits ≈ $182 incl. VAT) |
+| DigitalOcean Frankfurt ($24 + weekly backups) | none | ≈ $778.44 | ≈ $1,556.88 | ≈ $2,335.32 | none (billed while running) |
+| Hetzner CX33 (+IPv4, backups; availability-limited) | none | ≈ $553.50 | ≈ $1,107.00 | ≈ $1,660.50 | none |
+| Add if needed: Supabase IPv4 add-on | – | +$55.20 | +$110.40 | +$165.60 | – |
+
+Monthly average on the Hostinger path over 24 months ≈ **$41.86** (within the proposed
+$60 average / $75 cap).
+
+**Where proposed limits could be exceeded:**
+* Hostinger checkout: $242.60 incl. assumed VAT is under the proposed $250, but **≈ 3 %
+  card FX fees would bring it to ≈ $249.9**, and any checkout add-on (daily backups,
+  extra IP, panel licence) **would exceed $250**.
+* Hostinger **renewal**: if renewal is billed upfront for another 24 months at
+  $14.99/month, the charge would be **$359.76 (≈ $413.72 with VAT), above the $250
+  prepayment proposal** — auto-renew should be off until a renewal decision is made.
+* DigitalOcean path: within $75/month, but its 24-month total (≈ $1,557) exceeds the
+  proposed ≈ $1,200 programme cap (as noted in A.2).
+* PITR (≈ $100/month, requires Small compute [V-doc]) would exceed every F3 ceiling; it is
+  not part of F3.
+
+**Eventual public deployment (estimate, not planned or approved):** football store moved
+to PostgreSQL (mandatory, D-39a); Supabase Small → Medium compute (+$5 to +$50/month);
+PITR or more frequent dumps decided before F5 (PITR ≈ $100+/month); the VM (KVM 2's 8 GB
+is adequate for a small Beta; redundancy would double it); an owner domain ≈ $15/year;
+custom SMTP ≈ $0–15/month; CDN/WAF free tier; monitoring $0–10/month; API-Football $16
+(existing). **Lean public ≈ $60–100/month without PITR; ≈ $160–220/month with 7-day
+PITR** (before VAT).
+
+These ceilings remain **proposals**: the $75 monthly and $250 Hostinger figures are not
+approved spending limits.
+
+### S.6 Prepayment decision (F3-D14): recommendation
+
+* Buying in the sale secures $210.96 for 24 months versus an assumed ≈ $359.76 for a
+  24-month term at the renewal-equivalent rate [A]: a saving of ≈ $149 before VAT.
+  Each month the VPS sits idle before F3 implementation costs ≈ $8.79. The prepayment is
+  therefore cheaper unless the VPS would stay idle for more than ≈ 17 months.
+* But the **30-day refund window starts at purchase**: if F3 implementation is not
+  authorised within that window, the technical checks that can only be done on the host
+  (IPv6, firewall/console features, Supabase connectivity and locking) cannot be done
+  while a refund is still possible.
+* **Recommendation:** (1) complete the S.1 pre-purchase checks now (pre-sales chat,
+  checkout page) without buying; (2) **buy before 14 Dec 2026 only if** the checks pass
+  **and** the owner intends to authorise F3 implementation (at least the infrastructure
+  checks) within ≈ 30 days of purchase; (3) otherwise **wait** and use DigitalOcean
+  monthly when F3 is authorised. Buying a VPS **does not authorise** deploying the
+  application, creating the Supabase project or any F3 implementation step; auto-renew
+  stays off.
+
+### S.7 Gates
+
+**F3 implementation gates (before any provisioning):** owner approval of F3
+implementation; F3-D1–D4, D6, D8 (and D14 if buying in the sale) approved in writing;
+S.1 checks passed (or DigitalOcean chosen); billing alerts set; no API-Football key on
+the host and provider egress blocked.
+
+**F3 operational-acceptance gates:** Q-1–Q-15; S.3 hosted locking tests passed (hard
+stop otherwise); **F3-R2:** encrypted off-host backups of both databases for ≥ 3 nights,
+retrieval on another machine, and genuine off-host restore drills (store and hosted
+PostgreSQL per S.4); **F3-R1 (procedure part):** the hold confirmed active before the
+rehearsed database cutover; manual provider commands shown to fail closed on the F3 host.
+
+**F4 live-provider gates:** F3 accepted; **F3-R1 fully resolved** — a fail-closed hosted
+recovery procedure, explicit confirmation that the hold is active before database
+cutover, and an assessment (and owner decision F3-D10/D11) of manual provider-command
+bypasses; SF-14 shared-key schedule analysis; separate owner authorisation for provider
+calls and caps; API-Football key provisioning approved.
+
+**F5 participant and recovery gates:** tighter PostgreSQL RPO decided (the 24-hour RPO
+stays restricted to operator-only testing); ML-01 fixed; D-36 deletion workflow and
+retention statement approved (including EU data residency of Supabase); participant
+access approved; public-architecture decisions (domain, public TLS, football-store
+PostgreSQL migration per D-39a).
+
+## R. Decision record: owner decisions required (none approved yet)
+
+Every row is a **proposal**. "Status" is *open* until the owner records a decision; a
+technical recommendation is not an owner decision.
+
+| ID | Decision for the owner | Technical recommendation | Verified facts it rests on | Unverified assumptions | Status |
+|---|---|---|---|---|---|
+| F3-D1 | Hosting provider and plan | Hostinger KVM 2 (24-month promo, **Frankfurt**) if S.1 checks pass; else DigitalOcean Basic 2 vCPU/4 GB Frankfurt; Hetzner CX33 only if an account can create servers | KVM 2 specs and promo/renewal prices [V-owner]; Hostinger Frankfurt DC, 30-day VPS refund [V-doc] | IPv6; VAT; refund terms for a South African checkout; renewal billing | open |
+| F3-D2 | Region | Frankfurt for Supabase and the VM | no Supabase African region; Hostinger/DigitalOcean Frankfurt [V-doc] | ZA page timings meet targets [T] | open |
+| F3-D3 | Spending ceilings | proposals: ≤ $60/month average, $75 cap; one-off prepayment ≤ $250 incl. VAT and fees; 24-month programme ≈ $1,200 (≈ $1,600 on DigitalOcean) | Supabase Pro $25 incl. $10 credit [V-doc] | VAT, FX fees, storage cost | open (proposal only) |
+| F3-D4 | Create the hosted Supabase project (owner action) | Pro, Micro, Frankfurt, SSL enforcement on, signups off after bootstrap | Pro/Micro pricing [V-doc] | – | open |
+| F3-D5 | Database connection mode | app: session pooler; scheduler: direct over IPv6 if available, else session pooler; IPv4 add-on ($4/month) only if lock tests fail on the pooler | session pooler is IPv4; direct is IPv6 unless add-on [V-doc] | VPS IPv6 [T]; pooler keeps advisory locks [T] | open |
+| F3-D6 | Private-access method | Tailscale (no inbound ports, `ts.net` HTTPS); fallback self-hosted WireGuard | Tailscale Personal free up to 6 users, non-commercial [V-doc] | eligibility under "non-commercial" for Diski 9 | open |
+| F3-D7 | Domain | none in F3 (`ts.net` name); owner domain only for the later public architecture | – | – | open |
+| F3-D8 | Off-host storage provider and key custody | EU object storage at a different provider, versioning/object lock; `age` private key held by the owner off the VM | – | storage price ≈ $3/month [A] | open |
+| F3-D9 | Hosted PostgreSQL recovery drill | temporary second Supabase project (restore-to-new-project and off-host `pg_restore`), deleted afterwards; local disposable drill reported separately | hourly compute billing, restore-to-new-project on paid plans (beta) [V-doc] | drill cost < $5 [A] | open |
+| F3-D10 | Automatic hold activation (before F4) | option (c): cutover check + rolled-back-database detection | F2 hold behaviour (accepted) | – | open |
+| F3-D11 | Manual provider-command coverage (before F4) | extend the hold to the shared API-Football client factory | inventory in K | – | open |
+| F3-D12 | External uptime monitor | not used in F3 (no public endpoint); on-host timer + tailnet check | – | – | open |
+| F3-D13 | Accounts in F3 | owner plus at most one operator; no participants | – | – | open |
+| F3-D14 | Buy the Hostinger promotion before F3 implementation is authorised | only if S.1 checks pass **and** F3 implementation will be authorised within ≈ 30 days of purchase; otherwise wait (S.6); auto-renew off | promo ends 14 Dec 2026; term starts at purchase [V-owner/V-doc] | non-promo 24-month price [A] | open |
+
+Nothing is purchased, reserved or created until the relevant decisions are approved in
+writing, and F3 implementation needs its own separate authorisation.
 
 ## Risks carried forward
 
@@ -511,3 +743,13 @@ approved. F3 implementation itself needs separate authorisation after this plan.
 * South African VAT on foreign electronic services:
   [SARS FAQ](https://www.sars.gov.za/lapd-vat-g16-vat-faqs-supplies-of-electronic-services).
 * Johannesburg VPS listings (Vultr, local hosts): [valebyte](https://valebyte.com/en/vps/south-africa/?provider=vultr).
+* Refinement sources (§S): [Hostinger Frankfurt data centre](https://www.hostinger.com/blog/frankfurt-data-center/),
+  [Hostinger refund policy](https://www.hostinger.com/support/9088216-what-is-hostinger-refund-policy/),
+  [Hostinger VPS IP address](https://www.hostinger.com/support/5139756-how-to-find-vps-ip/),
+  [Supabase IPv4/IPv6 compatibility](https://supabase.com/docs/guides/troubleshooting/supabase--your-network-ipv4-and-ipv6-compatibility-cHe3BP),
+  [Supabase IPv4 add-on](https://supabase.com/docs/guides/platform/ipv4-address),
+  [Supabase SSL enforcement](https://supabase.com/docs/guides/platform/ssl-enforcement),
+  [Supabase backups and PITR](https://supabase.com/docs/guides/platform/backups),
+  [Supabase restore to a new project](https://supabase.com/docs/guides/platform/clone-project),
+  [Tailscale pricing](https://tailscale.com/pricing/),
+  [Tailscale HTTPS certificates](https://tailscale.com/kb/1153/enabling-https/).

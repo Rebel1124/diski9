@@ -67,6 +67,25 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 plan accepted in principle; final hosting decision preparation (22 Nov 2026):**
+* F3 implementation plan **accepted in principle** subject to refinements, recorded in
+  `docs/architecture/phase6c6_stage_f3_plan.md` §S; documentation and research only.
+  F3 implementation, provisioning and purchasing **not authorised**.
+* Owner-verified Hostinger Black Friday terms: KVM 2 (2 vCPU / 8 GB / 100 GB NVMe),
+  $8.79/month equivalent, **$210.96 upfront for 24 months before taxes**, renewal
+  $14.99/month equivalent, promotion ends 14 Dec 2026. Hostinger KVM 2 retained as the
+  preferred commercial candidate, then DigitalOcean, then Hetzner, subject to the
+  pre-purchase checks (Frankfurt, IPv6, VAT, refund terms, renewal billing).
+* Plan refinements: Tailscale-based private access with no public endpoint (fallback
+  WireGuard); TLS `verify-full` to Supabase with the pinned CA and SSL enforcement;
+  session pooler for the app, direct (IPv6) or session pooler for the scheduler lock,
+  transaction pooling still prohibited, hosted lock-test failure a hard stop; local
+  restore times reported only as local drill measurements and hosted recovery proven on a
+  temporary second Supabase project with the provider hold confirmed before cutover;
+  budget reconciliation with verified versus assumed charges. **F3-D1 to F3-D14 remain
+  open proposals**; the $75/month and $250 ceilings are proposals, not approved limits.
+  F3-R1 and F3-R2 remain acceptance gates.
+
 **Phase 6C.6 Stage F2 formally accepted and closed; F3 implementation planning authorised (22 Nov 2026):**
 * **F2 accepted and closed.** Baseline: application `c7630fe`; evidence `0c46526`; full
   CI run 114 passed (1,987 tests, 0 skipped, 13 browser tests); documentation CI run
