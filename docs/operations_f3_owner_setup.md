@@ -552,21 +552,48 @@ Any mismatch fails **G5**.
 
 ### 8.2 Checkpoint 1 (owner evidence; Claude reviews)
 - [x] O-1: SSH key fingerprint (received 22 Nov 2026; key login from the owner's Mac works).
-- [ ] O-2: two `age1…` recipients; both identities passed the round trip. *Received so
-  far:* the offline-recovery identity copied to a second MacBook, decrypted with its
-  passphrase and checked as a valid identity file. A decryption of a real Diski 9
-  backup is proven later, in the Checkpoint 5 drills. *Outstanding:* the two
-  recipients, the generation round-trip result, and confirmation that the primary is
-  stored in the password manager.
+- [ ] O-2: two `age1…` recipients; both identities passed the round trip.
+  * *Received:*
+    * the offline-recovery identity is on a second MacBook, which the owner formally
+      approved (22 Nov 2026) as Diski 9's **official offline recovery device**;
+    * the device is stored securely and disconnected when not in use;
+    * the identity was decrypted with its passphrase and its format verified.
+  * *Outstanding:*
+    * the two public `age1…` recipients;
+    * the generation round-trip result (`primary: OK` / `offline-recovery: OK`);
+    * confirmation that the primary identity is stored in the password manager.
+  * Decrypting a real Diski 9 backup is proven later, in the Checkpoint 5 drills.
 - [ ] O-3: Supabase Pro, spend cap on; project `diski9-f3` in `eu-central-1`, Micro; SSL
   enforcement on; signups off; leaked-password protection on; CA certificate saved;
   host names noted; no key shared.
+  * *Received:*
+    * Pro project in Frankfurt (`eu-central-1`), Micro (22 Nov 2026);
+    * session-pooler and direct hosts known (used in the day-one check);
+    * visually verified Auth settings: **new-user signup disabled**, manual linking
+      disabled, anonymous sign-ins disabled, **Confirm email enabled**.
+  * *Outstanding:*
+    * spend cap on;
+    * SSL enforcement on;
+    * leaked-password protection on;
+    * CA certificate downloaded;
+    * Supabase account MFA on;
+    * project name;
+    * invoice amount and tax;
+    * confirmation that no API key was shared.
 - [ ] O-4: Hostinger KVM 2, 1-month, Germany (provisioned in Düsseldorf: F3-D1a/F3-D2a
   conditionally approved, final on IT-1 PASS), Ubuntu 24.04, no add-ons; MFA on;
   SSH key login; console works; purchase date and day-25 reminder recorded; invoice
-  amounts. *Received:* console (IT-9) works, SSH key login works, host-key fingerprint,
-  invoice amount and dates. *Outstanding:* the data-centre name as hPanel shows it;
-  account MFA on; password login disabled where offered; no add-ons; day-25 reminder.
+  amounts.
+  * *Received:*
+    * data centre **Düsseldorf, Germany** as hPanel shows it;
+    * Hostinger account **two-factor authentication on**;
+    * **no add-ons purchased**;
+    * console (IT-9) works and SSH key login works;
+    * host-key fingerprint, invoice amount and dates.
+  * *Outstanding:*
+    * the day-25 (17 Dec 2026) refund-decision reminder;
+    * whether hPanel's "disable password login" was used. SSH password login is
+      disabled in Checkpoint 2 hardening in any case.
 - [ ] O-5: day-one JSON (`diski9-f3-day1/2`): IT-1 PASS (RTT p95 < 10 ms); IT-2 PASS or the fallback path recorded; system
   facts (2 vCPU / 8 GB / ~100 GB). *Owner-reported:*
   * pooler IPv4 100/100, p95 5.730 ms;
@@ -576,6 +603,10 @@ Any mismatch fails **G5**.
   *Outstanding:* the full JSON, for the zero-success check of the unreported families
   (plan §Z.8), the system facts and the listening-port baseline.
 - [ ] O-6: B2 EU Central; bucket with Object Lock Governance 30 days; lifecycle rules;
-  caps; **no keys created yet**.
-- [ ] O-7: WireGuard app installed on both devices.
+  caps; **no keys created yet**. *Status:* account 2FA on and EU Central region chosen;
+  bucket **not created**. The live procedure is **on hold** pending final security review
+  and explicit owner authorisation (plan §Y.6).
+- [x] O-7: WireGuard app installed on both devices: the official client on the owner's
+  MacBook and iPhone (22 Nov 2026). No tunnels configured. The WireGuard server and VPS
+  hardening belong to Checkpoint 2 and are not authorised by this item.
 - [ ] Running cost against the $65 alert and the $75 ceiling.

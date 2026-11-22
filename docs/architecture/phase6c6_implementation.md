@@ -1460,3 +1460,25 @@ copy is passphrase-encrypted and separate from the primary, so recoverability is
 Whether a second, normally online computer is acceptable as the "offline" location is
 for the owner to confirm.
 
+### 13.5 Checkpoint 1: owner evidence update (22 Nov 2026, owner-reported)
+| Item | Evidence | Status |
+|---|---|---|
+| O-2 offline recovery | the second MacBook is formally approved as Diski 9's **official offline recovery device**; stored securely and disconnected when not in use; the encrypted recovery identity was decrypted and its format verified | the §13.4 deviation is **resolved by owner approval**. **Outstanding:** the two public recipients, the generation round-trip result, and the primary identity's storage confirmation. Backup decryption is tested in Checkpoint 5 |
+| O-3 Supabase Auth | visually verified: new-user signup **disabled**, manual linking **disabled**, anonymous sign-ins **disabled**, Confirm email **enabled** | partial. **Outstanding:** spend cap, SSL enforcement, leaked-password protection, CA certificate, account MFA, project name, invoice |
+| O-4 Hostinger | data centre **Düsseldorf, Germany** (hPanel); account **2FA on**; **no add-ons**; SSH and connectivity evidence unchanged | nearly complete. **Outstanding:** the day-25 reminder and the hPanel password-login setting (SSH password login is disabled in Checkpoint 2 regardless) |
+| O-7 WireGuard | official client installed on the owner's MacBook and iPhone; no tunnels configured | **complete** for Checkpoint 1. The WireGuard server and VPS hardening are Checkpoint 2 work and are not authorised by this item |
+| O-6 Backblaze | account 2FA on, EU Central; bucket not created | **on hold**: live execution needs final security review and explicit owner authorisation |
+
+**Checkpoint 1 remaining requirements:**
+* O-2: the two `age1…` recipients, the round-trip result and the primary storage
+  confirmation.
+* O-3: spend cap on, SSL enforcement on, leaked-password protection on, CA certificate
+  saved, account MFA on, project name, invoice amount and tax, and confirmation that no
+  key was shared.
+* O-4: the day-25 reminder, and the password-login setting.
+* O-5: the full day-one JSON. It is needed for the zero-success check (and so for final
+  acceptance of F3-D1a/F3-D2a), the system facts and the listening-port baseline.
+* O-6: the authorised live Backblaze procedure and its evidence.
+* Running cost against the $65 alert and $75 ceiling, once the Supabase invoice is
+  known.
+

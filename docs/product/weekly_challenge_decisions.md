@@ -67,6 +67,27 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 Checkpoint 1: owner evidence update (22 Nov 2026):**
+* **Owner decision:** the second MacBook is the **official offline recovery device**
+  for the `age` offline-recovery identity. It is stored securely and disconnected when
+  not in use. This resolves the §X.3.5 deviation noted earlier. Backup decryption is
+  still tested in Checkpoint 5.
+* **Owner-verified:**
+  * Supabase Auth: signup disabled, manual linking disabled, anonymous sign-ins
+    disabled, Confirm email enabled;
+  * Hostinger: data centre Düsseldorf (hPanel), account 2FA on, no add-ons;
+  * WireGuard: the official client is installed on the owner's MacBook and iPhone,
+    with no tunnels. The server and hardening are not authorised.
+* **Still outstanding:**
+  * O-2: recipients, round trip and primary storage;
+  * O-3: spend cap, SSL enforcement, leaked-password protection, CA certificate, MFA,
+    invoice;
+  * O-4: the day-25 reminder and the password-login setting;
+  * O-5: the full JSON;
+  * O-6: on hold.
+  * Recorded in `docs/architecture/phase6c6_implementation.md` §13.5 and the runbook
+    §8.2.
+
 **Phase 6C.6 Stage F3 O-6: Backblaze Governance configuration — decisions A–C (22 Nov 2026):**
 * **A approved (architecture):** private B2 EU Central bucket with Object Lock and a
   **30-day Governance default retention**, configured through the verified CLI
