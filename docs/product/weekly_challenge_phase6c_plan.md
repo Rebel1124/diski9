@@ -430,7 +430,7 @@ Outstanding requirements, not blocking 6C.4: D-29 (validation on 6–8 real pool
 before Official Championship 1) and D-36 (retention policy, before launch).
 
 Roadmap (updated 21 Nov 2026): 6C.5 leaderboards and championships (**complete**: Stages A–E,
-F1–F4 and Stage G owner acceptance closed on 21 Nov 2026; merge and release not yet authorised) → 6C.6 administration, scheduling and monitoring (Phase 6C.6 Stages A–E and E.1a–E.1b formally accepted and closed. Next: Stage F — Integration and genuine Beta-week validation: design and readiness assessment delivered (`docs/architecture/phase6c6_stage_f_design.md`, SF-01–SF-14), awaiting owner approval; implementation not authorised. Stage G — Final acceptance, not started.) → 6D integration
+F1–F4 and Stage G owner acceptance closed on 21 Nov 2026; merge and release not yet authorised) → 6C.6 administration, scheduling and monitoring (Phase 6C.6 Stages A–E and E.1a–E.1b formally accepted and closed. Stage F — Integration and genuine Beta-week validation: architecture approved and F1 accepted (`docs/architecture/phase6c6_stage_f_design.md`, SF-01–SF-14, D-39a); next F2 offline deployment readiness — implementation plan delivered (`docs/architecture/phase6c6_stage_f2_plan.md`), awaiting authorisation; F3–F6 not authorised. Stage G — Final acceptance, not started.) → 6D integration
 testing and release → 7 Lucy AI football analyst and LiveKit → 8 European
 competition coverage → 9 community badges and achievements → 10 production
 deployment and private beta → 11 public launch and YouTube → 12 advanced

@@ -67,6 +67,30 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F design approval and F2 implementation planning (22 Nov 2026):**
+* **Stage F architecture approved** (design `0953375`, CI run 112); **F1 accepted**;
+  **F2 implementation planning authorised** — not F2 implementation, provisioning,
+  live provider calls, deployment or Beta activation. Every implementation checkpoint
+  needs separate authorisation and acceptance.
+* **SF decisions recorded** (`docs/architecture/phase6c6_stage_f_design.md` §16):
+  SF-01 six checkpoints F1–F6; SF-02 single small VM target architecture (no provider,
+  region or spending limit chosen); SF-03 Supabase Auth + PostgreSQL direction (no
+  project created); SF-04 → D-39a below; SF-05 staged activation as a future plan, no
+  live calls; SF-06 F4 operator-only practice round, F5 invited private Beta, no fake
+  competitive rounds; SF-07 ML-01 before F5; SF-08 D-36 deletion workflow and
+  retention statement before F5 after a separate privacy design review; SF-09 backup
+  architecture, with the 24-hour PostgreSQL RPO provisional for the operator-only
+  exercise and a tighter RPO evaluated before F5; SF-10 CLI monitoring plus a
+  backup-health check, webhooks off; SF-11 evidence pack with the four evidence
+  levels kept distinct, S-02 on real elapsed time; SF-12 no public launch, Official,
+  merge, tag or release, F3/F4 private; SF-13 Gunicorn and a minimal `/healthz`;
+  SF-14 D-29b schedule unchanged, contention analysis before F4.
+* **D-39a — owner ruling (amendment to D-39):** "A private, access-restricted, single-host environment used exclusively for supervised Phase 6C.6 Stage F testing may retain the SQLite football store, provided the application and scheduler are co-located, verified off-host backups are maintained, and the environment is not publicly accessible. The PostgreSQL football-store migration remains mandatory before public or production deployment." This is a new ruling, not an
+  interpretation of the original wording, which did not define "hosted deployment";
+  it neither authorises the migration nor waives it for public launch.
+* **F2 implementation plan** delivered: `docs/architecture/phase6c6_stage_f2_plan.md`;
+  **implementation not authorised**. F3–F6 and Stage G not authorised.
+
 **Phase 6C.6 Stage F design and readiness assessment authorised and delivered (22 Nov 2026):**
 * **Design and readiness assessment only** (baseline `77f22ad`). No implementation,
   deployment, provisioning, hosting selection or purchase, live provider call,
@@ -510,6 +534,7 @@ listed at the end.
 | D-08 | **Settlement rules `settle/v1` (approved):** as defined in [`settle/v1`](weekly_challenge_settle_v1.md): the fixed cutoff of 48 hours after the latest scheduled kickoff recorded at publication, the V1–V5 rules and the verdict priority. Additional requirements: completion at or before the cutoff is eligible for normal settlement subject to higher-priority void rules; actual match-completion time is distinguished from provider result-receipt time; delayed result notifications use the approved correction process; original provider statuses, raw results and normalised verdicts are preserved; all timestamps in UTC; the settlement-policy version is recorded against each published round; later kickoff changes cannot silently modify the published cutoff; tests cover conflicting provider statuses, exact cutoff boundaries and repeated deliveries; where reliable evidence is insufficient the operator is alerted rather than completion times or results being invented. Implementation in Phase 6C.4. **Amended 19 Nov 2026 (S-03):** the cutoff is completion-based throughout `settle/v1` |
 | D-29b | **Weekly research collection (approved and activated):** branch `research/weekly-pools`; capture Thursdays 08:00 SAST from 26 November 2026; results daily 09:15 SAST after the first capture. Implemented in Phase 6C.0 |
 | D-39 | **Football store (approved):** the SQLite football database stays separate throughout Phase 6C; the competition backend consumes it through defined integration boundaries and copies required data into immutable round snapshots and result records; migration to PostgreSQL is a separate approved task before hosted deployment |
+| D-39a | **Football store for Stage F (owner ruling, 22 Nov 2026; amends D-39):** A private, access-restricted, single-host environment used exclusively for supervised Phase 6C.6 Stage F testing may retain the SQLite football store, provided the application and scheduler are co-located, verified off-host backups are maintained, and the environment is not publicly accessible. The PostgreSQL football-store migration remains mandatory before public or production deployment. (Decision SF-04; does not authorise or waive the migration for public launch) |
 | D-40 | **Merge and release (approved, done):** `feature/weekly-challenge-final-polish` merged to `main` (`d12ddff`) and released as v4.0.0 (`0286fa8`), described as an accepted functional prototype with browser-session persistence |
 | D-41 | **Match Lab qualitative inputs (approved, 19 Nov 2026):** the free-text adjustment reason (Section B) and per-factor research notes (Section C) are removed and replaced by static guidance per factor ([factor guidance](match_lab_factor_guidance.md)); no reason field on the manual adjustment; Your View holds numbers only. **Deferred** until real-user feedback: historical adjustment reasons, adjustment versioning, prediction journals, qualitative-factor performance attribution, personal prediction dashboards, research-note collection for model training and related consent flows; no historical adjustment tables or note fields. Phase 6C.3 still persists the current numerical Your View across devices (T-10). Phase 7 Lucy will research factors within the same framework and suggest adjustments that the user explicitly accepts or rejects |
 | S-01 | **Results collection (approved 19 Nov 2026, Q-1):** a competition-specific by-ID results fetch through the existing provider client and normalisation; existing football ingestion behaviour preserved; raw provider evidence and normalised values stored as immutable, versioned observations in PostgreSQL with provenance, receipt times, ordering and idempotency; batched fixture IDs; no polling of distant or unrelated fixtures; no automated scheduling in 6C.4 |

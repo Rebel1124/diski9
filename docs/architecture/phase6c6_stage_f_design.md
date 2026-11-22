@@ -1,10 +1,12 @@
 # Phase 6C.6 Stage F — Integration and Genuine Beta-Week Validation: design and readiness assessment
 
-**Status:** design and readiness assessment for owner review (authorised 22 Nov 2026).
-**Not implemented.** No application code, migration, infrastructure, hosting choice,
-purchase, deployment, live provider call, refresh activation, participant account,
-webhook or Official activation is part of this document. Stage F implementation and
-Stage G are not authorised. Every SF decision below is a **proposal**.
+**Status:** **architecture approved by the owner (22 Nov 2026)** with the decisions and
+qualifications in §16; **F1 (architecture and readiness) accepted**; **F2
+implementation planning authorised and delivered**
+([`phase6c6_stage_f2_plan.md`](phase6c6_stage_f2_plan.md)); F2 implementation, F3–F6
+and Stage G not authorised. No provider, region, Supabase project or spending limit is
+chosen. Original status: design and readiness assessment for owner review (authorised
+22 Nov 2026); not implemented.
 
 **Baseline verified (22 Nov 2026):** branch `feature/phase-6c6-operations` at
 `77f22ad` (E.1b closure; documentation CI run 111 passed); E.1b application commit
@@ -523,3 +525,27 @@ Price sources consulted (22 Nov 2026; re-check before purchase): Supabase pricin
 Fly.io pricing and 2026 pricing update (fly.io/docs/about/pricing, fly.io/pricing-update),
 Render pricing (render.com/pricing), Hetzner cloud pricing (hetzner.com/cloud; 2026
 changes reported by secondary sources).
+
+---
+
+## 16. Owner decisions (22 Nov 2026)
+
+The proposals in §13 are now decided as follows (owner wording summarised; the
+qualifications are binding).
+
+| ID | Decision |
+|---|---|
+| SF-01 | **Approved:** six checkpoints F1–F6; F1 approved by this decision; every implementation checkpoint needs separate authorisation and acceptance |
+| SF-02 | **Target architecture approved:** one small Linux VM (≈ 2 vCPU / 4 GB), web app and scheduler on the same host, persistent local SQLite store, systemd timer, reverse proxy with TLS, private access during F3 and F4, encrypted verified off-host backups. **No provider chosen, nothing purchased or provisioned**; provider, region and monthly spending limit are separate owner decisions before F3 |
+| SF-03 | **Approved direction:** Supabase-hosted Auth and PostgreSQL for competition data; no project created |
+| SF-04 | **D-39a — new owner ruling (amendment), see the decision register:** "A private, access-restricted, single-host environment used exclusively for supervised Phase 6C.6 Stage F testing may retain the SQLite football store, provided the application and scheduler are co-located, verified off-host backups are maintained, and the environment is not publicly accessible. The PostgreSQL football-store migration remains mandatory before public or production deployment." Recorded as an amendment, **not** as a reading of the original D-39 wording; it neither authorises nor waives the migration for public launch |
+| SF-05 | **Approved as a future plan:** (1) offline configuration review, (2) separately authorised `/status` check, (3) separately authorised supervised refresh, (4) separately authorised weekly automated refresh, (5) review of actual consumption and evidence; caps and safeguards retained; **no live calls or activation authorised** |
+| SF-06 | **Approved:** F4 operator-only practice round (no manufactured competitive entries); F5 invited private Beta with genuine participants after all gates; no fake competitive rounds; Beta championship rules and records unchanged; F4 practice evidence is never presented as competitive championship evidence |
+| SF-07 | **Approved timing:** ML-01 targeted fix with deterministic regression tests before F5; not authorised under F2 |
+| SF-08 | **Approved timing:** functional account-deletion workflow and owner-approved retention statement before F5; needs a separate privacy and retention design review; not authorised under F2 |
+| SF-09 | **Approved for F2 planning:** WAL-compatible SQLite online backup, integrity checks and checksums, encrypted off-host copies, verified restores, PostgreSQL dump/restore runbook, drills, backup-health monitoring. **The 24-hour PostgreSQL RPO is a provisional target for the operator-only exercise only**; before F5 evaluate a tighter RPO (point-in-time recovery or more frequent backups: cost, complexity, data-loss implications). Restore verification is mandatory; a successful backup command is not evidence |
+| SF-10 | **Approved:** CLI-based monitoring plus a backup-health check; webhooks stay disabled; no external notification service without separate approval |
+| SF-11 | **Approved:** the evidence pack, keeping offline rehearsal, hosted supervised operation, genuine real-clock practice week and competitive private Beta week distinct; S-02 tested on genuine elapsed calendar time; no clock overrides as substitute evidence |
+| SF-12 | **Approved:** no public launch, Official activation, merge, tag or release; F3 and F4 private and access-restricted; F5 participant access needs its own approval |
+| SF-13 | **Approved for F2 planning:** Gunicorn and a minimal `/healthz` (no secrets or internal configuration; liveness distinct from readiness; authentication behaviour unchanged; safe for private and future hosted operation); reuse of the existing WSGI tooling assessed in the F2 plan |
+| SF-14 | **Deferred:** the D-29b capture schedule stays unchanged; before F4, analyse the contention between the Friday 06:00 UTC publication target, the D-29b capture at 06:00 UTC, the 05:15 refresh and other shared-key consumers, and recommend a schedule (e.g. capture at 07:00 UTC or later) for a separate decision; the expired D-29 trial is not restarted and no research task is altered during F2 |

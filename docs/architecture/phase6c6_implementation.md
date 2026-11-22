@@ -1185,7 +1185,7 @@ with real timing in the budget file) — no assertion was weakened.
 | `provider_quota_low` CRITICAL threshold | fixed at 600 (client reserve 500 + 100) rather than "500 + projected results need" — simpler and conservative |
 | Carried forward (activation gates) | active subscription limits and at-limit billing unverified (activation gate); provider update time measured on few days; results-import volume estimated; same-host SQLite requirement with Q-07 and D-39 open; other users of the key visible only through lagging observations; CI margin about 12 minutes (run 109) |
 
-## 11. Stage F: integration and genuine Beta-week validation — **design and readiness assessment (proposal; not implemented)**
+## 11. Stage F: integration and genuine Beta-week validation — **architecture approved; F1 accepted; F2 implementation plan prepared (not implemented)**
 
 Authorised on 22 Nov 2026 as design and readiness assessment only (baseline `77f22ad`,
 CI run 111). Proposal: [`phase6c6_stage_f_design.md`](phase6c6_stage_f_design.md),
@@ -1199,3 +1199,16 @@ operator-only supervised week is proposed as a practice round, with competitive 
 championship evidence from an invited private Beta after ML-01 and a minimum D-36
 workflow; the D-29b research capture uses the same API key at the Friday publication
 target. Stage F implementation and Stage G are not authorised.
+
+**Owner review (22 Nov 2026).** Stage F architecture approved; **F1 (architecture and
+readiness) accepted**; SF-01 to SF-14 recorded with qualifications (design §16);
+**D-39a** ruling recorded (private, access-restricted, single-host supervised Stage F
+environment may retain SQLite; migration mandatory before public or production
+deployment). **F2 implementation planning authorised and delivered:**
+[`phase6c6_stage_f2_plan.md`](phase6c6_stage_f2_plan.md) — production WSGI entry point
+reusing the F3 tooling, `/healthz` and `/readyz`, SQLite online backup with verification
+and guarded restore, PostgreSQL dump/restore runbook, backup-health findings,
+provider-neutral systemd/reverse-proxy/environment templates, host-hardening guide,
+offline full-week rehearsal on an isolated database, local restore drills, security
+tests; no migration. **F2 implementation not authorised**; F3–F6 and Stage G not
+authorised.
