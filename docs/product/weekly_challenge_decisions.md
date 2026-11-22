@@ -67,6 +67,24 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E.1a formal acceptance and closure:**
+* **Stage E.1a formally accepted and closed** (`3ed0301`, CI run 104: 1,835
+  passed, 0 failed, 0 skipped, 13 browser tests; documentation `67433d9`, CI run
+  105; Level 2 529 passed; head `app_0007`; fingerprint and configurations
+  unchanged).
+* Deviations accepted: preparation jobs added to the Stage D interrupted-job
+  recovery registry; READY freshness = two readiness intervals + five minutes;
+  readiness every 30 minutes from draft creation.
+* **Next stage: E.1b — Automated API-Football Data Refresh**, beginning with a
+  focused design review (existing ingestion and refresh functions; refresh timing
+  relative to the Friday target; the advertised 7,500/day Pro allowance; realistic
+  internal budgets and results-import reserve; per-minute pacing and rate limits;
+  avoiding redundant requests; locking, crash recovery and request accounting;
+  football-store access, concurrency and hosting; monitoring and intervention;
+  tests and acceptance). The advertised allowance is not authorisation to raise
+  internal scheduler limits. E.1b design refinement awaits separate authorisation;
+  E.1b implementation, Stage F and Stage G are not authorised.
+
 **Phase 6C.6 Stage E.1a implementation authorised and delivered (21 Nov 2026):**
 * E.1a authorised on the approved plan (baseline `c47474f`); implemented at
   `3ed0301`, CI run 104 (1,835 passed, 0 skipped, 13 browser tests); awaiting owner

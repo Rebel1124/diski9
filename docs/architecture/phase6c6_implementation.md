@@ -910,7 +910,25 @@ readiness output limited to the pinned fields with no account or credential data
   suite 26 min 11 s; job 27 min 33 s, within the 40-minute timeout.
 * Documentation after the candidate uses the documentation-only path.
 
-## 8. Stage E.1a: automated draft creation, readiness and monitoring (21 Nov 2026; checkpoint, awaiting owner acceptance)
+## 8. Stage E.1a: automated draft creation, readiness and monitoring — **formally accepted and closed**
+
+**Owner acceptance.** Stage E.1a is formally accepted on this evidence:
+application commit `3ed0301`, GitHub CI run 104 passed (1,835 passed, 0 failed, 0
+skipped; all 13 browser tests); documentation commit `67433d9`, CI run 105
+passed; Level 1 passing twice; Level 2 529 passed; migration head `app_0007`;
+fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
+`broad60-432-v1` and `points-150-75-v2`; no unauthorised provider call,
+publication, Official activation or competition-rule change. The three deviations
+in §8.6 are accepted: the preparation jobs in the Stage D interrupted-job recovery
+registry; READY freshness of two readiness intervals plus five minutes; readiness
+evaluations every 30 minutes from draft creation. **Stage E.1a is closed.** Next:
+**Stage E.1b — Automated API-Football Data Refresh**, starting with a separately
+authorised design refinement (ingestion functions, refresh timing against the
+Friday target, the advertised 7,500/day allowance, internal budgets and
+results-import reserve, pacing and rate limits, request reuse, locking and
+accounting, football-store access and hosting, monitoring, tests). The advertised
+allowance does not authorise raising internal scheduler limits. E.1b
+implementation, Stage F and Stage G are not authorised.
 
 Authorised by the owner on the approved plan
 ([`phase6c6_stage_e1a_plan.md`](phase6c6_stage_e1a_plan.md); design
