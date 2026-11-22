@@ -515,6 +515,24 @@ presence only):
 7. O-6 closes only when the evidence shows the canary in **Governance** mode with an
    expiry about 30 days after its upload, and the evidence is recorded.
 
+**Result: PASSED (2026-11-22, owner-run at `c332cd9`).** Sanitised evidence:
+
+| Field | Value |
+|---|---|
+| Evidence schema | `diski9-f3-b2-canary-verification/1` |
+| Verified at | 2026-11-22T18:38:03Z (repository HEAD `c332cd9`) |
+| Bucket | `diski9-f3-3cd4db18`, `allPrivate`, Object Lock enabled |
+| Default retention | Governance, 30 days |
+| Lifecycle rules | all three approved rules matched |
+| Canary | `diski9/canary/setup-20261122T174727Z.txt`, uploaded 2026-11-22T17:47:32Z |
+| Canary retention | **Governance**, retain until **2026-12-22T17:47:32Z** (30.0 days); legal hold `null`; hide markers 0 |
+
+Cleanup: master key rotated immediately; no Diski 9 RAM volume or attached RAM disk; no
+B2 environment variables; no CLEANUP FAILED message. A pre-existing default B2 cache
+(`~/.b2_account_info`, not used by the script) remains; deleting it is recommended. O-6
+stays open for the monthly spending control (plan §Y.6, decisions S-1 to S-3).
+
+
 ### O-7 Peer devices (no cost)
 
 Install the official WireGuard app on the laptop and the phone. Nothing else yet:
@@ -701,13 +719,25 @@ Any mismatch fails **G5**.
   *Outstanding:* the full JSON, for the zero-success check of the unreported families
   (plan §Z.8), the system facts and the listening-port baseline.
 - [ ] O-6: B2 EU Central; bucket with Object Lock Governance 30 days; lifecycle rules;
-  caps; **no keys created yet**. *Status:* account 2FA on and EU Central region chosen;
-  bucket **created** (`diski9-f3-3cd4db18`; private; Object Lock; Governance 30 days
-  applied and re-verified by the script; lifecycle verified). The canary upload
-  succeeded, but the script stopped at the upload-parsing step (incident above), so
-  **the canary's retention is unverified**. **Open** until the `--verify-canary`
-  evidence is recorded (separate owner authorisation).
+  caps; **no keys created yet**.
+  * **PASSED: canary verification** (2026-11-22T18:38:03Z, `--verify-canary`):
+    `diski9-f3-3cd4db18` private, Object Lock on, default Governance 30 days, lifecycle
+    rules matched; canary Governance until 2026-12-22T17:47:32Z (30.0 days), no legal
+    hold, 0 hide markers.
+  * **PASSED: credential cleanup:**
+    * master key rotated immediately after the run;
+    * no Diski 9 RAM volume and no attached RAM disk afterwards;
+    * no B2 environment variables;
+    * no CLEANUP FAILED message.
+  * **OPEN:** monthly spending control (caps versus alerts; owner decisions S-1 to S-3
+    in plan §Y.6).
+  * **OPEN (hygiene):** a pre-existing default B2 cache `~/.b2_account_info` is
+    present. The script never used it. Recommended: delete it without opening it
+    (`rm ~/.b2_account_info`).
+  * O-6 is **not closed** until these are resolved.
 - [x] O-7: WireGuard app installed on both devices: the official client on the owner's
   MacBook and iPhone (22 Nov 2026). No tunnels configured. The WireGuard server and VPS
   hardening belong to Checkpoint 2 and are not authorised by this item.
-- [ ] Running cost against the $65 alert and the $75 ceiling.
+- [ ] Running cost against the $65 alert and the $75 ceiling: **open**. The Supabase
+  invoice is outstanding, and the monthly control needs owner decisions S-1 to S-3
+  (plan §Y.6).

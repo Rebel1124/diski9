@@ -67,6 +67,25 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 O-6: live canary verification PASSED; spending control open (22 Nov 2026):**
+* **Owner-run `--verify-canary`** at `c332cd9` (evidence
+  `diski9-f3-b2-canary-verification/1`, 2026-11-22T18:38:03Z):
+  * bucket `diski9-f3-3cd4db18` private, Object Lock on, default Governance 30 days,
+    lifecycle rules matched;
+  * canary `setup-20261122T174727Z.txt` Governance-locked until 2026-12-22T17:47:32Z
+    (30.0 days), no legal hold, 0 hide markers;
+  * master key rotated afterwards; no residue.
+* **Subchecks:** canary verification **PASSED**; credential cleanup **PASSED**.
+* **Not closed:**
+  * the monthly $65 warning / $75 ceiling is unresolved. B2's daily alerts are
+    alert-only;
+  * proposed (owner decisions, not applied):
+    * **S-1:** per-provider enforced maxima summing to ≤ $75;
+    * **S-2:** a monthly cost log plus provider alerts as the $65 warning;
+    * **S-3:** B2 daily caps (not just alerts) at about $0.10 storage, $0.05 Class B and
+      $0.05 Class C.
+* Deleting the pre-existing default B2 cache is recommended. Thresholds are unchanged.
+
 **Phase 6C.6 Stage F3 O-6: canary verification incident and remediation (22 Nov 2026):**
 * **Live run:** Governance 30 days was configured and re-verified on
   `diski9-f3-3cd4db18`, and the canary was uploaded. The script then stopped at

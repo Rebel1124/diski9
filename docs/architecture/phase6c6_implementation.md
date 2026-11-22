@@ -1526,3 +1526,67 @@ output as JSON. The fake `b2` in the tests printed JSON only.
 **O-6 remains open** until the live `--verify-canary` evidence (separately authorised)
 shows Governance with a ~30-day expiry and is recorded.
 
+### 13.7 Checkpoint 1, O-6: live canary verification PASSED (22 Nov 2026, owner-run)
+`f3-b2-configure-governance.sh --verify-canary diski9-f3-3cd4db18` at `c332cd9`. Sanitised
+evidence:
+
+| Field | Value |
+|---|---|
+| Evidence schema | `diski9-f3-b2-canary-verification/1` |
+| Verified at | 2026-11-22T18:38:03Z (repository HEAD `c332cd9`) |
+| Bucket | `diski9-f3-3cd4db18`, `allPrivate`, Object Lock enabled |
+| Default retention | Governance, 30 days |
+| Lifecycle rules | all three approved rules matched |
+| Canary | `diski9/canary/setup-20261122T174727Z.txt`, uploaded 2026-11-22T17:47:32Z |
+| Canary retention | **Governance**, retain until **2026-12-22T17:47:32Z** (30.0 days); legal hold `null`; hide markers 0 |
+
+**Security:**
+* the master key was rotated immediately after the run (as after the first run);
+* post-run: Diski 9 RAM volumes 0, attached RAM disks 0, B2 environment variables 0;
+* no cleanup failure.
+* A pre-existing default B2 cache (`~/.b2_account_info`) is present. The script did not
+  use it; deleting it without opening it is recommended.
+
+**Subchecks:**
+* canary verification **PASSED**;
+* credential cleanup **PASSED**;
+* **monthly spending control OPEN**;
+* O-6 and Checkpoint 1 are **not closed**.
+
+**Monthly spending control ($65 warning / $75 ceiling, F3-D3): OPEN, owner decision needed.**
+No provider enforces a *combined* monthly cap across Hostinger, Supabase and Backblaze.
+The current Backblaze daily email alerts ($2 storage, $5 downloads) are **alert-only and
+daily**. They are not a monthly combined control: $2 + $5 a day could exceed $200 a
+month. The approved thresholds are not changed here. Proposed smallest safe resolution:
+
+| Layer | Kind | Proposal |
+|---|---|---|
+| Hostinger KVM 2 | **enforced by price**: fixed monthly charge, no metered usage | ≈ $28.16 with tax; no action |
+| Supabase Pro | **enforceable**: the spend cap (on) blocks usage overages; the base plan is fixed | confirm the spend cap is on (O-3); ≈ $28.75 with VAT; the IPv4 add-on (≈ $4.60) only if IT-3 needs it |
+| Backblaze B2 | **enforceable** with daily **caps** (not just alerts) | set daily caps so B2 can never exceed the remaining headroom: for example storage $0.10, Class B $0.05, Class C $0.05 a day (≤ $6/month; Class A uploads are free; Class D cannot be capped, and Diski 9 does not use it) |
+| Sum of enforced maxima | **≤ $75 ceiling** | ≈ $28.16 + $28.75 + $4.60 + $6 ≈ **$67.5**: within $75 even in the worst case |
+| $65 warning | **alert-only** | a monthly cost log, reconciled against each invoice and on the 1st of each month, plus the provider alerts (Supabase usage email, B2 cap alerts). A total ≥ $65 is a warning to review; ≥ $75 is a hard stop of new spending |
+
+Decisions for the owner:
+* **S-1:** accept "per-provider enforced maxima summing to ≤ $75" as the implementation
+  of the $75 ceiling.
+* **S-2:** accept the monthly cost log plus provider alerts as the (alert-only) $65
+  warning.
+* **S-3:** authorise lowering the B2 daily alerts to **caps** at the proposed values (an
+  owner action in the B2 web UI).
+
+Nothing is changed until these are approved.
+
+**Checkpoint 1 readiness (22 Nov 2026):**
+
+| Item | Status | Outstanding |
+|---|---|---|
+| O-1 SSH key | **PASSED** | – |
+| O-2 `age` identities | OPEN | the two `age1…` recipients; the round-trip result; confirmation that the primary is stored in the password manager (the offline device is approved and its copy verified) |
+| O-3 Supabase | OPEN | spend cap on; SSL enforcement on; leaked-password protection on; CA certificate saved; account MFA; project name; invoice and tax; confirmation that no key was shared (Auth settings recorded) |
+| O-4 Hostinger | OPEN (minor) | the day-25 reminder (17 Dec 2026); the hPanel password-login setting |
+| O-5 day-one check | OPEN | the full JSON: zero-success check (final acceptance of F3-D1a/F3-D2a), system facts, listening-port baseline (IT-1, IT-2 and IT-9 already PASS) |
+| O-6 Backblaze | OPEN | canary and cleanup **PASSED**; monthly spending control (S-1 to S-3); old cache deletion recommended |
+| O-7 WireGuard clients | **PASSED** | – |
+| Running cost | BLOCKED on owner decision | S-1 to S-3, and the Supabase invoice amount |
+

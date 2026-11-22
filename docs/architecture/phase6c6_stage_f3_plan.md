@@ -1796,6 +1796,38 @@ The procedure is in the runbook O-6 and in `deploy/f3/owner/f3-b2-configure-gove
   * the test double now emits the real 5.0.3 output.
 * Live verification needs separate owner authorisation (runbook O-6).
 
+**Live verification PASSED (2026-11-22T18:38:03Z):**
+* the canary `diski9/canary/setup-20261122T174727Z.txt` is Governance-locked until
+  2026-12-22T17:47:32Z (30.0 days), with no legal hold;
+* the bucket is private, with Object Lock, default Governance 30 days and the approved
+  lifecycle rules;
+* the master key was rotated afterwards;
+* no residue.
+
+**Monthly spending control ($65 warning / $75 ceiling, F3-D3): OPEN, owner decision needed.**
+No provider enforces a *combined* monthly cap across Hostinger, Supabase and Backblaze.
+The current Backblaze daily email alerts ($2 storage, $5 downloads) are **alert-only and
+daily**. They are not a monthly combined control: $2 + $5 a day could exceed $200 a
+month. The approved thresholds are not changed here. Proposed smallest safe resolution:
+
+| Layer | Kind | Proposal |
+|---|---|---|
+| Hostinger KVM 2 | **enforced by price**: fixed monthly charge, no metered usage | ≈ $28.16 with tax; no action |
+| Supabase Pro | **enforceable**: the spend cap (on) blocks usage overages; the base plan is fixed | confirm the spend cap is on (O-3); ≈ $28.75 with VAT; the IPv4 add-on (≈ $4.60) only if IT-3 needs it |
+| Backblaze B2 | **enforceable** with daily **caps** (not just alerts) | set daily caps so B2 can never exceed the remaining headroom: for example storage $0.10, Class B $0.05, Class C $0.05 a day (≤ $6/month; Class A uploads are free; Class D cannot be capped, and Diski 9 does not use it) |
+| Sum of enforced maxima | **≤ $75 ceiling** | ≈ $28.16 + $28.75 + $4.60 + $6 ≈ **$67.5**: within $75 even in the worst case |
+| $65 warning | **alert-only** | a monthly cost log, reconciled against each invoice and on the 1st of each month, plus the provider alerts (Supabase usage email, B2 cap alerts). A total ≥ $65 is a warning to review; ≥ $75 is a hard stop of new spending |
+
+Decisions for the owner:
+* **S-1:** accept "per-provider enforced maxima summing to ≤ $75" as the implementation
+  of the $75 ceiling.
+* **S-2:** accept the monthly cost log plus provider alerts as the (alert-only) $65
+  warning.
+* **S-3:** authorise lowering the B2 daily alerts to **caps** at the proposed values (an
+  owner action in the B2 web UI).
+
+Nothing is changed until these are approved.
+
 Irreversible actions, each confirmed by the owner when it is done:
 * the bucket name;
 * enabling Object Lock;
