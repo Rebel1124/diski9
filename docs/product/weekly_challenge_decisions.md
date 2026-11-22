@@ -67,6 +67,22 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3: Lean MVP hosting and cost-optimisation assessment (22 Nov 2026):**
+* Assessment only (`docs/architecture/phase6c6_stage_f3_plan.md` §T); no earlier decision
+  superseded. Measured: ≈ 94 MB per warm Gunicorn worker (≈ 214 MB for master + 2
+  workers), so 2 GB RAM is the practical minimum and 2 vCPU / 4 GB is comfortable;
+  competition database ≈ 20–130 MB for 100–1,000 users.
+* Supabase Free fits size, Auth, locking, TLS and the off-host CLI dump (M3), but has
+  no daily backups or restore-to-new-project (M1/M2 impossible), pauses after ~7 days of
+  inactivity and lacks the IPv4 add-on and (to re-confirm) leaked-password protection.
+* **Proposed (open):** F3-D16 Supabase Free for F3 build/soak, Pro before the hosted
+  recovery drills and F3 acceptance, Pro mandatory before F4/F5; F3-D17 monthly-billed
+  2 vCPU / 4 GB server in Germany (Hetzner CX23 if orderable, else DigitalOcean/Vultr
+  2 GB Frankfurt), no prepayment; F3-D18 accepting M3-only recovery on Free — not
+  recommended; F3-D19 leaked-password protection required from F5. Estimated staged
+  cost ≈ $64 (3 months), $186 (6), $429 (12), $915 (24) incl. assumed VAT, versus
+  Hostinger 24-month + Pro ≈ $336 / $429 / $615 / $988. F3-R1 and F3-R2 remain gates.
+
 **Phase 6C.6 Stage F3: final recovery clarifications (22 Nov 2026):**
 * **Auth recovery** (`docs/architecture/phase6c6_stage_f3_plan.md` §S.8): backup scope
   extended to the `auth` schema and roles via Supabase's supported CLI dump plus an

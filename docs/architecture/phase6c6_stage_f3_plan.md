@@ -1,7 +1,8 @@
 # Phase 6C.6 Stage F3 — Private Environment and Recovery: implementation plan
 
 **Status:** **accepted in principle by the owner (22 Nov 2026), subject to the
-refinements in §S**, which take precedence over earlier sections where they differ.
+refinements in §S**; a Lean MVP cost assessment with proposed (not approved) decisions
+is in §T, which take precedence over earlier sections where they differ.
 Planning authorised 22 Nov 2026. **F3 implementation, provisioning and purchasing are
 not authorised.** Nothing in this plan has been provisioned,
 purchased, created or deployed: no hosting account, VM, domain, hosted Supabase
@@ -36,7 +37,8 @@ API-Football key).
 ## A. Hosting-provider comparison and recommended configuration
 
 Workload (measured, Phase 6C.5 F3 and F2): one Gunicorn app with 2–4 workers (each
-loads the Screener data: ~300–500 MB RSS per worker observed locally), the 5-minute
+loads the Screener data; originally estimated at ~300–500 MB RSS per worker — **measured
+≈ 94 MB per warm worker on 22 Nov 2026, see §T.1**), the 5-minute
 tick, a 37 MB SQLite store, nightly backups. Requirement: **2 vCPU, 4 GB RAM, ≥ 40 GB
 SSD**, a static IPv4 (or working IPv6 to Supabase), snapshots, a firewall, and a
 region close to the Supabase database (B).
@@ -779,6 +781,165 @@ The hosted drill (S.4, S.8) performs and records exactly this sequence. Manual
 provider commands remain outside the hold; their bypass must be addressed before F4
 (F3-D11, F3-R1).
 
+## T. Lean MVP hosting and cost-optimisation assessment (owner request, 22 Nov 2026)
+
+Assessment only: nothing approved, purchased, provisioned or created. **No earlier
+decision is superseded**: every change below is a proposal for owner approval (§T.8).
+Labels as in §S ([V-doc], [A], [T]); [M] = measured in this repository.
+
+### T.1 Minimum practical server size (measured)
+
+| Measurement [M] (22 Nov 2026, Gunicorn 26.2.0, real 36.8 MB football store copy, guest mode) | Result |
+|---|---|
+| Gunicorn master | 26 MB RSS |
+| Each worker after serving the Screener page (data loaded) | **≈ 94 MB RSS** |
+| Master + 2 warm workers | **≈ 214 MB** |
+| First (cold) page / warm page / `/readyz` | 0.58 s / < 0.01 s / 1 ms |
+| Competition database size (local synthetic datasets) | ≈ 20 MB (100 users), ≈ 128 MB (1,000), ≈ 948 MB (10,000) |
+
+This corrects the earlier planning estimate of "~300–500 MB per worker" (§A), which
+was conservative. Allowing for accounts mode, the 5-minute `jobs tick` (a short-lived
+process), nightly backups (`backup store`, CLI dump, `age`), Caddy, Tailscale and the
+OS:
+
+* **Minimum:** 1 vCPU, **2 GB RAM**, 20 GB disk (operator-only F3).
+* **Recommended:** 2 vCPU, 2–4 GB RAM, 40 GB disk (headroom for 3–4 workers and an
+  invited Beta).
+* Disk budget: OS ≈ 5 GB, virtualenv ≈ 1–2 GB, store 37 MB, 14 local backups
+  ≈ 0.6 GB, logs ≈ 1 GB.
+
+8 GB (Hostinger KVM 2) is far more than Diski 9 needs at MVP scale.
+
+### T.2 Monthly-billed VPS candidates (Frankfurt/Germany)
+
+| Server | vCPU / RAM / disk | Price (ex VAT) | Availability | IPv4 / IPv6 | Backups |
+|---|---|---|---|---|---|
+| **Hetzner CX23** (cost-optimised) | 2 / 4 GB / 40 GB | **€5.49 + €0.50 IPv4 ≈ €5.99** (June 2026 list) | **orders reported blocked** at every check since Sept 2026 (capacity notice since 26 Jun) — check the console on the day | IPv4 paid, **IPv6 /64 included** | +20 % (daily, 7 kept) ≈ €1.10 |
+| Hetzner CX33 | 4 / 8 GB / 80 GB | €8.49 + IPv4 | same block as CX23 | as above | +20 % |
+| Hetzner CPX22 (regular) | 2 / 4 GB | ≈ €19.49 | unclear | as above | +20 % |
+| **DigitalOcean Basic** 1 vCPU / 2 GB | 1 / 2 GB / 50 GB | ≈ $12 (FRA1) | available | IPv4 + IPv6 | weekly +20 % |
+| DigitalOcean Basic 2 vCPU / 2 GB | 2 / 2 GB / 60 GB | ≈ $18 (FRA1, listing) | available | IPv4 + IPv6 | weekly +20 % |
+| **Vultr** 1 vCPU / 2 GB (Frankfurt) | 1 / 2 GB | ≈ $12–14 (listing) | available | IPv4 + IPv6 | ≈ +20 % |
+| Hostinger KVM 1 / KVM 2, **1-month term** | 1/4 GB, 2/8 GB | ≈ $19.49 / $24.49 (third-party listing; first month discounted) | available; Frankfurt | one IP; IPv6 unconfirmed | weekly included |
+
+Prices are listings and documentation as of November 2026 and must be re-checked at
+order time. All candidates are in or next to Frankfurt (< 10 ms to AWS
+`eu-central-1`); South African latency is the same for all (§B).
+
+### T.3 Supabase Free against Diski 9's requirements
+
+| Requirement | Supabase Free | Pro | Consequence for F3 |
+|---|---|---|---|
+| Database size | 500 MB [V-doc] | 8 GB included | ✅ ample for operator-only and a small Beta (≈ 20–130 MB measured) |
+| Connections | small instance; limits not confirmed for Free [A] | Micro and above documented | ✅ expected: app pool ≈ 2 × 10 + scheduler; verify [T] |
+| Auth (GoTrue), password hashing, sessions, JWT/issuer validation | same service | same | ✅ the app's session management and JWT validation are unchanged |
+| Leaked-password protection (HaveIBeenPwned) | **not available** (Pro feature, to re-confirm) [A] | available | ⚠ minimum-length/complexity rules still apply; HIBP check missing |
+| Project pausing | **pauses after ~7 days without sufficient database activity** [V-doc]; restore from the dashboard | never paused | ⚠ the 5-minute tick keeps it active in practice, but a host outage > 7 days pauses the project (manual restore); no guarantee |
+| Automatic backups | **none** [V-doc] | daily, 7 days | ❌ M1 (in-place restore) impossible |
+| Restore to a new project | **not available** (paid plans) [V-doc] | beta | ❌ M2 impossible |
+| Off-host CLI dump incl. `auth` (M3) | ✅ supported path; Supabase itself recommends regular CLI exports on Free [V-doc] | ✅ | ✅ M3 and the Auth-identity sign-in test can be demonstrated on Free (2 active projects allow primary + drill project) |
+| Direct PostgreSQL (IPv6) / session pooler (IPv4) | ✅ both | ✅ | ✅ Stage D advisory-lock tests can run unchanged |
+| IPv4 add-on for the direct endpoint | **not available** | ≈ $4/month | ⚠ if the VPS lacks IPv6 **and** the pooler fails the lock tests, Free has no fallback (Hetzner, DigitalOcean and Vultr all provide IPv6) |
+| SSL enforcement, `verify-full` with the project CA | ✅ | ✅ | ✅ |
+| PITR | no | add-on | n/a for F3 (gate before F5) |
+| Hosted acceptance suite (§L) | expected to pass **unchanged** except any test relying on leaked-password protection [T] | ✅ | run unchanged; any Free-only failure is reported, not waived |
+| Operator identity recovery | via M3 only | M1, M2, M3 | see T.4 |
+
+### T.4 F3 acceptance requirements that cannot be met on Supabase Free
+
+1. **S.8 M1:** demonstrating an in-place restore from a Supabase daily backup with
+   operator sign-in. There are no backups on Free.
+2. **S.8 M2 comparison** (optional): restore-to-new-project needs a paid plan.
+3. **§I baseline:** Supabase-native daily backups do not exist (the off-host CLI dump
+   becomes the only database backup, i.e. a single recovery path).
+4. **F3-D5 fallback:** the IPv4 add-on is unavailable.
+5. **No-pause guarantee:** pausing after inactivity is a residual availability risk
+   (not an acceptance item today, but relevant to M-series monitoring).
+6. **Leaked-password protection** (if it is required by the §D Auth configuration):
+   unavailable.
+
+Everything else in Q-1–Q-15, S.3 (locking, TLS), S.4/S.9 (provider hold in the target
+first), F3-R2 (encrypted off-host backups, retrieval, off-host restore drill via M3)
+and the Auth sign-in test via M3 **can** be met on Free. F3-R1 and F3-R2 remain
+acceptance gates in every option.
+
+**Not proposed:** silently dropping M1 from S.8. If the owner wants F3 accepted on Free
+throughout, that is a separate decision (F3-D18) that accepts a single recovery path
+(off-host dump only) for the operator-only stage, with the consequences listed in T.8.
+
+### T.5 Options and costs
+
+Assumptions: 15 % VAT on every line [A] (verified only for DigitalOcean); off-host
+encrypted storage ≈ $2/month [A]; Tailscale Personal $0 (if eligible); domain $0
+(`ts.net`); monitoring $0 (on-host); €1 ≈ $1.16. Hetzner CX23 total ≈ €7.09 ≈ $8.23
+(incl. IPv4 and backups); DigitalOcean 1 vCPU / 2 GB $12 + 20 % backups = $14.40.
+
+| Option | Monthly (incl. VAT) | Upfront | 3 months | 6 months | 12 months | 24 months |
+|---|---|---|---|---|---|---|
+| **A — Lean:** Hetzner CX23 + Supabase Free | ≈ $11.76 | none | ≈ $35 | ≈ $71 | ≈ $141 | ≈ $282 |
+| A (if CX23 unavailable): DigitalOcean 2 GB + Supabase Free | ≈ $18.86 | none | ≈ $57 | ≈ $113 | ≈ $226 | ≈ $453 |
+| **B — Balanced:** Hetzner CX23 + Supabase Pro | ≈ $40.51 | none | ≈ $122 | ≈ $243 | ≈ $486 | ≈ $972 |
+| B: DigitalOcean 2 GB + Supabase Pro | ≈ $47.61 | none | ≈ $143 | ≈ $286 | ≈ $571 | ≈ $1,143 |
+| **C — Hostinger KVM 2 (24-month promo) + Supabase Pro** | ≈ $31.05 after the upfront | **≈ $242.60** | ≈ $336 | ≈ $429 | ≈ $615 | ≈ $988 |
+| **A→B staged (recommended):** Hetzner CX23, Supabase Free for the first 2 months of F3 build and soak, then Pro | $11.76 → $40.51 | none | ≈ $64 | ≈ $186 | ≈ $429 | ≈ $915 |
+| A→B staged with DigitalOcean 2 GB | $18.86 → $47.61 | none | ≈ $85 | ≈ $228 | ≈ $514 | ≈ $1,085 |
+
+Observations: option C is cheaper than B only from about month 20 onwards and carries
+a sunk ≈ $243 that is lost if Diski 9 changes direction (refund only within 30 days),
+for 8 GB RAM that the measurements show is not needed. A and the staged option keep
+every cost cancellable monthly. Optional add-ons (if needed): Supabase IPv4 add-on
++$4.60/month incl. VAT (Pro only); Supabase Small compute +$5.75.
+
+### T.6 Can Supabase Free be used for F3, and when is Pro needed?
+
+* **F3 build, hardening, lock tests, 72-hour soak, private-access and backup set-up:**
+  yes, on Free, with the off-host CLI dump running from day one and the 5-minute tick
+  keeping the project active.
+* **F3 hosted recovery drills and F3 operational acceptance:** upgrade to **Pro**
+  (monthly; a drill project in a Pro organisation is billed hourly) so M1 can be
+  demonstrated and daily backups exist alongside the off-host dump — unless the owner
+  approves F3-D18 (accept M3-only for the operator-only stage).
+* **Before F4 (live provider calls):** Pro **required** (no pausing, daily backups,
+  IPv4 fallback available, support), in addition to the F3-R1 resolution and SF-14.
+* **Before F5 (participants):** Pro required, plus the tighter-RPO decision (PITR or
+  more frequent dumps), leaked-password protection on, ML-01 and D-36.
+
+### T.7 Recommendation and upgrade path
+
+**Lowest-cost technically sound setup: the staged A→B option.**
+
+1. A **monthly-billed** 2 vCPU / 4 GB server in Germany: **Hetzner CX23 if it can be
+   ordered** on the day (≈ €5.99/month incl. IPv4, IPv6 included); otherwise
+   **DigitalOcean or Vultr 1–2 vCPU / 2 GB in Frankfurt** (≈ $12–18/month). No
+   prepayment.
+2. **Supabase Free** in Frankfurt for the F3 build and soak, with the off-host CLI dump
+   (incl. `auth`), Tailscale private access, TLS `verify-full`, the provider hold and
+   all S.3/S.8/S.9 rules exactly as planned.
+3. **Upgrade to Supabase Pro** before the hosted recovery drills and F3 acceptance (no
+   relaxation of S.8), and keep Pro for F4/F5.
+4. **Growth path:** resize the server in place (Hetzner rescale / DigitalOcean resize)
+   to 4–8 GB when worker count or users require it; Supabase Pro → Small compute when
+   connection or CPU metrics require; PITR or more frequent dumps decided before F5;
+   the football store migrates to PostgreSQL before any public deployment (D-39a); a
+   domain and public TLS only at public launch.
+
+Hostinger C stays the reference case: worth reconsidering only if the owner wants a
+2-year commitment for a larger server; it is **not** the lowest-cost sound option for
+an MVP with a small number of users.
+
+### T.8 Owner decisions proposed (all open; none supersedes an earlier decision)
+
+| ID | Decision | Recommendation | Risk / consequence |
+|---|---|---|---|
+| F3-D16 | Supabase plan per phase | Free for F3 build and soak; Pro before the hosted recovery drills and F3 acceptance; Pro mandatory before F4 and F5 | Free: pausing risk, single recovery path until the upgrade, no IPv4 fallback, no leaked-password check |
+| F3-D17 | Hosting commitment model | monthly-billed 2 vCPU / 4 GB (min 2 GB) server in Germany; no 24-month prepayment at MVP stage (replaces the Hostinger-first ranking in F3-D1 **only if approved**) | higher cost than C only after ≈ 20 months; full flexibility |
+| F3-D18 | Accept M3-only Auth recovery for F3 operator-only acceptance on Free (would amend S.8) | **not recommended**; if approved, M1 must be demonstrated before F4 | F3 accepted with one recovery path (off-host dump); no Supabase-native backup during F3 |
+| F3-D19 | Leaked-password protection requirement | required from F5 (participants); optional in F3 (owner/operator only, strong unique passwords and MFA on the Supabase dashboard) | if required in F3, Pro is needed from the start |
+
+F3-D1 (provider), F3-D3 (ceilings) and F3-D14 (Hostinger prepayment) remain open; if
+F3-D17 is approved, the proposed ceilings shrink to ≈ $15/month (Free phase) and
+≈ $50/month (Pro phase), with no prepayment.
+
 ## R. Decision record: owner decisions required (none approved yet)
 
 Every row is a **proposal**. "Status" is *open* until the owner records a decision; a
@@ -800,6 +961,10 @@ technical recommendation is not an owner decision.
 | F3-D12 | External uptime monitor | not used in F3 (no public endpoint); on-host timer + tailnet check | – | – | open |
 | F3-D13 | Accounts in F3 | owner plus at most one operator; no participants | – | – | open |
 | F3-D15 | Where the off-host CLI dump (incl. `auth`) runs and who holds the database owner password | on the VM with the owner password in `~diski9/.pgpass` (0600) and encrypted upload, or from the owner's machine; recommendation: VM, with the credential scoped and rotated after F3 | Supabase CLI backup path includes `auth.users` [V-doc] | – | open |
+| F3-D16 | Supabase plan per phase (§T) | Free for F3 build/soak; Pro before hosted recovery drills and F3 acceptance; Pro mandatory before F4/F5 | Free: no backups, pausing, no IPv4 add-on [V-doc] | Free connection limits; leaked-password feature tier | open |
+| F3-D17 | Hosting commitment model (§T) | monthly-billed 2 vCPU / 4 GB (min 2 GB) in Germany; no prepayment at MVP stage | measured ≈ 94 MB per worker [M]; Hetzner CX23 price [V-doc] | CX23 orderable on the day | open |
+| F3-D18 | Accept M3-only Auth recovery for F3 on Free (amends S.8) | not recommended | Free has no daily backups [V-doc] | – | open |
+| F3-D19 | Leaked-password protection requirement | required from F5; optional in F3 | – | Free-tier availability | open |
 | F3-D14 | Buy the Hostinger promotion before F3 implementation is authorised | only if S.1 checks pass **and** F3 implementation will be authorised within ≈ 30 days of purchase; otherwise wait (S.6); auto-renew off | promo ends 14 Dec 2026; term starts at purchase [V-owner/V-doc] | non-promo 24-month price [A] | open |
 
 Nothing is purchased, reserved or created until the relevant decisions are approved in
@@ -858,3 +1023,11 @@ writing, and F3 implementation needs its own separate authorisation.
   [migrating Auth users between projects](https://supabase.com/docs/guides/troubleshooting/migrating-auth-users-between-projects),
   [restore to a new project (what is not copied)](https://supabase.com/docs/guides/platform/clone-project),
   [database backups (Storage objects excluded; in-place restore replaces data)](https://supabase.com/docs/guides/platform/backups).
+* Lean MVP sources (§T): [Supabase pricing and Free limits](https://supabase.com/pricing),
+  [Supabase project pausing](https://supabase.com/docs/guides/platform/free-project-pausing),
+  [Hetzner price adjustment](https://docs.hetzner.com/general/infrastructure-and-availability/price-adjustment/),
+  [Hetzner billing FAQ (backups 20 %, IPv4)](https://docs.hetzner.com/cloud/billing/faq/),
+  [Hetzner CX availability 2026](https://www.bitdoze.com/hetzner-cloud-cost-optimized-plans/),
+  [Frankfurt VPS listings](https://valebyte.com/en/vps/germany/?page=3),
+  [Hostinger VPS pricing (terms)](https://www.hostinger.com/pricing/vps-hosting),
+  [VPSBenchmarks Hostinger](https://www.vpsbenchmarks.com/hosters/hostinger).
