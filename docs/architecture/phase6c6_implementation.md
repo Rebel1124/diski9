@@ -1355,6 +1355,11 @@ SSD does not guarantee erasure, so the CA key is never written to persistent sto
 The remaining exposure (swap, sleep images, malware during the seconds the key exists)
 is documented with mitigations in the runbook §5.
 
+**Verification:** commits `9c60186` (scripts, tests, CI) and `379325d` (runbook and
+records); full CI run 127 passed: **2,005 passed, 0 skipped** (1,987 before F3, plus the
+12 Checkpoint 0 tests and 6 new template-scan cases for the `deploy/f3/` files), in 28 min 43 s
+within the 40-minute timeout.
+
 **STOP:** Checkpoint 1 (the owner's accounts and purchases, then the day-one check)
 starts only on the owner's instruction.
 
