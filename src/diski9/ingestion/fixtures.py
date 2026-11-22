@@ -294,10 +294,32 @@ def ingest_fixtures(
     API request so a missing prerequisite costs no quota.
     """
     require_season(conn, competition_id, season)
+    items = fetch_season_fixtures(client, competition_id, season)
+    return apply_season_fixtures(conn, items, competition_id, season, clock)
+
+
+def fetch_season_fixtures(client: ApiFootballClient, competition_id: int, season: int) -> list:
+    """The provider request of :func:`ingest_fixtures` alone (no database access),
+    so a caller can fetch first and write in a short transaction afterwards (Phase
+    6C.6 E.1b fetch-then-write)."""
+    return client.get("fixtures", {"league": competition_id, "season": season}).items
+
+
+def apply_season_fixtures(
+    conn: Connection,
+    items: list,
+    competition_id: int,
+    season: int,
+    clock: Clock = utcnow,
+    requests: int = 1,
+) -> RunStats:
+    """The database part of :func:`ingest_fixtures` for already-fetched items:
+    the same ``ingestion_runs`` record, upsert, season membership and venue
+    classification, in the caller's transaction."""
+    require_season(conn, competition_id, season)
     with ingestion_run(conn, "ingest_fixtures", clock, competition_id, season) as stats:
-        resp = client.get("fixtures", {"league": competition_id, "season": season})
-        stats.requests += 1
-        result = store_fixtures(conn, resp.items, clock)
+        stats.requests += requests
+        result = store_fixtures(conn, items, clock)
         stats.inserted, stats.updated, stats.unchanged = (
             result.inserted,
             result.updated,

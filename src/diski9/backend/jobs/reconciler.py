@@ -55,6 +55,7 @@ from ...api_football.errors import (
     ApiFootballAuthError,
     ApiFootballError,
     ApiFootballQuotaExceededError,
+    ApiFootballRateLimitError,
     ForbiddenEndpointError,
     QuotaGuardError,
 )
@@ -69,7 +70,7 @@ from ..services.common import ServiceError
 from ..services.rounds import SYSTEM
 from . import locking
 from .config import AUTOMATABLE_STREAMS, SchedulerConfig
-from .locking import BudgetExhausted, LockLost
+from .locking import BudgetExhausted, LockLost, PacingBacklog, ProviderCooldown
 
 TICK = "scheduler.tick"
 JOB = {
@@ -396,6 +397,10 @@ def _classify(exc: BaseException) -> tuple[Outcome, str]:
     services are reduced to their type name, so nothing sensitive is logged)."""
     if isinstance(exc, BudgetExhausted):
         return Outcome.DEFERRED, f"provider budget exhausted: {exc}"
+    if isinstance(exc, ProviderCooldown | PacingBacklog):
+        return Outcome.DEFERRED, f"provider pacing: {exc}"
+    if isinstance(exc, ApiFootballRateLimitError):
+        return Outcome.RETRYABLE, "provider rate limited (ApiFootballRateLimitError)"
     if isinstance(exc, QuotaGuardError | ApiFootballQuotaExceededError):
         return Outcome.DEFERRED, f"provider quota guard ({type(exc).__name__})"
     if isinstance(exc, ApiFootballAuthError | ForbiddenEndpointError):
@@ -429,6 +434,52 @@ class _Run:
     # Stage E.1a: builds the read-only live snapshot for readiness (default: the
     # football store, exactly as ``round readiness`` / ``round publish`` do)
     snapshot_builder: Callable[..., Any] | None = None
+    # Stage E.1b: the football store for refresh (default: DISKI9_DATABASE_URL) and the
+    # sleep used for provider pacing (tests pass a fake)
+    store_factory: Callable[[], Any] | None = None
+    sleep: Callable[[float], None] = time.sleep
+    rate_limited: bool = False  # a provider rate limit was hit in this tick
+
+    def reserver(self, scope: str, klass: str = locking.RESULTS,
+                 check: Callable[[], None] | None = None) -> Callable[[], None]:  # fmt: skip
+        """The pre-send hook for one provider attempt: owner check, optional extra
+        check (the E.1b quota floor), durable reservation with class-aware caps and a
+        paced send slot, then the wait for that slot (never longer than the
+        configured maximum)."""
+        prep = klass == locking.PREPARATION
+        caps = locking.Caps(
+            self.cfg.max_requests_per_tick,
+            self.cfg.max_requests_per_day,
+            self.cfg.nonessential_per_day if prep else None,
+            self.cfg.results_reserve if prep else 0,
+        )
+
+        def reserve() -> None:
+            self.lock.verify()
+            if check is not None:
+                check()
+            wait = locking.reserve(self.engine, token=self.token, tick_id=self.tick_id,
+                                   scope=scope, per_tick=caps.per_tick, per_day=caps.per_day,
+                                   klass=klass, caps=caps,
+                                   interval=self.cfg.provider_min_interval,
+                                   max_wait=self.cfg.provider_max_wait)  # fmt: skip
+            if wait > 0:
+                self.sleep(wait)
+
+        return reserve
+
+    def observe_quota(self, provider: Any) -> None:
+        """Record the provider's latest daily figures (headers), if it reported any."""
+        quota = getattr(provider, "quota", None)
+        if quota and quota[0] is not None:
+            locking.record_quota(self.engine, quota[0], quota[1], "header")
+
+    def note_rate_limit(self, exc: BaseException, scope: str) -> None:
+        """Persist a provider-requested pause so every later request honours it."""
+        if isinstance(exc, ApiFootballRateLimitError):
+            self.rate_limited = True
+            seconds = exc.retry_after if exc.retry_after else 60.0
+            locking.record_cooldown(self.engine, seconds, scope, "provider rate limit")
 
     def get_provider(self) -> Provider:
         if self.provider is None:
@@ -466,12 +517,9 @@ class _Run:
                     self.cfg.max_requests_per_day)  # fmt: skip
                 before = provider.requests_made
 
-                def reserve() -> None:
-                    # immediately before every request: owner, then durable record
-                    self.lock.verify()
-                    locking.reserve(self.engine, token=self.token, tick_id=self.tick_id,
-                                    scope=s.code, per_tick=self.cfg.max_requests_per_tick,
-                                    per_day=self.cfg.max_requests_per_day)  # fmt: skip
+                # immediately before every attempt: owner, then durable record (class
+                # results: may use the whole cap, including the reserve), then pacing
+                reserve = self.reserver(s.code)
 
                 def fetch(ids: Sequence[int]) -> tuple[list[dict], int]:
                     need = math.ceil(len(set(ids)) / MAX_IDS_PER_REQUEST)
@@ -485,6 +533,7 @@ class _Run:
                     )
                 finally:
                     requests = provider.requests_made - before
+                    _safe(lambda: self.observe_quota(provider), [], "recording provider quota")
                 outcome = Outcome.SUCCEEDED
                 detail = (f"polled {len(res.polled)}, not due {len(res.skipped)}, "
                           f"new observations {res.recorded}")  # fmt: skip
@@ -509,6 +558,7 @@ class _Run:
             outcome, detail = Outcome.RETRYABLE, f"lock lost: {exc}"
         except Exception as exc:  # noqa: BLE001 - classified, recorded, never fatal
             outcome, detail = _classify(exc)
+            _safe(lambda e=exc: self.note_rate_limit(e, s.code), [], "recording a cooldown")
         _end(self.engine, run_id, outcome, detail, requests)
         if lost is not None:
             raise lost  # stop the tick: no follow-on step without ownership
@@ -586,6 +636,8 @@ def tick(
     host: str | None = None,
     lock_url: str | None = None,
     snapshot_builder: Callable[..., Any] | None = None,
+    store_factory: Callable[[], Any] | None = None,
+    sleep: Callable[[float], None] | None = None,
 ) -> TickReport:
     """Run one reconciliation pass and return what happened. Never raises for an
     operational problem (database unavailable, lock lost, cleanup failure): each is
@@ -648,7 +700,8 @@ def tick(
             return report
         run = _Run(engine, cfg, host, tick_id, lock, token,
                    started + cfg.tick_budget.total_seconds(), provider_factory,
-                   snapshot_builder=snapshot_builder)  # fmt: skip
+                   snapshot_builder=snapshot_builder, store_factory=store_factory,
+                   sleep=sleep or time.sleep)  # fmt: skip
         report = TickReport("completed", tick_run_id=tick_id)
         if n_abandoned:
             report.notes.append(f"{n_abandoned} step(s) of a tick that lost its lock more than "

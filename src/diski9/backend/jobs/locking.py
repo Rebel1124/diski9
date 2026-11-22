@@ -65,7 +65,15 @@ SCHEDULER_JOBS = (
     "scheduler.settle", "scheduler.finalise",
     # Stage E.1a: preparation steps get the same interruption and abandonment handling
     "scheduler.prepare_draft", "scheduler.prepare_readiness",
+    # Stage E.1b: football-data refresh steps, likewise
+    "scheduler.prepare_refresh", "scheduler.prepare_screener",
 )  # fmt: skip
+# Stage E.1b: request classes recorded on each ledger row (``args.class``). Rows
+# without a class (written before E.1b) count as results traffic (owner decision D-2).
+RESULTS = "results"
+PREPARATION = "preparation"
+COOLDOWN_JOB = "scheduler.provider_cooldown"  # provider asked us to wait (completed rows)
+QUOTA_JOB = "scheduler.provider_quota"  # provider quota observations (completed rows)
 
 _HELD = """
 SELECT pg_backend_pid() AS pid, EXISTS (
@@ -301,49 +309,215 @@ class BudgetExhausted(Exception):
         self.need, self.allowance, self.scope = need, allowance, scope
 
 
+class ProviderCooldown(Exception):
+    """The provider asked for a pause (rate limit) that has not ended yet."""
+
+    def __init__(self, until: datetime) -> None:
+        super().__init__(f"provider cooldown until {until:%Y-%m-%dT%H:%M:%SZ}")
+        self.until = until
+
+
+class PacingBacklog(Exception):
+    """The next paced send slot is further away than the longest allowed wait."""
+
+    def __init__(self, wait: float) -> None:
+        super().__init__(f"next provider send slot is {wait:.0f} s away")
+        self.wait = wait
+
+
+_USAGE = (
+    "SELECT coalesce(sum(api_requests) FILTER (WHERE args->>'run_token' = :t), 0) AS tick,"
+    " coalesce(sum(api_requests), 0) AS day,"
+    " coalesce(sum(api_requests) FILTER (WHERE args->>'class' = 'preparation'), 0) AS prep"
+    " FROM app.job_runs WHERE job = :j "
+    "AND started_at >= transaction_timestamp() - interval '24 hours'"
+)
+
+
 def usage(conn, token: str) -> tuple[int, int]:
     """(requests recorded by this tick, scheduler requests in the last 24 hours)."""
-    row = conn.execute(
-        text(
-            "SELECT coalesce(sum(api_requests) FILTER (WHERE args->>'run_token' = :t), 0) AS tick,"
-            " coalesce(sum(api_requests), 0) AS day FROM app.job_runs WHERE job = :j "
-            "AND started_at >= transaction_timestamp() - interval '24 hours'"
-        ),
-        {"t": token, "j": LEDGER_JOB},
-    ).one()
+    row = conn.execute(text(_USAGE), {"t": token, "j": LEDGER_JOB}).one()
     return int(row.tick), int(row.day)
 
 
-def allowance(engine: Engine, token: str, per_tick: int, per_day: int) -> tuple[int, str]:
+def usage_by_class(conn, token: str) -> tuple[int, int, int]:
+    """(this tick, all classes in 24 h, preparation in 24 h). Rows without a class
+    count as results (D-2), so they never reduce what preparation is charged."""
+    row = conn.execute(text(_USAGE), {"t": token, "j": LEDGER_JOB}).one()
+    return int(row.tick), int(row.day), int(row.prep)
+
+
+@dataclass(frozen=True)
+class Caps:
+    """The caps one reservation is checked against (Stage C caps plus E.1b classes)."""
+
+    per_tick: int
+    per_day: int
+    nonessential: int | None = None  # preparation cap in 24 h (None: no class cap)
+    results_reserve: int = 0  # never available to preparation
+
+
+def _left(caps: Caps, klass: str, tick_used: int, day_used: int, prep_used: int
+          ) -> tuple[int, str]:  # fmt: skip
+    options = [
+        (caps.per_tick - tick_used, "per-tick cap"),
+        (caps.per_day - day_used, "24-hour cap"),
+    ]
+    if klass == PREPARATION:
+        options.append((caps.per_day - caps.results_reserve - day_used, "results reserve"))
+        if caps.nonessential is not None:
+            options.append((caps.nonessential - prep_used, "non-essential cap"))
+    left, scope = min(options, key=lambda o: o[0])
+    return max(left, 0), scope
+
+
+def allowance(engine: Engine, token: str, per_tick: int, per_day: int, *,
+              klass: str = RESULTS, caps: Caps | None = None) -> tuple[int, str]:  # fmt: skip
+    caps = caps or Caps(per_tick, per_day)
     with transaction(engine) as conn:
-        tick_used, day_used = usage(conn, token)
-    tick_left, day_left = per_tick - tick_used, per_day - day_used
-    if tick_left <= day_left:
-        return max(tick_left, 0), "per-tick cap"
-    return max(day_left, 0), "24-hour cap"
+        tick_used, day_used, prep_used = usage_by_class(conn, token)
+    return _left(caps, klass, tick_used, day_used, prep_used)
+
+
+def cooldown_until(conn) -> datetime | None:
+    """The end of the latest provider cooldown, if it is still in force."""
+    return conn.execute(
+        text(
+            "SELECT max((args->>'until')::timestamptz) FROM app.job_runs WHERE job = :j "
+            "AND started_at >= transaction_timestamp() - interval '2 days' "
+            "HAVING max((args->>'until')::timestamptz) > clock_timestamp()"
+        ),
+        {"j": COOLDOWN_JOB},
+    ).scalar_one_or_none()
 
 
 def reserve(engine: Engine, *, token: str, tick_id: int, scope: str, per_tick: int,
-            per_day: int) -> None:  # fmt: skip
-    """Record one provider request before it is sent, or raise
-    :class:`BudgetExhausted`. Serialised, so concurrent callers cannot exceed a cap."""
+            per_day: int, klass: str = RESULTS, caps: Caps | None = None,
+            interval: float = 0.0, max_wait: float | None = None) -> float:  # fmt: skip
+    """Record one provider request before it is sent, or raise.
+
+    Serialised by a transaction-level advisory lock, so concurrent callers cannot
+    exceed a cap or share a send slot. Checks, in order: a provider cooldown
+    (:class:`ProviderCooldown`), the caps for the request's class
+    (:class:`BudgetExhausted`), and pacing. **Pacing (E.1b):** the row's
+    ``started_at`` is the request's *send slot* — at least ``interval`` seconds after
+    the previous slot of any scheduler request, possibly in the future. The caller
+    waits the returned number of seconds before sending. Because the slot is
+    committed before anyone sleeps, a second caller is always placed after it, also
+    across ticks and process restarts; a crash after reserving simply leaves the slot
+    used and counted (conservative). A slot further away than ``max_wait`` is refused
+    (:class:`PacingBacklog`) without recording anything. A previous slot implausibly
+    far in the future (the database clock moved back) is treated as "now", so the
+    wait stays bounded. Returns the wait in seconds (0 without pacing)."""
+    caps = caps or Caps(per_tick, per_day)
     with transaction(engine) as conn:
         conn.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"),
                      {"k": BUDGET_KEY})  # fmt: skip
-        tick_used, day_used = usage(conn, token)
-        if tick_used >= per_tick:
-            raise BudgetExhausted(1, 0, "per-tick cap")
-        if day_used >= per_day:
-            raise BudgetExhausted(1, 0, "24-hour cap")
+        until = cooldown_until(conn)
+        if until is not None:
+            raise ProviderCooldown(until)
+        tick_used, day_used, prep_used = usage_by_class(conn, token)
+        left, why = _left(caps, klass, tick_used, day_used, prep_used)
+        if left < 1:
+            raise BudgetExhausted(1, 0, why)
+        now = conn.execute(text("SELECT clock_timestamp()")).scalar_one()
+        send_at, wait = now, 0.0
+        if interval > 0:
+            last = conn.execute(
+                text("SELECT max(started_at) FROM app.job_runs WHERE job = :j"),
+                {"j": LEDGER_JOB},
+            ).scalar_one_or_none()
+            if last is not None:
+                horizon = now + timedelta(seconds=(max_wait or 60.0) + interval)
+                if last > horizon:  # the clock went backwards: keep the wait bounded
+                    last = now
+                send_at = max(now, last + timedelta(seconds=interval))
+            wait = (send_at - now).total_seconds()
+            if max_wait is not None and wait > max_wait:
+                raise PacingBacklog(wait)
         conn.execute(
             text(
                 "INSERT INTO app.job_runs (job, scope, args, status, started_at, finished_at, "
-                "api_requests) VALUES (:j, :s, CAST(:a AS jsonb), 'succeeded', "
-                "clock_timestamp(), clock_timestamp(), 1)"
+                "api_requests) VALUES (:j, :s, CAST(:a AS jsonb), 'succeeded', :at, :at, 1)"
             ),
             {
                 "j": LEDGER_JOB,
                 "s": scope,
-                "a": json.dumps({"run_token": token, "tick": int(tick_id)}),
+                "a": json.dumps({"run_token": token, "tick": int(tick_id), "class": klass}),
+                "at": send_at,
             },
         )
+    return wait
+
+
+def record_cooldown(engine: Engine, seconds: float, scope: str, reason: str) -> datetime:
+    """Persist a provider-requested pause; every scheduler request waits for it."""
+    seconds = max(float(seconds), 1.0)
+    with transaction(engine) as conn:
+        return conn.execute(
+            text(
+                "INSERT INTO app.job_runs (job, scope, args, status, started_at, finished_at, "
+                "api_requests, error) VALUES (:j, :s, jsonb_build_object('until', "
+                "clock_timestamp() + make_interval(secs => :n)), 'succeeded', "
+                "clock_timestamp(), clock_timestamp(), 0, :e) "
+                "RETURNING (args->>'until')::timestamptz"
+            ),
+            {"j": COOLDOWN_JOB, "s": scope, "n": seconds, "e": reason[:200]},
+        ).scalar_one()
+
+
+@dataclass(frozen=True)
+class QuotaObservation:
+    remaining: int
+    limit: int | None
+    source: str  # header | status
+    observed_at: datetime
+
+
+def record_quota(engine: Engine, remaining: int, limit: int | None, source: str,
+                 scope: str = "provider") -> None:  # fmt: skip
+    """Record what the provider reported (numbers only)."""
+    with transaction(engine) as conn:
+        conn.execute(
+            text(
+                "INSERT INTO app.job_runs (job, scope, args, status, started_at, finished_at, "
+                "api_requests) VALUES (:j, :s, jsonb_build_object('remaining', CAST(:r AS int), "
+                "'limit', CAST(:l AS int), 'source', CAST(:src AS text), 'observed_at', "
+                "clock_timestamp()), 'succeeded', clock_timestamp(), clock_timestamp(), 0)"
+            ),
+            {
+                "j": QUOTA_JOB,
+                "s": scope,
+                "r": int(remaining),
+                "l": None if limit is None else int(limit),
+                "src": source,
+            },  # fmt: skip
+        )
+
+
+def quota_observations(conn, max_age: timedelta) -> list[QuotaObservation]:
+    """Usable observations: younger than ``max_age`` and from the provider's current
+    day (UTC; the provider resets its daily quota at about midnight UTC)."""
+    rows = conn.execute(
+        text(
+            "SELECT (args->>'remaining')::int AS remaining, (args->>'limit')::int AS lim, "
+            "args->>'source' AS source, started_at FROM app.job_runs WHERE job = :j "
+            "AND started_at >= clock_timestamp() - make_interval(secs => :age) "
+            "AND (started_at AT TIME ZONE 'UTC')::date = (clock_timestamp() AT TIME ZONE "
+            "'UTC')::date ORDER BY id DESC LIMIT 50"
+        ),
+        {"j": QUOTA_JOB, "age": max_age.total_seconds()},
+    ).all()
+    return [QuotaObservation(r.remaining, r.lim, r.source, r.started_at) for r in rows]
+
+
+def limit_today(conn) -> int | None:
+    """The lowest daily limit the provider reported today (UTC), if any."""
+    return conn.execute(
+        text(
+            "SELECT min((args->>'limit')::int) FROM app.job_runs WHERE job = :j "
+            "AND (started_at AT TIME ZONE 'UTC')::date = (clock_timestamp() AT TIME ZONE "
+            "'UTC')::date"
+        ),
+        {"j": QUOTA_JOB},
+    ).scalar_one_or_none()

@@ -1058,3 +1058,92 @@ implementation plan [`phase6c6_stage_e1b_plan.md`](phase6c6_stage_e1b_plan.md) (
 migration; existing cap defaults kept until activation; about 87 offline tests;
 decisions D-1 to D-3 requested with the authorisation). **E.1b implementation not
 authorised**; Stage F and Stage G not authorised.
+
+## 10. Stage E.1b: automated API-Football data refresh — **implemented; awaiting owner acceptance**
+
+Authorised on 22 Nov 2026 on the plan at `bda1b14` (CI run 108), with decisions
+D-1 to D-3 and three mandatory safeguards. Implementation, offline tests,
+documentation and CI only: **automated refresh stays off**, no live API-Football
+call was made, no provider limit was changed in any environment, no hosting was
+selected, no migration was added, and nothing was merged, tagged or deployed.
+
+### 10.1 What was built
+| Area | Change |
+|---|---|
+| Provider client (`api_football/client.py`, `ratelimit.py`, `errors.py`) | optional `max_wait_seconds` (scheduler only; CLI behaviour unchanged): a retry wait or minute-window wait above it raises `ApiFootballRateLimitError(retry_after=…)` instead of sleeping; optional per-minute floor as a share of the provider's minute limit |
+| Ledger (`backend/jobs/locking.py`) | request class on every `scheduler.provider` row (`results` / `preparation`; unclassified rows count as results, D-2); class-aware caps (`Caps`: per tick, 24 h, non-essential, results reserve); **paced send slots** committed in the serialised reservation; persisted provider cooldowns (`scheduler.provider_cooldown`); quota observations (`scheduler.provider_quota`) usable only when fresh and from the current UTC day; refresh jobs in the Stage D recovery registry |
+| Configuration (`backend/jobs/config.py`) | refresh switches and schedule, non-essential cap 300, results reserve 150, floor 2,000, 3 s interval, 30 s maximum wait, expected limit 7,500, observation age 30 min; existing caps keep 10/100 (D-1) and refresh is refused unless the 24-hour cap holds both shares; the longest possible tick is validated against the abandonment threshold |
+| Ingestion (`ingestion/fixtures.py`, `odds/collect.py`) | behaviour-preserving split: `fetch_season_fixtures` / `apply_season_fixtures`, `fetch_odds_pages` / `reconcile_pages(started=…)`; the CLI functions now fetch before taking the store's write lock |
+| Refresh (`backend/jobs/refresh.py`, new) | Balanced slots, current-slot-only planning, per-league steps (fetch → verify ownership → one short SQLite transaction), sweep state derived from job records, partial closing (supersession or 30 min), Screener step, quota gate with `/status` pre-flight, status and display lines |
+| Preparation (`backend/jobs/prepare.py`) | refresh between draft creation and readiness; readiness deferred while a sweep is part-way, triggered when one closes, records `data=…`; refresh fields in the preparation status |
+| Reconciler (`backend/jobs/reconciler.py`) | results imports use the same reservation hook (class `results`, pacing, cooldown, bounded waits, quota observations); new outcome classification; `tick(..., store_factory, sleep)` seams |
+| Monitoring (`backend/ops/*`, `ops_cli`, `jobs_cli`) | 13 refresh/provider findings; refresh block in `ops status` / `jobs status`; dry run lists refresh steps; new jobs in history |
+| `round readiness` (`cli.py`) | display-only "data refresh" line (D-3); validator, snapshot, fingerprint and publication unchanged |
+
+### 10.2 Mandatory safeguards and how they are tested
+1. **Pacing correctness.** `reserve()` computes the send slot inside the
+   transaction that holds the budget advisory lock — `max(now, previous slot +
+   interval)` from the ledger itself — and commits it **before** the caller sleeps,
+   so a second caller (thread, tick or restarted process) is always placed after it.
+   A crash after reserving leaves the slot used and counted. A slot further away
+   than the maximum wait is refused without being recorded; a previous slot
+   implausibly far in the future (database clock moved back) is treated as "now",
+   keeping the wait bounded. Tests (`test_backend_refresh_budget.py`): sequential
+   spacing; across ticks and a fresh engine; three concurrent threads × 3 receive 9
+   distinct slots all ≥ the interval apart; a sleeping holder cannot be bypassed;
+   future-slot queueing and backlog refusal; clock moved backwards.
+2. **Retries and budgets.** Every attempt — retries and `/status` included — passes
+   through the reservation hook, which re-checks per-tick, 24-hour, non-essential and
+   results-reserve caps; the four-request pre-check is only an early stop. Writes
+   happen after all of a league's requests, so a league that runs out part-way writes
+   nothing and is not done. Tests: retries reserved and counted as preparation
+   (ledger rows = HTTP requests); capacity exhausted mid-league (retry + three odds
+   pages under a 5-request cap → deferred, exactly 5 reservations, store unchanged,
+   league not done); preparation can never use the reserve; results succeed when
+   preparation has used its whole share; per-tick cap counts every class.
+3. **Partial sweep recovery.** A sweep is closed partial when superseded or 30
+   minutes after its first league step (with at least one league done); a closed
+   sweep is terminal for its slot, labelled `partial@slot(n/8)` and never complete;
+   failures back off within the slot only, so the next slot always retries every
+   league. Tests: Friday 04:15 sweep with a failing league → partial at 04:51 (7/8,
+   readiness `data=partial@…(7/8)`, `refresh_partial`), nothing more for that slot,
+   then the 05:15 sweep refreshes all eight and closes complete; supersession closes
+   the old sweep partial and starts the new one.
+
+### 10.3 Tests
+New: `tests/test_client_waits.py` (8), `tests/test_ingest_split.py` (3),
+`tests/test_refresh_slots.py` (22), `tests/backend/test_backend_refresh_budget.py`
+(14), `tests/backend/test_backend_refresh.py` (26) — 73 offline tests (mock
+transport, temporary SQLite stores, isolated PostgreSQL; the network is never
+reached). Changed: the scheduler tests' shared configuration sets
+`provider_min_interval=0.0` (their fake providers need no spacing; pacing is tested
+with real timing in the budget file) — no assertion was weakened.
+
+### 10.4 Verification
+* **Level 1** (E.1b tests plus client, odds, fixtures, workflow, eight-league odds,
+  week calculator, preparation, scheduler, scheduler locking, ops and Stage E admin):
+  **243 passed** twice (about 5 minutes each), 0 failed, 0 skipped.
+* **Level 2** (every backend suite on local PostgreSQL and the auth harness, plus the
+  client, ingestion, workflow, CI change scope and migrations suites): **916 passed,
+  0 failed, 1 skipped** (25 min). The skip is the known environmental one
+  (`test_backend_supabase_db.py`: needs a database with a real Supabase auth schema;
+  covered by GitHub CI's real Supabase integration).
+* Migration head `app_0007` (no migration added); quantitative fingerprint
+  `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`;
+  `broad60-432-v1`, `points-150-75-v2` unchanged.
+* **Performance (expected in production):** a typical sweep is about 23 requests
+  (`/status` 1, fixtures 8, odds 14); at 3 s pacing about 70 s of waiting plus a few
+  seconds of responses and SQLite writes, over two ticks at 20 per tick; Screener
+  cache 1.2–1.4 s (measured on a scratchpad copy of the real store); readiness
+  0.1–0.2 s. Longest possible tick with the activation values: 240 s + 20 × (10 s +
+  3 s) + 30 s = 530 s, below the 20-minute abandonment threshold (validated).
+* Level 3 (GitHub CI) for the application candidate: recorded at the checkpoint.
+
+### 10.5 Deviations and risks
+| Item | Note |
+|---|---|
+| Scheduler tests' shared configuration | `provider_min_interval=0.0` so fake-provider lifecycle tests do not sleep; pacing is covered with real timing in the budget tests |
+| Pre-check of 4 requests per league | under a 10-request cap a tick runs two leagues after `/status` (9 → 6 → 3 left), so a sweep takes three ticks at the default cap (as planned) |
+| Back-off of a failing league | counted within the slot (so the next slot always retries), as planned; uses the existing retry base/maximum |
+| `provider_quota_low` CRITICAL threshold | fixed at 600 (client reserve 500 + 100) rather than "500 + projected results need" — simpler and conservative |
+| Unresolved | active subscription limits and at-limit billing unverified (activation gate); provider update time measured on few days; results-import volume estimated; same-host SQLite requirement with Q-07 and D-39 open; other users of the key visible only through lagging observations; CI margin (measured at the checkpoint) |

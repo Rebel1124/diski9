@@ -571,6 +571,14 @@ def cmd_round(args) -> int:
             rd = svc.publication_readiness(engine, rid, build_snapshot(engine, r),
                                            source="football-db")  # fmt: skip
             print_readiness(rd, as_json=args.json)
+            if not args.json:
+                # display only (E.1b, D-3): which automated data sweep the store reflects
+                from diski9.backend.jobs.refresh import readiness_line
+
+                try:
+                    print(f"  data refresh:            {readiness_line(engine, r.code)}")
+                except Exception as exc:  # noqa: BLE001 - never affects the verdict
+                    print(f"  data refresh:            unavailable ({type(exc).__name__})")
             return 0 if rd.ready else 1
         if args.action == "inspect":
             from diski9.backend.ops.inspect import inspect_round

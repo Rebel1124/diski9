@@ -30,6 +30,8 @@ SCHEDULER_JOBS = (
     "scheduler.finalise",
     "scheduler.prepare_draft",  # Stage E.1a
     "scheduler.prepare_readiness",
+    "scheduler.prepare_refresh",  # Stage E.1b
+    "scheduler.prepare_screener",
 )
 STEP_JOBS = SCHEDULER_JOBS[1:]
 PROVIDER_JOBS = ("scheduler.results", "scheduler.results_full")

@@ -67,6 +67,29 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage E.1b implementation authorised (22 Nov 2026):**
+* **Implementation authorised** on the plan at `bda1b14` (CI run 108): implementation,
+  offline tests, documentation and CI verification only. No live API-Football call,
+  activation of automated refresh, production provider-limit change, hosting
+  selection, merge, release or deployment. Stage F and Stage G not authorised.
+* **D-1 approved:** the scheduler defaults stay 10 requests per tick and 100 per
+  rolling 24 hours; the 20/450 limits must be configured explicitly at activation,
+  after separate owner approval (refresh is refused by configuration validation
+  until then).
+* **D-2 approved:** historical `scheduler.provider` ledger rows without a request
+  class count as results traffic (conservative; compatible with existing records).
+* **D-3 approved:** a display-only "data refresh" line in `round readiness`; it does
+  not change the Stage E validator, snapshot construction, fingerprint checks or the
+  publication workflow.
+* **Mandatory safeguards:** pacing correct across ticks, restarts, concurrent
+  reservations, crashes after reservation, future send slots and clock changes;
+  every provider attempt reserved and checked against the per-tick, 24-hour and
+  non-essential caps with results capacity protected, and no partially fetched or
+  applied league counted as successful; partial sweeps terminal, never reported
+  complete, bounded, and never suppressing the next slot. Planning baseline
+  unchanged (20/tick when configured, 450/24 h, 300 non-essential, 150 results,
+  3 s pacing, 30 s maximum wait, floor 2,000, client reserve 500).
+
 **Phase 6C.6 Stage E.1b design approved in principle; implementation planning (22 Nov 2026):**
 * **Approved in principle:** REF-01 to REF-10, REF-15, REF-16 — Balanced schedule,
   fixtures and odds for all eight leagues, standings excluded from preparation,

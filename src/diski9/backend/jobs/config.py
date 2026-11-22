@@ -40,7 +40,33 @@ Variable                               Default   Meaning
                                                  readiness evaluation starts (10–600); the
                                                  scheduler also uses twice the slowest
                                                  recent evaluation when that is larger
+``DISKI9_JOBS_PROVIDER_MIN_INTERVAL_SECONDS`` 3  E.1b: least gap between scheduler provider
+                                                 requests, across ticks (1–30)
+``DISKI9_JOBS_PROVIDER_MAX_WAIT_SECONDS`` 30     E.1b: longest provider wait inside a tick
+                                                 (5–60); longer requests defer instead
+``DISKI9_JOBS_PREPARE_REFRESH``        off       E.1b: refresh fixtures and odds for the
+                                                 upcoming week (needs PREPARE and
+                                                 PROVIDER_CALLS)
+``DISKI9_JOBS_PREPARE_REFRESH_DAILY``  04:15     Tue–Thu sweep time (UTC)
+``DISKI9_JOBS_PREPARE_REFRESH_PUBLICATION`` 04:15,05:15  Friday sweeps before the target (UTC)
+``DISKI9_JOBS_PREPARE_REFRESH_GRACE_MINUTES`` 60  grace sweep interval (15–240)
+``DISKI9_JOBS_PREPARE_REFRESH_PARTIAL_AFTER_MINUTES`` 30  an unfinished sweep is closed
+                                                 as partial this long after it began
+                                                 (10–60)
+``DISKI9_JOBS_NONESSENTIAL_REQUESTS_PER_DAY`` 300  preparation requests in 24 h (1–5000)
+``DISKI9_JOBS_RESULTS_RESERVE``        150       24-hour requests preparation may never use
+                                                 (50–5000)
+``DISKI9_JOBS_PREPARE_PROVIDER_FLOOR`` 2000      least provider-reported daily remaining for
+                                                 preparation (600–7000)
+``DISKI9_JOBS_PROVIDER_EXPECTED_DAILY_LIMIT`` 7500  a lower reported limit stops preparation
+``DISKI9_JOBS_PROVIDER_OBSERVATION_MAX_AGE_MINUTES`` 30  quota observations older than
+                                                 this are not used (5–120)
 =====================================  ========  ==========================================
+
+**E.1b and the caps (owner decision D-1).** The per-tick and 24-hour defaults stay 10
+and 100. With refresh on, the 24-hour cap must hold the preparation cap plus the
+results reserve (300 + 150 by default), so refresh cannot be switched on without
+explicitly configuring the approved activation values (20 per tick, 450 per 24 h).
 
 ``abandon_after`` must exceed the longest a live tick can run: the tick budget plus
 one in-flight step (at most ``max_requests_per_tick × (retries + 1)`` provider
@@ -53,6 +79,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import time as dtime
 from datetime import timedelta
 from pathlib import Path
 
@@ -98,6 +125,19 @@ class SchedulerConfig:
     prepare_readiness_interval: timedelta = timedelta(minutes=30)
     prepare_grace: timedelta = timedelta(hours=6)
     prepare_min_seconds: float = 60.0
+    # Stage E.1b: provider safety (also used by results imports) and data refresh
+    provider_min_interval: float = 3.0
+    provider_max_wait: float = 30.0
+    prepare_refresh: bool = False
+    refresh_daily: tuple[dtime, ...] = (dtime(4, 15),)
+    refresh_publication: tuple[dtime, ...] = (dtime(4, 15), dtime(5, 15))
+    refresh_grace_interval: timedelta = timedelta(minutes=60)
+    refresh_partial_after: timedelta = timedelta(minutes=30)
+    nonessential_per_day: int = 300
+    results_reserve: int = 150
+    prepare_provider_floor: int = 2000
+    provider_expected_daily_limit: int = 7500
+    provider_observation_max_age: timedelta = timedelta(minutes=30)
 
     def __post_init__(self) -> None:
         # a second line of defence for configurations built in code (tests, tools)
@@ -121,6 +161,39 @@ class SchedulerConfig:
             raise ConfigError("DISKI9_JOBS_PREPARE_CREATE_LEAD_HOURS must be between 6 and 78")
         if self.prepare and self.prepare_min_seconds >= self.tick_budget.total_seconds():
             raise ConfigError("DISKI9_JOBS_PREPARE_MIN_SECONDS must be less than the tick budget")
+        if self.prepare_refresh:
+            self._check_refresh()
+
+    def worst_tick_seconds(self) -> float:
+        """The longest a tick can run with provider work: the budget, then one step
+        whose every attempt (at most the per-tick cap) times out after its paced
+        slot, plus one bounded provider wait."""
+        per_request = self.provider_timeout_seconds + self.provider_min_interval
+        return (self.tick_budget.total_seconds() + self.max_requests_per_tick * per_request
+                + self.provider_max_wait)  # fmt: skip
+
+    def _check_refresh(self) -> None:
+        if not self.prepare:
+            raise ConfigError("DISKI9_JOBS_PREPARE_REFRESH needs DISKI9_JOBS_PREPARE")
+        if not self.provider_calls:
+            raise ConfigError("DISKI9_JOBS_PREPARE_REFRESH needs DISKI9_JOBS_PROVIDER_CALLS")
+        need = self.nonessential_per_day + self.results_reserve
+        if self.max_requests_per_day < need:
+            raise ConfigError(
+                f"DISKI9_JOBS_PREPARE_REFRESH needs DISKI9_JOBS_MAX_REQUESTS_PER_DAY of at "
+                f"least {need} (the preparation cap {self.nonessential_per_day} plus the results "
+                f"reserve {self.results_reserve}); the current {self.max_requests_per_day} is "
+                "the pre-E.1b default. Set the owner-approved activation values explicitly "
+                "(D-1)"
+            )
+        if self.worst_tick_seconds() >= self.abandon_after.total_seconds():
+            raise ConfigError(
+                "the longest possible tick with these provider settings "
+                f"({self.worst_tick_seconds():.0f} s) must stay below "
+                "DISKI9_JOBS_ABANDON_AFTER_MINUTES"
+            )
+        if not self.refresh_daily or not self.refresh_publication:
+            raise ConfigError("the refresh schedule needs daily and publication times")
 
 
 def _flag(env: Mapping[str, str], name: str) -> bool:
@@ -143,6 +216,23 @@ def _int(env: Mapping[str, str], name: str, default: int, lo: int, hi: int) -> i
     if not lo <= value <= hi:
         raise ConfigError(f"{name} must be between {lo} and {hi}")
     return value
+
+
+def _times(env: Mapping[str, str], name: str, default: str, most: int) -> tuple[dtime, ...]:
+    raw = env.get(name, "").strip() or default
+    out: list[dtime] = []
+    for part in raw.split(","):
+        part = part.strip()
+        try:
+            hh, mm = part.split(":")
+            value = dtime(int(hh), int(mm))
+        except ValueError:
+            raise ConfigError(f"{name} must be HH:MM times (UTC), comma-separated") from None
+        if value not in out:
+            out.append(value)
+    if not 1 <= len(out) <= most:
+        raise ConfigError(f"{name} accepts 1 to {most} times")
+    return tuple(sorted(out))
 
 
 def _streams(env: Mapping[str, str]) -> tuple[str, ...]:
@@ -240,4 +330,42 @@ def load_config(
         ),
         prepare_grace=timedelta(hours=_int(env, "DISKI9_JOBS_PREPARE_GRACE_HOURS", 6, 1, 24)),
         prepare_min_seconds=float(_int(env, "DISKI9_JOBS_PREPARE_MIN_SECONDS", 60, 10, 600)),
+        provider_min_interval=float(
+            _int(env, "DISKI9_JOBS_PROVIDER_MIN_INTERVAL_SECONDS", 3, 1, 30)
+        ),
+        provider_max_wait=float(_int(env, "DISKI9_JOBS_PROVIDER_MAX_WAIT_SECONDS", 30, 5, 60)),
+        prepare_refresh=_flag(env, "DISKI9_JOBS_PREPARE_REFRESH"),
+        refresh_daily=_times(env, "DISKI9_JOBS_PREPARE_REFRESH_DAILY", "04:15", 1),
+        refresh_publication=_times(
+            env, "DISKI9_JOBS_PREPARE_REFRESH_PUBLICATION", "04:15,05:15", 4
+        ),
+        refresh_grace_interval=timedelta(
+            minutes=_int(env, "DISKI9_JOBS_PREPARE_REFRESH_GRACE_MINUTES", 60, 15, 240)
+        ),
+        refresh_partial_after=timedelta(
+            minutes=_int(env, "DISKI9_JOBS_PREPARE_REFRESH_PARTIAL_AFTER_MINUTES", 30, 10, 60)
+        ),
+        nonessential_per_day=_int(env, "DISKI9_JOBS_NONESSENTIAL_REQUESTS_PER_DAY", 300, 1, 5000),
+        results_reserve=_int(env, "DISKI9_JOBS_RESULTS_RESERVE", 150, 50, 5000),
+        prepare_provider_floor=_floor(env),
+        provider_expected_daily_limit=_int(
+            env, "DISKI9_JOBS_PROVIDER_EXPECTED_DAILY_LIMIT", 7500, 100, 100000
+        ),
+        provider_observation_max_age=timedelta(
+            minutes=_int(env, "DISKI9_JOBS_PROVIDER_OBSERVATION_MAX_AGE_MINUTES", 30, 5, 120)
+        ),
     )
+
+
+def _floor(env: Mapping[str, str]) -> int:
+    floor = _int(env, "DISKI9_JOBS_PREPARE_PROVIDER_FLOOR", 2000, 600, 7000)
+    try:
+        reserve = int(env.get("DISKI9_API_FOOTBALL_DAILY_RESERVE", "").strip() or 500)
+    except ValueError:
+        reserve = 500  # the client's own settings report that error
+    if floor <= reserve:
+        raise ConfigError(
+            "DISKI9_JOBS_PREPARE_PROVIDER_FLOOR must exceed the client daily reserve "
+            "(DISKI9_API_FOOTBALL_DAILY_RESERVE), which stays protected for results"
+        )
+    return floor

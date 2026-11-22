@@ -36,19 +36,42 @@ class ApiFootballProvider:
         return self.client.requests_made
 
     def fetch(self, ids: Sequence[int], reserve: Callable[[], None]) -> tuple[list[dict], int]:
+        return self.call(lambda client: fetch_fixtures_by_ids(client, ids), reserve)
+
+    def call(self, fn: Callable[[Any], Any], reserve: Callable[[], None]) -> Any:
+        """Run ``fn(client)`` with every request it sends (retries included) reserved
+        first (Stage E.1b refresh uses the existing ingestion fetch functions)."""
         original = self.client.rate_limiter
         self.client.rate_limiter = _ReservingLimiter(original, reserve)
         try:
-            return fetch_fixtures_by_ids(self.client, ids)
+            return fn(self.client)
         finally:
             self.client.rate_limiter = original
 
+    @property
+    def quota(self) -> tuple[int | None, int | None]:
+        """(daily remaining, daily limit) from the latest response headers."""
+        snap = self.client.last_rate_limit
+        return snap.daily_remaining, snap.daily_limit
+
 
 def api_football_provider(
-    timeout_seconds: float = 10.0, max_retries: int = 1
+    timeout_seconds: float = 10.0, max_retries: int = 1, max_wait_seconds: float | None = None
 ) -> ApiFootballProvider:
+    """The scheduler's client. With ``max_wait_seconds`` (E.1b) no provider wait inside
+    a tick exceeds it, and the per-minute floor keeps a tenth of the provider's minute
+    allowance for other users of the key."""
     from ...api_football import ApiFootballClient
+    from ...api_football.ratelimit import RateLimiter
 
+    extra: dict[str, Any] = {}
+    if max_wait_seconds is not None:
+        extra["max_wait_seconds"] = max_wait_seconds
+        extra["rate_limiter"] = RateLimiter(
+            minute_floor_ratio=0.1, max_wait_seconds=max_wait_seconds
+        )
     return ApiFootballProvider(
-        ApiFootballClient.from_settings(timeout_seconds=timeout_seconds, max_retries=max_retries)
+        ApiFootballClient.from_settings(
+            timeout_seconds=timeout_seconds, max_retries=max_retries, **extra
+        )
     )

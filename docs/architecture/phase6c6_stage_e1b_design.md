@@ -17,7 +17,8 @@ retained; no activation authorised). **Clarifications A–D** (multi-tick sweeps
 readiness and store consistency, pacing and `Retry-After`, provider quota
 observations) are resolved in the implementation plan
 [`phase6c6_stage_e1b_plan.md`](phase6c6_stage_e1b_plan.md) §3, §5 and §7 (summary in
-§16 below). **Implementation planning complete; implementation not authorised.**
+§16 below). **Implementation authorised and delivered (22 Nov 2026), awaiting owner acceptance**
+(implementation record §10; refresh off; not activated).
 Original status: design refinement for owner review (authorised 22 Nov 2026); no
 application code, migration, provider limit, live provider call, hosting choice or
 activation is part of this document.

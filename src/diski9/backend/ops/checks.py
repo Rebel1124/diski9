@@ -19,7 +19,7 @@ S-02 earliest finalisation. Each finding has a stable fingerprint
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, timedelta
+from datetime import UTC, datetime, timedelta
 from enum import IntEnum
 from typing import Any
 
@@ -376,6 +376,7 @@ def evaluate(snap: Snapshot, ops: OpsConfig, jobs: SchedulerConfig | None) -> li
 
     # ------------------------------------------------------------ preparation (E.1a)
     _preparation(snap, ops, jobs, add)
+    _refresh(snap, ops, jobs, add)
 
     # ------------------------------------------------------------ provider
     if jobs is not None:
@@ -528,6 +529,117 @@ def _preparation(snap: Snapshot, ops: OpsConfig, jobs: SchedulerConfig | None, a
             code,
             f"readiness of {code} has not been evaluated recently "
             f"(last: {_iso_short(st.last_evaluation_at) if st.last_evaluation_at else 'never'})",
+        )
+
+
+def _refresh(snap: Snapshot, ops: OpsConfig, jobs: SchedulerConfig | None, add) -> None:
+    """Stage E.1b findings: football-data refresh and provider allowance. Quiet early
+    in the week; escalates as the publication target approaches."""
+    if jobs is None or not jobs.enabled or not jobs.prepare or snap.preparation_error:
+        return
+    st = snap.preparation
+    if st is None or st.week is None:
+        return
+    w, now, code = st.week, st.now or snap.now, st.week.code
+    if not jobs.prepare_refresh:
+        if st.state not in ("published", "lapsed", "not_due") and now < w.target:
+            add(Severity.INFO, "refresh", "refresh_disabled", "refresh",
+                "automated data refresh is off (DISKI9_JOBS_PREPARE_REFRESH): run "
+                "refresh-data --with-odds before checking readiness")  # fmt: skip
+        return
+    r = st.refresh
+    if r is None:
+        return
+    # provider allowance (any week state: it protects results imports too)
+    if r.limit_today is not None and r.limit_today < jobs.provider_expected_daily_limit:
+        add(Severity.CRITICAL, "refresh", "provider_limit_mismatch", "provider",
+            f"the provider reports a daily limit of {r.limit_today} (expected "
+            f"{jobs.provider_expected_daily_limit}); preparation is stopped for the provider "
+            "day; verify the subscription")  # fmt: skip
+    if r.quota_remaining is not None:
+        if r.quota_remaining < 600:
+            add(Severity.CRITICAL, "refresh", "provider_quota_low", "provider",
+                f"provider daily remaining {r.quota_remaining}: results imports are close to "
+                "the client reserve; stop manual bulk commands")  # fmt: skip
+        elif r.quota_remaining < jobs.prepare_provider_floor:
+            add(Severity.WARNING, "refresh", "provider_quota_low", "provider",
+                f"provider daily remaining {r.quota_remaining} is below the preparation floor "
+                f"{jobs.prepare_provider_floor}: refresh is held back (other users of the "
+                "key?)")  # fmt: skip
+    if r.quota_gap is not None and r.quota_gap > 0.10:
+        add(Severity.WARNING, "refresh", "provider_quota_inconsistent", "provider",
+            f"provider status and response headers disagree by {r.quota_gap:.0%}; the lower "
+            "figure is used")  # fmt: skip
+    if r.throttled_24h:
+        sev = Severity.CRITICAL if r.throttled_24h >= 3 else Severity.WARNING
+        add(sev, "refresh", "provider_throttled", "provider",
+            f"the provider rate-limited the scheduler {r.throttled_24h} time(s) in 24 h; check "
+            "other users of the key")  # fmt: skip
+    caps = r.caps
+    if caps and r.used_preparation > caps["per_day"] - caps["results_reserve"]:
+        add(Severity.CRITICAL, "refresh", "results_reserve_breached", "provider",
+            f"preparation used {r.used_preparation} requests in 24 h, inside the results "
+            "reserve; escalate")  # fmt: skip
+    elif caps and r.used_preparation >= caps["nonessential"]:
+        add(Severity.WARNING, "refresh", "budget_nonessential_exhausted", "provider",
+            f"preparation used its {caps['nonessential']} requests in 24 h; refresh "
+            "waits")  # fmt: skip
+    if st.state in ("published", "lapsed") or now >= w.target + jobs.prepare_grace:
+        return
+    attention = now >= w.target - ops.prepare_attention
+    sw = r.sweep
+    if sw is not None:
+        for league, (n, err) in sorted(r.failing.items()):
+            if n < 2:
+                continue
+            near = w.target - timedelta(hours=1) <= now
+            add(Severity.CRITICAL if near else Severity.WARNING, "refresh", "refresh_failing",
+                f"{code}:{league}", f"league {league} refresh failed {n} times in the "
+                f"{sw.slot.label} slot: {err[:160]}")  # fmt: skip
+        if sw.state == "partial":
+            add(Severity.WARNING, "refresh", "refresh_partial", code,
+                f"the {sw.slot.label} sweep closed partial ({sw.counts} leagues); the next slot "
+                "refreshes every league")  # fmt: skip
+        if r.coverage_drop and attention:
+            add(Severity.WARNING, "refresh", "odds_coverage_drop", code,
+                f"leagues {r.coverage_drop} returned no odds fixtures although they had odds "
+                "earlier this week")  # fmt: skip
+        if r.update_not_today and now >= w.target - timedelta(hours=1):
+            add(Severity.WARNING, "refresh", "provider_update_missing", code,
+                f"today's provider odds update not seen yet for leagues {r.update_not_today}; "
+                "grace sweeps retry hourly")  # fmt: skip
+    if now >= w.target - timedelta(minutes=90):
+        first = min(jobs.refresh_publication)
+        friday = datetime.combine(w.window_start.date(), first, UTC)
+        closed = r.last_closed
+        slot_at = None
+        if closed:
+            try:
+                slot_at = datetime.strptime(str(closed["slot"]).rsplit("@", 1)[1],
+                                            "%Y-%m-%dT%H:%MZ").replace(tzinfo=UTC)  # fmt: skip
+            except (KeyError, ValueError, IndexError):
+                slot_at = None
+        if slot_at is None or slot_at < friday:
+            sev = Severity.CRITICAL if now >= w.target - timedelta(minutes=30) else Severity.WARNING
+            add(sev, "refresh", "store_not_current", code,
+                f"no data sweep has closed since {_iso_short(friday)} (publication target "
+                f"{_iso_short(w.target)}): run refresh-data --with-odds, then round "
+                "readiness")  # fmt: skip
+        elif closed.get("kind") == "complete":
+            add(
+                Severity.INFO,
+                "refresh",
+                "refresh_ok",
+                code,
+                f"data refreshed for publication ({_iso_short(closed.get('finished_at'))})",
+            )
+    elif r.last_complete and attention:
+        add(
+            Severity.INFO,
+            "refresh",
+            "refresh_ok",
+            code,
+            f"last complete data sweep {_iso_short(r.last_complete.get('finished_at'))}",
         )
 
 

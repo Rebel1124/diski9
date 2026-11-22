@@ -59,6 +59,10 @@ BASE = SchedulerConfig(
     retry_base=timedelta(seconds=1),
     retry_max=timedelta(seconds=2),
     environment="test",
+    # E.1b pacing (3 s between provider requests in production) is exercised with
+    # real timing in tests/backend/test_backend_refresh_budget.py; the lifecycle tests
+    # here use fake providers and need no spacing between their requests
+    provider_min_interval=0.0,
 )
 
 

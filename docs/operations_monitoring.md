@@ -81,6 +81,19 @@ invented.
 | Readiness not evaluated recently (inside the attention window) | — | yes | — |
 | Preparation failing (`blocking_failure`, e.g. football store unavailable, or 3 failures in a row) | — | yes | blocked within 6 h of the target, or the step-failure critical count |
 | Draft lapsed (window ended unpublished, 7 days; or deadline passed) | — | yes | — |
+| Automated data refresh off while preparation is on (E.1b `refresh_disabled`) | yes, until the target | — | — |
+| Last data sweep complete (`refresh_ok`) | from the attention window | — | — |
+| Sweep closed partial (`refresh_partial`) | — | yes | — |
+| A league failed twice or more in the current slot (`refresh_failing`) | — | yes | within 1 h of the target |
+| No sweep closed since the first Friday slot (`store_not_current`) | — | from target − 90 min | from target − 30 min |
+| Today's provider odds update not seen (`provider_update_missing`) | — | from target − 60 min | — |
+| A league lost the odds it had earlier this week (`odds_coverage_drop`) | — | inside the attention window | — |
+| Provider rate-limited the scheduler in 24 h (`provider_throttled`) | — | once | 3 times |
+| Provider daily remaining (`provider_quota_low`) | — | below the preparation floor (2,000) | below 600 |
+| Provider status and headers disagree (`provider_quota_inconsistent`) | — | by more than 10 % | — |
+| Provider reports a daily limit below 7,500 (`provider_limit_mismatch`) | — | — | yes |
+| Preparation used its 24-hour share (`budget_nonessential_exhausted`) | — | yes | — |
+| Preparation inside the results reserve (`results_reserve_breached`; impossible by construction) | — | — | yes |
 | Integrity inspection (`--deep`) | — | repairable finding | material finding |
 | Database | — | trivial query > 2 s | unreachable, wrong migration head, tables missing |
 
@@ -181,3 +194,12 @@ F4 performance datasets (PostgreSQL 16, warm): light checks 31 ms (1,000 players
 `audit_log.job_run_id` have no index on the columns used for per-round settlement
 times and job links, which is fine at current volumes and is noted for review if
 history grows by orders of magnitude.
+
+**Data refresh (Stage E.1b)** is derived from job records only and shown under
+Preparation in `ops status` (`--json`: `preparation.refresh`) and `jobs status`:
+current slot and sweep state (`none`, `in_progress`, `complete`, `partial`, with
+`n/8` leagues), last complete and last partial sweep, failing leagues, next slot,
+provider cooldown, the lowest usable provider quota observation (source and time)
+and scheduler requests in 24 hours by class against the caps. `jobs tick --dry-run`
+lists the planned `prepare_refresh` leagues and `prepare_screener`. Webhook
+notifications stay off.

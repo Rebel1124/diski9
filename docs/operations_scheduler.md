@@ -135,14 +135,92 @@ single upcoming Beta week:
   attention window (see monitoring).
 * **The football store:** the evaluation reads the same store as `round readiness`
   (`DISKI9_DATABASE_URL`). If it is missing or not set up, the step is a blocking
-  failure (exit 4) and nothing is evaluated; the store is never created. E.1a does
-  not refresh it: run `diski9 refresh-data --with-odds` as before (automated
-  refresh is Stage E.1b).
+  failure (exit 4) and nothing is evaluated; the store is never created. Without
+  automated refresh (below; off by default) run `diski9 refresh-data --with-odds`
+  as before.
 * **Advisory only:** a READY verdict never publishes anything and is never used as
   approval. `round publish` builds its own snapshot once, shows it, requires the
   round code and publishes exactly that snapshot (approved fingerprint).
 * **Never:** publication, a draft for Development or Official, a draft for any week
   other than the upcoming one, any change to an existing round.
+
+## Automated football-data refresh (Stage E.1b)
+
+Off by default (`DISKI9_JOBS_PREPARE_REFRESH`); needs `DISKI9_JOBS_PREPARE` (Beta)
+and `DISKI9_JOBS_PROVIDER_CALLS`. **Refresh cannot be switched on with the pre-E.1b
+caps** (10 per tick, 100 per 24 h, D-1): the 24-hour cap must hold the preparation
+cap plus the results reserve, so activation needs the owner-approved values set
+explicitly (`DISKI9_JOBS_MAX_REQUESTS_PER_TICK=20`,
+`DISKI9_JOBS_MAX_REQUESTS_PER_DAY=450`). No live activation is authorised yet.
+
+When on, each tick — after the lifecycle steps and draft creation, before readiness,
+under the same lock, ownership checks and 240-second budget — refreshes the football
+store for the upcoming week with the **same functions as `refresh-data --with-odds`**
+(fixtures and odds for all eight leagues; no standings), then the Screener cache.
+
+| When (UTC) | Slot |
+|---|---|
+| Tue, Wed, Thu 04:15 | daily sweep (`DISKI9_JOBS_PREPARE_REFRESH_DAILY`) |
+| Fri 04:15 and 05:15 | publication sweeps, before the 06:00 target (`…_PUBLICATION`) |
+| Fri 06:15 … 11:15, while unpublished | grace sweeps every 60 minutes (`…_GRACE_MINUTES`) |
+| after publication or after the grace | nothing (manual `refresh-data` remains) |
+
+* **Current slot only.** Each tick works the latest slot not in the future; earlier
+  slots are never replayed after an outage.
+* **Sweep = one step per league** (`scheduler.prepare_refresh`, scope
+  `<week>:<league>`, `args.slot`). A league is done for the slot only when its step
+  **succeeded**; done leagues are not requested again in the slot. A typical sweep
+  needs about 23 requests (`/status` 1, fixtures 8, odds 14), so with 20 per tick it
+  spans two ticks (Friday: about 04:21 and 05:21); with 10 per tick, three.
+* **Complete / partial.** A sweep is *complete* when all eight leagues are done and
+  the Screener step (`scheduler.prepare_screener`) has succeeded for the slot. It
+  is closed *partial* (Screener step `kind: partial`, `leagues n/8`) when the next
+  slot becomes current or 30 minutes after its first league step
+  (`…_PARTIAL_AFTER_MINUTES`). A closed sweep is terminal for its slot; the next slot
+  refreshes every league again. A failing league backs off (within the slot only).
+* **Fetch, then write.** Each league's requests run with no football-store
+  transaction open; ownership is re-verified; the response is written in one short
+  SQLite transaction. A failure (or a lost lock) before or during the write leaves
+  that league unchanged. Another writer holding the store gives a retryable
+  "football store busy".
+* **Readiness coordination.** The E.1a evaluation waits while a sweep is part-way
+  (at most until it closes) and runs as soon as a sweep closes; each verdict records
+  `data=complete@<slot>`, `partial@<slot>(n/8)`, `none` or `refresh-off`. A completed
+  sweep never means READY: the Stage E validator decides, and publication stays
+  with an authenticated operator.
+
+### Provider safety (also for results imports)
+
+* **Request classes.** Every ledger row records `args.class`: `results` or
+  `preparation` (refresh and `/status`). Rows written before E.1b count as results
+  (D-2). Preparation is limited to `DISKI9_JOBS_NONESSENTIAL_REQUESTS_PER_DAY`
+  (300) **and** may never use the last `DISKI9_JOBS_RESULTS_RESERVE` (150) of the
+  24-hour cap; results may use the whole cap. Every attempt — retries included — is
+  checked when it is reserved, so a retry can never push past a cap; a league that
+  runs out part-way stops, writes nothing and stays incomplete.
+* **Pacing across ticks.** Each reservation records its *send slot* — at least
+  `DISKI9_JOBS_PROVIDER_MIN_INTERVAL_SECONDS` (3) after the previous scheduler
+  request — in the same serialised transaction, then the caller waits for it. The
+  slot is committed before anyone sleeps, so another tick, thread or restarted
+  process is always placed after it; a crash after reserving leaves the slot used
+  and counted. A slot more than the maximum wait away is refused (deferred).
+* **Bounded waits.** No provider wait inside a tick exceeds
+  `DISKI9_JOBS_PROVIDER_MAX_WAIT_SECONDS` (30): a longer `Retry-After`, an exhausted
+  429 retry or a long per-minute window ends the step as *rate limited* and records
+  a **cooldown** (`scheduler.provider_cooldown`) that every scheduler request —
+  results included — honours. The per-minute floor keeps a tenth of the provider's
+  minute allowance for other users of the key. The longest possible tick (budget +
+  per-tick cap × (timeout + interval) + maximum wait) is validated against the
+  20-minute abandonment threshold.
+* **Provider floor (preparation only).** Before a refresh step the most pessimistic
+  usable observation of the provider's daily remaining — response headers or one
+  `/status` request (quota-free at the provider, reserved here as one preparation
+  request) when there is no observation younger than 30 minutes from the current
+  UTC day — must stay above `DISKI9_JOBS_PREPARE_PROVIDER_FLOOR` (2,000). A reported
+  daily limit below `DISKI9_JOBS_PROVIDER_EXPECTED_DAILY_LIMIT` (7,500) stops
+  preparation for the provider day. Results keep only the client's existing reserve
+  (500). Our caps are a rolling 24 hours over our own ledger; the provider's quota is
+  a calendar day (UTC) for every user of the key: both must pass.
 
 ## Provider budget and retry policy
 
@@ -175,6 +253,8 @@ single upcoming Beta week:
   attempt waits `min(base × 2^(n−1), max)` from the last failure (15, 30, 60, 120,
   240 minutes by default). A success resets it. There is no retry loop inside a
   tick.
+* **E.1b additions:** request classes, the results reserve, pacing, bounded waits,
+  cooldowns and quota observations apply to results imports as well (see above).
 * **Proposed limits for owner approval.** The defaults (10 per tick, 100 per 24
   hours, hourly refresh) are conservative proposals, not derived from a confirmed
   plan quota: a round's import needs about 1–3 requests (relevant fixtures, 20 per

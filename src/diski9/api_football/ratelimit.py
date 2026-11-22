@@ -14,6 +14,8 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 
+from .errors import ApiFootballRateLimitError
+
 
 def _int_header(headers: Mapping[str, str], name: str) -> int | None:
     value = headers.get(name)
@@ -55,6 +57,11 @@ class RateLimiter:
 
     min_interval_seconds: float = 0.25
     minute_floor: int = 2
+    # Phase 6C.6 E.1b (scheduler only; None keeps the original behaviour): the floor
+    # becomes at least this share of the provider's per-minute limit, and a wait for
+    # the minute window longer than ``max_wait_seconds`` is not slept but raised.
+    minute_floor_ratio: float | None = None
+    max_wait_seconds: float | None = None
     clock: Callable[[], float] = time.monotonic
     sleep: Callable[[float], None] = time.sleep
     last: RateLimitSnapshot = field(default_factory=RateLimitSnapshot)
@@ -69,9 +76,18 @@ class RateLimiter:
                 self.sleep(wait)
                 now = self.clock()
         remaining = self.last.minute_remaining
-        if remaining is not None and remaining <= self.minute_floor:
+        floor = self.minute_floor
+        if self.minute_floor_ratio is not None and self.last.minute_limit:
+            floor = max(floor, int(self.last.minute_limit * self.minute_floor_ratio))
+        if remaining is not None and remaining <= floor:
             start = self._minute_window_start if self._minute_window_start is not None else now
             wait = 60.0 - (now - start)
+            if self.max_wait_seconds is not None and wait > self.max_wait_seconds:
+                raise ApiFootballRateLimitError(
+                    f"per-minute allowance nearly used ({remaining} left); window resets in "
+                    f"{wait:.0f} s",
+                    retry_after=wait,
+                )
             if wait > 0:
                 self.sleep(wait)
             self.last = RateLimitSnapshot(

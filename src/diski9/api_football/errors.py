@@ -35,7 +35,13 @@ class ApiFootballAuthError(ApiFootballResponseError):
 
 
 class ApiFootballRateLimitError(ApiFootballError):
-    """Per-minute rate limit still exceeded after retries."""
+    """Per-minute rate limit still exceeded after retries, or the provider asked for a
+    longer wait than the caller allows (``retry_after``: the requested wait in seconds,
+    when known)."""
+
+    def __init__(self, message: str, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
 
 
 class QuotaGuardError(ApiFootballError):

@@ -149,7 +149,10 @@ def category(rd) -> str:
     return "other"
 
 
-def encode(rd, seconds: float) -> str:
+def encode(rd, seconds: float, data: str | None = None) -> str:
+    """The verdict as one line. ``data`` (Stage E.1b) says which football-data sweep
+    the evaluation saw: ``complete@<slot>``, ``partial@<slot>(n/8)``, ``none`` or
+    ``refresh-off`` — never a claim that a partial sweep refreshed every league."""
     rep = rd.report or {}
     have = rep.get("eligible_outcomes_by_bucket", {})
     buckets = ",".join(f"{b}{have.get(b, 0)}/{n}" for b, n in rd.required_by_bucket.items())
@@ -157,7 +160,7 @@ def encode(rd, seconds: float) -> str:
         f"fixtures={rd.fixtures} eligible={rep.get('eligible_fixtures', 0)} "
         f"leagues={rep.get('eligible_leagues', 0)} buckets={buckets} "
         f"earliest={_iso(rd.earliest_kickoff)} deadline={_iso(rd.deadline_at)} "
-        f"secs={seconds:.1f}"
+        f"secs={seconds:.1f}" + (f" data={data}" if data else "")
     )
     if rd.ready:
         return f"ready | {summary}"[:500]
@@ -243,6 +246,7 @@ class PreparationStatus:
     lapsed_recent: list[str] = field(default_factory=list)
     now: datetime | None = None
     notes: list[str] = field(default_factory=list)
+    refresh: Any = None  # Stage E.1b: refresh.RefreshStatus (derived)
 
     def as_dict(self) -> dict[str, Any]:
         w = self.week
@@ -267,6 +271,7 @@ class PreparationStatus:
             "last_error": self.last_error,
             "blocked": self.blocked,
             "lapsed_recent": self.lapsed_recent,
+            "refresh": None if self.refresh is None else self.refresh.as_dict(),
         }  # fmt: skip
 
 
@@ -342,6 +347,10 @@ def preparation_status(engine: Engine, cfg: SchedulerConfig | None) -> Preparati
             .all()
         )
         st.lapsed_recent = list(lapsed)
+        if cfg is not None and cfg.prepare_refresh:
+            from . import refresh
+
+            st.refresh = refresh.refresh_status(conn, cfg, week, now)
     if last is not None and last.status == "succeeded":
         st.verdict = decode(last.error, last.finished_at or last.started_at)
     if last is not None:
@@ -427,18 +436,32 @@ def plan(engine: Engine, cfg: SchedulerConfig) -> tuple[list[tuple[str, str]], W
         ).one_or_none()
         hd = _history(conn, PREPARE_DRAFT, week.code)
         hr = _history(conn, PREPARE_READINESS, week.code)
+        refresh_steps, busy, swept_at = [], False, None
+        if cfg.prepare_refresh:
+            from . import refresh
+
+            planned, _ = refresh.plan(conn, cfg, week, None if row is None else row.status,
+                                      now, real)  # fmt: skip
+            refresh_steps = [(p.step, p.detail(week.code)) for p in planned]
+            busy = refresh.in_progress(conn, cfg, week, now)
+            closed = refresh.latest_closed(conn, week.code)
+            swept_at = closed["finished_at"] if closed else None
     steps: list[tuple[str, str]] = []
     if row is None:
         if now >= week.create_at:
             until = _backoff_until(hd, cfg)
             if until is None or real >= until:
                 steps.append(("prepare_draft", f"create {week.code}"))
-        return steps, week
-    if (
-        row.status == "draft"
-        and now < week.window_end
-        and _due(cfg, real, hr.last_ok_at, _backoff_until(hr, cfg))
-    ):
+        return steps + refresh_steps, week
+    steps += refresh_steps
+    # Stage E.1b: no evaluation while a sweep is part-way (it closes as complete or
+    # partial within refresh_partial_after); a newly closed sweep is evaluated at once
+    new_data = swept_at is not None and (hr.last_ok_at is None or swept_at > hr.last_ok_at)
+    backoff = _backoff_until(hr, cfg)
+    due = _due(cfg, real, hr.last_ok_at, backoff) or (
+        new_data and (backoff is None or real >= backoff)
+    )
+    if row.status == "draft" and now < week.window_end and due and not busy:
         steps.append(("prepare_readiness", f"evaluate {week.code}"))
     return steps, week
 
@@ -449,20 +472,27 @@ def run_preparation(run, report) -> None:
     from .reconciler import Outcome, StepReport
 
     steps, week = plan(run.engine, run.cfg)
-    for step, _ in steps:
-        if step == "prepare_draft":
-            rep = _draft_step(run, week)
-            report.steps.append(rep)
-            if rep.outcome != Outcome.SUCCEEDED and rep.outcome != Outcome.SKIPPED:
-                return
-            # a draft created now is evaluated in the same tick when time allows
-            more, _ = plan(run.engine, run.cfg)
-            for s2, _ in more:
-                if s2 == "prepare_readiness":
-                    report.steps.append(_readiness_step(run, week))
-        elif step == "prepare_readiness":
-            report.steps.append(_readiness_step(run, week))
-    if week is not None and not steps:
+    before = len(report.steps)
+    if any(step == "prepare_draft" for step, _ in steps):
+        rep = _draft_step(run, week)
+        report.steps.append(rep)
+        if rep.outcome != Outcome.SUCCEEDED and rep.outcome != Outcome.SKIPPED:
+            return
+    if week is not None and run.cfg.prepare_refresh:
+        # Stage E.1b: refresh the football store for the current slot (between draft
+        # creation and readiness; same lock, ownership checks and time budget)
+        from . import refresh
+
+        with transaction(run.engine) as conn:
+            status = conn.execute(
+                select(rounds_t.c.status).where(rounds_t.c.code == week.code)
+            ).scalar_one_or_none()
+        refresh.run_refresh(run, report, week, status)
+    # readiness after creation and refresh, from the state they left
+    more, _ = plan(run.engine, run.cfg)
+    if any(step == "prepare_readiness" for step, _ in more):
+        report.steps.append(_readiness_step(run, week))
+    if week is not None and len(report.steps) == before:
         report.steps.append(StepReport(week.code, STREAM, "prepare", Outcome.SKIPPED,
                                        _quiet_reason(run.engine, run.cfg, week)))  # fmt: skip
 
@@ -479,6 +509,12 @@ def _quiet_reason(engine: Engine, cfg: SchedulerConfig, week: Week) -> str:
         return f"already {row}"
     if now >= week.window_end:
         return "fixture window ended"
+    if cfg.prepare_refresh:
+        from . import refresh
+
+        with transaction(engine) as conn:
+            if refresh.in_progress(conn, cfg, week, now):
+                return "readiness waits for the data refresh in progress"
     return "readiness evaluated recently"
 
 
@@ -543,6 +579,11 @@ def _readiness_step(run, week: Week):
     try:
         with transaction(run.engine) as conn:
             as_of = db_now(conn)
+            data = "refresh-off"
+            if run.cfg.prepare_refresh:
+                from . import refresh
+
+                data = refresh.data_label(refresh.latest_closed(conn, week.code))
         builder = run.snapshot_builder or football_snapshot_builder()
         snap = builder(week.code, week.window_start, week.window_end, as_of)
         rd = rounds_svc.publication_readiness(run.engine, rid, snap, source="football-db")
@@ -550,11 +591,11 @@ def _readiness_step(run, week: Week):
         run.lock.verify()  # still the owner before recording the verdict
         with transaction(run.engine) as conn:
             ops.finish_job(conn, run_id, JOB_STATUS[Outcome.SUCCEEDED],
-                           error=encode(rd, seconds))  # fmt: skip
+                           error=encode(rd, seconds, data))  # fmt: skip
         verdict = "READY for operator review" if rd.ready else f"NOT READY: {rd.problem}"
         return StepReport(week.code, STREAM, "prepare_readiness", Outcome.SUCCEEDED,
-                          f"{verdict} ({seconds:.1f} s; advisory, nothing published)",
-                          run_id)  # fmt: skip
+                          f"{verdict} ({seconds:.1f} s; data {data}; advisory, nothing "
+                          "published)", run_id)  # fmt: skip
     except LockLost as exc:
         lost = exc
         outcome, detail = Outcome.RETRYABLE, f"lock lost: {exc}"
@@ -628,13 +669,18 @@ def preparation_lines(st: PreparationStatus) -> list[str]:
             lines.append(f"    fixtures {s.get('fixtures', '-')}, "
                          f"eligible {s.get('eligible', '-')}, "
                          f"leagues {s.get('leagues', '-')}, buckets {s.get('buckets', '-')}, "
-                         f"deadline {s.get('deadline', '-')}")  # fmt: skip
+                         f"deadline {s.get('deadline', '-')}"
+                         + (f", data {s['data']}" if s.get("data") else ""))  # fmt: skip
     if st.next_evaluation_at and st.state not in ("published", "lapsed"):
         lines.append(f"  next evaluation from {_iso(st.next_evaluation_at)}")
     if st.failing:
         lines.append(f"  failing {st.failing} time(s) in a row: {st.last_error}")
     for c in st.lapsed_recent:
         lines.append(f"  lapsed (last 7 days): {c}")
+    if st.refresh is not None:
+        from .refresh import refresh_lines
+
+        lines.extend(refresh_lines(st.refresh))
     lines.append("  readiness is advisory: publish with round readiness / round publish "
                  "(an authenticated person); the scheduler never publishes")  # fmt: skip
     return lines

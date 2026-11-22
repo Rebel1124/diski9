@@ -113,7 +113,9 @@ def _tick(args) -> int:
         return 2
 
     def provider():
-        return api_football_provider(cfg.provider_timeout_seconds, cfg.provider_max_retries)
+        return api_football_provider(
+            cfg.provider_timeout_seconds, cfg.provider_max_retries, cfg.provider_max_wait
+        )
 
     report = tick(engine, cfg, provider_factory=provider if cfg.provider_calls else None,
                   lock_url=url)  # fmt: skip

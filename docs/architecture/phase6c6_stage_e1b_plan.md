@@ -1,7 +1,11 @@
 # Phase 6C.6 Stage E.1b — Automated API-Football Data Refresh: implementation plan
 
-**Status:** implementation plan for owner review (planning authorised 22 Nov 2026).
-**Implementation is not authorised.** No application code, migration, provider
+**Status:** **implementation authorised (22 Nov 2026) and delivered; awaiting owner
+acceptance** — D-1 to D-3 approved; implementation record
+[`phase6c6_implementation.md`](phase6c6_implementation.md) §10. Automated refresh
+remains off; no live provider call, limit change, hosting selection or activation.
+Original status: implementation plan for owner review (planning authorised 22 Nov
+2026); implementation was not authorised at that point. No application code, migration, provider
 limit, live provider call, hosting selection, activation or deployment is part of
 this plan. Design: [`phase6c6_stage_e1b_design.md`](phase6c6_stage_e1b_design.md)
 (approved in principle: REF-01 to REF-10, REF-15, REF-16; deferred: REF-11, REF-12

@@ -122,6 +122,10 @@ class ApiFootballClient:
     sleep: Callable[[float], None] = time.sleep
     rate_limiter: RateLimiter | None = None
     request_log: list[RequestRecord] = field(default_factory=list)
+    # Phase 6C.6 E.1b (scheduler only; None keeps the original behaviour): a retry
+    # wait longer than this is not slept; ``ApiFootballRateLimitError`` is raised
+    # with ``retry_after`` so the caller can defer instead of blocking.
+    max_wait_seconds: float | None = None
 
     def __post_init__(self) -> None:
         if self.rate_limiter is None:
@@ -358,4 +362,10 @@ class ApiFootballClient:
         if retry_after:
             with contextlib.suppress(ValueError):
                 delay = max(delay, float(retry_after))
-        self.sleep(max(delay, minimum))
+        delay = max(delay, minimum)
+        if self.max_wait_seconds is not None and delay > self.max_wait_seconds:
+            raise ApiFootballRateLimitError(
+                f"provider asked to wait {delay:.0f} s (more than {self.max_wait_seconds:.0f} s)",
+                retry_after=delay,
+            )
+        self.sleep(delay)

@@ -143,3 +143,24 @@ Check with `ops status` (Preparation section) or `jobs status`.
 | `prepare_failing` with "too long to run safely" | An evaluation took longer than the safe limit for the abandonment threshold; evaluate by hand with `round readiness` and review the tick budget / abandonment threshold before re-enabling. |
 | `prepare_lapsed` | The week was never published; nothing to repair (the draft is inert and is not recreated). |
 | `prepare_stale_evaluation` | Ticks are deferring the evaluation (not enough tick time) or failing; check `jobs status` and the heartbeat. |
+
+## 12. Automated football-data refresh (Stage E.1b)
+Off by default; not activated. Check with `ops status` / `jobs status` (the "data
+refresh" lines under Preparation) and `round readiness` ("data refresh:" line).
+
+| Finding | What to do |
+|---|---|
+| `refresh_partial` | A sweep closed with some leagues missing (`n/8`). Nothing to repair: the next slot refreshes every league. Before publication, if it was the last Friday slot, run `refresh-data --with-odds` by hand, then `round readiness`. |
+| `refresh_failing` | One league failed twice or more in the slot. `ops jobs --job scheduler.prepare_refresh --failed` shows the error type. "football store busy": another writer (a manual command) — let it finish. "football store unavailable": fix the store on the scheduler host. |
+| `store_not_current` | No sweep has closed since the first Friday slot. Pause refresh if it is misbehaving (pause file or `DISKI9_JOBS_PREPARE_REFRESH=off`), run `refresh-data --with-odds`, then `round readiness`, then resume. |
+| `provider_update_missing` | The provider's daily odds update has not arrived yet for some leagues; grace sweeps retry hourly. Consider publishing later rather than with stale odds (readiness will say `stale_odds`). |
+| `odds_coverage_drop` | A league returned no odds although it had them earlier this week; readiness decides whether the week is still feasible. |
+| `provider_throttled` / cooldown in status | The provider rate-limited the scheduler; every scheduler request waits for the cooldown. Look for other users of the key (manual bulk commands); never raise caps as a fix. |
+| `provider_quota_low` | WARNING: below the preparation floor (refresh already held back). CRITICAL: results imports are close to the client reserve — stop manual bulk commands. |
+| `provider_limit_mismatch` | The provider reports a daily limit below 7,500: preparation is stopped for the day. The owner verifies the subscription. |
+| `budget_nonessential_exhausted` | Preparation used its share of the 24 hours (long grace periods); it resumes as the window rolls. Results are unaffected. |
+| `results_reserve_breached` | Should be impossible (enforced at reservation time): escalate to the owner. |
+
+Rules: do not run bulk manual store commands (`setup`, `refresh-data`,
+`collect-odds`) on Friday between 03:30 and 12:00 UTC while refresh is on — pause it
+first; a collision is safe but wastes requests. Never clear `job_runs` rows by hand.

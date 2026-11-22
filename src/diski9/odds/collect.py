@@ -208,14 +208,26 @@ def collect_odds(
     clock: Clock = utcnow,
     max_pages: int | None = None,
 ) -> FetchStats:
-    """Fetch ``/odds?league&season`` (all pages) and reconcile upcoming fixtures."""
-    pages = (
+    """Fetch ``/odds?league&season`` (all pages) and reconcile upcoming fixtures.
+
+    The pages are fetched before anything is written (Phase 6C.6 E.1b), so the
+    store's write lock is never held during a provider request; the collection
+    record keeps the time the fetch started, as before."""
+    started = clock()
+    pages = fetch_odds_pages(client, competition_id, season, max_pages=max_pages)
+    return reconcile_pages(conn, competition_id, season, pages, clock, started=started)
+
+
+def fetch_odds_pages(
+    client: ApiFootballClient, competition_id: int, season: int, max_pages: int | None = None
+) -> list[OddsPage]:
+    """All ``/odds?league&season`` pages, fetched without database access."""
+    return [
         OddsPage(p.retrieved_at, p.items, p.paging_current, p.paging_total)
         for p in client.paginate(
             "odds", {"league": competition_id, "season": season}, max_pages=max_pages
         )
-    )
-    return reconcile_pages(conn, competition_id, season, pages, clock)
+    ]
 
 
 def reconcile_pages(
@@ -224,6 +236,7 @@ def reconcile_pages(
     season: int,
     pages: Iterable[OddsPage],
     clock: Clock = utcnow,
+    started: datetime | None = None,
 ) -> FetchStats:
     """Reconcile odds pages against stored quotes (shared by live collection and
     replay of saved monitoring files).
@@ -233,7 +246,7 @@ def reconcile_pages(
     are skipped and counted. Disappearance of whole fixtures is only inferred
     when the final page (``paging_current == paging_total``) was processed.
     """
-    started = clock()
+    started = started if started is not None else clock()
     stats = FetchStats()
     stats.fetch_id = conn.execute(
         insert(odds_fetches).values(
