@@ -1586,9 +1586,9 @@ Nothing is changed until these are approved.
 | O-3 Supabase | **PASSED** (23 Nov 2026) | – (§13.9: spend cap, SSL enforcement, CA certificate, leaked-password protection, account MFA, project name, invoice, no key shared) |
 | O-4 Hostinger | **PASSED** (23 Nov 2026) | – (§13.10: day-25 reminder PASSED; SSH password authentication currently **enabled**, disabling it deferred to Checkpoint 2 hardening; location final acceptance tracked under O-5) |
 | O-5 day-one check | **PASSED** (23 Nov 2026) | – (§13.11: IT-1, IT-2 PASS; zero-success check complete; system facts and listening-port baseline recorded; F3-D1a/F3-D2a final-acceptance condition met) |
-| O-6 Backblaze | OPEN | canary and cleanup **PASSED**; monthly spending control (S-1 to S-3); old cache deletion recommended |
+| O-6 Backblaze | OPEN (one confirmation) | canary, cleanup, spending controls (S-1 to S-3) and cache deletion **PASSED** (§13.12); **outstanding:** owner confirmation that no B2 application keys exist |
 | O-7 WireGuard clients | **PASSED** | – |
-| Running cost | BLOCKED on owner decision | S-1 to S-3 (Supabase invoice verified: $25.00, tax $0.00; baseline §13.9) |
+| Running cost | OPEN (one verification) | S-1 to S-3 **approved**; cost log created; **outstanding:** Supabase usage notifications not yet verified (§13.12) |
 
 ### 13.8 Checkpoint 1, O-2: `age` identity evidence (22 Nov 2026, owner-reported)
 | Item | Evidence | Status |
@@ -1754,3 +1754,80 @@ Checkpoint 3. The DigitalOcean FRA1 fallback stays documented but is not trigger
 **Checkpoint 1 remaining blockers (23 Nov 2026):**
 * O-6 / running cost: owner decisions S-1 to S-3 (plan §Y.6). Deleting the old
   `~/.b2_account_info` remains recommended (not authorised by Claude).
+
+### 13.12 Checkpoint 1, O-6 spending controls and Checkpoint 1 review (23 Nov 2026)
+**Owner approvals (23 Nov 2026):**
+* **S-1 APPROVED:** per-provider spending controls implement the $75/month ceiling.
+  Unenforceable charges, exclusions and residual risks are documented.
+* **S-2 APPROVED:** amounts-only monthly cost log, reconciled on the 1st of each month;
+  provider notifications; $65 warning; at $75, new discretionary spending stops pending
+  owner approval.
+* **S-3 APPROVED:** the reconciled Backblaze configuration and the residual-risk
+  acceptance.
+
+**Reconciliation with current Backblaze pricing** (plan §Y.6): Class A/B/C transactions
+are free for pay-as-you-go, so the proposed Class B/C caps are obsolete. Class D (Event
+Notifications) cannot be capped and is unused.
+
+| Control (owner-verified) | Value |
+|---|---|
+| Storage cap | **$0.10/day**, saved and verified in the UI |
+| Download cap | **$0.05/day**, saved and verified in the UI |
+| Alerts | email at 75 % and 100 % for both |
+| Transaction caps | none: Class A/B/C free under current published pricing |
+| Class D | uncapped; Event Notifications unused; **not to be enabled without separate approval** |
+| Emergency increase | explicit owner approval each time; original limit restored and verified afterwards (recovery runbook §13a) |
+| Cap behaviour | documented only (dollars/day, 00:00 GMT reset, up to 10 minutes to apply); **practical behaviour is tested in Checkpoint 5** |
+
+B2 maximum under the caps: ≤ $4.65/month (≤ $5.35 with tax). Sum of per-provider
+maxima: ≈ $58.51 in a normal month; ≈ $67.51 with the IPv4 add-on in a drill month
+(warning, below the ceiling); ≈ $71.86 if Supabase charges VAT.
+
+**Recovery drills:** a drill downloads one backup set (MB to a few hundred MB). That is
+far below the ≈ 5 GB/day of paid downloads the cap allows, and mostly within the free 3×
+allowance, so the $0.05 cap is not expected to interfere. The real-recovery and
+cap-failure procedure is recovery runbook §13a.
+
+**Residual financial risks: accepted by the owner (23 Nov 2026):**
+* no single provider enforces the combined $75/month ceiling;
+* taxes, provider price changes, Supabase add-ons, extra projects, possible
+  reverse-charge obligations and other uncapped charges need monitoring and owner
+  approval;
+* a drill month may exceed the $65 warning without breaching $75.
+* **The $75 ceiling is not an absolute technical hard cap.**
+
+**Credential-cache cleanup: PASSED.** The obsolete `~/.b2_account_info` (a regular file,
+mode 600) was deleted interactively by the owner; verified "BACKBLAZE CACHE REMOVED".
+Its contents were not opened or recorded.
+
+**Cost log:** [`../operations_f3_cost_log.md`](../operations_f3_cost_log.md), amounts
+only. Month 1 actual **$37.64** (Hostinger $12.64, Supabase $25.00); Backblaze
+uninvoiced, ≈ $0.
+
+**Supabase usage notifications: NOT VERIFIED.** No existing evidence shows that
+Supabase usage or spend-cap emails are enabled or reach the owner. The O-3 evidence
+covers the spend cap itself, not notifications. This is left as an open verification
+item, not assumed PASS.
+
+**Checkpoint 1 review (O-1 to O-7):**
+
+| Item | Status | Evidence |
+|---|---|---|
+| O-1 SSH key | **PASSED** | §13.4 |
+| O-2 `age` identities | **PASSED** | §13.8 |
+| O-3 Supabase | **PASSED** | §13.9 |
+| O-4 Hostinger | **PASSED** (SSH hardening deferred to Checkpoint 2) | §13.10 |
+| O-5 day-one check | **PASSED**; F3-D1a/F3-D2a final-acceptance condition met | §13.11 |
+| O-6 Backblaze | **OPEN: one confirmation** | canary, cleanup, spending controls and cache deletion PASSED. **Outstanding:** the checklist criterion "no keys created yet". The owner's confirmation that the B2 App Keys page lists no application keys was requested by the procedure but is not on record |
+| O-7 WireGuard clients | **PASSED** | §13.5 |
+| Running cost | **OPEN: one verification** | S-1 to S-3 approved; cost log created. **Outstanding:** Supabase usage notifications |
+
+**Checkpoint 1 status: NOT YET PASSED. Two owner confirmations remain, both read-only
+and quick:**
+1. **B2 App Keys:** confirm that no application keys exist (only the master key, which
+   is regenerated and not saved). This closes O-6.
+2. **Supabase usage notifications:** confirm that usage and spend-cap notifications are
+   enabled and go to the owner's address. This closes the running-cost item.
+
+Once both are recorded, O-6 and Checkpoint 1 can be marked PASSED, subject to ChatGPT's
+review. Checkpoint 2 still requires separate explicit owner authorisation.

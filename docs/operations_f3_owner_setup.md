@@ -777,15 +777,26 @@ Any mismatch fails **G5**.
     * no Diski 9 RAM volume and no attached RAM disk afterwards;
     * no B2 environment variables;
     * no CLEANUP FAILED message.
-  * **OPEN:** monthly spending control (caps versus alerts; owner decisions S-1 to S-3
-    in plan §Y.6).
-  * **OPEN (hygiene):** a pre-existing default B2 cache `~/.b2_account_info` is
-    present. The script never used it. Recommended: delete it without opening it
-    (`rm ~/.b2_account_info`).
-  * O-6 is **not closed** until these are resolved.
+  * **PASSED: spending controls (23 Nov 2026):** S-1, S-2 and S-3 approved by the owner.
+    Owner-verified caps: storage **$0.10/day**, downloads **$0.05/day**, email alerts
+    at 75 % and 100 %. Class A/B/C transactions are free under current pricing, so no
+    transaction caps exist. Class D is uncapped; Event Notifications are unused and not
+    to be enabled without separate approval. Residual risks accepted (plan §Y.6). Cap
+    behaviour is tested in Checkpoint 5. Emergency cap increases need explicit owner
+    approval (recovery runbook §13a).
+  * **PASSED (hygiene):** the obsolete `~/.b2_account_info` (a regular file, mode 600)
+    was deleted interactively by the owner: "BACKBLAZE CACHE REMOVED".
+  * **OUTSTANDING: "no keys created yet".** The owner's confirmation that the B2
+    **App Keys** page lists **no application keys** (only the master key, which is
+    regenerated and not saved) is not on record. The procedure asked for this check
+    (§O-6 step 4), but its result was not returned.
+  * O-6 is **not closed** until that confirmation is recorded.
 - [x] O-7: WireGuard app installed on both devices: the official client on the owner's
   MacBook and iPhone (22 Nov 2026). No tunnels configured. The WireGuard server and VPS
   hardening belong to Checkpoint 2 and are not authorised by this item.
-- [ ] Running cost against the $65 alert and the $75 ceiling: **open**. The Supabase
-  invoice is now verified (USD 25.00, tax USD 0.00; baseline in implementation record
-  §13.9). The monthly control still needs owner decisions S-1 to S-3 (plan §Y.6).
+- [ ] Running cost against the $65 alert and the $75 ceiling: S-1 to S-3 **approved**
+  (23 Nov 2026); cost log created ([`operations_f3_cost_log.md`](operations_f3_cost_log.md)):
+  month 1 actual $37.64; normal-month maximum ≈ $58.51.
+  * **OUTSTANDING: Supabase usage notifications.** No evidence yet that Supabase usage
+    and spend-cap emails are enabled and reach the owner. Owner to confirm in the
+    Supabase dashboard (organisation billing/usage settings: notification recipient).

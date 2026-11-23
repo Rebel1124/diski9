@@ -174,6 +174,7 @@ Full procedures: [operations_hosting.md](operations_hosting.md) (sections 4–9)
 | `backup_store_stale` / `backup_postgres_stale` | No verified local backup of that kind recently (or ever). Run `diski9 backup store --out …` or the `pg_dump` + `backup record --kind postgres` step; check the backup timer (`systemctl status diski9-backup`). |
 | `backup_failed` | The latest attempt failed verification (the copy was deleted). Check disk space and `diski9 backup verify` on the previous backup; rerun. |
 | `backup_offhost_stale` | The host's copy hook has not reported an encrypted off-host copy. A local backup does **not** count. Check the hook's own log. |
+| B2 "cap exceeded" / cap alert (Stage F3) | See §13a. A temporary cap increase needs the owner's explicit approval, and the original limit is restored and verified afterwards. |
 | `offhost_restore_unverified` / `restore_drill_stale` | Off-host recovery is not verified: restore an off-host copy in a drill (`restore store --purpose drill --source-origin offhost`; the PostgreSQL drill, then `backup record --kind postgres-drill`). |
 | `store_restored` (INFO) | The football store was restored for recovery within 7 days; refresh sweeps before it no longer count. Make sure a sweep or `refresh-data --with-odds` ran before readiness. |
 | `provider_hold_after_restore` (WARNING) | The competition database was restored: the scheduler makes no provider calls. Reconcile (operations_hosting.md §8), then `diski9 ops provider-resume --operator EMAIL --reason "…"`. |
@@ -181,4 +182,37 @@ Full procedures: [operations_hosting.md](operations_hosting.md) (sections 4–9)
 Never copy the live SQLite file by hand, never restore over a live store or database,
 and never lift the hold before reconciliation. In-place replacement of the live
 football store is disabled in F2 (`--replace-live` is always refused).
+
+## 13a. Backblaze cap-related failures (Stage F3)
+The B2 account has daily **dollar** caps (owner-approved S-3, 23 Nov 2026): storage
+**$0.10/day**, downloads **$0.05/day**. Alerts go to the owner at 75 % and 100 %. Caps
+reset at **00:00 GMT** and changes take up to 10 minutes. Class A/B/C transactions are
+free, so there are no transaction caps. Class D (Event Notifications) is uncapped and
+must stay unused.
+
+**Symptoms:**
+* B2 rejects uploads or downloads with a "cap exceeded" error (reported as HTTP 403;
+  Backblaze's documentation does not state the exact behaviour);
+* a 75 % or 100 % cap alert email arrives;
+* `backup_offhost_stale` appears because the nightly upload failed.
+
+| Situation | What to do |
+|---|---|
+| Upload refused (storage cap) | Do **not** delete Object Lock data or use `bypassGovernance`. Check what is stored against the expected backup sizes (a few GB at most in F3): an unexpected size is an incident to investigate first. The local backup stays valid; the off-host copy is retried after the cause is understood. |
+| Download refused during a **drill** | Stop the drill and record it. Retry after 00:00 GMT. A cap increase for a drill is not normally justified. |
+| Download refused during a **real recovery** | Ask the owner for a temporary increase (below). Meanwhile keep the service in its safe state; never restore partial data. |
+| Cap alert at 75 % with no planned activity | Investigate (unexpected downloads or uploads, leaked key). Do not raise the cap. |
+
+**Temporary cap increase: owner only, explicitly approved each time.**
+1. The owner approves the increase: which cap, the new value and the reason. Record it
+   in the cost-log table "Log of warnings and approvals"
+   ([operations_f3_cost_log.md](operations_f3_cost_log.md)).
+2. The owner changes the cap in the B2 web UI (Caps & Alerts). Wait 10 minutes, then
+   retry.
+3. As soon as the operation completes, the owner **restores the original limit**
+   (storage $0.10, downloads $0.05) and **verifies it in the UI**.
+4. Record the restore and verification, and the cost impact, in the cost log.
+
+Nobody else changes caps, and no script changes them. Class D/Event Notifications are
+never enabled to work around a cap. Practical cap behaviour is tested in Checkpoint 5.
 

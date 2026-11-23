@@ -67,6 +67,25 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 Checkpoint 1, O-6: spending controls S-1 to S-3 APPROVED (23 Nov 2026, owner):**
+* **S-1:** per-provider controls implement the $75/month ceiling; unenforceable charges
+  and residual risks documented.
+* **S-2:** amounts-only monthly cost log (`docs/operations_f3_cost_log.md`), reconciled on
+  the 1st; provider notifications; $65 warning; at $75, new discretionary spending stops
+  pending owner approval.
+* **S-3 (reconciled):** B2 storage cap $0.10/day and download cap $0.05/day, alerts at
+  75 %/100 % (owner-verified). No transaction caps: Class A/B/C are free under current
+  pricing. Class D uncapped; Event Notifications not to be enabled without separate
+  approval. Practical cap behaviour is tested in Checkpoint 5. Emergency cap increases
+  need explicit owner approval, then the limit is restored and verified.
+* **Residual risks accepted:** no combined hard cap; taxes, price changes, add-ons,
+  extra projects and reverse charge are monitored; a drill month may exceed $65. **$75 is
+  not an absolute technical hard cap.**
+* `~/.b2_account_info` deleted by the owner ("BACKBLAZE CACHE REMOVED").
+* **Checkpoint 1 not yet PASSED:** outstanding are the owner's confirmation that no B2
+  application keys exist (O-6 "no keys created yet"), and verification that Supabase
+  usage notifications are enabled.
+
 **Phase 6C.6 Stage F3 Checkpoint 1, O-5: PASSED; Düsseldorf finally accepted for Stage F3 (23 Nov 2026):**
 * Original day-one JSON (22 Nov 2026), retrieved by the owner and reviewed independently;
   **not committed** (it contains the full direct host name and project ref). Sanitised

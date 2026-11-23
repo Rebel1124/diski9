@@ -1743,7 +1743,7 @@ computer on a schedule. Either way, the residual risk is recorded.
   * edit the Supabase email templates;
   * install and later remove the root certificate on each peer device.
 
-### Y.6 Backblaze configuration procedure (O-6) — **architecture approved; execution not yet authorised**
+### Y.6 Backblaze configuration procedure (O-6) — **executed; canary verified; spending controls S-1 to S-3 approved and reconciled (23 Nov 2026)**
 
 Owner decisions (22 Nov 2026, final review):
 
@@ -1827,6 +1827,45 @@ Decisions for the owner:
   owner action in the B2 web UI).
 
 Nothing is changed until these are approved.
+
+**Reconciliation and owner approval (23 Nov 2026): S-1, S-2 and S-3 APPROVED.**
+* **Current Backblaze pricing** (pricing and transaction-pricing pages, read 23 Nov
+  2026): "Class A, B, and C API calls are free for pay-as-you-go customers." Class D
+  (Event Notifications only) costs $0.004 per 10,000 calls after 2,500 free per day and
+  **cannot be capped**. Storage is $6.95/TB per 30 days (byte-hours; first 10 GB free;
+  the transaction page quotes $0.005/GB, unexplained). Downloads are free up to 3× the
+  average stored data, then $0.01/GB.
+* **The Class B/C caps proposed above are obsolete:** those transactions cost $0 and the
+  Caps & Alerts UI no longer offers them. The configured controls (owner-verified) are:
+  * storage cap **$0.10/day**;
+  * download cap **$0.05/day**;
+  * email alerts at 75 % and 100 %;
+  * no transaction caps;
+  * Class D uncapped; Event Notifications unused and **not to be enabled without separate
+    approval**.
+* **B2 maximum under the caps:** ≈ $3.10 storage + ≈ $1.55 downloads = **≤ $4.65/month**
+  (≤ $5.35 with 15 % tax). This replaces the ≤ $6 estimate above.
+* **Cap limitations:**
+  * caps are dollars per day, reset at 00:00 GMT;
+  * changes take up to 10 minutes;
+  * the behaviour when a cap is reached is not stated in Backblaze's documentation
+    (third-party reports: HTTP 403 "cap exceeded");
+  * the storage cap blocks new uploads but does not stop billing for stored data, which
+    Object Lock keeps for 30 days.
+  * Practical behaviour is **tested in Checkpoint 5**.
+* **Sum of per-provider maxima:** ≈ $28.16 + $25.00 + $5.35 = **≈ $58.51**; with the IPv4
+  add-on and a drill month ≈ $67.51 (warning, below the ceiling); with Supabase VAT
+  ≈ $71.86.
+* **Accepted residual risks (owner, 23 Nov 2026):**
+  * no provider enforces the combined $75 ceiling;
+  * taxes, price changes, Supabase add-ons, extra projects, possible reverse-charge
+    obligations and other uncapped charges are controlled by monitoring and owner
+    approval (S-2);
+  * a drill month may exceed the $65 warning without breaching $75.
+  * **The $75 ceiling is not an absolute technical hard cap.**
+* **Emergency cap increase:** only with the owner's explicit approval; afterwards the
+  original limit is restored and verified (recovery runbook §13a).
+* Cost log: [`../operations_f3_cost_log.md`](../operations_f3_cost_log.md).
 
 Irreversible actions, each confirmed by the owner when it is done:
 * the bucket name;
