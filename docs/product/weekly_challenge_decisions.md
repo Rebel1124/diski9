@@ -67,6 +67,19 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 Checkpoint 1: PASSED (23 Nov 2026):**
+* **O-6 PASSED:** the B2 Application Keys page lists no application keys besides the
+  master key section (owner-verified, read-only; nothing displayed, shared, created or
+  regenerated).
+* **Running cost PASSED, with qualification:** Supabase Pro, spend cap enabled,
+  current and projected $25.00, billing recipient configured. Supabase offers no custom
+  dollar-threshold alert; quota notifications are automatic (provider-documented).
+  **Delivery not tested; no custom $65 Supabase alert exists.** The $65 warning relies
+  on the S-2 cost log.
+* O-1 to O-7 and running cost all evidenced (implementation record §13.13). SSH password
+  login is still enabled; its hardening is deferred to Checkpoint 2.
+* **Checkpoint 2 not started;** it requires separate explicit owner authorisation.
+
 **Phase 6C.6 Stage F3 Checkpoint 1, O-6: spending controls S-1 to S-3 APPROVED (23 Nov 2026, owner):**
 * **S-1:** per-provider controls implement the $75/month ceiling; unenforceable charges
   and residual risks documented.

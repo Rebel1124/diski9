@@ -26,7 +26,7 @@ details, addresses or credentials. **USD**, as invoiced.
 | Provider | Item | Invoice / period | Subtotal | Tax | Total | Status |
 |---|---|---|---|---|---|---|
 | Hostinger | KVM 2, first month (discounted) | 22 Nov 2026 | 10.99 | 1.65 | **12.64** | **actual** (paid) |
-| Supabase | Pro subscription | EGXGMN-00001, 22 Nov–21 Dec 2026 | 25.00 | 0.00 | **25.00** | **actual** (paid) |
+| Supabase | Pro subscription | EGXGMN-00001, 22 Nov–21 Dec 2026 | 25.00 | 0.00 | **25.00** | **actual** (paid). Billing page 23 Nov: current $25.00, projected $25.00 |
 | Supabase | – | EGXGMN-00002 | 0.00 | 0.00 | 0.00 | **actual** (paid) |
 | Backblaze B2 | storage, downloads | Nov 2026 usage: ≈ 0 GB average storage, 0 GB downloaded, 25 transactions (A 4, B 1, C 20; free) | – | – | ≈ 0.00 | **uninvoiced** (below the free 10 GB; capped) |
 | **Month 1 total** | | | | | **37.64** actual + ≈ 0 uninvoiced | below $65 |
@@ -59,7 +59,7 @@ The Hostinger subtotal is derived as total minus tax.
 | Provider | Notification | Status |
 |---|---|---|
 | Backblaze | cap alerts at 75 % and 100 % (storage, downloads) | **verified** (owner, 23 Nov 2026) |
-| Supabase | usage / spend-cap notifications | **NOT YET VERIFIED**: owner to confirm |
+| Supabase | spend cap enabled; billing email recipient configured; quota notifications automatic (provider-documented); **no custom dollar-threshold alert is offered** | **verified with qualification** (owner, Billing page, 23 Nov 2026). Delivery not tested; no custom $65 alert exists. The $65 warning relies on this log |
 | Hostinger | renewal reminder | owner calendar: refund decision 17 Dec 2026 |
 
 ## Log of warnings and approvals

@@ -1325,7 +1325,7 @@ refusal matrices): `tests/test_f2_wsgi_health.py` (20), `tests/test_f2_backup_re
   Supabase acceptance; before F4 the SF-14 analysis; before F5 tighter RPO, ML-01 and
   D-36.
 
-## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 prepared**
+## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 accepted; Checkpoint 1 PASSED (23 Nov 2026)**
 
 Authorised by the owner on 22 Nov 2026 (plan [`phase6c6_stage_f3_plan.md`](phase6c6_stage_f3_plan.md)
 §X–§Y, commit `fa6a4ae`, CI run 126), for Stage F3 only: Hostinger KVM 2 monthly in
@@ -1586,9 +1586,9 @@ Nothing is changed until these are approved.
 | O-3 Supabase | **PASSED** (23 Nov 2026) | – (§13.9: spend cap, SSL enforcement, CA certificate, leaked-password protection, account MFA, project name, invoice, no key shared) |
 | O-4 Hostinger | **PASSED** (23 Nov 2026) | – (§13.10: day-25 reminder PASSED; SSH password authentication currently **enabled**, disabling it deferred to Checkpoint 2 hardening; location final acceptance tracked under O-5) |
 | O-5 day-one check | **PASSED** (23 Nov 2026) | – (§13.11: IT-1, IT-2 PASS; zero-success check complete; system facts and listening-port baseline recorded; F3-D1a/F3-D2a final-acceptance condition met) |
-| O-6 Backblaze | OPEN (one confirmation) | canary, cleanup, spending controls (S-1 to S-3) and cache deletion **PASSED** (§13.12); **outstanding:** owner confirmation that no B2 application keys exist |
+| O-6 Backblaze | **PASSED** (23 Nov 2026) | – (§13.12–13.13: canary, cleanup, spending controls, cache deletion, no application keys) |
 | O-7 WireGuard clients | **PASSED** | – |
-| Running cost | OPEN (one verification) | S-1 to S-3 **approved**; cost log created; **outstanding:** Supabase usage notifications not yet verified (§13.12) |
+| Running cost | **PASSED** (23 Nov 2026) | – (§13.13: S-1 to S-3 approved; cost log; Supabase spend cap and billing recipient verified; limitations recorded: delivery untested, no custom $65 alert) |
 
 ### 13.8 Checkpoint 1, O-2: `age` identity evidence (22 Nov 2026, owner-reported)
 | Item | Evidence | Status |
@@ -1831,3 +1831,63 @@ and quick:**
 
 Once both are recorded, O-6 and Checkpoint 1 can be marked PASSED, subject to ChatGPT's
 review. Checkpoint 2 still requires separate explicit owner authorisation.
+
+### 13.13 Checkpoint 1: final evidence — **Checkpoint 1 PASSED** (23 Nov 2026)
+**Backblaze application keys (owner-verified, read-only):**
+* the Application Keys page shows the Master Application Key section;
+* "Your Application Keys" lists **no** additional keys;
+* no secret was displayed or shared, and no key was created or regenerated.
+* The O-6 criterion "no keys created yet" is satisfied: **O-6 PASSED.**
+* The restricted operational keys (N1–N9/P1, IT-11) are created in Checkpoint 4.
+
+**Supabase billing and notifications (owner-verified, with qualification):**
+* Pro Plan; **spend cap enabled**; current costs $25.00, projected $25.00; billing email
+  recipient configured (the address is not recorded).
+* The Billing page offers no separate spending-alert or notification toggle. Supabase's
+  documentation describes quota notifications as automatic and offers no configurable
+  dollar-threshold alert with the spend cap.
+
+**Reconciliation with S-2 ("provider notifications"):** S-2 cannot require a Supabase
+setting that does not exist. For Stage F3 the Supabase part of the control is:
+* the enabled spend cap (blocks usage overages);
+* the configured billing recipient;
+* Supabase's automatic quota notifications;
+* the S-2 monthly cost log and reconciliation, which provides the $65 warning.
+
+**Recorded limitations:**
+* notification delivery has **not been tested**;
+* **no custom $65 Supabase spending alert exists**;
+* the spend cap does not cover add-ons, compute changes or extra projects (accepted
+  residual risks, §13.12).
+* These are within the owner-approved S-1/S-2 residual-risk acceptance, so the evidence
+  is sufficient: **running cost PASSED.**
+
+**Checkpoint 1 acceptance (runbook §8.2):**
+
+| Item | Status | Evidence |
+|---|---|---|
+| O-1 SSH key | **PASSED** | §13.4 |
+| O-2 `age` identities | **PASSED** | §13.8 |
+| O-3 Supabase | **PASSED** | §13.9 |
+| O-4 Hostinger | **PASSED** (SSH password login still enabled; hardening deferred to Checkpoint 2) | §13.10 |
+| O-5 day-one check (G1) | **PASSED**; F3-D1a/F3-D2a final-acceptance condition met | §13.11 |
+| O-6 Backblaze | **PASSED** | §13.7, §13.12, this section |
+| O-7 WireGuard clients | **PASSED** | §13.5 |
+| Running cost | **PASSED** (limitations recorded) | §13.12, this section, cost log |
+
+**Stage F3 Checkpoint 1: PASSED (23 Nov 2026)**, subject to ChatGPT's independent
+review.
+
+**Carried forward (not Checkpoint 1 blockers):**
+* **Checkpoint 2:** disable SSH password login, with lockout precautions (§13.10); host
+  firewall; WireGuard-only exposure (G2).
+* **Checkpoint 3:** TLS `verify-full` (G3a) and the hosted lock probe (G3b).
+* **Checkpoint 4:** restricted B2 keys (G4).
+* **Checkpoint 5:** recovery drills (G5), including the practical test of B2 cap
+  behaviour.
+* **Owner calendar:** Hostinger refund decision, 17 Dec 2026.
+* **Cost log:** monthly reconciliation on the 1st.
+
+**Checkpoint 2 is not started and requires separate explicit owner authorisation.** No
+Backblaze key identifier, billing email address, payment detail or other account
+identifier is recorded.

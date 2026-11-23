@@ -766,8 +766,8 @@ Any mismatch fails **G5**.
   * **Zero-success check complete:** the two unreported families did not resolve, so the
     corrected §Z.8 rule gives the same PASS. The final-acceptance condition of
     F3-D1a/F3-D2a is met.
-- [ ] O-6: B2 EU Central; bucket with Object Lock Governance 30 days; lifecycle rules;
-  caps; **no keys created yet**.
+- [x] O-6: B2 EU Central; bucket with Object Lock Governance 30 days; lifecycle rules;
+  caps; **no keys created yet**. **PASSED (23 Nov 2026).**
   * **PASSED: canary verification** (2026-11-22T18:38:03Z, `--verify-canary`):
     `diski9-f3-3cd4db18` private, Object Lock on, default Governance 30 days, lifecycle
     rules matched; canary Governance until 2026-12-22T17:47:32Z (30.0 days), no legal
@@ -786,17 +786,25 @@ Any mismatch fails **G5**.
     approval (recovery runbook §13a).
   * **PASSED (hygiene):** the obsolete `~/.b2_account_info` (a regular file, mode 600)
     was deleted interactively by the owner: "BACKBLAZE CACHE REMOVED".
-  * **OUTSTANDING: "no keys created yet".** The owner's confirmation that the B2
-    **App Keys** page lists **no application keys** (only the master key, which is
-    regenerated and not saved) is not on record. The procedure asked for this check
-    (§O-6 step 4), but its result was not returned.
-  * O-6 is **not closed** until that confirmation is recorded.
+  * **PASSED: no application keys (23 Nov 2026, owner-verified, read-only):** the B2
+    Application Keys page shows the Master Application Key section and **no** entries
+    under "Your Application Keys". No key was displayed, shared, created or
+    regenerated. (The restricted operational keys are created in Checkpoint 4.)
 - [x] O-7: WireGuard app installed on both devices: the official client on the owner's
   MacBook and iPhone (22 Nov 2026). No tunnels configured. The WireGuard server and VPS
   hardening belong to Checkpoint 2 and are not authorised by this item.
-- [ ] Running cost against the $65 alert and the $75 ceiling: S-1 to S-3 **approved**
-  (23 Nov 2026); cost log created ([`operations_f3_cost_log.md`](operations_f3_cost_log.md)):
+- [x] Running cost against the $65 alert and the $75 ceiling: **PASSED (23 Nov 2026).**
+  S-1 to S-3 approved; cost log created ([`operations_f3_cost_log.md`](operations_f3_cost_log.md)):
   month 1 actual $37.64; normal-month maximum ≈ $58.51.
-  * **OUTSTANDING: Supabase usage notifications.** No evidence yet that Supabase usage
-    and spend-cap emails are enabled and reach the owner. Owner to confirm in the
-    Supabase dashboard (organisation billing/usage settings: notification recipient).
+  * **Supabase (owner-verified, Billing page):** Pro; **spend cap enabled**; current and
+    projected cost $25.00; billing email recipient configured (not recorded). The page
+    offers **no custom spending-alert or notification setting**; Supabase documents
+    quota notifications as automatic and offers no custom dollar-threshold alert with
+    the spend cap.
+  * **Limitations (recorded, accepted under S-2):** notification delivery has **not
+    been tested**; **no custom $65 Supabase alert exists**. The $65 warning comes from
+    the S-2 monthly cost log, relying on the spend cap, the billing recipient and
+    Supabase's automatic quota notifications.
+- **Checkpoint 1: PASSED (23 Nov 2026).** All of O-1 to O-7 and the running-cost item
+  are evidenced (implementation record §13.13). Checkpoint 2 requires separate explicit
+  owner authorisation.
