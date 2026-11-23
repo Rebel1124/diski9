@@ -1,0 +1,2954 @@
+{
+ "availability": {
+  "proxy_6_leagues": {
+   "A": {
+    "unique_per_week": {
+     "A": {
+      "max": 45,
+      "median": 26.0,
+      "min": 1,
+      "p10": 8.0,
+      "p25": 20.0
+     },
+     "B": {
+      "max": 60,
+      "median": 56.0,
+      "min": 12,
+      "p10": 22.0,
+      "p25": 46.0
+     },
+     "C": {
+      "max": 60,
+      "median": 55.0,
+      "min": 11,
+      "p10": 22.0,
+      "p25": 45.0
+     }
+    },
+    "unplayable_mean": 5.05,
+    "unplayable_range": [
+     5,
+     6
+    ],
+    "weeks": 49
+   },
+   "A2": {
+    "unique_per_week": {
+     "A": {
+      "max": 45,
+      "median": 26.0,
+      "min": 1,
+      "p10": 8.0,
+      "p25": 20.0
+     },
+     "B": {
+      "max": 60,
+      "median": 56.0,
+      "min": 12,
+      "p10": 22.0,
+      "p25": 46.0
+     },
+     "C": {
+      "max": 60,
+      "median": 55.0,
+      "min": 11,
+      "p10": 22.0,
+      "p25": 45.0
+     }
+    },
+    "unplayable_mean": 5.05,
+    "unplayable_range": [
+     5,
+     6
+    ],
+    "weeks": 49
+   },
+   "A3": {
+    "unique_per_week": {
+     "A": {
+      "max": 45,
+      "median": 26.0,
+      "min": 1,
+      "p10": 8.0,
+      "p25": 20.0
+     },
+     "B": {
+      "max": 60,
+      "median": 56.0,
+      "min": 12,
+      "p10": 22.0,
+      "p25": 46.0
+     },
+     "C": {
+      "max": 60,
+      "median": 59.0,
+      "min": 12,
+      "p10": 22.0,
+      "p25": 48.0
+     }
+    },
+    "unplayable_mean": 5.05,
+    "unplayable_range": [
+     5,
+     6
+    ],
+    "weeks": 49
+   },
+   "B": {
+    "unique_per_week": {
+     "A": {
+      "max": 13,
+      "median": 5.0,
+      "min": 0,
+      "p10": 0.0,
+      "p25": 2.0
+     },
+     "B": {
+      "max": 60,
+      "median": 59.0,
+      "min": 12,
+      "p10": 22.0,
+      "p25": 48.0
+     },
+     "C": {
+      "max": 60,
+      "median": 59.0,
+      "min": 12,
+      "p10": 22.0,
+      "p25": 48.0
+     }
+    },
+    "unplayable_mean": 16.95,
+    "unplayable_range": [
+     15,
+     19
+    ],
+    "weeks": 49
+   },
+   "C": {
+    "unique_per_week": {
+     "A": {
+      "max": 8,
+      "median": 2.0,
+      "min": 0,
+      "p10": 0.0,
+      "p25": 0.75
+     },
+     "B": {
+      "max": 45,
+      "median": 25.0,
+      "min": 1,
+      "p10": 8.0,
+      "p25": 19.0
+     },
+     "C": {
+      "max": 60,
+      "median": 54.0,
+      "min": 12,
+      "p10": 22.0,
+      "p25": 45.0
+     }
+    },
+    "unplayable_mean": 38.45,
+    "unplayable_range": [
+     36,
+     42
+    ],
+    "weeks": 49
+   },
+   "D": {
+    "unique_per_week": {
+     "A": {
+      "max": 45,
+      "median": 26.0,
+      "min": 1,
+      "p10": 8.0,
+      "p25": 20.0
+     },
+     "B": {
+      "max": 60,
+      "median": 54.0,
+      "min": 12,
+      "p10": 22.0,
+      "p25": 45.0
+     },
+     "C": {
+      "max": 60,
+      "median": 49.0,
+      "min": 8,
+      "p10": 21.0,
+      "p25": 40.0
+     }
+    },
+    "unplayable_mean": 5.05,
+    "unplayable_range": [
+     5,
+     6
+    ],
+    "weeks": 49
+   }
+  },
+  "proxy_8_leagues": {
+   "A": {
+    "unique_per_week": {
+     "A": {
+      "max": 58,
+      "median": 34.0,
+      "min": 6,
+      "p10": 11.0,
+      "p25": 23.0
+     },
+     "B": {
+      "max": 75,
+      "median": 62.0,
+      "min": 5,
+      "p10": 26.8,
+      "p25": 52.0
+     },
+     "C": {
+      "max": 76,
+      "median": 64.0,
+      "min": 7,
+      "p10": 27.7,
+      "p25": 50.0
+     }
+    },
+    "unplayable_mean": 3,
+    "unplayable_range": [
+     3,
+     3
+    ],
+    "weeks": 50
+   },
+   "A2": {
+    "unique_per_week": {
+     "A": {
+      "max": 58,
+      "median": 34.0,
+      "min": 6,
+      "p10": 11.0,
+      "p25": 23.0
+     },
+     "B": {
+      "max": 75,
+      "median": 62.0,
+      "min": 5,
+      "p10": 26.8,
+      "p25": 52.0
+     },
+     "C": {
+      "max": 76,
+      "median": 64.0,
+      "min": 7,
+      "p10": 27.7,
+      "p25": 50.0
+     }
+    },
+    "unplayable_mean": 3,
+    "unplayable_range": [
+     3,
+     3
+    ],
+    "weeks": 50
+   },
+   "A3": {
+    "unique_per_week": {
+     "A": {
+      "max": 58,
+      "median": 34.0,
+      "min": 6,
+      "p10": 11.0,
+      "p25": 23.0
+     },
+     "B": {
+      "max": 75,
+      "median": 62.0,
+      "min": 5,
+      "p10": 26.8,
+      "p25": 52.0
+     },
+     "C": {
+      "max": 76,
+      "median": 66.5,
+      "min": 7,
+      "p10": 28.6,
+      "p25": 54.0
+     }
+    },
+    "unplayable_mean": 3,
+    "unplayable_range": [
+     3,
+     3
+    ],
+    "weeks": 50
+   },
+   "B": {
+    "unique_per_week": {
+     "A": {
+      "max": 17,
+      "median": 7.0,
+      "min": 0,
+      "p10": 1.0,
+      "p25": 3.0
+     },
+     "B": {
+      "max": 76,
+      "median": 66.0,
+      "min": 7,
+      "p10": 28.6,
+      "p25": 54.0
+     },
+     "C": {
+      "max": 76,
+      "median": 66.0,
+      "min": 7,
+      "p10": 28.6,
+      "p25": 54.0
+     }
+    },
+    "unplayable_mean": 13.1,
+    "unplayable_range": [
+     11,
+     15
+    ],
+    "weeks": 50
+   },
+   "C": {
+    "unique_per_week": {
+     "A": {
+      "max": 8,
+      "median": 2.0,
+      "min": 0,
+      "p10": 0.0,
+      "p25": 1.0
+     },
+     "B": {
+      "max": 58,
+      "median": 33.0,
+      "min": 6,
+      "p10": 11.0,
+      "p25": 23.0
+     },
+     "C": {
+      "max": 74,
+      "median": 60.0,
+      "min": 4,
+      "p10": 26.8,
+      "p25": 50.75
+     }
+    },
+    "unplayable_mean": 36.3,
+    "unplayable_range": [
+     34,
+     38
+    ],
+    "weeks": 50
+   },
+   "D": {
+    "unique_per_week": {
+     "A": {
+      "max": 58,
+      "median": 34.0,
+      "min": 6,
+      "p10": 11.0,
+      "p25": 23.0
+     },
+     "B": {
+      "max": 74,
+      "median": 60.0,
+      "min": 4,
+      "p10": 26.8,
+      "p25": 50.75
+     },
+     "C": {
+      "max": 74,
+      "median": 58.0,
+      "min": 7,
+      "p10": 25.9,
+      "p25": 45.0
+     }
+    },
+    "unplayable_mean": 3,
+    "unplayable_range": [
+     3,
+     3
+    ],
+    "weeks": 50
+   }
+  },
+  "real": {
+   "A": {
+    "2026-11-20": {
+     "eligible_fixtures": 60,
+     "feasible": true,
+     "leagues": 6,
+     "outcomes": {
+      "A": 67,
+      "B": 182,
+      "C": 128
+     },
+     "playable": true,
+     "unique": {
+      "A": 36,
+      "B": 56,
+      "C": 57
+     }
+    },
+    "2026-11-27": {
+     "eligible_fixtures": 29,
+     "feasible": true,
+     "leagues": 3,
+     "outcomes": {
+      "A": 22,
+      "B": 104,
+      "C": 65
+     },
+     "playable": true,
+     "unique": {
+      "A": 12,
+      "B": 27,
+      "C": 29
+     }
+    }
+   },
+   "A2": {
+    "2026-11-20": {
+     "eligible_fixtures": 60,
+     "feasible": true,
+     "leagues": 6,
+     "outcomes": {
+      "A": 67,
+      "B": 182,
+      "C": 128
+     },
+     "playable": true,
+     "unique": {
+      "A": 36,
+      "B": 56,
+      "C": 57
+     }
+    },
+    "2026-11-27": {
+     "eligible_fixtures": 29,
+     "feasible": true,
+     "leagues": 3,
+     "outcomes": {
+      "A": 22,
+      "B": 104,
+      "C": 65
+     },
+     "playable": true,
+     "unique": {
+      "A": 12,
+      "B": 27,
+      "C": 29
+     }
+    }
+   },
+   "A3": {
+    "2026-11-20": {
+     "eligible_fixtures": 60,
+     "feasible": true,
+     "leagues": 6,
+     "outcomes": {
+      "A": 67,
+      "B": 182,
+      "C": 164
+     },
+     "playable": true,
+     "unique": {
+      "A": 36,
+      "B": 56,
+      "C": 60
+     }
+    },
+    "2026-11-27": {
+     "eligible_fixtures": 29,
+     "feasible": true,
+     "leagues": 3,
+     "outcomes": {
+      "A": 22,
+      "B": 104,
+      "C": 74
+     },
+     "playable": true,
+     "unique": {
+      "A": 12,
+      "B": 27,
+      "C": 29
+     }
+    }
+   },
+   "B": {
+    "2026-11-20": {
+     "eligible_fixtures": 60,
+     "feasible": true,
+     "leagues": 6,
+     "outcomes": {
+      "A": 15,
+      "B": 143,
+      "C": 151
+     },
+     "playable": true,
+     "unique": {
+      "A": 12,
+      "B": 60,
+      "C": 60
+     }
+    },
+    "2026-11-27": {
+     "eligible_fixtures": 29,
+     "feasible": false,
+     "leagues": 3,
+     "outcomes": {
+      "A": 3,
+      "B": 68,
+      "C": 81
+     },
+     "playable": false,
+     "unique": {
+      "A": 3,
+      "B": 29,
+      "C": 29
+     }
+    }
+   },
+   "C": {
+    "2026-11-20": {
+     "eligible_fixtures": 60,
+     "feasible": true,
+     "leagues": 6,
+     "outcomes": {
+      "A": 6,
+      "B": 61,
+      "C": 145
+     },
+     "playable": true,
+     "unique": {
+      "A": 4,
+      "B": 35,
+      "C": 54
+     }
+    },
+    "2026-11-27": {
+     "eligible_fixtures": 29,
+     "feasible": false,
+     "leagues": 3,
+     "outcomes": {
+      "A": 3,
+      "B": 19,
+      "C": 78
+     },
+     "playable": false,
+     "unique": {
+      "A": 3,
+      "B": 12,
+      "C": 26
+     }
+    }
+   },
+   "D": {
+    "2026-11-20": {
+     "eligible_fixtures": 60,
+     "feasible": true,
+     "leagues": 6,
+     "outcomes": {
+      "A": 67,
+      "B": 145,
+      "C": 97
+     },
+     "playable": true,
+     "unique": {
+      "A": 36,
+      "B": 54,
+      "C": 52
+     }
+    },
+    "2026-11-27": {
+     "eligible_fixtures": 29,
+     "feasible": true,
+     "leagues": 3,
+     "outcomes": {
+      "A": 22,
+      "B": 78,
+      "C": 52
+     },
+     "playable": true,
+     "unique": {
+      "A": 12,
+      "B": 26,
+      "C": 25
+     }
+    }
+   }
+  }
+ },
+ "bootstrap_challenger_minus_balanced": {
+  "A2": {
+   "ci95_pts": [
+    -4.250431,
+    -2.715527
+   ],
+   "mean_pts": -3.51996,
+   "n": 200,
+   "share_positive": 0
+  },
+  "D": {
+   "ci95_pts": [
+    0.071292,
+    1.502578
+   ],
+   "mean_pts": 0.805434,
+   "n": 200,
+   "share_positive": 0.985
+  }
+ },
+ "calibration": {
+  "AWAY": {
+   "a": 0.230621,
+   "b": 1.33729,
+   "n": 89,
+   "sd": 0.41769
+  },
+  "BTTS_NO": {
+   "a": 0.008835,
+   "b": 0.909302,
+   "n": 89,
+   "sd": 0.174469
+  },
+  "BTTS_YES": {
+   "a": -0.008835,
+   "b": 0.909302,
+   "n": 89,
+   "sd": 0.174469
+  },
+  "DRAW": {
+   "a": 0.620462,
+   "b": 1.511296,
+   "n": 89,
+   "sd": 0.164691
+  },
+  "HOME": {
+   "a": 0.024259,
+   "b": 1.353753,
+   "n": 89,
+   "sd": 0.40621
+  },
+  "OVER_2_5": {
+   "a": 0.036733,
+   "b": 1.007566,
+   "n": 89,
+   "sd": 0.221863
+  },
+  "UNDER_2_5": {
+   "a": -0.036733,
+   "b": 1.007566,
+   "n": 89,
+   "sd": 0.221863
+  },
+  "return": {
+   "1X2": 0.945293,
+   "BTTS": 0.929339,
+   "OU25": 0.949061
+  }
+ },
+ "calibration_check_actual_results": {
+  "proxy_market": {
+   "10-20": {
+    "n": 4956,
+    "observed": 0.210654,
+    "predicted": 0.161805
+   },
+   "20-30": {
+    "n": 13587,
+    "observed": 0.27357,
+    "predicted": 0.252401
+   },
+   "30-40": {
+    "n": 13294,
+    "observed": 0.36776,
+    "predicted": 0.35136
+   },
+   "60-90": {
+    "n": 8153,
+    "observed": 0.599779,
+    "predicted": 0.656665
+   }
+  },
+  "raw_model": {
+   "10-20": {
+    "n": 520,
+    "observed": 0.140385,
+    "predicted": 0.166941
+   },
+   "20-30": {
+    "n": 3424,
+    "observed": 0.252336,
+    "predicted": 0.250963
+   },
+   "30-40": {
+    "n": 2197,
+    "observed": 0.364133,
+    "predicted": 0.353613
+   },
+   "60-90": {
+    "n": 1048,
+    "observed": 0.641221,
+    "predicted": 0.649717
+   }
+  }
+ },
+ "foundation_ceiling_90_95": {
+  "breakdown_per_draw": {
+   "1X2:HOME": 5.3,
+   "league:Bundesliga": 3.4,
+   "league:Championship": 0.75,
+   "league:EPL": 0.25,
+   "league:La Liga": 0.1,
+   "league:Ligue 1": 0.55,
+   "league:Serie A": 0.25
+  },
+  "proxy_outcomes_per_49_weeks": 5.3
+ },
+ "generated_by": "tools/research/weekly_challenge_buckets/bucket_study.py",
+ "inputs": {
+  "historical_fixtures_backtested": 5269,
+  "historical_fixtures_with_model": 5012,
+  "proxy_draws": 20,
+  "real_pool": "docs/research/weekly_challenge_risk/pool_fortnight.json",
+  "real_pool_as_of": "2026-11-17T22:00:00+00:00"
+ },
+ "leaderboard": {
+  "proxy_actual_results": {
+   "A": {
+    "_overall": {
+     "championships": 32,
+     "gini": 0.271911,
+     "top10_players_share": 0.190157
+    },
+    "aggressive": {
+     "all_nine": {
+      "mean": 0.000938,
+      "se": 0.000246
+     },
+     "challenger_won": {
+      "mean": 0.074167,
+      "se": 0.002942
+     },
+     "champion_share": {
+      "mean": 0.453125,
+      "se": 0.081618
+     },
+     "championship_points": {
+      "mean": 263.494792,
+      "se": 4.339085
+     },
+     "max_gross": {
+      "mean": 12884.72,
+      "se": 1390.706793
+     },
+     "mean_gross": {
+      "mean": 85.948905,
+      "se": 2.470846
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.000938,
+      "se": 0.000246
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.000938,
+      "se": 0.000246
+     },
+     "points_per_round": {
+      "mean": 26.349479,
+      "se": 0.433908
+     },
+     "recovered": {
+      "mean": 0.254167,
+      "se": 0.004666
+     },
+     "sd_gross": {
+      "mean": 329.618955,
+      "se": 41.89092
+     },
+     "top10": {
+      "mean": 0.171354,
+      "se": 0.002298
+     },
+     "weekly_win_share": {
+      "mean": 0.588872,
+      "se": 0.022867
+     }
+    },
+    "conservative": {
+     "all_nine": {
+      "mean": 0.005,
+      "se": 0.000568
+     },
+     "challenger_won": {
+      "mean": 0.154062,
+      "se": 0.004297
+     },
+     "champion_share": {
+      "mean": 0.203125,
+      "se": 0.057562
+     },
+     "championship_points": {
+      "mean": 291.21875,
+      "se": 5.367599
+     },
+     "max_gross": {
+      "mean": 1712.96,
+      "se": 57.192577
+     },
+     "mean_gross": {
+      "mean": 67.297237,
+      "se": 1.540549
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.003438,
+      "se": 0.000484
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "points_per_round": {
+      "mean": 29.121875,
+      "se": 0.53676
+     },
+     "recovered": {
+      "mean": 0.368125,
+      "se": 0.006633
+     },
+     "sd_gross": {
+      "mean": 111.294345,
+      "se": 4.371887
+     },
+     "top10": {
+      "mean": 0.043854,
+      "se": 0.00251
+     },
+     "weekly_win_share": {
+      "mean": 0.13064,
+      "se": 0.019034
+     }
+    },
+    "random": {
+     "all_nine": {
+      "mean": 0.000937,
+      "se": 0.000457
+     },
+     "challenger_won": {
+      "mean": 0.097812,
+      "se": 0.002934
+     },
+     "champion_share": {
+      "mean": 0.34375,
+      "se": 0.104982
+     },
+     "championship_points": {
+      "mean": 268.054688,
+      "se": 2.334093
+     },
+     "max_gross": {
+      "mean": 6471.21,
+      "se": 774.947971
+     },
+     "mean_gross": {
+      "mean": 69.610572,
+      "se": 1.47498
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.000937,
+      "se": 0.000457
+     },
+     "p_gross_ge_5000": {
+      "mean": 7.8e-05,
+      "se": 7.8e-05
+     },
+     "points_per_round": {
+      "mean": 26.805469,
+      "se": 0.233409
+     },
+     "recovered": {
+      "mean": 0.313437,
+      "se": 0.003256
+     },
+     "sd_gross": {
+      "mean": 148.264623,
+      "se": 18.038122
+     },
+     "top10": {
+      "mean": 0.089063,
+      "se": 0.001882
+     },
+     "weekly_win_share": {
+      "mean": 0.280488,
+      "se": 0.01343
+     }
+    }
+   },
+   "A2": {
+    "_overall": {
+     "championships": 32,
+     "gini": 0.272358,
+     "top10_players_share": 0.190025
+    },
+    "aggressive": {
+     "all_nine": {
+      "mean": 0.000938,
+      "se": 0.000246
+     },
+     "challenger_won": {
+      "mean": 0.074167,
+      "se": 0.002942
+     },
+     "champion_share": {
+      "mean": 0.421875,
+      "se": 0.084968
+     },
+     "championship_points": {
+      "mean": 262.692708,
+      "se": 4.288993
+     },
+     "max_gross": {
+      "mean": 12884.72,
+      "se": 1390.706793
+     },
+     "mean_gross": {
+      "mean": 85.948905,
+      "se": 2.470846
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.000938,
+      "se": 0.000246
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.000938,
+      "se": 0.000246
+     },
+     "paired_points_vs_A": {
+      "mean": -0.080208,
+      "se": 0.033433
+     },
+     "points_per_round": {
+      "mean": 26.269271,
+      "se": 0.428899
+     },
+     "recovered": {
+      "mean": 0.254167,
+      "se": 0.004666
+     },
+     "sd_gross": {
+      "mean": 329.618955,
+      "se": 41.89092
+     },
+     "top10": {
+      "mean": 0.169479,
+      "se": 0.001979
+     },
+     "weekly_win_share": {
+      "mean": 0.570122,
+      "se": 0.016707
+     }
+    },
+    "conservative": {
+     "all_nine": {
+      "mean": 0.005625,
+      "se": 0.000343
+     },
+     "challenger_won": {
+      "mean": 0.154167,
+      "se": 0.004237
+     },
+     "champion_share": {
+      "mean": 0.171875,
+      "se": 0.078125
+     },
+     "championship_points": {
+      "mean": 296.619792,
+      "se": 4.48744
+     },
+     "max_gross": {
+      "mean": 1712.96,
+      "se": 57.192577
+     },
+     "mean_gross": {
+      "mean": 70.043207,
+      "se": 1.251441
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.00375,
+      "se": 0.000522
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": 0.540104,
+      "se": 0.170335
+     },
+     "points_per_round": {
+      "mean": 29.661979,
+      "se": 0.448744
+     },
+     "recovered": {
+      "mean": 0.373958,
+      "se": 0.005469
+     },
+     "sd_gross": {
+      "mean": 114.174998,
+      "se": 3.811485
+     },
+     "top10": {
+      "mean": 0.047083,
+      "se": 0.002791
+     },
+     "weekly_win_share": {
+      "mean": 0.146189,
+      "se": 0.016885
+     }
+    },
+    "random": {
+     "all_nine": {
+      "mean": 0.001016,
+      "se": 0.000514
+     },
+     "challenger_won": {
+      "mean": 0.098437,
+      "se": 0.002783
+     },
+     "champion_share": {
+      "mean": 0.40625,
+      "se": 0.09375
+     },
+     "championship_points": {
+      "mean": 268.46875,
+      "se": 2.475282
+     },
+     "max_gross": {
+      "mean": 6471.21,
+      "se": 866.485476
+     },
+     "mean_gross": {
+      "mean": 70.354927,
+      "se": 1.691625
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.001016,
+      "se": 0.000514
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.000156,
+      "se": 0.000102
+     },
+     "paired_points_vs_A": {
+      "mean": 0.041406,
+      "se": 0.121965
+     },
+     "points_per_round": {
+      "mean": 26.846875,
+      "se": 0.247528
+     },
+     "recovered": {
+      "mean": 0.314219,
+      "se": 0.003204
+     },
+     "sd_gross": {
+      "mean": 153.222561,
+      "se": 20.439445
+     },
+     "top10": {
+      "mean": 0.088047,
+      "se": 0.002465
+     },
+     "weekly_win_share": {
+      "mean": 0.283689,
+      "se": 0.013758
+     }
+    }
+   },
+   "A3": {
+    "_overall": {
+     "championships": 32,
+     "gini": 0.288784,
+     "top10_players_share": 0.193385
+    },
+    "aggressive": {
+     "all_nine": {
+      "mean": 0.000208,
+      "se": 0.000136
+     },
+     "challenger_won": {
+      "mean": 0.03625,
+      "se": 0.002142
+     },
+     "champion_share": {
+      "mean": 0.21875,
+      "se": 0.056645
+     },
+     "championship_points": {
+      "mean": 224.09375,
+      "se": 5.61848
+     },
+     "max_gross": {
+      "mean": 20997.06,
+      "se": 2945.01156
+     },
+     "mean_gross": {
+      "mean": 87.562092,
+      "se": 4.519956
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.015417,
+      "se": 0.002569
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.000208,
+      "se": 0.000136
+     },
+     "paired_points_vs_A": {
+      "mean": -3.940104,
+      "se": 0.543603
+     },
+     "points_per_round": {
+      "mean": 22.409375,
+      "se": 0.561848
+     },
+     "recovered": {
+      "mean": 0.218646,
+      "se": 0.006264
+     },
+     "sd_gross": {
+      "mean": 305.505108,
+      "se": 65.542679
+     },
+     "top10": {
+      "mean": 0.141042,
+      "se": 0.003325
+     },
+     "weekly_win_share": {
+      "mean": 0.568299,
+      "se": 0.020272
+     }
+    },
+    "conservative": {
+     "all_nine": {
+      "mean": 0.005625,
+      "se": 0.000343
+     },
+     "challenger_won": {
+      "mean": 0.154167,
+      "se": 0.004237
+     },
+     "champion_share": {
+      "mean": 0.3125,
+      "se": 0.105644
+     },
+     "championship_points": {
+      "mean": 299.354167,
+      "se": 4.490158
+     },
+     "max_gross": {
+      "mean": 1712.96,
+      "se": 57.192577
+     },
+     "mean_gross": {
+      "mean": 70.043207,
+      "se": 1.251441
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.00375,
+      "se": 0.000522
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": 0.813542,
+      "se": 0.136808
+     },
+     "points_per_round": {
+      "mean": 29.935417,
+      "se": 0.449016
+     },
+     "recovered": {
+      "mean": 0.373958,
+      "se": 0.005469
+     },
+     "sd_gross": {
+      "mean": 114.174998,
+      "se": 3.811485
+     },
+     "top10": {
+      "mean": 0.054167,
+      "se": 0.002029
+     },
+     "weekly_win_share": {
+      "mean": 0.121706,
+      "se": 0.01385
+     }
+    },
+    "random": {
+     "all_nine": {
+      "mean": 0.001406,
+      "se": 0.000349
+     },
+     "challenger_won": {
+      "mean": 0.091641,
+      "se": 0.003547
+     },
+     "champion_share": {
+      "mean": 0.46875,
+      "se": 0.09668
+     },
+     "championship_points": {
+      "mean": 270.894531,
+      "se": 3.274179
+     },
+     "max_gross": {
+      "mean": 5095.72,
+      "se": 484.688334
+     },
+     "mean_gross": {
+      "mean": 73.713216,
+      "se": 1.569629
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.001484,
+      "se": 0.000372
+     },
+     "p_gross_ge_5000": {
+      "mean": 7.8e-05,
+      "se": 7.8e-05
+     },
+     "paired_points_vs_A": {
+      "mean": 0.283984,
+      "se": 0.366933
+     },
+     "points_per_round": {
+      "mean": 27.089453,
+      "se": 0.327418
+     },
+     "recovered": {
+      "mean": 0.3075,
+      "se": 0.003364
+     },
+     "sd_gross": {
+      "mean": 173.904746,
+      "se": 12.368025
+     },
+     "top10": {
+      "mean": 0.104063,
+      "se": 0.002722
+     },
+     "weekly_win_share": {
+      "mean": 0.309994,
+      "se": 0.018046
+     }
+    }
+   },
+   "D": {
+    "_overall": {
+     "championships": 32,
+     "gini": 0.273868,
+     "top10_players_share": 0.190887
+    },
+    "aggressive": {
+     "all_nine": {
+      "mean": 0.000625,
+      "se": 0.000261
+     },
+     "challenger_won": {
+      "mean": 0.111875,
+      "se": 0.002708
+     },
+     "champion_share": {
+      "mean": 0.28125,
+      "se": 0.056645
+     },
+     "championship_points": {
+      "mean": 275.463542,
+      "se": 6.685935
+     },
+     "max_gross": {
+      "mean": 4005.3,
+      "se": 609.779743
+     },
+     "mean_gross": {
+      "mean": 65.851098,
+      "se": 1.753109
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.000625,
+      "se": 0.000261
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": 1.196875,
+      "se": 0.640292
+     },
+     "points_per_round": {
+      "mean": 27.546354,
+      "se": 0.668593
+     },
+     "recovered": {
+      "mean": 0.294896,
+      "se": 0.007469
+     },
+     "sd_gross": {
+      "mean": 131.911051,
+      "se": 10.724216
+     },
+     "top10": {
+      "mean": 0.141875,
+      "se": 0.003413
+     },
+     "weekly_win_share": {
+      "mean": 0.425,
+      "se": 0.038382
+     }
+    },
+    "conservative": {
+     "all_nine": {
+      "mean": 0.006875,
+      "se": 0.001433
+     },
+     "challenger_won": {
+      "mean": 0.195312,
+      "se": 0.007787
+     },
+     "champion_share": {
+      "mean": 0.140625,
+      "se": 0.064424
+     },
+     "championship_points": {
+      "mean": 259.088542,
+      "se": 4.180916
+     },
+     "max_gross": {
+      "mean": 1336.61,
+      "se": 49.335191
+     },
+     "mean_gross": {
+      "mean": 68.557705,
+      "se": 1.887465
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.001771,
+      "se": 0.000484
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": -3.213021,
+      "se": 0.355
+     },
+     "points_per_round": {
+      "mean": 25.908854,
+      "se": 0.418092
+     },
+     "recovered": {
+      "mean": 0.310417,
+      "se": 0.005017
+     },
+     "sd_gross": {
+      "mean": 103.056895,
+      "se": 4.954947
+     },
+     "top10": {
+      "mean": 0.066771,
+      "se": 0.001995
+     },
+     "weekly_win_share": {
+      "mean": 0.190625,
+      "se": 0.026279
+     }
+    },
+    "random": {
+     "all_nine": {
+      "mean": 0.002812,
+      "se": 0.000442
+     },
+     "challenger_won": {
+      "mean": 0.162031,
+      "se": 0.001665
+     },
+     "champion_share": {
+      "mean": 0.578125,
+      "se": 0.052491
+     },
+     "championship_points": {
+      "mean": 297.300781,
+      "se": 3.534971
+     },
+     "max_gross": {
+      "mean": 3436.01,
+      "se": 252.985186
+     },
+     "mean_gross": {
+      "mean": 69.906595,
+      "se": 1.006771
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.002812,
+      "se": 0.000442
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": 2.924609,
+      "se": 0.331069
+     },
+     "points_per_round": {
+      "mean": 29.730078,
+      "se": 0.353497
+     },
+     "recovered": {
+      "mean": 0.344922,
+      "se": 0.004044
+     },
+     "sd_gross": {
+      "mean": 139.412408,
+      "se": 8.200928
+     },
+     "top10": {
+      "mean": 0.094219,
+      "se": 0.002451
+     },
+     "weekly_win_share": {
+      "mean": 0.384375,
+      "se": 0.019444
+     }
+    }
+   },
+   "_design": {
+    "replicates": 8,
+    "rounds_per_replicate": 40
+   }
+  },
+  "real_simulated_market_scorelines": {
+   "A": {
+    "_overall": {
+     "championships": 100,
+     "gini": 0.271778,
+     "top10_players_share": 0.189854
+    },
+    "aggressive": {
+     "all_nine": {
+      "mean": 0.000833,
+      "se": 0.000289
+     },
+     "challenger_won": {
+      "mean": 0.048133,
+      "se": 0.001166
+     },
+     "champion_share": {
+      "mean": 0.265,
+      "se": 0.043012
+     },
+     "championship_points": {
+      "mean": 257.511667,
+      "se": 3.085579
+     },
+     "max_gross": {
+      "mean": 13757.32,
+      "se": 935.343401
+     },
+     "mean_gross": {
+      "mean": 81.180002,
+      "se": 3.584954
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.000833,
+      "se": 0.000289
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.000833,
+      "se": 0.000289
+     },
+     "points_per_round": {
+      "mean": 25.751167,
+      "se": 0.308558
+     },
+     "recovered": {
+      "mean": 0.260667,
+      "se": 0.003126
+     },
+     "sd_gross": {
+      "mean": 302.630715,
+      "se": 42.363468
+     },
+     "top10": {
+      "mean": 0.147633,
+      "se": 0.002052
+     },
+     "weekly_win_share": {
+      "mean": 0.492207,
+      "se": 0.025298
+     }
+    },
+    "conservative": {
+     "all_nine": {
+      "mean": 0.0084,
+      "se": 0.000287
+     },
+     "challenger_won": {
+      "mean": 0.142133,
+      "se": 0.003866
+     },
+     "champion_share": {
+      "mean": 0.15,
+      "se": 0.044721
+     },
+     "championship_points": {
+      "mean": 259.588333,
+      "se": 4.120769
+     },
+     "max_gross": {
+      "mean": 1848.99,
+      "se": 105.796374
+     },
+     "mean_gross": {
+      "mean": 80.693974,
+      "se": 1.502591
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.0032,
+      "se": 0.000331
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "points_per_round": {
+      "mean": 25.958833,
+      "se": 0.412077
+     },
+     "recovered": {
+      "mean": 0.318033,
+      "se": 0.004898
+     },
+     "sd_gross": {
+      "mean": 114.62333,
+      "se": 1.750549
+     },
+     "top10": {
+      "mean": 0.062433,
+      "se": 0.002322
+     },
+     "weekly_win_share": {
+      "mean": 0.191837,
+      "se": 0.006687
+     }
+    },
+    "random": {
+     "all_nine": {
+      "mean": 0.00205,
+      "se": 0.0002
+     },
+     "challenger_won": {
+      "mean": 0.08615,
+      "se": 0.00185
+     },
+     "champion_share": {
+      "mean": 0.585,
+      "se": 0.04
+     },
+     "championship_points": {
+      "mean": 305.87875,
+      "se": 3.241898
+     },
+     "max_gross": {
+      "mean": 6903.66,
+      "se": 447.859369
+     },
+     "mean_gross": {
+      "mean": 78.551136,
+      "se": 0.694859
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.00205,
+      "se": 0.0002
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.0001,
+      "se": 4.7e-05
+     },
+     "points_per_round": {
+      "mean": 30.587875,
+      "se": 0.32419
+     },
+     "recovered": {
+      "mean": 0.3591,
+      "se": 0.004143
+     },
+     "sd_gross": {
+      "mean": 176.780197,
+      "se": 7.119048
+     },
+     "top10": {
+      "mean": 0.092625,
+      "se": 0.001211
+     },
+     "weekly_win_share": {
+      "mean": 0.315957,
+      "se": 0.023072
+     }
+    }
+   },
+   "A2": {
+    "_overall": {
+     "championships": 100,
+     "gini": 0.271778,
+     "top10_players_share": 0.189854
+    },
+    "aggressive": {
+     "all_nine": {
+      "mean": 0.000833,
+      "se": 0.000289
+     },
+     "challenger_won": {
+      "mean": 0.048133,
+      "se": 0.001166
+     },
+     "champion_share": {
+      "mean": 0.265,
+      "se": 0.043012
+     },
+     "championship_points": {
+      "mean": 257.511667,
+      "se": 3.085579
+     },
+     "max_gross": {
+      "mean": 13757.32,
+      "se": 935.343401
+     },
+     "mean_gross": {
+      "mean": 81.180002,
+      "se": 3.584954
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.000833,
+      "se": 0.000289
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.000833,
+      "se": 0.000289
+     },
+     "paired_points_vs_A": {
+      "mean": 0.0,
+      "se": 0.0
+     },
+     "points_per_round": {
+      "mean": 25.751167,
+      "se": 0.308558
+     },
+     "recovered": {
+      "mean": 0.260667,
+      "se": 0.003126
+     },
+     "sd_gross": {
+      "mean": 302.630715,
+      "se": 42.363468
+     },
+     "top10": {
+      "mean": 0.147633,
+      "se": 0.002052
+     },
+     "weekly_win_share": {
+      "mean": 0.492207,
+      "se": 0.025298
+     }
+    },
+    "conservative": {
+     "all_nine": {
+      "mean": 0.0084,
+      "se": 0.000287
+     },
+     "challenger_won": {
+      "mean": 0.142133,
+      "se": 0.003866
+     },
+     "champion_share": {
+      "mean": 0.15,
+      "se": 0.044721
+     },
+     "championship_points": {
+      "mean": 259.588333,
+      "se": 4.120769
+     },
+     "max_gross": {
+      "mean": 1848.99,
+      "se": 105.796374
+     },
+     "mean_gross": {
+      "mean": 80.693974,
+      "se": 1.502591
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.0032,
+      "se": 0.000331
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": 0.0,
+      "se": 0.0
+     },
+     "points_per_round": {
+      "mean": 25.958833,
+      "se": 0.412077
+     },
+     "recovered": {
+      "mean": 0.318033,
+      "se": 0.004898
+     },
+     "sd_gross": {
+      "mean": 114.62333,
+      "se": 1.750549
+     },
+     "top10": {
+      "mean": 0.062433,
+      "se": 0.002322
+     },
+     "weekly_win_share": {
+      "mean": 0.191837,
+      "se": 0.006687
+     }
+    },
+    "random": {
+     "all_nine": {
+      "mean": 0.00205,
+      "se": 0.0002
+     },
+     "challenger_won": {
+      "mean": 0.08615,
+      "se": 0.00185
+     },
+     "champion_share": {
+      "mean": 0.585,
+      "se": 0.04
+     },
+     "championship_points": {
+      "mean": 305.87875,
+      "se": 3.241898
+     },
+     "max_gross": {
+      "mean": 6903.66,
+      "se": 447.859369
+     },
+     "mean_gross": {
+      "mean": 78.551136,
+      "se": 0.694859
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.00205,
+      "se": 0.0002
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.0001,
+      "se": 4.7e-05
+     },
+     "paired_points_vs_A": {
+      "mean": 0.0,
+      "se": 0.0
+     },
+     "points_per_round": {
+      "mean": 30.587875,
+      "se": 0.32419
+     },
+     "recovered": {
+      "mean": 0.3591,
+      "se": 0.004143
+     },
+     "sd_gross": {
+      "mean": 176.780197,
+      "se": 7.119048
+     },
+     "top10": {
+      "mean": 0.092625,
+      "se": 0.001211
+     },
+     "weekly_win_share": {
+      "mean": 0.315957,
+      "se": 0.023072
+     }
+    }
+   },
+   "A3": {
+    "_overall": {
+     "championships": 100,
+     "gini": 0.284942,
+     "top10_players_share": 0.194604
+    },
+    "aggressive": {
+     "all_nine": {
+      "mean": 0.000233,
+      "se": 4.1e-05
+     },
+     "challenger_won": {
+      "mean": 0.0168,
+      "se": 0.001142
+     },
+     "champion_share": {
+      "mean": 0.22,
+      "se": 0.012247
+     },
+     "championship_points": {
+      "mean": 228.85,
+      "se": 3.726352
+     },
+     "max_gross": {
+      "mean": 45777.27,
+      "se": 4097.841091
+     },
+     "mean_gross": {
+      "mean": 82.951401,
+      "se": 2.571218
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.012533,
+      "se": 0.00094
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.000233,
+      "se": 4.1e-05
+     },
+     "paired_points_vs_A": {
+      "mean": -2.866167,
+      "se": 0.203302
+     },
+     "points_per_round": {
+      "mean": 22.885,
+      "se": 0.372635
+     },
+     "recovered": {
+      "mean": 0.234833,
+      "se": 0.003601
+     },
+     "sd_gross": {
+      "mean": 549.425598,
+      "se": 52.82095
+     },
+     "top10": {
+      "mean": 0.129067,
+      "se": 0.002432
+     },
+     "weekly_win_share": {
+      "mean": 0.438612,
+      "se": 0.025494
+     }
+    },
+    "conservative": {
+     "all_nine": {
+      "mean": 0.0084,
+      "se": 0.000287
+     },
+     "challenger_won": {
+      "mean": 0.142133,
+      "se": 0.003866
+     },
+     "champion_share": {
+      "mean": 0.115,
+      "se": 0.024495
+     },
+     "championship_points": {
+      "mean": 262.538333,
+      "se": 4.184921
+     },
+     "max_gross": {
+      "mean": 1848.99,
+      "se": 105.796374
+     },
+     "mean_gross": {
+      "mean": 80.693974,
+      "se": 1.502591
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.0032,
+      "se": 0.000331
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": 0.295,
+      "se": 0.019789
+     },
+     "points_per_round": {
+      "mean": 26.253833,
+      "se": 0.418492
+     },
+     "recovered": {
+      "mean": 0.318033,
+      "se": 0.004898
+     },
+     "sd_gross": {
+      "mean": 114.62333,
+      "se": 1.750549
+     },
+     "top10": {
+      "mean": 0.0719,
+      "se": 0.002018
+     },
+     "weekly_win_share": {
+      "mean": 0.154062,
+      "se": 0.009299
+     }
+    },
+    "random": {
+     "all_nine": {
+      "mean": 0.001675,
+      "se": 0.000313
+     },
+     "challenger_won": {
+      "mean": 0.068475,
+      "se": 0.000725
+     },
+     "champion_share": {
+      "mean": 0.665,
+      "se": 0.018708
+     },
+     "championship_points": {
+      "mean": 299.765,
+      "se": 3.562881
+     },
+     "max_gross": {
+      "mean": 14523.7,
+      "se": 1461.995778
+     },
+     "mean_gross": {
+      "mean": 79.071356,
+      "se": 1.727557
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.00175,
+      "se": 0.000319
+     },
+     "p_gross_ge_5000": {
+      "mean": 0.00045,
+      "se": 7.5e-05
+     },
+     "paired_points_vs_A": {
+      "mean": -0.611375,
+      "se": 0.254613
+     },
+     "points_per_round": {
+      "mean": 29.9765,
+      "se": 0.356288
+     },
+     "recovered": {
+      "mean": 0.344475,
+      "se": 0.004655
+     },
+     "sd_gross": {
+      "mean": 217.583218,
+      "se": 13.062983
+     },
+     "top10": {
+      "mean": 0.099375,
+      "se": 0.000753
+     },
+     "weekly_win_share": {
+      "mean": 0.407326,
+      "se": 0.021401
+     }
+    }
+   },
+   "D": {
+    "_overall": {
+     "championships": 100,
+     "gini": 0.258593,
+     "top10_players_share": 0.184076
+    },
+    "aggressive": {
+     "all_nine": {
+      "mean": 0.001767,
+      "se": 0.000187
+     },
+     "challenger_won": {
+      "mean": 0.116767,
+      "se": 0.00197
+     },
+     "champion_share": {
+      "mean": 0.35,
+      "se": 0.059687
+     },
+     "championship_points": {
+      "mean": 303.928333,
+      "se": 4.039355
+     },
+     "max_gross": {
+      "mean": 4759.08,
+      "se": 86.494693
+     },
+     "mean_gross": {
+      "mean": 79.463567,
+      "se": 0.9782
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.001767,
+      "se": 0.000187
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": 4.641667,
+      "se": 0.164807
+     },
+     "points_per_round": {
+      "mean": 30.392833,
+      "se": 0.403935
+     },
+     "recovered": {
+      "mean": 0.3344,
+      "se": 0.004223
+     },
+     "sd_gross": {
+      "mean": 186.419307,
+      "se": 7.455661
+     },
+     "top10": {
+      "mean": 0.139067,
+      "se": 0.00255
+     },
+     "weekly_win_share": {
+      "mean": 0.414,
+      "se": 0.021875
+     }
+    },
+    "conservative": {
+     "all_nine": {
+      "mean": 0.012233,
+      "se": 0.001215
+     },
+     "challenger_won": {
+      "mean": 0.1873,
+      "se": 0.002657
+     },
+     "champion_share": {
+      "mean": 0.085,
+      "se": 0.024495
+     },
+     "championship_points": {
+      "mean": 250.66,
+      "se": 2.909769
+     },
+     "max_gross": {
+      "mean": 1234.29,
+      "se": 27.761976
+     },
+     "mean_gross": {
+      "mean": 82.5683,
+      "se": 1.857124
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.0007,
+      "se": 0.000232
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": -0.892833,
+      "se": 0.329467
+     },
+     "points_per_round": {
+      "mean": 25.066,
+      "se": 0.290977
+     },
+     "recovered": {
+      "mean": 0.297833,
+      "se": 0.002919
+     },
+     "sd_gross": {
+      "mean": 112.011172,
+      "se": 3.228954
+     },
+     "top10": {
+      "mean": 0.073633,
+      "se": 0.001577
+     },
+     "weekly_win_share": {
+      "mean": 0.233,
+      "se": 0.021541
+     }
+    },
+    "random": {
+     "all_nine": {
+      "mean": 0.00435,
+      "se": 0.000183
+     },
+     "challenger_won": {
+      "mean": 0.148975,
+      "se": 0.002968
+     },
+     "champion_share": {
+      "mean": 0.565,
+      "se": 0.061033
+     },
+     "championship_points": {
+      "mean": 336.8525,
+      "se": 2.228022
+     },
+     "max_gross": {
+      "mean": 3116.48,
+      "se": 105.735323
+     },
+     "mean_gross": {
+      "mean": 80.400699,
+      "se": 0.74102
+     },
+     "p_gross_ge_1000": {
+      "mean": 0.00435,
+      "se": 0.000183
+     },
+     "p_gross_ge_5000": {
+      "mean": 0,
+      "se": 0.0
+     },
+     "paired_points_vs_A": {
+      "mean": 3.097375,
+      "se": 0.261243
+     },
+     "points_per_round": {
+      "mean": 33.68525,
+      "se": 0.222802
+     },
+     "recovered": {
+      "mean": 0.3978,
+      "se": 0.002629
+     },
+     "sd_gross": {
+      "mean": 153.532333,
+      "se": 1.585121
+     },
+     "top10": {
+      "mean": 0.090625,
+      "se": 0.001282
+     },
+     "weekly_win_share": {
+      "mean": 0.353,
+      "se": 0.005148
+     }
+    }
+   },
+   "_design": {
+    "replicates": 5,
+    "rounds_per_replicate": 200
+   }
+  }
+ },
+ "low_probability_band": {
+  "proxy_10_20": {
+   "outcomes_per_week_median": 22.0,
+   "p10": 5.0,
+   "p90": 30.0,
+   "per_draw": {
+    "AWAY": 447.2,
+    "DRAW": 368.1,
+    "HOME": 164.1,
+    "UNDER_2_5": 6.3,
+    "league:Bundesliga": 204.7,
+    "league:Championship": 135.8,
+    "league:EPL": 145.5,
+    "league:La Liga": 177.0,
+    "league:Ligue 1": 172.1,
+    "league:Serie A": 150.8
+   }
+  },
+  "real": {
+   "10-20": {
+    "bookmaker_groups_median": 10,
+    "bookmaker_groups_min": 6,
+    "by_league": {
+     "Bundesliga": 3,
+     "Championship": 8,
+     "EPL": 7,
+     "La Liga": 4,
+     "Ligue 1": 10,
+     "Serie A": 13
+    },
+    "by_outcome": {
+     "AWAY": 19,
+     "DRAW": 20,
+     "HOME": 6
+    },
+    "fixtures": 33,
+    "model_minus_market_pts": 5.303648,
+    "model_over_market_ratio": 1.352746,
+    "odds_x_market_prob_mean": 0.943736,
+    "outcomes": 45
+   },
+   "20-30": {
+    "bookmaker_groups_median": 10,
+    "bookmaker_groups_min": 5,
+    "by_league": {
+     "Bundesliga": 14,
+     "Championship": 11,
+     "EPL": 30,
+     "La Liga": 12,
+     "Ligue 1": 18,
+     "Serie A": 22
+    },
+    "by_outcome": {
+     "AWAY": 17,
+     "BTTS_NO": 1,
+     "DRAW": 68,
+     "HOME": 16,
+     "UNDER_2_5": 5
+    },
+    "fixtures": 71,
+    "model_minus_market_pts": 1.442769,
+    "model_over_market_ratio": 1.061854,
+    "odds_x_market_prob_mean": 0.94531,
+    "outcomes": 107
+   },
+   "30-40": {
+    "bookmaker_groups_median": 7.0,
+    "bookmaker_groups_min": 4,
+    "by_league": {
+     "Bundesliga": 15,
+     "Championship": 14,
+     "EPL": 15,
+     "La Liga": 7,
+     "Ligue 1": 20,
+     "Serie A": 15
+    },
+    "by_outcome": {
+     "AWAY": 17,
+     "BTTS_NO": 21,
+     "HOME": 16,
+     "UNDER_2_5": 32
+    },
+    "fixtures": 54,
+    "model_minus_market_pts": 2.550699,
+    "model_over_market_ratio": 1.074318,
+    "odds_x_market_prob_mean": 0.939844,
+    "outcomes": 86
+   },
+   "<10": {
+    "bookmaker_groups_median": 10.0,
+    "bookmaker_groups_min": 6,
+    "by_league": {
+     "Bundesliga": 2,
+     "Championship": 1,
+     "La Liga": 2,
+     "Ligue 1": 1,
+     "Serie A": 4
+    },
+    "by_outcome": {
+     "AWAY": 8,
+     "DRAW": 1,
+     "HOME": 1
+    },
+    "fixtures": 9,
+    "model_minus_market_pts": 7.730845,
+    "model_over_market_ratio": 1.957572,
+    "odds_x_market_prob_mean": 0.948016,
+    "outcomes": 10
+   }
+  }
+ },
+ "quick": false,
+ "runtime_seconds": 319,
+ "scenarios": {
+  "A": {
+   "A": [
+    0.6,
+    0.95,
+    true
+   ],
+   "B": [
+    0.4,
+    0.6,
+    false
+   ],
+   "C": [
+    0.2,
+    0.4,
+    false
+   ]
+  },
+  "A2": {
+   "A": [
+    0.6,
+    0.9,
+    true
+   ],
+   "B": [
+    0.4,
+    0.6,
+    false
+   ],
+   "C": [
+    0.2,
+    0.4,
+    false
+   ]
+  },
+  "A3": {
+   "A": [
+    0.6,
+    0.9,
+    true
+   ],
+   "B": [
+    0.4,
+    0.6,
+    false
+   ],
+   "C": [
+    0.1,
+    0.4,
+    false
+   ]
+  },
+  "B": {
+   "A": [
+    0.7,
+    0.9,
+    true
+   ],
+   "B": [
+    0.5,
+    0.7,
+    false
+   ],
+   "C": [
+    0.3,
+    0.5,
+    false
+   ]
+  },
+  "C": {
+   "A": [
+    0.75,
+    0.9,
+    true
+   ],
+   "B": [
+    0.6,
+    0.75,
+    false
+   ],
+   "C": [
+    0.45,
+    0.6,
+    false
+   ]
+  },
+  "D": {
+   "A": [
+    0.6,
+    0.9,
+    true
+   ],
+   "B": [
+    0.45,
+    0.6,
+    false
+   ],
+   "C": [
+    0.3,
+    0.45,
+    false
+   ]
+  }
+ },
+ "strategies": {
+  "actual_results": {
+   "A": {
+    "aggressive": {
+     "all_nine": 0.0,
+     "balanced": 0.079727,
+     "challenger": 0.050114,
+     "foundation": 0.09795,
+     "gross": 75.254214,
+     "n": 439,
+     "recovered": 0.216401
+    },
+    "conservative": {
+     "all_nine": 0.004556,
+     "balanced": 0.161731,
+     "challenger": 0.18451,
+     "foundation": 0.284738,
+     "gross": 69.000615,
+     "n": 439,
+     "recovered": 0.371298
+    },
+    "random": {
+     "all_nine": 0.001595,
+     "balanced": 0.11792,
+     "challenger": 0.10243,
+     "foundation": 0.132992,
+     "gross": 71.775667,
+     "n": 26340,
+     "recovered": 0.313743
+    }
+   },
+   "A2": {
+    "aggressive": {
+     "all_nine": 0.0,
+     "balanced": 0.079727,
+     "challenger": 0.050114,
+     "foundation": 0.09795,
+     "gross": 75.254214,
+     "n": 439,
+     "recovered": 0.216401
+    },
+    "conservative": {
+     "all_nine": 0.006834,
+     "balanced": 0.161731,
+     "challenger": 0.182232,
+     "foundation": 0.316629,
+     "gross": 71.979704,
+     "n": 439,
+     "recovered": 0.369021
+    },
+    "random": {
+     "all_nine": 0.001557,
+     "balanced": 0.11697,
+     "challenger": 0.10262,
+     "foundation": 0.134358,
+     "gross": 71.718668,
+     "n": 26340,
+     "recovered": 0.314047
+    }
+   },
+   "A3": {
+    "aggressive": {
+     "all_nine": 0.0,
+     "balanced": 0.077449,
+     "challenger": 0.025057,
+     "foundation": 0.102506,
+     "gross": 83.311458,
+     "n": 439,
+     "recovered": 0.1959
+    },
+    "conservative": {
+     "all_nine": 0.006834,
+     "balanced": 0.161731,
+     "challenger": 0.182232,
+     "foundation": 0.316629,
+     "gross": 71.979704,
+     "n": 439,
+     "recovered": 0.369021
+    },
+    "random": {
+     "all_nine": 0.001443,
+     "balanced": 0.119021,
+     "challenger": 0.092559,
+     "foundation": 0.134396,
+     "gross": 74.72268,
+     "n": 26340,
+     "recovered": 0.307327
+    }
+   },
+   "D": {
+    "aggressive": {
+     "all_nine": 0.0,
+     "balanced": 0.109339,
+     "challenger": 0.095672,
+     "foundation": 0.09795,
+     "gross": 71.06738,
+     "n": 439,
+     "recovered": 0.271071
+    },
+    "conservative": {
+     "all_nine": 0.004556,
+     "balanced": 0.161731,
+     "challenger": 0.209567,
+     "foundation": 0.312073,
+     "gross": 68.057973,
+     "n": 439,
+     "recovered": 0.28246
+    },
+    "random": {
+     "all_nine": 0.00243,
+     "balanced": 0.124829,
+     "challenger": 0.162718,
+     "foundation": 0.137244,
+     "gross": 68.648842,
+     "n": 26340,
+     "recovered": 0.345976
+    }
+   }
+  },
+  "ordering": {
+   "A": {
+    "aggressive_c_gt_b": 0,
+    "aggressive_f_gt_b_gt_c": 439,
+    "aggressive_n": 439,
+    "conservative_c_gt_b": 0,
+    "conservative_f_gt_b_gt_c": 418,
+    "conservative_n": 439,
+    "random_c_gt_b": 0,
+    "random_f_gt_b_gt_c": 439,
+    "random_n": 439
+   },
+   "A2": {
+    "aggressive_c_gt_b": 0,
+    "aggressive_f_gt_b_gt_c": 439,
+    "aggressive_n": 439,
+    "conservative_c_gt_b": 0,
+    "conservative_f_gt_b_gt_c": 418,
+    "conservative_n": 439,
+    "random_c_gt_b": 0,
+    "random_f_gt_b_gt_c": 439,
+    "random_n": 439
+   },
+   "A3": {
+    "aggressive_c_gt_b": 0,
+    "aggressive_f_gt_b_gt_c": 439,
+    "aggressive_n": 439,
+    "conservative_c_gt_b": 0,
+    "conservative_f_gt_b_gt_c": 418,
+    "conservative_n": 439,
+    "random_c_gt_b": 0,
+    "random_f_gt_b_gt_c": 439,
+    "random_n": 439
+   },
+   "D": {
+    "aggressive_c_gt_b": 99,
+    "aggressive_f_gt_b_gt_c": 340,
+    "aggressive_n": 439,
+    "conservative_c_gt_b": 2,
+    "conservative_f_gt_b_gt_c": 416,
+    "conservative_n": 439,
+    "random_c_gt_b": 420,
+    "random_f_gt_b_gt_c": 19,
+    "random_n": 439
+   }
+  },
+  "proxy": {
+   "A": {
+    "aggressive": {
+     "all_nine": 0.00036,
+     "balanced": 0.06512,
+     "challenger": 0.041126,
+     "expected_gross": 80.062597,
+     "foundation": 0.13332,
+     "max_gross": 17203.64,
+     "pick_p": 0.448085,
+     "recover": 0.223599
+    },
+    "conservative": {
+     "all_nine": 0.01116,
+     "balanced": 0.212578,
+     "challenger": 0.158499,
+     "expected_gross": 80.634271,
+     "foundation": 0.333331,
+     "max_gross": 852.24,
+     "pick_p": 0.625055,
+     "recover": 0.339331
+    },
+    "random": {
+     "all_nine": 0.002071,
+     "balanced": 0.12306,
+     "challenger": 0.090418,
+     "expected_gross": 80.23524,
+     "foundation": 0.185755,
+     "max_gross": 3806.334833,
+     "pick_p": 0.524401,
+     "recover": 0.349774
+    }
+   },
+   "A2": {
+    "aggressive": {
+     "all_nine": 0.00036,
+     "balanced": 0.06512,
+     "challenger": 0.041126,
+     "expected_gross": 80.062597,
+     "foundation": 0.13332,
+     "max_gross": 17203.64,
+     "pick_p": 0.448085,
+     "recover": 0.223599
+    },
+    "conservative": {
+     "all_nine": 0.011151,
+     "balanced": 0.212578,
+     "challenger": 0.158499,
+     "expected_gross": 80.638548,
+     "foundation": 0.331925,
+     "max_gross": 854.08,
+     "pick_p": 0.624789,
+     "recover": 0.339348
+    },
+    "random": {
+     "all_nine": 0.002072,
+     "balanced": 0.123033,
+     "challenger": 0.090474,
+     "expected_gross": 80.222115,
+     "foundation": 0.185508,
+     "max_gross": 3812.231333,
+     "pick_p": 0.524301,
+     "recover": 0.349937
+    }
+   },
+   "A3": {
+    "aggressive": {
+     "all_nine": 0.000109,
+     "balanced": 0.065196,
+     "challenger": 0.012389,
+     "expected_gross": 80.056991,
+     "foundation": 0.133324,
+     "max_gross": 55864.1,
+     "pick_p": 0.427993,
+     "recover": 0.200639
+    },
+    "conservative": {
+     "all_nine": 0.011151,
+     "balanced": 0.212578,
+     "challenger": 0.158499,
+     "expected_gross": 80.638548,
+     "foundation": 0.331925,
+     "max_gross": 854.08,
+     "pick_p": 0.624789,
+     "recover": 0.339348
+    },
+    "random": {
+     "all_nine": 0.001746,
+     "balanced": 0.123005,
+     "challenger": 0.077566,
+     "expected_gross": 80.230405,
+     "foundation": 0.185027,
+     "max_gross": 4821.178167,
+     "pick_p": 0.519388,
+     "recover": 0.340824
+    }
+   },
+   "D": {
+    "aggressive": {
+     "all_nine": 0.001127,
+     "balanced": 0.092146,
+     "challenger": 0.091267,
+     "expected_gross": 79.866259,
+     "foundation": 0.133195,
+     "max_gross": 5840.94,
+     "pick_p": 0.486459,
+     "recover": 0.285352
+    },
+    "conservative": {
+     "all_nine": 0.014111,
+     "balanced": 0.212578,
+     "challenger": 0.201324,
+     "expected_gross": 80.529296,
+     "foundation": 0.331925,
+     "max_gross": 721.0,
+     "pick_p": 0.636079,
+     "recover": 0.287953
+    },
+    "random": {
+     "all_nine": 0.003827,
+     "balanced": 0.138991,
+     "challenger": 0.148389,
+     "expected_gross": 80.077913,
+     "foundation": 0.185247,
+     "max_gross": 2100.771,
+     "pick_p": 0.549825,
+     "recover": 0.383658
+    }
+   }
+  },
+  "real": {
+   "A": {
+    "2026-11-20": {
+     "aggressive": {
+      "all_nine": 0.000346,
+      "balanced": 0.065227,
+      "challenger": 0.040634,
+      "expected_gross": 80.991934,
+      "foundation": 0.130684,
+      "max_gross": 18294.46,
+      "pick_p": 0.446199,
+      "recover": 0.220406
+     },
+     "conservative": {
+      "all_nine": 0.014389,
+      "balanced": 0.21138,
+      "challenger": 0.158586,
+      "expected_gross": 79.451356,
+      "foundation": 0.429252,
+      "max_gross": 698.87,
+      "pick_p": 0.64714,
+      "recover": 0.336444
+     },
+     "random": {
+      "all_nine": 0.002178,
+      "balanced": 0.124547,
+      "challenger": 0.089098,
+      "expected_gross": 79.551199,
+      "foundation": 0.196478,
+      "max_gross": 3611.25504,
+      "pick_p": 0.52889,
+      "recover": 0.358854,
+      "se_challenger": 0.000576,
+      "share_challenger_above_balanced": 0.161
+     }
+    },
+    "2026-11-27": {
+     "aggressive": {
+      "all_nine": 0.000407,
+      "balanced": 0.067699,
+      "challenger": 0.044961,
+      "expected_gross": 80.366772,
+      "foundation": 0.133817,
+      "max_gross": 15382.73,
+      "pick_p": 0.451792,
+      "recover": 0.228764
+     },
+     "conservative": {
+      "all_nine": 0.009663,
+      "balanced": 0.210523,
+      "challenger": 0.156975,
+      "expected_gross": 81.127777,
+      "foundation": 0.292415,
+      "max_gross": 963.45,
+      "pick_p": 0.613875,
+      "recover": 0.529067
+     },
+     "random": {
+      "all_nine": 0.001804,
+      "balanced": 0.121604,
+      "challenger": 0.087267,
+      "expected_gross": 80.50103,
+      "foundation": 0.170001,
+      "max_gross": 4353.60916,
+      "pick_p": 0.516394,
+      "recover": 0.334547,
+      "se_challenger": 0.000526,
+      "share_challenger_above_balanced": 0.1545
+     }
+    }
+   },
+   "A2": {
+    "2026-11-20": {
+     "aggressive": {
+      "all_nine": 0.000346,
+      "balanced": 0.065227,
+      "challenger": 0.040634,
+      "expected_gross": 80.991934,
+      "foundation": 0.130684,
+      "max_gross": 18294.46,
+      "pick_p": 0.446199,
+      "recover": 0.220406
+     },
+     "conservative": {
+      "all_nine": 0.014389,
+      "balanced": 0.21138,
+      "challenger": 0.158586,
+      "expected_gross": 79.451356,
+      "foundation": 0.429252,
+      "max_gross": 698.87,
+      "pick_p": 0.64714,
+      "recover": 0.336444
+     },
+     "random": {
+      "all_nine": 0.002178,
+      "balanced": 0.124547,
+      "challenger": 0.089098,
+      "expected_gross": 79.551199,
+      "foundation": 0.196478,
+      "max_gross": 3611.25504,
+      "pick_p": 0.52889,
+      "recover": 0.358854,
+      "se_challenger": 0.000576,
+      "share_challenger_above_balanced": 0.161
+     }
+    },
+    "2026-11-27": {
+     "aggressive": {
+      "all_nine": 0.000407,
+      "balanced": 0.067699,
+      "challenger": 0.044961,
+      "expected_gross": 80.366772,
+      "foundation": 0.133817,
+      "max_gross": 15382.73,
+      "pick_p": 0.451792,
+      "recover": 0.228764
+     },
+     "conservative": {
+      "all_nine": 0.009663,
+      "balanced": 0.210523,
+      "challenger": 0.156975,
+      "expected_gross": 81.127777,
+      "foundation": 0.292415,
+      "max_gross": 963.45,
+      "pick_p": 0.613875,
+      "recover": 0.529067
+     },
+     "random": {
+      "all_nine": 0.001804,
+      "balanced": 0.121604,
+      "challenger": 0.087267,
+      "expected_gross": 80.50103,
+      "foundation": 0.170001,
+      "max_gross": 4353.60916,
+      "pick_p": 0.516394,
+      "recover": 0.334547,
+      "se_challenger": 0.000526,
+      "share_challenger_above_balanced": 0.1545
+     }
+    }
+   },
+   "A3": {
+    "2026-11-20": {
+     "aggressive": {
+      "all_nine": 9.4e-05,
+      "balanced": 0.065227,
+      "challenger": 0.01108,
+      "expected_gross": 80.651201,
+      "foundation": 0.130684,
+      "max_gross": 64484.48,
+      "pick_p": 0.424796,
+      "recover": 0.19639
+     },
+     "conservative": {
+      "all_nine": 0.014389,
+      "balanced": 0.21138,
+      "challenger": 0.158586,
+      "expected_gross": 79.451356,
+      "foundation": 0.429252,
+      "max_gross": 698.87,
+      "pick_p": 0.64714,
+      "recover": 0.336444
+     },
+     "random": {
+      "all_nine": 0.001767,
+      "balanced": 0.123727,
+      "challenger": 0.072526,
+      "expected_gross": 79.559499,
+      "foundation": 0.196616,
+      "max_gross": 4942.772185,
+      "pick_p": 0.522038,
+      "recover": 0.34653,
+      "se_challenger": 0.00069,
+      "share_challenger_above_balanced": 0.092
+     }
+    },
+    "2026-11-27": {
+     "aggressive": {
+      "all_nine": 0.000187,
+      "balanced": 0.06648,
+      "challenger": 0.021096,
+      "expected_gross": 80.707057,
+      "foundation": 0.133133,
+      "max_gross": 33400.12,
+      "pick_p": 0.435781,
+      "recover": 0.207835
+     },
+     "conservative": {
+      "all_nine": 0.009663,
+      "balanced": 0.210523,
+      "challenger": 0.156975,
+      "expected_gross": 81.127777,
+      "foundation": 0.292415,
+      "max_gross": 963.45,
+      "pick_p": 0.613875,
+      "recover": 0.529067
+     },
+     "random": {
+      "all_nine": 0.001668,
+      "balanced": 0.121323,
+      "challenger": 0.081068,
+      "expected_gross": 80.498696,
+      "foundation": 0.169833,
+      "max_gross": 4841.900215,
+      "pick_p": 0.513843,
+      "recover": 0.329698,
+      "se_challenger": 0.000577,
+      "share_challenger_above_balanced": 0.132
+     }
+    }
+   },
+   "D": {
+    "2026-11-20": {
+     "aggressive": {
+      "all_nine": 0.001101,
+      "balanced": 0.092076,
+      "challenger": 0.091482,
+      "expected_gross": 81.981707,
+      "foundation": 0.130684,
+      "max_gross": 6320.86,
+      "pick_p": 0.484956,
+      "recover": 0.282931
+     },
+     "conservative": {
+      "all_nine": 0.018091,
+      "balanced": 0.21138,
+      "challenger": 0.199379,
+      "expected_gross": 78.612647,
+      "foundation": 0.429252,
+      "max_gross": 579.98,
+      "pick_p": 0.657872,
+      "recover": 0.278873
+     },
+     "random": {
+      "all_nine": 0.003999,
+      "balanced": 0.138252,
+      "challenger": 0.14697,
+      "expected_gross": 79.415887,
+      "foundation": 0.196769,
+      "max_gross": 1994.200015,
+      "pick_p": 0.553677,
+      "recover": 0.39497,
+      "se_challenger": 0.000498,
+      "share_challenger_above_balanced": 0.6195
+     }
+    },
+    "2026-11-27": {
+     "aggressive": {
+      "all_nine": 0.001169,
+      "balanced": 0.092074,
+      "challenger": 0.095396,
+      "expected_gross": 81.906525,
+      "foundation": 0.133133,
+      "max_gross": 5992.56,
+      "pick_p": 0.487627,
+      "recover": 0.288031
+     },
+     "conservative": {
+      "all_nine": 0.01216,
+      "balanced": 0.210523,
+      "challenger": 0.197527,
+      "expected_gross": 81.440252,
+      "foundation": 0.292415,
+      "max_gross": 820.3,
+      "pick_p": 0.624595,
+      "recover": 0.441378
+     },
+     "random": {
+      "all_nine": 0.003714,
+      "balanced": 0.140535,
+      "challenger": 0.15639,
+      "expected_gross": 80.357675,
+      "foundation": 0.16907,
+      "max_gross": 2173.08538,
+      "pick_p": 0.546347,
+      "recover": 0.373631,
+      "se_challenger": 0.000458,
+      "share_challenger_above_balanced": 0.705
+     }
+    }
+   }
+  }
+ }
+}
