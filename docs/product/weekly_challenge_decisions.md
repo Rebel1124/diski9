@@ -67,6 +67,19 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 Checkpoint 1, O-3: PASSED (23 Nov 2026, owner-verified):**
+* Supabase organisation "Diski 9" on Pro; project `diski9-f3`, `eu-central-1`
+  (Frankfurt), Micro.
+* Spend cap on; SSL enforcement on (non-SSL rejected); CA certificate saved;
+  leaked-password protection on; signups off (22 Nov); dashboard account MFA on; project
+  Auth TOTP enabled; owner confirms no credential was shared.
+* Invoice EGXGMN-00001: Pro **USD 25.00**, tax USD 0.00, PAID (plus a USD 0.00 invoice).
+  Recorded as the verified subscription charge, not a ceiling; reverse-charge tax
+  unassessed.
+* Running-cost baseline updated to ≈ $55.46/month (implementation record §13.9). The
+  **$65 warning and $75 ceiling are unchanged**; S-1 to S-3 remain open owner decisions.
+* No host name, full project ref, credential or payment detail is recorded.
+
 **Phase 6C.6 Stage F3 Checkpoint 1, O-2: PASSED (22 Nov 2026):**
 * **Offline recovery round trip** on the recovery MacBook (age v1.3.2):
   * encrypted to `age1vdhzrg30tplkq9ahcx2dkffynrshh8qkscjme3kself0jc63m5wqsssfrt`;

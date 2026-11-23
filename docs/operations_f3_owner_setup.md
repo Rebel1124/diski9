@@ -693,23 +693,30 @@ Any mismatch fails **G5**.
     * the RAM disk was detached and the ciphertext deleted; cleanup checks "RAM DISK
       DETACHED" and "TEST FILE REMOVED".
   * Decrypting a real Diski 9 backup is still proven in the Checkpoint 5 drills.
-- [ ] O-3: Supabase Pro, spend cap on; project `diski9-f3` in `eu-central-1`, Micro; SSL
+- [x] O-3: Supabase Pro, spend cap on; project `diski9-f3` in `eu-central-1`, Micro; SSL
   enforcement on; signups off; leaked-password protection on; CA certificate saved;
-  host names noted; no key shared.
-  * *Received:*
-    * Pro project in Frankfurt (`eu-central-1`), Micro (22 Nov 2026);
-    * session-pooler and direct hosts known (used in the day-one check);
-    * visually verified Auth settings: **new-user signup disabled**, manual linking
-      disabled, anonymous sign-ins disabled, **Confirm email enabled**.
-  * *Outstanding:*
-    * spend cap on;
-    * SSL enforcement on;
-    * leaked-password protection on;
-    * CA certificate downloaded;
-    * Supabase account MFA on;
-    * project name;
-    * invoice amount and tax;
-    * confirmation that no API key was shared.
+  host names noted; no key shared. **PASSED (23 Nov 2026, owner-verified).**
+  * organisation "Diski 9", **Pro**; project **`diski9-f3`**, `eu-central-1` (Frankfurt),
+    Micro; project ref held by the owner (not recorded here, because it forms the
+    direct host name; first and last characters `xswu…lfrf` only);
+  * **spend cap on** (dashboard: usage limited to included quotas; the project may become
+    unresponsive or read-only if they are exceeded);
+  * **SSL enforcement on** (non-SSL connections rejected); **CA certificate** downloaded
+    and saved by the owner for Checkpoint 3;
+  * Auth: **new-user signup disabled**, manual linking disabled, anonymous sign-ins
+    disabled, Confirm email enabled (22 Nov); **leaked-password protection on** (23 Nov);
+  * project Auth TOTP capability enabled (separate from the dashboard account MFA);
+  * **dashboard account MFA on** (authenticator app, confirmed in Account Settings →
+    Security);
+  * session-pooler and direct host names known to the owner (used in the day-one check;
+    not recorded);
+  * invoice EGXGMN-00001 (22 Nov 2026; period 22 Nov–21 Dec 2026): Pro **USD 25.00**,
+    tax **USD 0.00**, total **USD 25.00**, PAID; a USD 0.00 invoice EGXGMN-00002, PAID.
+    USD 25.00 is the verified subscription charge, **not** a ceiling on every possible
+    Supabase charge; any reverse-charge tax obligation is unassessed;
+  * the owner confirms that no database password, service-role/secret key, personal
+    access token or other private credential was shared with ChatGPT, Claude, GitHub or
+    anyone unauthorised.
 - [ ] O-4: Hostinger KVM 2, 1-month, Germany (provisioned in Düsseldorf: F3-D1a/F3-D2a
   conditionally approved, final on IT-1 PASS), Ubuntu 24.04, no add-ons; MFA on;
   SSH key login; console works; purchase date and day-25 reminder recorded; invoice
@@ -753,5 +760,5 @@ Any mismatch fails **G5**.
   MacBook and iPhone (22 Nov 2026). No tunnels configured. The WireGuard server and VPS
   hardening belong to Checkpoint 2 and are not authorised by this item.
 - [ ] Running cost against the $65 alert and the $75 ceiling: **open**. The Supabase
-  invoice is outstanding, and the monthly control needs owner decisions S-1 to S-3
-  (plan §Y.6).
+  invoice is now verified (USD 25.00, tax USD 0.00; baseline in implementation record
+  §13.9). The monthly control still needs owner decisions S-1 to S-3 (plan §Y.6).

@@ -1583,12 +1583,12 @@ Nothing is changed until these are approved.
 |---|---|---|
 | O-1 SSH key | **PASSED** | – |
 | O-2 `age` identities | **PASSED** | – (§13.8: recipients recorded; round trip with each identity; primary in the password manager; offline copy on the approved device) |
-| O-3 Supabase | OPEN | spend cap on; SSL enforcement on; leaked-password protection on; CA certificate saved; account MFA; project name; invoice and tax; confirmation that no key was shared (Auth settings recorded) |
+| O-3 Supabase | **PASSED** (23 Nov 2026) | – (§13.9: spend cap, SSL enforcement, CA certificate, leaked-password protection, account MFA, project name, invoice, no key shared) |
 | O-4 Hostinger | OPEN (minor) | the day-25 reminder (17 Dec 2026); the hPanel password-login setting |
 | O-5 day-one check | OPEN | the full JSON: zero-success check (final acceptance of F3-D1a/F3-D2a), system facts, listening-port baseline (IT-1, IT-2 and IT-9 already PASS) |
 | O-6 Backblaze | OPEN | canary and cleanup **PASSED**; monthly spending control (S-1 to S-3); old cache deletion recommended |
 | O-7 WireGuard clients | **PASSED** | – |
-| Running cost | BLOCKED on owner decision | S-1 to S-3, and the Supabase invoice amount |
+| Running cost | BLOCKED on owner decision | S-1 to S-3 (Supabase invoice verified: $25.00, tax $0.00; baseline §13.9) |
 
 ### 13.8 Checkpoint 1, O-2: `age` identity evidence (22 Nov 2026, owner-reported)
 | Item | Evidence | Status |
@@ -1613,3 +1613,52 @@ manifest is encrypted to both (§X.3.5), and only these public values go to the 
 No private identity, passphrase or decrypted key material is recorded. Backup decryption
 is still proven in the Checkpoint 5 drills.
 
+### 13.9 Checkpoint 1, O-3: Supabase evidence — **PASSED** (23 Nov 2026, owner-verified)
+| Criterion (runbook O-3) | Evidence | Status |
+|---|---|---|
+| Pro organisation, spend cap on | organisation "Diski 9", Pro; spend cap **enabled** (dashboard: usage limited to included quotas, with possible unresponsiveness or read-only operation if exceeded) | **PASSED** |
+| Project `diski9-f3`, `eu-central-1`, Micro | name `diski9-f3`; region `eu-central-1`, Frankfurt, Germany; Micro (22 Nov). Project ref held by the owner, recorded here only as `xswu…lfrf` because it forms the direct host name (§13.4: no host names in the repository) | **PASSED** |
+| SSL enforcement on | **enabled**; non-SSL incoming connections rejected | **PASSED** |
+| CA certificate saved | downloaded and saved by the owner (public; used in Checkpoint 3 for `verify-full`) | **PASSED** |
+| Signups off | new-user signup **disabled**; manual linking disabled; anonymous sign-ins disabled; Confirm email enabled (§13.5) | **PASSED** |
+| Leaked-password protection on | **enabled** | **PASSED** |
+| Account MFA on | dashboard account MFA: authenticator app enrolled, confirmed in Account Settings → Security. Separately, the project's Auth TOTP capability is enabled | **PASSED** |
+| Host names noted | session-pooler and direct hosts known to the owner and used in the day-one check (not recorded) | **PASSED** |
+| No key shared | owner confirms that no database password, service-role/secret key, personal access token or other private credential was shared with ChatGPT, Claude, GitHub or unauthorised parties | **PASSED** |
+| Invoice amount and tax | EGXGMN-00001, 22 Nov 2026, period 22 Nov–21 Dec 2026: Pro **USD 25.00**, tax **USD 0.00**, total **USD 25.00**, PAID. Also EGXGMN-00002, USD 0.00, PAID | **recorded** |
+
+**O-3 status: PASSED (23 Nov 2026).** Every runbook O-3 criterion is evidenced. No
+credential, connection string, host name, full project ref or payment detail is recorded.
+
+**Running-cost baseline (monthly, from month 2; F3-D3 thresholds unchanged):**
+
+| Line | Basis | Amount |
+|---|---|---|
+| Hostinger KVM 2 | invoice-evidenced price plus ≈ 15 % tax (§Z.4) | ≈ $28.16 |
+| Supabase Pro | **verified** subscription charge, tax $0.00 on the invoice | $25.00 |
+| Backblaze B2 | allowance estimate (§Z.4) | ≤ $2.30 |
+| **Baseline total** | | **≈ $55.46** |
+| + IPv4 add-on, only if IT-3 needs it | ≈ $4 (list price; tax as invoiced) | ≈ $59.46 |
+| + drill-month temporary project compute (estimate) | ≈ $5 | ≈ $64.46 |
+
+* **$25.00 is the verified subscription charge, not a ceiling on all Supabase charges.**
+  The spend cap blocks usage overages within included quotas; add-ons and extra project
+  compute (for example the drill-month temporary project) are billed separately.
+* The reverse-charge tax position is **unassessed**. If VAT were added, the conservative
+  §Z.4 figures (≈ $59.21 baseline, ≈ $68.81 drill month with the add-on) still apply.
+* Against **$65 warning / $75 ceiling (unchanged)**: the baseline is below both; the worst
+  verified-tax case (add-on and drill month) is ≈ $64.46, just under the warning; the
+  conservative VAT case stays below the ceiling.
+* The S-1 sum of enforced maxima becomes ≈ $28.16 + $25.00 + $4.00 + $6 ≈ **$63.2**
+  (≈ $67.5 under the VAT assumption). S-1 to S-3 remain **proposals awaiting owner
+  decision**; nothing is approved by this update.
+* Month 1 actual so far: Hostinger $12.64 + Supabase $25.00 = **$37.64** (B2 usage not
+  yet invoiced).
+
+**Checkpoint 1 remaining blockers (23 Nov 2026):**
+* O-4: the day-25 refund-decision reminder (17 Dec 2026) and the hPanel password-login
+  setting.
+* O-5: the full day-one JSON (zero-success check and final acceptance of F3-D1a/F3-D2a;
+  system facts; listening-port baseline).
+* O-6 / running cost: owner decisions S-1 to S-3. Deleting the old `~/.b2_account_info`
+  remains recommended (not authorised by Claude).

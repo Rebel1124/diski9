@@ -1946,6 +1946,12 @@ Consequences for earlier evidence:
 * The $65 alert would trigger only in a drill month **and** only if the IPv4 add-on is
   needed. The alert is doing its job; no spending control changes.
 * Month 1 actual: Hostinger $12.64, plus the Supabase invoice.
+* **Update (23 Nov 2026, O-3 invoice verified):** Supabase invoice EGXGMN-00001 shows
+  Pro **$25.00 with $0.00 tax** (total $25.00, PAID). The verified baseline is in the
+  implementation record §13.9 (≈ $55.46/month from month 2). The ≈ $28.75 line above
+  stays as the conservative case if VAT is ever charged; any reverse-charge obligation is
+  unassessed. **The $65 alert and $75 ceiling are unchanged.** Month 1 actual so far:
+  Hostinger $12.64 + Supabase $25.00 = **$37.64** (B2 usage not yet invoiced).
 
 ### Z.5 Conditions of the amendment and hosted verification
 
