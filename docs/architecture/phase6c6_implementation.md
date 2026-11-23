@@ -1584,7 +1584,7 @@ Nothing is changed until these are approved.
 | O-1 SSH key | **PASSED** | – |
 | O-2 `age` identities | **PASSED** | – (§13.8: recipients recorded; round trip with each identity; primary in the password manager; offline copy on the approved device) |
 | O-3 Supabase | **PASSED** (23 Nov 2026) | – (§13.9: spend cap, SSL enforcement, CA certificate, leaked-password protection, account MFA, project name, invoice, no key shared) |
-| O-4 Hostinger | OPEN (minor) | the day-25 reminder (17 Dec 2026); the hPanel password-login setting |
+| O-4 Hostinger | **PASSED** (23 Nov 2026) | – (§13.10: day-25 reminder PASSED; SSH password authentication currently **enabled**, disabling it deferred to Checkpoint 2 hardening; location final acceptance tracked under O-5) |
 | O-5 day-one check | OPEN | the full JSON: zero-success check (final acceptance of F3-D1a/F3-D2a), system facts, listening-port baseline (IT-1, IT-2 and IT-9 already PASS) |
 | O-6 Backblaze | OPEN | canary and cleanup **PASSED**; monthly spending control (S-1 to S-3); old cache deletion recommended |
 | O-7 WireGuard clients | **PASSED** | – |
@@ -1658,6 +1658,49 @@ credential, connection string, host name, full project ref or payment detail is 
 **Checkpoint 1 remaining blockers (23 Nov 2026):**
 * O-4: the day-25 refund-decision reminder (17 Dec 2026) and the hPanel password-login
   setting.
+* O-5: the full day-one JSON (zero-success check and final acceptance of F3-D1a/F3-D2a;
+  system facts; listening-port baseline).
+* O-6 / running cost: owner decisions S-1 to S-3. Deleting the old `~/.b2_account_info`
+  remains recommended (not authorised by Claude).
+
+### 13.10 Checkpoint 1, O-4: Hostinger evidence — **PASSED, SSH hardening deferred** (23 Nov 2026, owner-verified)
+| Criterion (runbook §8.2 O-4) | Evidence | Status |
+|---|---|---|
+| KVM 2, 1-month term | KVM 2 (2 vCPU / 8 GB / 100 GB), monthly, auto-renewal on (§13.3) | **PASSED** |
+| Germany | data centre **Düsseldorf, Germany** (hPanel). Amendment F3-D1a/F3-D2a: IT-1 PASS recorded (§13.4); final acceptance awaits the zero-success check in O-5 | **PASSED** for O-4; location acceptance tracked under O-5 |
+| Ubuntu 24.04 | Ubuntu 24.04 LTS (§13.3) | **PASSED** |
+| No add-ons | none purchased (§13.5) | **PASSED** |
+| Account MFA | Hostinger two-factor authentication on (§13.5) | **PASSED** |
+| SSH key login | works with the O-1 key; host-key fingerprint recorded (§13.4) | **PASSED** |
+| Console works | IT-9 PASS (§13.4) | **PASSED** |
+| Purchase date | 22 Nov 2026 = refund day 0 | **PASSED** |
+| Day-25 reminder | calendar event "Hostinger VPS — Refund Decision", Thu 17 Dec 2026, 09:00 SAST (UTC+02:00): review suitability, cost and performance, then keep the VPS or request a refund before the expected 22 Dec 2026 deadline. Screenshot confirmed by the owner. The deadline is subject to Hostinger's actual terms and eligibility | **PASSED** |
+| Invoice amounts | USD 12.64 including USD 1.65 tax (§13.3) | **PASSED** |
+
+**SSH password authentication: current state recorded, not changed.**
+* Hostinger support (23 Nov 2026) confirmed: SSH currently **permits password
+  authentication**; an SSH key is configured for root; password authentication can be
+  disabled through the server's SSH configuration (they supplied `sshd_config` and
+  reload instructions).
+* **No SSH configuration change has been made.** Password authentication is **enabled**;
+  the VPS is **not hardened**.
+* **Deviation:** runbook O-4 step 3 ("if hPanel offers to disable password login, disable
+  it") was not done. The owner has deliberately deferred it to Checkpoint 2, where VPS
+  hardening is authorised. The O-4 checklist criteria themselves do not require it, and
+  Checkpoint 2 disables SSH password login in any case.
+* **Checkpoint 2 preconditions** before disabling it: key-based login verified in a
+  separate session kept open; hPanel browser console (IT-9) kept available; effective
+  configuration validated (`sshd -T`) before the reload; no lockout.
+* **Residual risk until Checkpoint 2:** root password login is reachable on the public
+  SSH port. It is mitigated only by the long random root password held in the password
+  manager. Nothing of Diski 9 (application, data, credentials) is on the VPS yet. The
+  owner may close this earlier by authorising that one hardening step separately.
+
+**O-4 status: PASSED (23 Nov 2026), with SSH hardening explicitly deferred to
+Checkpoint 2.** The VPS identifier, public IP address and root password are not
+recorded.
+
+**Checkpoint 1 remaining blockers (23 Nov 2026):**
 * O-5: the full day-one JSON (zero-success check and final acceptance of F3-D1a/F3-D2a;
   system facts; listening-port baseline).
 * O-6 / running cost: owner decisions S-1 to S-3. Deleting the old `~/.b2_account_info`

@@ -67,6 +67,19 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 Checkpoint 1, O-4: PASSED, SSH hardening deferred (23 Nov 2026, owner-verified):**
+* **Day-25 refund-decision reminder PASSED:** calendar event, Thu 17 Dec 2026, 09:00
+  SAST, before the expected 22 Dec 2026 refund deadline (subject to Hostinger's terms).
+* **SSH password authentication is currently ENABLED** (confirmed by Hostinger support);
+  an SSH key is configured for root. **No SSH configuration change made; the VPS is not
+  hardened.**
+* **Owner decision:** disabling password authentication is deferred to Checkpoint 2 VPS
+  hardening (key login verified in a separate session, console kept available, `sshd -T`
+  validated, no lockout). Recorded as a deviation from runbook O-4 step 3, with the
+  residual risk (root password login reachable until then; long random password).
+* All O-4 checklist criteria are evidenced; final acceptance of the Düsseldorf location
+  stays under O-5.
+
 **Phase 6C.6 Stage F3 Checkpoint 1, O-3: PASSED (23 Nov 2026, owner-verified):**
 * Supabase organisation "Diski 9" on Pro; project `diski9-f3`, `eu-central-1`
   (Frankfurt), Micro.

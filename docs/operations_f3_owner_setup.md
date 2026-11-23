@@ -717,20 +717,35 @@ Any mismatch fails **G5**.
   * the owner confirms that no database password, service-role/secret key, personal
     access token or other private credential was shared with ChatGPT, Claude, GitHub or
     anyone unauthorised.
-- [ ] O-4: Hostinger KVM 2, 1-month, Germany (provisioned in Düsseldorf: F3-D1a/F3-D2a
+- [x] O-4: Hostinger KVM 2, 1-month, Germany (provisioned in Düsseldorf: F3-D1a/F3-D2a
   conditionally approved, final on IT-1 PASS), Ubuntu 24.04, no add-ons; MFA on;
   SSH key login; console works; purchase date and day-25 reminder recorded; invoice
-  amounts.
-  * *Received:*
-    * data centre **Düsseldorf, Germany** as hPanel shows it;
-    * Hostinger account **two-factor authentication on**;
-    * **no add-ons purchased**;
-    * console (IT-9) works and SSH key login works;
-    * host-key fingerprint, invoice amount and dates.
-  * *Outstanding:*
-    * the day-25 (17 Dec 2026) refund-decision reminder;
-    * whether hPanel's "disable password login" was used. SSH password login is
-      disabled in Checkpoint 2 hardening in any case.
+  amounts. **PASSED (23 Nov 2026), with SSH hardening explicitly deferred to
+  Checkpoint 2.**
+  * KVM 2 (2 vCPU / 8 GB / 100 GB), monthly, Ubuntu 24.04 LTS; data centre **Düsseldorf,
+    Germany** as hPanel shows it. Final acceptance of the location (F3-D1a/F3-D2a) is
+    tracked under O-5 (zero-success check), not here;
+  * Hostinger account **two-factor authentication on**; **no add-ons purchased**;
+  * console (IT-9) works; SSH key login works; host-key fingerprint recorded;
+  * purchase date 22 Nov 2026 (refund day 0); first payment USD 12.64 incl. USD 1.65 tax;
+  * **PASSED: day-25 refund-decision reminder:** calendar event "Hostinger VPS — Refund
+    Decision", Thursday 17 Dec 2026, 09:00 SAST (UTC+02:00), to review suitability, cost
+    and performance and decide whether to keep the VPS or request a refund before the
+    expected 22 Dec 2026 deadline (screenshot seen by the owner). The deadline remains
+    subject to Hostinger's actual terms and eligibility;
+  * **SSH password authentication: currently ENABLED (verified, not changed).** Hostinger
+    support confirmed (23 Nov 2026) that SSH currently permits password authentication,
+    that an SSH key is configured for root, and that password authentication can be
+    disabled in `sshd_config`. hPanel's "disable password login" was **not** used and
+    **no SSH configuration change has been made**. The VPS is **not hardened**.
+  * **Deviation (deferred, owner decision):** step 3's "if hPanel offers to disable
+    password login, disable it" is not done; disabling it is deferred to Checkpoint 2
+    VPS hardening. Before disabling it there, the owner must: confirm key-based login in
+    a separate, still-open session; keep the hPanel browser console (IT-9) available;
+    validate the effective configuration (`sshd -T`) before reloading; and avoid
+    lockout. **Residual risk until then:** root password login is reachable on the
+    public SSH port; it is mitigated only by the long random root password kept in the
+    password manager. No application, data or credential is on the VPS yet.
 - [ ] O-5: day-one JSON (`diski9-f3-day1/2`): IT-1 PASS (RTT p95 < 10 ms); IT-2 PASS or the fallback path recorded; system
   facts (2 vCPU / 8 GB / ~100 GB). *Owner-reported:*
   * pooler IPv4 100/100, p95 5.730 ms;
