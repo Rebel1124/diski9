@@ -67,6 +67,19 @@ approval. Private mini-leagues are removed from the MVP roadmap.
   destination, no migration without separate approval, no force-finalise, no
   automatic alert resolution. Stages E–G not authorised.
 
+**Phase 6C.6 Stage F3 Checkpoint 1, O-5: PASSED; Düsseldorf finally accepted for Stage F3 (23 Nov 2026):**
+* Original day-one JSON (22 Nov 2026), retrieved by the owner and reviewed independently;
+  **not committed** (it contains the full direct host name and project ref). Sanitised
+  summary in implementation record §13.11.
+* **IT-1 PASS:** pooler IPv4 100/100, p95 5.730 ms; direct IPv6 100/100, p95 4.533 ms;
+  pooler IPv6 and direct IPv4 `"resolved": false` (zero-success check complete).
+  **IT-2 PASS**; IT-9 owner-verified PASS.
+* System facts: Ubuntu 24.04.5 LTS, 2 vCPU, 7.8 GiB, 95.8 GiB, NTP synchronised, IPv4 and
+  IPv6 routes. Listening baseline: SSH 22 (IPv4/IPv6), loopback DNS 53, no application
+  listener (host view, not an external exposure test).
+* **F3-D1a/F3-D2a:** the owner's final-acceptance condition (IT-1 PASS plus the
+  zero-success check) is met; **accepted for Stage F3 only**. No other control changes.
+
 **Phase 6C.6 Stage F3 Checkpoint 1, O-4: PASSED, SSH hardening deferred (23 Nov 2026, owner-verified):**
 * **Day-25 refund-decision reminder PASSED:** calendar event, Thu 17 Dec 2026, 09:00
   SAST, before the expected 22 Dec 2026 refund deadline (subject to Hostinger's terms).

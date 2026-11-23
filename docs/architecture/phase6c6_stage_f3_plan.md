@@ -2,7 +2,7 @@
 
 **Status:** **accepted in principle by the owner (22 Nov 2026), subject to the
 refinements in §S**; **the Düsseldorf VPS location amendment (F3-D1a/F3-D2a,
-conditionally approved for Stage F3; final acceptance on IT-1 PASS) is in §Z**; a Lean MVP cost assessment is in §T and the **current
+approved for Stage F3; final-acceptance condition (IT-1 PASS and zero-success check) met 23 Nov 2026) is in §Z**; a Lean MVP cost assessment is in §T and the **current
 quality-first provider assessment is in §U; the **owner's preferred hosting
 configuration (Hostinger KVM 2 monthly in Germany + Supabase Pro from the start,
 DigitalOcean as fallback) is in §V**, the **Hostinger pre-sales findings are in §W**, and the **final owner decisions and the
@@ -1270,7 +1270,7 @@ none of them can be settled on paper):
 
 | Check | When | If it fails |
 |---|---|---|
-| IT-1 VPS really in Frankfurt (hPanel data centre; RTT to Supabase `eu-central-1` p95 < 10 ms) — *location clause replaced by F3-D1a/F3-D2a (conditionally approved, §Z); the latency requirement RTT p95 < 10 ms is unchanged* | day 1 | cancel within the refund window, then DigitalOcean FRA1 |
+| IT-1 VPS really in Frankfurt (hPanel data centre; RTT to Supabase `eu-central-1` p95 < 10 ms) — *location clause replaced by F3-D1a/F3-D2a (approved for Stage F3; final-acceptance condition met 23 Nov 2026, §Z); the latency requirement RTT p95 < 10 ms is unchanged* | day 1 | cancel within the refund window, then DigitalOcean FRA1 |
 | IT-2 Outbound IPv6 works; direct database endpoint reachable | day 1 | session pooler, else IPv4 add-on (≈ $4) |
 | IT-3 Hosted advisory-lock tests on the chosen scheduler endpoint | before the soak | **hard stop**; owner decides (IPv4 add-on or DigitalOcean) |
 | IT-4 `verify-full` TLS with the pinned Supabase CA on both endpoints; SSL enforcement refuses plaintext | build | stop until fixed |
@@ -1852,7 +1852,7 @@ evidence, or is an implementation-time check with a defined stop rule and a fall
 
 None of them can be settled before purchase.
 
-## Z. Amendment: Hostinger VPS in Düsseldorf (22 Nov 2026) — **conditionally approved for Stage F3**
+## Z. Amendment: Hostinger VPS in Düsseldorf (22 Nov 2026) — **approved for Stage F3; final-acceptance condition met (23 Nov 2026)**
 
 **Status: CONDITIONALLY APPROVED IN PRINCIPLE** by the owner (22 Nov 2026), with
 corrections, **for Stage F3 only**.
@@ -1867,6 +1867,12 @@ corrections, **for Stage F3 only**.
   * Final acceptance is recorded once the full JSON confirms the zero-success check
     (§Z.8 correction): the pooler's IPv6 and the direct host's IPv4 entries must show
     `"resolved": false`, or else 95 % success with p95 < 10 ms.
+* **Final-acceptance condition met (23 Nov 2026):** the original day-one JSON (22 Nov
+  2026), retrieved by the owner, shows the pooler's IPv6 and the direct host's IPv4 as
+  `"resolved": false`, and both resolving families at 100/100 with p95 5.730 ms and
+  4.533 ms. IT-1 PASS under the corrected rule; IT-2 PASS. Under the owner's 22 Nov
+  decision, F3-D1a/F3-D2a are therefore finally accepted **for Stage F3** (implementation
+  record §13.11). Nothing else in "What the approval covers" below changes.
 * Until IT-1 passes, the location is conditional. If IT-1 fails persistently, the
   existing DigitalOcean Frankfurt fallback and the refund-window decision process apply.
 * No VPS or Supabase access was made in preparing this section. The public address,
@@ -1992,8 +1998,8 @@ checkpoints.
 
 | ID | Decision | Supersedes | Status |
 |---|---|---|---|
-| **F3-D1a** | The Stage F3 VPS is the provisioned **Hostinger KVM 2 in Düsseldorf, Germany** (monthly billing). DigitalOcean Basic 2 vCPU / 4 GB FRA1 remains the fallback | the location part of F3-D1 (provider, plan, billing unchanged) | **conditionally approved** (Stage F3 only; final acceptance on IT-1 PASS) |
-| **F3-D2a** | Region split: **VPS Düsseldorf, Supabase Frankfurt (`eu-central-1`)**, backups Amsterdam (B2 EU Central), all in the EU. IT-1 is unchanged: VPS-to-Supabase database RTT p95 strictly below 10 ms; only the location clause "VPS really in Frankfurt" is replaced | the VPS part of F3-D2 (the Supabase region is unchanged) | **conditionally approved** (Stage F3 only; final acceptance on IT-1 PASS) |
+| **F3-D1a** | The Stage F3 VPS is the provisioned **Hostinger KVM 2 in Düsseldorf, Germany** (monthly billing). DigitalOcean Basic 2 vCPU / 4 GB FRA1 remains the fallback | the location part of F3-D1 (provider, plan, billing unchanged) | **approved** (Stage F3 only; final-acceptance condition met 23 Nov 2026: IT-1 PASS and zero-success check) |
+| **F3-D2a** | Region split: **VPS Düsseldorf, Supabase Frankfurt (`eu-central-1`)**, backups Amsterdam (B2 EU Central), all in the EU. IT-1 is unchanged: VPS-to-Supabase database RTT p95 strictly below 10 ms; only the location clause "VPS really in Frankfurt" is replaced | the VPS part of F3-D2 (the Supabase region is unchanged) | **approved** (Stage F3 only; final-acceptance condition met 23 Nov 2026: IT-1 PASS and zero-success check) |
 
 What the approval covers:
 * keeping the existing VPS;
@@ -2099,8 +2105,8 @@ position yet; **withdrawn**.
 | F3-D20 | Hostinger optional daily backups ($6/month) | not purchased at this stage; Diski 9's independent encrypted off-host backups remain mandatory and are the verified recovery path | $6/month option [C] | included Hostinger backup frequency/retention [open] | approved |
 | F3-D21 | No verified credit-backed VPS uptime SLA | accepted as a documented F3 residual risk; monitoring (72-hour soak, `ops status`/`ops check`, failure injection) and recovery requirements unchanged; DigitalOcean fallback if availability proves inadequate | uptime guarantee advertised at checkout [C]; percentage/compensation not provided [AI] | – | approved |
 | F3-D22 | Execution model | Claude prepares version-controlled scripts and runbooks; the owner executes them on the owner's computer or the server and returns secret-free evidence; no production credential through chat | the cloud container cannot reach the VPS | – | approved |
-| F3-D1a | VPS location (amends F3-D1) | the provisioned Hostinger KVM 2 in **Düsseldorf**, Germany; monthly; DigitalOcean FRA1 fallback unchanged (§Z) | VPS provisioned in Düsseldorf [V-owner]; Düsseldorf reported as Hostinger's only German location [V-owner] | VPS-to-Supabase RTT (IT-1) | **conditionally approved** (Stage F3; final on IT-1 PASS) |
-| F3-D2a | Region split (amends the VPS part of F3-D2) | VPS Düsseldorf, Supabase Frankfurt `eu-central-1`, backups Amsterdam; IT-1 unchanged: VPS-to-Supabase database RTT p95 strictly below 10 ms (methodology §Z.8) | all EU/Germany [V-owner] | IT-1 [T] | **conditionally approved** (Stage F3; final on IT-1 PASS) |
+| F3-D1a | VPS location (amends F3-D1) | the provisioned Hostinger KVM 2 in **Düsseldorf**, Germany; monthly; DigitalOcean FRA1 fallback unchanged (§Z) | VPS provisioned in Düsseldorf [V-owner]; Düsseldorf reported as Hostinger's only German location [V-owner] | VPS-to-Supabase RTT (IT-1) | **approved** (Stage F3; final-acceptance condition met 23 Nov 2026) |
+| F3-D2a | Region split (amends the VPS part of F3-D2) | VPS Düsseldorf, Supabase Frankfurt `eu-central-1`, backups Amsterdam; IT-1 unchanged: VPS-to-Supabase database RTT p95 strictly below 10 ms (methodology §Z.8) | all EU/Germany [V-owner] | IT-1 [T] | **approved** (Stage F3; final-acceptance condition met 23 Nov 2026) |
 
 Nothing is purchased, subscribed, provisioned or created until the owner gives the F3
 implementation authorisation (§X.5 step 0). All F3 decisions needed before purchase are

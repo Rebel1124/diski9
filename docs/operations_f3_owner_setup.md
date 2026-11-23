@@ -243,8 +243,8 @@ as possible.
    * product **KVM 2**, **1-month** term;
    * location **Germany** (confirm that hPanel shows **Frankfurt**). *Provisioned VPS:
      Düsseldorf, Hostinger's only German location as the owner reports it. Kept under
-     amendment F3-D1a/F3-D2a, **conditionally approved for Stage F3**; final acceptance
-     on IT-1 PASS (plan §Z);*
+     amendment F3-D1a/F3-D2a, approved for Stage F3; **final-acceptance condition met
+     23 Nov 2026** (IT-1 PASS and zero-success check, plan §Z);*
    * **no** daily backups add-on;
    * **no** other add-ons;
    * pay by card.
@@ -724,7 +724,7 @@ Any mismatch fails **G5**.
   Checkpoint 2.**
   * KVM 2 (2 vCPU / 8 GB / 100 GB), monthly, Ubuntu 24.04 LTS; data centre **Düsseldorf,
     Germany** as hPanel shows it. Final acceptance of the location (F3-D1a/F3-D2a) is
-    tracked under O-5 (zero-success check), not here;
+    tracked under O-5 (zero-success check), not here; it was met on 23 Nov 2026;
   * Hostinger account **two-factor authentication on**; **no add-ons purchased**;
   * console (IT-9) works; SSH key login works; host-key fingerprint recorded;
   * purchase date 22 Nov 2026 (refund day 0); first payment USD 12.64 incl. USD 1.65 tax;
@@ -746,14 +746,26 @@ Any mismatch fails **G5**.
     lockout. **Residual risk until then:** root password login is reachable on the
     public SSH port; it is mitigated only by the long random root password kept in the
     password manager. No application, data or credential is on the VPS yet.
-- [ ] O-5: day-one JSON (`diski9-f3-day1/2`): IT-1 PASS (RTT p95 < 10 ms); IT-2 PASS or the fallback path recorded; system
-  facts (2 vCPU / 8 GB / ~100 GB). *Owner-reported:*
-  * pooler IPv4 100/100, p95 5.730 ms;
-  * direct IPv6 100/100, p95 4.533 ms;
-  * IT-1 PASS and IT-2 PASS.
-
-  *Outstanding:* the full JSON, for the zero-success check of the unreported families
-  (plan §Z.8), the system facts and the listening-port baseline.
+- [x] O-5: day-one JSON (`diski9-f3-day1/2`): IT-1 PASS (RTT p95 < 10 ms); IT-2 PASS or
+  the fallback path recorded; system facts (2 vCPU / 8 GB / ~100 GB). **PASSED (23 Nov
+  2026), on the original 22 Nov 2026 JSON retrieved from the VPS by the owner.** Sanitised
+  summary only; the raw JSON is **not** committed (it contains the full direct host name
+  and project ref).
+  * **IT-1 PASS** (every resolving family ≥ 95 % success and p95 < 10 ms):
+    * session pooler IPv4: resolved, 100/100, p95 **5.730 ms**;
+    * session pooler IPv6: **not resolved** (ignored; not a zero-success failure);
+    * direct host IPv4: **not resolved** (ignored; not a zero-success failure);
+    * direct host IPv6: resolved, 100/100, p95 **4.533 ms**.
+  * **IT-2 PASS:** direct database host reachable over IPv6.
+  * **IT-9:** JSON marks it MANUAL; owner-verified PASS (hPanel browser console).
+  * **System facts:** Ubuntu 24.04.5 LTS, kernel 6.8.0-147-generic; 2 vCPU; 7.8 GiB
+    memory; 95.8 GiB disk; NTP synchronised; IPv4 and IPv6 default routes present.
+  * **Listening-port baseline (host view, not an external exposure test):** SSH TCP/22
+    on IPv4 and IPv6; local DNS resolver TCP/UDP 53 on loopback only; no application
+    listener.
+  * **Zero-success check complete:** the two unreported families did not resolve, so the
+    corrected §Z.8 rule gives the same PASS. The final-acceptance condition of
+    F3-D1a/F3-D2a is met.
 - [ ] O-6: B2 EU Central; bucket with Object Lock Governance 30 days; lifecycle rules;
   caps; **no keys created yet**.
   * **PASSED: canary verification** (2026-11-22T18:38:03Z, `--verify-canary`):

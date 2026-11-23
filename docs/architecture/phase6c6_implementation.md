@@ -1585,7 +1585,7 @@ Nothing is changed until these are approved.
 | O-2 `age` identities | **PASSED** | – (§13.8: recipients recorded; round trip with each identity; primary in the password manager; offline copy on the approved device) |
 | O-3 Supabase | **PASSED** (23 Nov 2026) | – (§13.9: spend cap, SSL enforcement, CA certificate, leaked-password protection, account MFA, project name, invoice, no key shared) |
 | O-4 Hostinger | **PASSED** (23 Nov 2026) | – (§13.10: day-25 reminder PASSED; SSH password authentication currently **enabled**, disabling it deferred to Checkpoint 2 hardening; location final acceptance tracked under O-5) |
-| O-5 day-one check | OPEN | the full JSON: zero-success check (final acceptance of F3-D1a/F3-D2a), system facts, listening-port baseline (IT-1, IT-2 and IT-9 already PASS) |
+| O-5 day-one check | **PASSED** (23 Nov 2026) | – (§13.11: IT-1, IT-2 PASS; zero-success check complete; system facts and listening-port baseline recorded; F3-D1a/F3-D2a final-acceptance condition met) |
 | O-6 Backblaze | OPEN | canary and cleanup **PASSED**; monthly spending control (S-1 to S-3); old cache deletion recommended |
 | O-7 WireGuard clients | **PASSED** | – |
 | Running cost | BLOCKED on owner decision | S-1 to S-3 (Supabase invoice verified: $25.00, tax $0.00; baseline §13.9) |
@@ -1705,3 +1705,52 @@ recorded.
   system facts; listening-port baseline).
 * O-6 / running cost: owner decisions S-1 to S-3. Deleting the old `~/.b2_account_info`
   remains recommended (not authorised by Claude).
+
+### 13.11 Checkpoint 1, O-5: day-one network verification — **PASSED** (23 Nov 2026)
+Source: the original `diski9-f3-day1/2` JSON from the VPS, dated 22 Nov 2026, retrieved by
+the owner and reviewed independently. **The raw JSON is not committed:** it contains the
+full direct host name and project ref. This is a sanitised summary; no host name, full
+project ref, public IP address or credential is recorded.
+
+| Check | Result | Criterion | Verdict |
+|---|---|---|---|
+| IT-1 session pooler, IPv4 | resolved; 100/100; p95 **5.730 ms** | ≥ 95 % success and p95 < 10 ms | PASS |
+| IT-1 session pooler, IPv6 | **not resolved** | unresolved families are ignored (§Z.8) | not applicable; not a zero-success failure |
+| IT-1 direct host, IPv4 | **not resolved** | as above | not applicable; not a zero-success failure |
+| IT-1 direct host, IPv6 | resolved; 100/100; p95 **4.533 ms** | ≥ 95 % success and p95 < 10 ms | PASS |
+| **IT-1 overall** | every resolving family 100 % successful, p95 well below 10 ms | p95 **strictly below 10 ms**, every resolving family (plan §Z.8, corrected rule) | **PASS** |
+| IT-2 IPv6 | direct database host reachable over IPv6 | working IPv6 to the direct host | **PASS** (the scheduler can use the direct endpoint; fallback not needed) |
+| IT-9 console | JSON: MANUAL | browser console works | **PASS** (owner-verified, §13.4) |
+| System facts | Ubuntu 24.04.5 LTS, kernel 6.8.0-147-generic; 2 vCPU; 7.8 GiB memory; 95.8 GiB disk; NTP synchronised; IPv4 and IPv6 default routes | 2 vCPU / 8 GB / ~100 GB | **consistent** (8 GB and ~100 GB as the OS reports them, after kernel reservation and filesystem overhead) |
+| Listening-port baseline | SSH TCP/22 on IPv4 and IPv6; local DNS resolver TCP/UDP 53 on loopback only; no application listener | record a baseline | **recorded** |
+
+**Independent evaluation:**
+* **IT-1:** the two families that resolve both have 100/100 successes and a p95 well
+  under 10 ms. The two others show `"resolved": false`, so the corrected §Z.8 rule (a
+  family that resolves but never connects fails) does not apply. Old and corrected rule
+  agree: **PASS**.
+* **G1** (runbook §2, Checkpoint 1) needs IT-1 PASS, IT-2 PASS or the fallback recorded,
+  and IT-9: all met.
+* **O-5** needs IT-1 PASS, IT-2 PASS or the fallback recorded, and the system facts: all
+  met, and the listening-port baseline is recorded. **O-5 PASSED.**
+
+**Düsseldorf location (F3-D1a/F3-D2a): final-acceptance condition met.** The owner's
+22 Nov decision (§13.3, plan §Z) made final acceptance depend on IT-1 PASS, confirmed by
+the zero-success check on the full JSON. Both are now evidenced. F3-D1a/F3-D2a are
+therefore **finally accepted for Stage F3 only**. This does not change any spending
+limit, service, TLS, private-access, backup, recovery or locking control. G3a (TLS
+`verify-full`) and G3b (hosted lock probe) remain independent hard stops in
+Checkpoint 3. The DigitalOcean FRA1 fallback stays documented but is not triggered.
+
+**Listening-port baseline: limits.**
+* It is the host's own view (listening sockets), **not** an external firewall or exposure
+  test.
+* SSH on TCP/22 is publicly listening and, per §13.10, still permits password
+  authentication. Closing public SSH, the host firewall and the WireGuard-only exposure
+  (G2) are Checkpoint 2 work, which is not authorised by this record.
+* The baseline is the reference for detecting unexpected listeners in later
+  checkpoints.
+
+**Checkpoint 1 remaining blockers (23 Nov 2026):**
+* O-6 / running cost: owner decisions S-1 to S-3 (plan §Y.6). Deleting the old
+  `~/.b2_account_info` remains recommended (not authorised by Claude).
