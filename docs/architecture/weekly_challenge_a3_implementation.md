@@ -26,14 +26,16 @@ own authorisation. Evidence:
 | 2 | Register `a3-432-v1` (inactive) | done (`30f4f28`, CI run 147 passed) |
 | 3 | Guidance, warning and educational popovers | done (`fa1307a`, CI run 148 passed) |
 | 3.1 | Minor UI refinements (target size, legend wrapping, Reference Odds) | done (`66c37f6`, CI run 149 passed) |
-| 4A | Schedule-aware application (no migrations) | conditionally accepted (`38cb0e1`); full CI with 4C |
-| 4B | Database schedule safeguards (`app_0008`) | conditionally accepted (`a620a95`, `dfd81a6`); full CI with 4C |
-| 4C | A3 active from day one (`app_0009`, default switch); simplified, Option D | engineering complete, awaiting independent review and owner acceptance (section below) |
-| 5 | Final verification | not started |
+| 4A | Schedule-aware application (no migrations) | accepted by the owner (`38cb0e1`); full CI run 150 passed |
+| 4B | Database schedule safeguards (`app_0008`) | accepted by the owner (`a620a95`, `dfd81a6`); full CI run 150 passed |
+| 4C | A3 active from day one (`app_0009`, default switch); simplified, Option D | independently reviewed and accepted by the owner (`6d11978`, CI run 150: 2,244 passed, 0 failed, 0 skipped) |
+| 5 | Final verification and closure | engineering complete; awaiting independent review and final owner acceptance (section *Checkpoint 5*) |
 
 Status vocabulary: *engineering complete* (implemented and tested) is not *independently
 accepted*. Neither means any protected or production database has been migrated:
-nothing has been deployed.
+nothing has been deployed. **Final architecture: Option D** (`app_0009`, A3 active from
+the migration instant); the original future-dated activation proposal is superseded.
+Scenario A3 is engineering complete, awaiting final owner acceptance.
 
 ## Checkpoint 1: version-aware application
 
@@ -374,7 +376,7 @@ a note explains it:
     paths);
   * the resolver contains no latest-version fallback.
 
-### Verification (local; full CI deferred to Checkpoint 4C)
+### Verification (local; full CI later passed in run 150)
 
 * `tests/backend/test_backend_schedule_resolution.py` (PostgreSQL, synthetic codes),
   covering:
@@ -403,7 +405,7 @@ a note explains it:
     Checkpoint 4A (1,473,435 bytes; sha256 prefix `88bcd717deca6c1c`);
   * both fingerprints are unchanged.
 
-### Limitations carried to Checkpoint 4B
+### Limitations carried to Checkpoint 4B (historical; resolved by `app_0008`)
 
 * Overlaps and gaps are detected only when a row is resolved; the database does not
   prevent them yet.
@@ -414,7 +416,7 @@ a note explains it:
 * No coordination between round creation and a concurrent schedule change beyond
   the atomicity of each transaction (see the 4B plan below).
 
-## Checkpoint 4B preparation (planning evidence only; nothing implemented)
+## Checkpoint 4B preparation (historical planning record; implemented in Checkpoint 4B)
 
 1. **Historical consistency.**
    * Fresh databases: `weekend` v1 `[2026-11-19T00:00Z, t4)` and v2 `[t4, ∞)`, where t4
@@ -772,8 +774,14 @@ Both configuration identifiers and fingerprints are unchanged: `broad60-432-v1`
 
 ### Runbook (any existing environment; separately authorised)
 
-1. Stop application writers: disable the scheduler timer, let a running tick finish,
-   stop the web service.
+1. Stop **every** application writer and confirm it:
+   * disable the scheduler timer and let a running tick finish;
+   * stop the web service;
+   * suspend manual administrative operations for the window: no `round create /
+     publish / lock / dev-open`, `dev-championship`, results, settlement, correction,
+     `competition` or `account` commands, and no manual `jobs tick`;
+   * verify with `pg_stat_activity` that no application session remains, only the
+     migration owner's, and that no long transaction is open.
 2. Take the required backup and run the preflight checks, including the existing
    `app_0008` requirements: `btree_gist` available, READ COMMITTED, no long
    transactions, the read-only history audit (section *Protected-database audit*).
@@ -824,7 +832,10 @@ and the controlled transition from private Beta to public Official competition. 
 deployment and private-Beta exit requirement
 ([`../product/future_enhancements.md`](../product/future_enhancements.md)).
 
-### Verification (local, Claude-reported; GitHub CI evidence in the completion report)
+### Verification
+
+GitHub CI run 150 (`6d11978`, independently verified by ChatGPT): 2,244 passed, 0
+failed, 0 skipped (real Supabase Auth in CI). Local evidence (Claude-reported):
 
 Disposable PostgreSQL 16 cluster created for this checkpoint (`diski9_a3d_test`); no
 protected database was accessed.
@@ -842,6 +853,98 @@ Test updates keep their intent and weaken no assertion. Assertions of the old de
 of `weekend` being broad60 now assert the approved A3 state. The confirmation test gains
 a v1 path, which is now the one that distinguishes snapshot from default. One draft test
 uses seed 114, because under A3 a synthetic round rarely has an outcome outside every band.
+
+## Checkpoint 5: final verification and closure
+
+Owner acceptance of Checkpoints 4A, 4B and 4C (24 Nov 2026) after ChatGPT's independent
+review of `6d11978` and CI run 150. Checkpoint 5 verifies Scenario A3 end to end on
+disposable databases only. Observed evidence below is Claude-reported unless marked
+otherwise; no protected database was accessed.
+
+### Configuration (observed)
+
+* `a3-432-v1`: Foundation `[0.60, 0.90]`, Balanced `[0.40, 0.60)`, Challenger
+  `[0.10, 0.40)`; 4 / 3 / 2 selections on nine distinct fixtures; classification source
+  `market` (margin-adjusted); checked at the exact boundaries and adjacent doubles
+  (0.0999… none, 0.10 C, 0.3999… C, 0.40 B, 0.5999… B, 0.60 A, 0.90 A, 0.9000…1 none).
+* Field-by-field against `broad60-432-v1`: only `version` and the Foundation and
+  Challenger bands differ. Identical: credits 40 / 30 / 20 / 10 (100 total), nine
+  selections, recovery target 100.00, supported markets (1X2, BTTS, OU25), odds
+  requirements (3 bookmaker groups, 24 h), opening rules (15 fixtures, 3 leagues).
+  Scoring (`points-150-75-v2`), settlement (`settle/v1`) and the Goal Model are untouched.
+* Fingerprints: `broad60-432-v1`
+  `b8cb7c0372e6aac15b1638e100be35955dacfd3f11c1f3654ad52c9263cbba94`; `a3-432-v1`
+  `91dba48a002a4fed3dc340764ef1717228f7dea61401f29621e799de401b094e`.
+
+### End-to-end lifecycle (observed)
+
+* **Full A3 championship:** the real `ten-round-complete` development preset (the same
+  run as `test_complete_ten_round_championship`) on a fresh database migrated to
+  `app_0009`. Result: 10 rounds bound to `weekend` v3 and published as `a3-432-v1`, all
+  `final`; 80 entries with 80 `a3-432-v1` submissions; 80 entry settlements; 10 score
+  sets; 80 round scores; 80 standing rows; championship completed with champions. 24
+  selected Challenger outcomes lie between 10% and 20%, which only A3 allows. Every
+  selection's frozen market probability lies inside its A3 band.
+* **Existing tests** (234 passed): migration and A3 activation, the development
+  championship presets, F2 integration (stream isolation and privacy, Beta and
+  development independent), configuration binding (v1 and A3 coexistence), schedule
+  resolution (no fallback for unregistered configurations, missing schedules or an
+  unreachable database), entries, preparation, settlement, guidance and the
+  configuration guard.
+* **Historical broad60** rounds and drafts keep their binding and publish as broad60
+  after `app_0009` (`test_backend_a3_active.py`); results views use each entry's
+  stored version (Checkpoint 1).
+
+### Historical regressions (observed)
+
+| Regression | Result | Size | SHA-256 |
+|---|---|---|---|
+| v1 settlement (`tools/a3_v1_settlement_regression.py` vs the committed fixture, unchanged since `30f4f28`) | byte-identical | 116,004 bytes | `859266869c6599e92dfc99e6739aa0dc44f37bbcdc6d8753b389f9ee361bc06d` |
+| Phase 6C.3 quantitative (`tools/phase6c3_quant_regression.py`, regenerated at the approved baseline `66c37f6` in a worktree and at HEAD) | byte-identical | 1,473,435 bytes | `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4` |
+
+### User interface (observed)
+
+* Browser and UI tests (152 passed): desktop mouse, tablet keyboard and phone touch
+  journeys, educational popovers, guidance and the high-risk underdog warning; 39
+  screenshots regenerated with the existing tooling (`DISKI9_SHOTS`) and reviewed, not
+  committed (they match the Checkpoint 3 and 3.1 sets).
+* Band labels come from each round's own configuration: A3 shows "60%–90%", "40% to
+  under 60%", "10% to under 40%" (eligible "10%–90%"); a broad60 round keeps "60%–95%"
+  and "20% to under 40%". The no-database rules table is A3; database-backed rules and
+  the demonstration round follow the schedule (A3 since `app_0009`).
+* Language: the Weekly Challenge speaks of virtual credits ("100 virtual credits with no
+  cash value"). "Stake" appears only as an internal name. The pre-A3 Match Lab and
+  methodology text mentions the betting market and EV "per bet", each time with a
+  disclaimer ("not betting advice", no guarantee of profit); nothing presents
+  real-money wagering. Unchanged (no wording redesign in scope).
+
+### Test runs (observed)
+
+* Full local suite (`pytest -q -p no:cacheprovider -rs`, PostgreSQL 16 disposable
+  database): 2,187 passed, 0 failed, 57 skipped (all need a real Supabase Auth server),
+  32 min 40 s.
+* GitHub CI on the Checkpoint 5 commit: recorded in the completion report.
+
+### Observations (not defects; no change made)
+
+* Two low-level test fixtures (`pg_helpers.make_round`, `settle_helpers`) insert rounds
+  with SQL that store `broad60-432-v1` while binding to the current `weekend` row (v3
+  since `app_0009`). Publication through the services refuses that combination, so it
+  cannot happen in production. The tests concerned exercise configuration-independent
+  behaviour (settlement under the round's own stored configuration). A later tidy-up
+  could make those fixtures schedule-aware. No database constraint ties a round's
+  configuration to its schedule row's; the services enforce it.
+
+### Remaining operational requirements and deferred scope
+
+* Migration runbook above (stop every writer, back up and preflight, apply authorised
+  migrations, verify revision, schedule and readiness, restart). `app_0008` needs
+  `btree_gist` and may refuse inconsistent history on a long-lived database (owner
+  decision). Any protected or production execution needs separate owner approval.
+* Deferred: startup build identity (reconsider in Stage F3); Official championship
+  scheduling (required Phase 10 release dependency); future educational enhancements;
+  post-launch Personal Performance Analytics; the intermittent F2 backup/restore timing
+  issue (Stage F3 Checkpoint 5).
 
 ## Future educational opportunities (documented, not implemented)
 
@@ -862,7 +965,13 @@ Priority order is the owner's interest first.
 
 Each would reuse `education.GLOSSARY` and `term()` with the same one-per-view rule.
 
-## Requirements recorded for later checkpoints (not implemented)
+## Requirements recorded during the checkpoints (historical record)
+
+Kept as the decision record. Resolution: items 1–4 and 6 are implemented (Checkpoints
+1–4C); item 1's "approved timestamp, not `now()`" was superseded by Option D; of item 5,
+the `dev_championship` selection was fixed in 4A, schedule validity is enforced by
+`app_0008`, and the F2 backup/restore timing issue remains with Stage F3 Checkpoint 5.
+
 
 1. **Activation boundary (Checkpoint 4):**
    * schedule validity and activation timestamps use explicit UTC semantics
@@ -905,7 +1014,7 @@ Each would reuse `education.GLOSSARY` and `term()` with the same one-per-view ru
    under the round's configuration; never by fixture-level presence. Tests include a
    fixture with an in-band outcome that is not selected.
 
-## Deferred tests (need activation or later checkpoints)
+## Tests deferred during the checkpoints (all now done)
 
 * Done in Checkpoint 2: A3 boundaries, fingerprint, real pool, historical v1
   regression, coexistence.
