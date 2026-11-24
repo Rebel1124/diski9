@@ -13,7 +13,9 @@ The definitions describe the calculations in ``diski9.odds.value`` and
 ``diski9.odds.implied`` exactly (tests/test_a3_guidance.py checks the worked
 examples): market probability = (1/odds) / sum(1/odds) over the complete market;
 edge = 100 x (estimated probability - market probability) in percentage points;
-EV = estimated probability x consensus reference odds - 1, per unit staked. The
+EV = estimated probability x consensus reference odds - 1, per unit staked; reference
+odds = the median price across qualifying independent bookmaker groups
+(``diski9.odds.consensus``). The
 estimated probability is Diski 9's (Goal Model 1.0) or, in the Match Lab, the
 participant's adjusted view.
 """
@@ -58,6 +60,18 @@ GLOSSARY: dict[str, dict[str, str]] = {
         "(with the margin). A theoretical average return per unit staked, assuming the "
         "probability is right.",
     },
+    # diski9.odds.consensus: one source per qualifying independent bookmaker group (fresh,
+    # eligible, complete market), median price rounded half-up to two decimals.
+    "reference_odds": {
+        "title": "Reference Odds",
+        "short": "Decimal odds derived from the median odds across qualifying independent "
+        "bookmaker groups. These are reference odds used for calculations and may differ "
+        "from the odds offered by an individual bookmaker.",
+        "long": "Odds are Diski 9 consensus reference odds: for each outcome, the median price "
+        "across independent bookmakers that quote the whole market. They are not an offer "
+        "from any single bookmaker, so EV is a reference figure; individual bookmakers' "
+        "prices (range shown) differ.",
+    },
 }
 
 
@@ -89,13 +103,17 @@ def explanation(*keys: str) -> list:
     return out
 
 
-def term(label: Any, *keys: str, extra_class: str = "") -> html.Span:
-    """A term with one educational popover (one or more glossary entries)."""
+def term(label: Any, *keys: str, extra_class: str = "", suffix: str = "") -> html.Span:
+    """A term with one educational popover (one or more glossary entries).
+
+    ``suffix`` (punctuation such as ":") is kept on the same line as the label and
+    button: the group never wraps internally, while the surrounding text still wraps."""
     titles = " and ".join(GLOSSARY[k]["title"] for k in keys)
-    return html.Span(
+    span = html.Span(
         [label, info(explanation(*keys), f"What is {titles}?", "term-info")],
         className=f"term {extra_class}".strip(),
     )
+    return html.Span([span, suffix], className="term-keep") if suffix else span
 
 
 # --------------------------------------------------------------- general guidance

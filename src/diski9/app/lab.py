@@ -1149,11 +1149,7 @@ MODEL_PROB_HELP = education.long("model_probability")
 MARKET_PROB_HELP = education.long("market_probability")
 EDGE_HELP = education.long("edge")
 EV_HELP = education.long("ev")
-ODDS_SOURCE = (
-    "Odds are Diski 9 consensus reference odds: for each outcome, the median price across "
-    "independent bookmakers that quote the whole market. They are not an offer from any single "
-    "bookmaker, so EV is a reference figure; individual bookmakers' prices (range shown) differ."
-)
+ODDS_SOURCE = education.long("reference_odds")
 EDGE_VS_EV = (
     "A larger edge does not always mean a larger EV: EV also depends on the odds, so a longer-"
     "priced outcome can have a smaller edge but a higher EV. That is why the Match Lab "
@@ -1269,7 +1265,7 @@ def model_comparison(market: str, ov: OddsView | None, base: dict) -> html.Div:
             html.Th(education.term("Model", "model_probability"), className="num"),
             html.Th(education.term("Market", "market_probability"), className="num"),
             html.Th(education.term("Edge", "edge"), className="num"),
-            html.Th("Odds", className="num", title=ODDS_SOURCE),
+            html.Th(education.term("Odds", "reference_odds"), className="num"),
             html.Th(education.term("EV", "ev"), className="num"),
         ]
     )

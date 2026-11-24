@@ -492,10 +492,10 @@ def builder(service, snap, sels, avail, prefs, local, personal=None, state=None)
                             filters,
                             html.P(
                                 [
-                                    education.term("Mkt", "market_probability"),
-                                    ": the market's chance, which sets the bucket. ",
-                                    education.term("D9", "model_probability"),
-                                    ": Diski 9's model. Odds: the frozen reference odds that "
+                                    education.term("Mkt", "market_probability", suffix=":"),
+                                    " the market's chance, which sets the bucket. ",
+                                    education.term("D9", "model_probability", suffix=":"),
+                                    " Diski 9's model. Odds: the frozen reference odds that "
                                     "set your payout.",
                                 ],
                                 className="muted small ch-legend",

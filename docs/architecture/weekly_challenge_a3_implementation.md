@@ -21,7 +21,8 @@ execution**. Evidence:
 | R | Research preservation | done (`b01e057`, CI run 145 passed) |
 | 1 | Version-aware application; `broad60-432-v1` stays the only configuration | done (`1767c8d`, CI run 146 passed) |
 | 2 | Register `a3-432-v1` (inactive) | done (`30f4f28`, CI run 147 passed) |
-| 3 | Guidance, warning and educational popovers | this record (section below) |
+| 3 | Guidance, warning and educational popovers | done (`fa1307a`, CI run 148 passed) |
+| 3.1 | Minor UI refinements (target size, legend wrapping, Reference Odds) | this record (section below) |
 | 4 | Activation (`app_0008`, default switch, docs) | not started; migration not authorised |
 | 5 | Final verification | not started |
 
@@ -205,7 +206,7 @@ eligibility stay separate.
 | Hover dependence | none: native `<details>`/`<summary>` opens with click, Enter/Space and tap |
 | Name | each button has an aria-label ("What is Market Probability?") |
 | Focus | visible `:focus-visible` outline; Escape closes and returns focus; a click outside closes |
-| Touch target | 22 px button with padding, in headings and legends only |
+| Touch target | 24 × 24 CSS px since Checkpoint 3.1 (was 22 × 22), in headings and legends only |
 | Narrow tables | on phones (≤ 480 px) a heading's button sits under its label, so the Match Lab model-versus-market table keeps every column visible without scrolling. The first full run caught a 22 px overflow here (existing `test_browser_value_rankings_and_lab`); fixed in CSS, test unchanged |
 | Clipping | `.term-info` popovers use fixed positioning, clamped 12 px from the screen edges, width `min(320 px, screen − 24 px)`, opening above when there is no room below. They escape the `.scroll-x` table container |
 | Colour | the warning uses the existing warn colour plus an icon and text, never colour alone; the card tag icon is `aria-hidden` and its meaning is in the card title |
@@ -213,6 +214,58 @@ eligibility stay separate.
 
 Known minor point: on narrow phones the builder legend can wrap between a term's button and
 the colon that follows it. It is readable and unchanged in meaning.
+
+## Checkpoint 3.1: minor UI refinements
+
+Presentation only. One educational concept is added (Reference Odds); everything else is
+the same as Checkpoint 3.
+
+| Change | Detail |
+|---|---|
+| Target size | `details.term-info > summary` is 24 × 24 CSS px (was 22 × 22). The visible 22 px circle is unchanged (drawn by `::before`), so the look, hover and open colours stay the same |
+| Legend grouping | `term(..., suffix=":")` wraps the label, button and colon in `.term-keep` (`white-space: nowrap`), used for `Mkt` and `D9`. The rest of the legend wraps normally |
+| Reference Odds | glossary entry `reference_odds` with the approved definition; the longer explanation is the existing `lab.ODDS_SOURCE` text, which now comes from the glossary. The Match Lab "Odds" heading uses `term()` like Model, Market, Edge and EV; Outcome has none |
+
+**Definition check.** `diski9.odds.consensus`:
+* counts each qualifying independent bookmaker group once; qualifying means fresh,
+  eligible, non-exchange and complete market, and a group is represented by its most
+  recently observed bookmaker;
+* takes the median of those prices, rounded half-up to two decimals;
+* documents the result as reference values, not offers.
+
+This matches "decimal odds derived from the median odds across qualifying independent
+bookmaker groups". Two details the short definition leaves to the existing longer
+explanation and table notes:
+* the Match Lab can show a stale consensus, labelled stale, computed by the same rules at
+  an earlier retrieval;
+* displaying odds needs one source, while Challenge eligibility needs at least three.
+
+**Measured (Playwright, all three viewports):**
+
+| | Before | After |
+|---|---|---|
+| Rendered target, all 10 buttons (legend 2, review 2, Screener 1, Match Lab 5) | 22 × 22 | 24 × 24 |
+| Match Lab table overflow on phone (`scrollWidth − clientWidth`) | 0 | 0 |
+| Narrowest gap between adjacent buttons on one line (phone Match Lab) | 28.8 px (4 buttons) | 16 px (5 buttons) |
+| Legend groups split across lines, 320–480 px sweep (8 widths) | no grouping existed; the D9 colon wrapped onto the next line at 390 px (Checkpoint 3 phone screenshot) | 0 at every width |
+| Match Lab heading buttons: vertical spread / offset from the right edge | — | 0 px / 0 px |
+
+`tests/test_a3_guidance_browser.py` now asserts:
+* every target is at least 24 × 24 and no two overlap;
+* the Match Lab table fits on every viewport, with five aligned heading buttons;
+* the legend groups never split and the legend never overflows at eight widths from 320
+  to 480 px, while still wrapping on phones.
+
+`tests/test_a3_guidance.py` checks:
+* the approved Reference Odds wording;
+* that the glossary holds only the five authorised entries;
+* the `suffix` grouping;
+* the five Match Lab terms.
+
+Test robustness: one full local run had a single intermittent failure of the Weekly Challenge browser test (2,126 passed; the error text was not captured). It did not reproduce in isolation, under full CPU load or in a second full run (2,127 passed). Fixed pauses (150–350 ms) before reading popover and selection state were replaced by waits for the expected state (`until()`). The assertions are unchanged.
+
+Screenshots: `docs/screenshots/a3_cp3_1/` (builder legend and Match Lab table on desktop,
+tablet and phone, with popovers closed and open, including Reference Odds).
 
 ## Future educational opportunities (documented, not implemented)
 

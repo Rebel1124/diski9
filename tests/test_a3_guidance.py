@@ -70,6 +70,9 @@ APPROVED = {
     "ev": "The estimated average net return per unit staked over many similar selections, using "
     "the estimated probability and Diski 9’s reference odds. Positive estimated EV does not "
     "guarantee a profit.",
+    "reference_odds": "Decimal odds derived from the median odds across qualifying independent "
+    "bookmaker groups. These are reference odds used for calculations and may differ from the "
+    "odds offered by an individual bookmaker.",
 }
 
 
@@ -77,6 +80,8 @@ def test_glossary_holds_the_approved_definitions():
     for key, wording in APPROVED.items():
         assert education.short(key) == wording
     assert education.GLOSSARY["model_probability"]["title"] == "Goal Model Probability (D9)"
+    assert education.GLOSSARY["reference_odds"]["title"] == "Reference Odds"
+    assert set(education.GLOSSARY) == set(APPROVED)  # Checkpoint 3.1 adds only Reference Odds
 
 
 def test_approved_guidance_and_warning_wording():
@@ -99,8 +104,9 @@ def test_glossary_is_the_single_source_for_longer_explanations():
     assert education.long("market_probability") == lab.MARKET_PROB_HELP
     assert education.long("edge") == lab.EDGE_HELP
     assert education.long("ev") == lab.EV_HELP
+    assert education.long("reference_odds") == lab.ODDS_SOURCE
     glossary_list = text(lab.value_glossary())
-    for k in ("model_probability", "market_probability", "edge", "ev"):
+    for k in ("model_probability", "market_probability", "edge", "ev", "reference_odds"):
         assert education.long(k) in glossary_list
     assert views.info is education.info  # the existing popover, re-exported
 
@@ -135,6 +141,16 @@ def test_term_renders_one_accessible_popover():
     assert education.short("edge") in text(det[0])
     both = education.term("Rank by", "edge", "ev")
     assert education.short("edge") in text(both) and education.short("ev") in text(both)
+
+
+def test_term_suffix_keeps_label_button_and_punctuation_together():
+    t = education.term("D9", "model_probability", suffix=":")
+    assert t.className == "term-keep"  # white-space: nowrap (style.css)
+    assert t.children[1] == ":" and t.children[0].className == "term"
+    assert classes(t, "term-info") and education.term("D9", "model_probability").className == "term"
+    css = (Path(education.__file__).parent / "assets" / "style.css").read_text()
+    assert ".term-keep { white-space: nowrap; }" in css
+    assert "details.term-info > summary { position: relative; width: 24px; height: 24px;" in css
 
 
 # =============================================================== underdog warning
@@ -278,6 +294,8 @@ def test_builder_legend_terms_and_guidance_once(snaps):
     assert len(classes(b, "model-guidance")) == 1
     legend = classes(b, "ch-legend")[0]
     assert len(classes(legend, "term-info")) == 2  # Mkt and D9, once each
+    keep = classes(legend, "term-keep")  # label, button and colon stay together
+    assert [k.children[1] for k in keep] == [":", ":"]
     assert education.GUIDANCE_P2 in text(classes(b, "model-guidance")[0])
 
 
@@ -287,10 +305,13 @@ def test_review_headers_have_one_term_each(snaps):
     assert len(classes(head, "term-info")) == 2  # Market and Diski 9
 
 
-def test_match_lab_comparison_has_four_terms_and_lab_guidance():
+def test_match_lab_comparison_has_five_terms_and_lab_guidance():
     # the rendered table is checked in tests/test_a3_guidance_browser.py
     src = Path(lab.__file__).read_text()
-    assert src.count('education.term("Model", "model_probability")') == 1
+    for label, key in (("Model", "model_probability"), ("Market", "market_probability"),
+                       ("Edge", "edge"), ("Odds", "reference_odds"), ("EV", "ev")):  # fmt: skip
+        assert src.count(f'education.term("{label}", "{key}")') == 1, label
+    assert 'html.Th("Outcome")' in src  # no popover on Outcome
     assert src.count('education.model_guidance("lab")') == 1
     g = education.model_guidance("lab")
     assert education.GUIDANCE_P2_LAB in text(g) and education.GUIDANCE_P2 not in text(g)
