@@ -528,8 +528,9 @@ def cmd_round(args) -> int:
         football = make_engine(args.database_url)
         with transaction(engine) as conn:
             now = db_now(conn)
+            config = svc.round_config(conn, r.id)  # the round's own schedule, never the default
         return build_live_snapshot(
-            football, now, r.window_start_at, r.window_end_at, r.code, LEAGUE_SHORT
+            football, now, r.window_start_at, r.window_end_at, r.code, LEAGUE_SHORT, config
         )
 
     def call(engine) -> int:
@@ -629,6 +630,7 @@ def cmd_round(args) -> int:
             p = _principal(engine, args.operator)
             with transaction(engine) as conn:
                 now = db_now(conn)
+                config = svc.schedule_config(conn)  # what create_round below binds the round to
             first = now + timedelta(minutes=args.deadline_minutes + 15)
             code = args.code or f"dev-{now:%Y%m%d-%H%M%S}"
             if args.mirror_upcoming:
@@ -643,6 +645,7 @@ def cmd_round(args) -> int:
                     fixtures=args.fixtures,
                     seed=args.seed,
                     league_names=LEAGUE_SHORT,
+                    config=config,
                 )
             else:
                 snap = dev_snapshot(
@@ -652,6 +655,7 @@ def cmd_round(args) -> int:
                     seed=args.seed,
                     spacing=timedelta(minutes=args.spacing_minutes),
                     fixtures=args.fixtures or 20,
+                    config=config,
                 )
             v = svc.create_round(
                 engine,

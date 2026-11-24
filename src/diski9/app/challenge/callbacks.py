@@ -16,7 +16,7 @@ from dash import ALL, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 
 from diski9.challenge import analysis as pa
-from diski9.challenge.config import DEFAULT_CONFIG
+from diski9.challenge.config import ConfigError
 from diski9.challenge.structured import SelectionBlock, selection_blocks, validate_portfolio
 
 from . import adopt_ui, charts, integration, lab_persist, pages, persist
@@ -134,7 +134,7 @@ def _apply(service, state, action, arg, personal):
         if o is None:
             return s, _flash("That outcome is not on this round's sheet.", "warn")
         chosen = service.outcomes_for(snap, s["selections"])
-        block = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG).get(o.key)
+        block = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, snap.config).get(o.key)
         if block is None:
             s["selections"] = [*s["selections"], arg]
             s["meta"] = {**(s.get("meta") or {}), arg: _meta(o) | {"label": _label(snap, o)}}
@@ -142,7 +142,7 @@ def _apply(service, state, action, arg, personal):
         return s, _flash(
             {
                 SelectionBlock.INELIGIBLE: "That outcome isn't eligible: its market chance is "
-                "outside 20%–95% or its odds don't qualify.",
+                f"outside {c.eligible_range_text(snap.config)} or its odds don't qualify.",
                 SelectionBlock.FIXTURE_TAKEN: "You already have a prediction from this match. "
                 "Remove it first to choose a different outcome.",
                 SelectionBlock.BUCKET_FULL: "That bucket is full. Remove one of its predictions "
@@ -169,7 +169,7 @@ def replace_selection(service, s, snap, arg, confirm: bool):
         return apply_action(service, s, "pick", arg)
     rest = [k for k in s["selections"] if k != old]
     block = selection_blocks(
-        service.outcomes_for(snap, rest), snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG
+        service.outcomes_for(snap, rest), snap.outcomes, snap.snapshot_at, snap.config
     ).get(new.key)
     if block is not None:
         return s, _flash(
@@ -249,11 +249,13 @@ def submit(service, s, snap, avail, personal=None):
         return s, _flash("Submissions aren't open for this round.", "warn")
     if s.get("fp") != snap.fingerprint:
         return s, _flash("The round snapshot changed. Please review your portfolio again.", "warn")
-    if snap.config_version != DEFAULT_CONFIG.version:
-        return s, _flash("The round uses a different configuration.", "warn")
+    try:
+        cfg = snap.config  # the round's own version; an unknown version is refused
+    except ConfigError:
+        return s, _flash("The round uses a configuration this app does not support.", "warn")
     chosen = service.outcomes_for(snap, s["selections"])
     try:
-        port = validate_portfolio(chosen, snap.snapshot_at, DEFAULT_CONFIG, pool=snap.outcomes)
+        port = validate_portfolio(chosen, snap.snapshot_at, cfg, pool=snap.outcomes)
     except ValueError as e:
         return s, _flash(f"Your portfolio is not valid: {e}", "warn")
     personal = personal or {}
@@ -279,7 +281,7 @@ def submit(service, s, snap, avail, personal=None):
                 "personal": personal.get(o.key),
                 "personal_adjusted": o.key in personal,
             }
-            for code, b in zip(DEFAULT_CONFIG.bucket_codes, port.buckets, strict=True)
+            for code, b in zip(cfg.bucket_codes, port.buckets, strict=True)
             for o in b
         ],
         "estimates": {

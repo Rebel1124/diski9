@@ -31,6 +31,7 @@ from uuid import UUID
 
 from sqlalchemy import Connection, Engine, func, insert, select, text, update
 
+from ...challenge.config import get_config
 from ...challenge.settle import (
     POLICY_VERSION,
     Alert,
@@ -328,8 +329,9 @@ def compute(
         for v in res.verdicts
     }
     entry_results = {}
+    config = get_config(r.config_version)  # the round's own version; unknown versions fail
     for entry_id, (sub, legs, states) in locked.items():
-        es = settle_entry(legs, verdicts)
+        es = settle_entry(legs, verdicts, config)
         _check_against_states(entry_id, es, states)
         entry_results[entry_id] = (sub, es)
     validity = evaluate_round(

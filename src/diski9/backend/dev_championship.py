@@ -652,9 +652,10 @@ def _run_round(engine, session, plan, run_id, k, rp, step, log, stop) -> None:
                 buffer = conn.execute(text(
                     "SELECT deadline_buffer_minutes FROM app.round_schedules "
                     "ORDER BY id LIMIT 1")).scalar_one()  # fmt: skip
+                config = rounds_svc.schedule_config(conn)  # what create_round binds to
             first = now + timedelta(seconds=plan.deadline_seconds, minutes=buffer)
             snap = dev_snapshot(s.code, now, first, seed=plan.seed + k, fixtures=plan.fixtures,
-                                spacing=timedelta(minutes=1))  # fmt: skip
+                                spacing=timedelta(minutes=1), config=config)  # fmt: skip
             v = rounds_svc.create_round(engine, p, code=s.code, window_start=snap.window[0],
                                         window_end=snap.window[1], development=True)  # fmt: skip
             rounds_svc.publish_round(engine, p, v.id, snap, source="development")

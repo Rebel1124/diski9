@@ -101,7 +101,8 @@ def test_offline_full_week_rehearsal(target, football, monkeypatch, capsys, tmp_
         # 2. publication by an authenticated human operator, never by SYSTEM
         with transaction(eng) as conn:
             now = db_now(conn)
-        snap = builder()(week.code, week.window_start, week.window_end, now)
+            config = svc.round_config(conn, draft.id)  # the draft's own configuration
+        snap = builder()(week.code, week.window_start, week.window_end, now, config)
         with pytest.raises(AuthorizationError):
             svc.publish_round(eng, SYSTEM, draft.id, snap, source="football-db",
                               expected_fingerprint=snap.fingerprint)  # fmt: skip

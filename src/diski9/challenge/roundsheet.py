@@ -33,7 +33,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 
-from diski9.challenge.config import DEFAULT_CONFIG, ChallengeConfig
+from diski9.challenge.config import DEFAULT_CONFIG, ChallengeConfig, get_config
 from diski9.challenge.structured import (
     ChallengeOutcome,
     RoundOpeningReport,
@@ -102,6 +102,13 @@ class RoundSnapshot:
     def is_demo(self) -> bool:
         return self.kind is SnapshotKind.DEMO
 
+    @property
+    def config(self) -> ChallengeConfig:
+        """The registered configuration this snapshot was frozen under. An unknown
+        version raises :class:`~diski9.challenge.config.ConfigError`; it never falls
+        back to the default configuration."""
+        return get_config(self.config_version)
+
     def fixture(self, fixture_id) -> RoundFixture:
         return self._fixtures()[fixture_id]
 
@@ -123,8 +130,9 @@ class RoundSnapshot:
         k = self.earliest_kickoff
         return k - DEADLINE_BUFFER if k else None
 
-    def opening_report(self, config: ChallengeConfig = DEFAULT_CONFIG) -> RoundOpeningReport:
-        return round_opening_report(self.outcomes, self.snapshot_at, config)
+    def opening_report(self, config: ChallengeConfig | None = None) -> RoundOpeningReport:
+        """D-28 opening checks under ``config``, by default the snapshot's own."""
+        return round_opening_report(self.outcomes, self.snapshot_at, config or self.config)
 
 
 def _aware(dt: datetime | None) -> datetime | None:
@@ -335,10 +343,11 @@ _STALE = {"stale_observation", "stale_provider_update"}
 
 
 def assess_round(
-    snapshot: RoundSnapshot | None, now: datetime, config: ChallengeConfig = DEFAULT_CONFIG
+    snapshot: RoundSnapshot | None, now: datetime, config: ChallengeConfig | None = None
 ) -> RoundAvailability:
     """The round's status for display. Opening checks use the snapshot time; only
-    the live deadline compares with ``now``."""
+    the live deadline compares with ``now``. ``config`` defaults to the snapshot's own
+    configuration (never the global default)."""
     if snapshot is None or (
         not snapshot.outcomes and not (snapshot.diagnostics or {}).get("fixtures_in_window")
     ):
@@ -348,6 +357,7 @@ def assess_round(
             "There are no supported fixtures in the next round window.",
             None,
         )
+    config = config or snapshot.config
     report = snapshot.opening_report(config)
     if not report.eligible_outcomes:
         exclusions = (snapshot.diagnostics or {}).get("exclusions", {})

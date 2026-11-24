@@ -28,7 +28,6 @@ portfolio. See ``docs/weekly_challenge_ui.md``.)
 
 from __future__ import annotations
 
-from diski9.challenge.config import DEFAULT_CONFIG
 from diski9.challenge.structured import selection_blocks
 
 from .service import parse_key
@@ -94,7 +93,7 @@ def migrate_draft(service, s, snap) -> tuple[list[str], list[dict]]:
             )
             continue
         blocks = selection_blocks(
-            service.outcomes_for(snap, kept), snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG
+            service.outcomes_for(snap, kept), snap.outcomes, snap.snapshot_at, snap.config
         )
         if blocks.get(o.key) is not None:
             notes.append({"label": label, "reason": "no longer eligible or no longer fits"})

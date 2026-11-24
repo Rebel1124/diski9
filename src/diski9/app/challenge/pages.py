@@ -8,7 +8,12 @@ from dash import dcc, html
 
 from diski9.challenge import analysis as pa
 from diski9.challenge import demo
-from diski9.challenge.config import DEFAULT_CONFIG
+from diski9.challenge.config import (
+    DEFAULT_CONFIG,
+    REQUIRED_SELECTIONS,
+    ChallengeConfig,
+    get_config,
+)
 from diski9.challenge.roundsheet import RoundStatus
 from diski9.challenge.scoring import POINTS_150_75_V2
 from diski9.challenge.structured import (
@@ -24,7 +29,19 @@ from . import components as c
 from . import state as st
 from .service import ChallengeService, key_str
 
-CFG = DEFAULT_CONFIG
+
+def rules_config(snap) -> ChallengeConfig:
+    """The configuration that explanatory text describes: the round's own, or, when
+    there is no round at all, the active default (what a newly created round uses)."""
+    return snap.config if snap is not None else DEFAULT_CONFIG
+
+
+def entry_config(rec: dict) -> ChallengeConfig:
+    """The configuration a stored entry was confirmed under. A missing, unknown or
+    unregistered version raises; it never falls back to the default."""
+    return get_config(rec["config"])
+
+
 # participant state lives in .state (one documented source of truth)
 STAGES = st.STAGES
 DEFAULT_STATE = st.DEFAULT_STATE
@@ -204,7 +221,7 @@ def stage_body(service, state, explore, local, personal=None):
 
 
 # ------------------------------------------------------------- how to play
-def how_to_play(open_: bool) -> html.Details:
+def how_to_play(open_: bool, config: ChallengeConfig) -> html.Details:
     pts = POINTS_150_75_V2
     return html.Details(
         [
@@ -226,7 +243,7 @@ def how_to_play(open_: bool) -> html.Details:
                         ],
                         className="ch-htp-col",
                     ),
-                    html.Div([c.structure_table()], className="ch-htp-col"),
+                    html.Div([c.structure_table(config)], className="ch-htp-col"),
                 ],
                 className="ch-htp",
             ),
@@ -321,7 +338,7 @@ def unavailable(service, state, mode, snap, avail, local) -> html.Div:
                 className="ch-ribbon warn",
             ),
             html.Div(actions, className="ch-actions ch-demo-actions"),
-            how_to_play(True),
+            how_to_play(True, rules_config(snap)),
         ]
     )
 
@@ -376,7 +393,7 @@ def builder(service, snap, sels, avail, prefs, local, personal=None, state=None)
                 "Bucket",
                 dcc.Dropdown(
                     id=c.T("f-bucket"),
-                    options=[{"label": b.name, "value": b.code} for b in CFG.buckets],
+                    options=[{"label": b.name, "value": b.code} for b in snap.config.buckets],
                     value=None,
                     placeholder="All buckets",
                     className="dropdown",
@@ -447,7 +464,7 @@ def builder(service, snap, sels, avail, prefs, local, personal=None, state=None)
             c.demo_ribbon(snap),
             status_strip(snap, avail, local, service.round_view()),
             frozen_note(snap, service.round_view()),
-            how_to_play(new_user),
+            how_to_play(new_user, snap.config),
             notes_box,
             lock_note,
             toggle,
@@ -508,9 +525,10 @@ def fixture_list(
     service, snap, sels, filters: dict, local, is_locked: bool, page: int = 1, personal=None
 ):
     """(children for the fixture area, count text). Filters never touch the portfolio."""
+    cfg = snap.config
     chosen = service.outcomes_for(snap, sels)
-    assess = {o.key: assess_outcome(o, snap.snapshot_at, CFG) for o in snap.outcomes}
-    blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, CFG)
+    assess = {o.key: assess_outcome(o, snap.snapshot_at, cfg) for o in snap.outcomes}
+    blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, cfg)
     league = set(filters.get("league") or [])
     day = filters.get("date")
     market = filters.get("market")
@@ -548,7 +566,8 @@ def fixture_list(
     start = (page - 1) * FIXTURES_PER_PAGE
     shown = matches[start : start + FIXTURES_PER_PAGE]
     cards = [
-        c.fixture_card(fx, outs, assess, blocks, local, is_locked, personal) for fx, outs in shown
+        c.fixture_card(fx, outs, assess, blocks, local, is_locked, personal, config=cfg)
+        for fx, outs in shown
     ]
     pager = html.Div(
         [
@@ -579,13 +598,14 @@ def fixture_list(
 def outcome_states(service, snap, sels, keys, is_locked: bool, personal=None) -> list:
     """(className, disabled, title) for the given outcome keys with the current
     selections (used to update visible buttons in place)."""
+    cfg = snap.config
     chosen = service.outcomes_for(snap, sels)
-    blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, CFG)
+    blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, cfg)
     personal = personal or {}
     out = []
     for key in keys:
         o = snap.outcome(key)
-        a = assess_outcome(o, snap.snapshot_at, CFG)
+        a = assess_outcome(o, snap.snapshot_at, cfg)
         out.append(
             c.outcome_state(
                 o,
@@ -593,6 +613,7 @@ def outcome_states(service, snap, sels, keys, is_locked: bool, personal=None) ->
                 blocks.get(o.key),
                 is_locked,
                 personal.get(o.key),
+                config=cfg,
             )
         )
     return out
@@ -601,12 +622,13 @@ def outcome_states(service, snap, sels, keys, is_locked: bool, personal=None) ->
 def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None) -> html.Div:
     source = (prefs or {}).get("source", "market")
     prob = pa.probability_for(source, personal)
+    cfg = snap.config
     chosen = service.outcomes_for(snap, sels)
-    progress = portfolio_progress(chosen, snap.snapshot_at, CFG, pool=snap.outcomes)
-    stats, nine = pa.bucket_stats(chosen, prob, CFG)
+    progress = portfolio_progress(chosen, snap.snapshot_at, cfg, pool=snap.outcomes)
+    stats, nine = pa.bucket_stats(chosen, prob, cfg)
     by_bucket: dict = {}
     for o in chosen:
-        by_bucket.setdefault(CFG.classify(o.market_probability), []).append(o)
+        by_bucket.setdefault(cfg.classify(o.market_probability), []).append(o)
     if progress.is_complete:
         msg = "Portfolio complete. Check the analysis, then review and submit."
     elif progress.issues_of(IssueCode.CANNOT_COMPLETE):
@@ -617,7 +639,7 @@ def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None
     elif not progress.is_valid:
         msg = progress.issues[0].message
     else:
-        need = [f"{CFG.bucket(k).name} {v}" for k, v in progress.remaining.items() if v]
+        need = [f"{cfg.bucket(k).name} {v}" for k, v in progress.remaining.items() if v]
         msg = "Still needed: " + ", ".join(need) if need else ""
     port = service.portfolio(snap, sels)
     ev = pa.evaluate_with(port, prob) if port is not None else None
@@ -929,6 +951,7 @@ def recovery_section(ev, bd=None, source_label: str = "Market", names=None) -> h
 
 
 def payouts_section(ev, bd=None) -> html.Div:
+    names = [b.name for b in ev.buckets]  # from the portfolio's own configuration
     rows = charts.state_rows(ev)
     by_gross: dict = {}
     for s in rows:
@@ -965,7 +988,8 @@ def payouts_section(ev, bd=None) -> html.Div:
             html.P(
                 "Same total payout: "
                 + "; ".join(
-                    " and ".join(pa.state_label(s.wins) for s in v) + f" ({c.credits(v[0].gross)})"
+                    " and ".join(pa.state_label_for(s.wins, names) for s in v)
+                    + f" ({c.credits(v[0].gross)})"
                     for v in same
                 ),
                 className="muted small",
@@ -1188,7 +1212,8 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
     port = service.portfolio(snap, sels)
     evs = pa.evaluate_sources(port, personal or {})
     rows = []
-    for code, b in zip(CFG.bucket_codes, port.buckets, strict=True):
+    cfg = snap.config
+    for code, b in zip(cfg.bucket_codes, port.buckets, strict=True):
         for o in b:
             fx = snap.fixture(o.fixture_id)
             rows.append(
@@ -1197,7 +1222,7 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
                         html.Td(c.chip(code)),
                         html.Td(f"{fx.home} v {fx.away}"),
                         html.Td(c.outcome_text(o)),
-                        html.Td(c.pct_in_band(o.market_probability, code), className="num"),
+                        html.Td(c.pct_in_band(o.market_probability, code, cfg), className="num"),
                         html.Td(c.pct(o.model_probability, 1), className="num"),
                         html.Td(f"{o.reference_odds:.2f}", className="num"),
                     ]
@@ -1501,7 +1526,7 @@ def round_state(state, snap, avail, sels, kind="prototype", rv=None) -> tuple[st
             + (f"{len(sels)} of 9 predictions in a new draft." if sels else "")
             + " You can submit a new portfolio before the deadline.",
         )
-    if account and len(sels) == CFG.required_selections:
+    if account and len(sels) == REQUIRED_SELECTIONS:
         return "Ready to confirm", "demo", "Your saved portfolio is complete but not confirmed."
     if sels:
         return (
@@ -1519,20 +1544,21 @@ def round_state(state, snap, avail, sels, kind="prototype", rv=None) -> tuple[st
 def round_facts(state, snap, avail, sels, sub, label, local, rv=None) -> list[tuple[str, str]]:
     """Round details for the "This round" card, all from the stored prototype state
     and the round snapshot (nothing hard-coded beyond the approved allocation)."""
+    cfg = rules_config(snap)
     if snap is None or not (avail.playable or locked(avail)):
         facts = [("Status", label)]
         if snap is not None:
             facts.insert(0, ("Round", snap.round_id))
-        return facts + [("Credits", f"{CFG.total_credits} virtual credits per entry")]
+        return facts + [("Credits", f"{cfg.total_credits} virtual credits per entry")]
     facts = [
         ("Round", ("Demonstration · " if snap.is_demo else "Live · ") + snap.round_id),
         ("Status", label),
     ]
     if sub:
         n = len(sub.get("selections") or [])
-        facts.append(("Predictions", f"{n} of {CFG.required_selections} submitted"))
+        facts.append(("Predictions", f"{n} of {cfg.required_selections} submitted"))
     else:
-        facts.append(("Predictions", f"{len(sels)} of {CFG.required_selections} in your draft"))
+        facts.append(("Predictions", f"{len(sels)} of {cfg.required_selections} in your draft"))
     if snap.is_demo:
         facts.append(("Deadline", "None: demonstration round, practice only"))
     elif rv is not None:
@@ -1543,8 +1569,8 @@ def round_facts(state, snap, avail, sels, sub, label, local, rv=None) -> list[tu
             facts.append(("Classification", CLASSIFICATION_TEXT[rv.classification].capitalize()))
     elif snap.deadline:
         facts.append(("Deadline", f"{local(snap.deadline)} SAST"))
-    alloc = " / ".join(str(b.credits) for b in CFG.buckets) + f" / {CFG.nine_fold_credits}"
-    facts.append(("Credits", f"{CFG.total_credits} virtual ({alloc})"))
+    alloc = " / ".join(str(b.credits) for b in cfg.buckets) + f" / {cfg.nine_fold_credits}"
+    facts.append(("Credits", f"{cfg.total_credits} virtual ({alloc})"))
     wd = state.get("withdrawn") or {}
     if sub:
         ver = f" (version {sub['version']})" if sub.get("version", 1) > 1 else ""
@@ -1708,8 +1734,9 @@ def confirmed_predictions(
 ) -> html.Details:
     """Full-width expandable card: the nine frozen predictions in three bucket
     columns (stacked on narrow screens) and a one-line Diski 9 summary."""
+    cfg = entry_config(sub)
     groups = []
-    for b in CFG.buckets:
+    for b in cfg.buckets:
         picks = [p for p in sub.get("picks", []) if p["bucket"] == b.code]
         groups.append(
             html.Div(
@@ -1754,7 +1781,7 @@ def confirmed_predictions(
             html.P(
                 [
                     c.chip("NINE"),
-                    f" {CFG.nine_fold_credits} credits on all nine predictions together "
+                    f" {cfg.nine_fold_credits} credits on all nine predictions together "
                     "(pays only if every prediction is correct).",
                 ],
                 className="small ch-conf-nine",
@@ -1779,7 +1806,8 @@ def locked_entry_card(rec, local, res=None) -> html.Div:
     pill = "warn"
     if res is not None and res.settled:
         label, pill, line = results_ui.status(res)
-    alloc = " / ".join(str(b.credits) for b in CFG.buckets) + f" / {CFG.nine_fold_credits}"
+    cfg = entry_config(rec)
+    alloc = " / ".join(str(b.credits) for b in cfg.buckets) + f" / {cfg.nine_fold_credits}"
     ver = f" (version {rec['version']})" if rec.get("version", 1) > 1 else ""
     facts = [
         ("Round", ("Development · " if rec.get("development") else "") + rec["round_id"]),
@@ -1792,7 +1820,7 @@ def locked_entry_card(rec, local, res=None) -> html.Div:
     if rec.get("classification"):
         facts.append(("Classification", CLASSIFICATION_TEXT[rec["classification"]].capitalize()))
     facts += [
-        ("Credits", f"{CFG.total_credits} virtual ({alloc})"),
+        ("Credits", f"{cfg.total_credits} virtual ({alloc})"),
         ("Maximum payout", c.credits(rec.get("max_gross", "0"))),
     ]
     if res is None or not res.settled:

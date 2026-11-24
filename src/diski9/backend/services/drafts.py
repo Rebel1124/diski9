@@ -31,7 +31,7 @@ from sqlalchemy import Connection, Engine, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import NoResultFound
 
-from diski9.challenge.config import DEFAULT_CONFIG, get_config
+from diski9.challenge.config import REQUIRED_SELECTIONS, ChallengeConfig, get_config
 from diski9.challenge.roundsheet import RoundSnapshot
 from diski9.challenge.structured import SelectionBlock, selection_blocks
 
@@ -51,7 +51,7 @@ from .common import (
     save_decision,
 )
 
-MAX_SELECTIONS = sum(DEFAULT_CONFIG.sizes)  # 4 + 3 + 2
+MAX_SELECTIONS = REQUIRED_SELECTIONS  # nine in every configuration (validated)
 
 REASONS = {
     "malformed": "This selection could not be read.",
@@ -109,9 +109,10 @@ def parse_selections(raw: Iterable[Any]) -> list[dict]:
     return out
 
 
-def validate_selections(snap: RoundSnapshot, selections: list[dict], config=DEFAULT_CONFIG):
+def validate_selections(snap: RoundSnapshot, selections: list[dict], config: ChallengeConfig):
     """The snapshot outcomes for ``selections``, checked in order with the
-    builder's rules; raises :class:`ValidationFailed` listing every problem."""
+    builder's rules under the round's ``config`` (required: never a default);
+    raises :class:`ValidationFailed` listing every problem."""
     chosen, issues, seen = [], [], set()
     for pos, s in enumerate(selections):
         key = (s["fixture_id"], s["market"], s["outcome"])

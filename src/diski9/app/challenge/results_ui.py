@@ -14,10 +14,10 @@ from __future__ import annotations
 
 from dash import html
 
+from diski9.challenge.config import TOTAL_CREDITS, get_config
+
 from . import components as c
 from .service import key_str
-
-CFG = c.CFG
 
 #: (icon, label, css class) per prediction verdict
 VERDICT = {
@@ -171,7 +171,7 @@ def summary(res, local) -> html.Div:
     rec_cat = "gold" if refund else "teal" if res.recovered else "slate"
     metrics = html.Div(
         [
-            c.stat_card("Allocated", "violet", f"{CFG.total_credits}.00", "virtual credits"),
+            c.stat_card("Allocated", "violet", f"{TOTAL_CREDITS}.00", "virtual credits"),
             c.stat_card(gross_label, "gold" if refund else "green",
                         c.credits(res.gross) if res.gross is not None else "—", gross_sub),
             c.stat_card("Net", "blue", net, value_cls=c.tone(res.net)),
@@ -305,11 +305,15 @@ def predictions(res, rec, summary_text: str = "Show my nine predictions and resu
     """The confirmed predictions with their verdicts: fixture, original pick, frozen
     odds, official 90-minute score and result (and the reason for a void)."""
     picks = {p["key"]: p for p in (rec or {}).get("picks", [])}
+    # buckets and stakes from the entry's frozen settlement, else its own configuration
+    buckets = [(a.code, a.stake) for a in res.accumulators if a.code != "NINE"]
+    if not buckets and rec:
+        buckets = [(b.code, b.credits) for b in get_config(rec["config"]).buckets]
     groups = []
-    for b in CFG.buckets:
+    for code, stake in buckets:
         items = []
         for p in res.predictions:
-            if p.bucket != b.code:
+            if p.bucket != code:
                 continue
             pick = picks.get(key_str((p.fixture_id, p.market, p.outcome)), {})
             score = f"90 min {p.score}" if p.score else "Score not available yet"
@@ -341,14 +345,14 @@ def predictions(res, rec, summary_text: str = "Show my nine predictions and resu
                 [
                     html.Div(
                         [
-                            c.chip(b.code),
-                            html.Span(f"{b.credits} credits", className="muted small"),
+                            c.chip(code),
+                            html.Span(f"{stake} credits", className="muted small"),
                         ],
                         className="ch-trk-head",
                     ),
                     html.Ul(items, className="ch-conf-list"),
                 ],
-                className=f"ch-conf-bucket b-{c.BUCKET_CLASS[b.code]}",
+                className=f"ch-conf-bucket b-{c.BUCKET_CLASS[code]}",
             )
         )
     return html.Details(

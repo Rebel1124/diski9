@@ -89,6 +89,8 @@ class ChallengeService:
                 return pinned
             if self._live is None or time.monotonic() - self._live_at > self.live_ttl:
                 try:
+                    # prototype mode (no backend, no round record): a NEW snapshot
+                    # is built under the active configuration
                     self._live = build_live_snapshot(
                         self.data.engine,
                         now,
@@ -96,6 +98,7 @@ class ChallengeService:
                         now + timedelta(days=7),
                         round_id,
                         LEAGUE_SHORT,
+                        DEFAULT_CONFIG,
                     )
                 except Exception:  # noqa: BLE001 - an unreadable database is "no round"
                     self._live = None
@@ -108,7 +111,10 @@ class ChallengeService:
         with self._lock:
             if self._demo is None and self.demo_pool.exists():
                 pool = json.loads(self.demo_pool.read_text())
-                self._demo = snapshot_from_research_pool(pool, DEMO_ROUND_ID, LEAGUE_SHORT)
+                # the demonstration round is built now, under the active configuration
+                self._demo = snapshot_from_research_pool(
+                    pool, DEMO_ROUND_ID, LEAGUE_SHORT, DEFAULT_CONFIG
+                )
             return self._demo
 
     def snapshot(self, mode: str | None) -> RoundSnapshot | None:
@@ -117,7 +123,7 @@ class ChallengeService:
     def availability(self, mode: str | None) -> RoundAvailability:
         if mode != "demo" and self.backend is not None:
             return self.backend.availability(self.now())
-        return assess_round(self.snapshot(mode), self.now(), DEFAULT_CONFIG)
+        return assess_round(self.snapshot(mode), self.now())  # the snapshot's own config
 
     def round_view(self):
         """The published round's record (status, deadline, frozen time) or None."""
@@ -141,7 +147,7 @@ class ChallengeService:
         if len(sels) != len(keys) or not keys:
             return None
         try:
-            return validate_portfolio(sels, snap.snapshot_at, DEFAULT_CONFIG, pool=snap.outcomes)
+            return validate_portfolio(sels, snap.snapshot_at, snap.config, pool=snap.outcomes)
         except PortfolioValidationError:
             return None
 
@@ -158,9 +164,7 @@ class ChallengeService:
         result = None
         if len(sels) == len(keys):
             try:
-                port = validate_portfolio(
-                    sels, snap.snapshot_at, DEFAULT_CONFIG, pool=snap.outcomes
-                )
+                port = validate_portfolio(sels, snap.snapshot_at, snap.config, pool=snap.outcomes)
                 result = evaluate_market_and_model(port)
             except PortfolioValidationError:
                 result = None

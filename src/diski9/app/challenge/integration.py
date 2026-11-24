@@ -19,7 +19,6 @@ from __future__ import annotations
 from dash import dcc, html
 
 from diski9.api_football.markets import Market, Outcome
-from diski9.challenge.config import DEFAULT_CONFIG as CFG
 from diski9.challenge.structured import SelectionBlock, assess_outcome, selection_blocks
 from diski9.odds.value import (
     MARKET_ORDER,
@@ -332,10 +331,11 @@ def progress_strip(service, state) -> html.Div | None:
     mode, snap, avail, sels = pages.current(service, state)
     if snap is None or not avail.playable:
         return None
+    cfg = snap.config
     chosen = service.outcomes_for(snap, sels)
-    counts = {b.code: 0 for b in CFG.buckets}
+    counts = {b.code: 0 for b in cfg.buckets}
     for o in chosen:
-        code = CFG.classify(o.market_probability)
+        code = cfg.classify(o.market_probability)
         if code:
             counts[code] += 1
     return html.Div(
@@ -346,7 +346,7 @@ def progress_strip(service, state) -> html.Div | None:
                     f"{b.name[0]} {counts[b.code]}/{b.selections}",
                     className=f"mini-{c.BUCKET_CLASS[b.code]}",
                 )
-                for b in CFG.buckets
+                for b in cfg.buckets
             ],
             html.Strong(
                 f"{len(chosen)}/9",
@@ -387,13 +387,14 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
             className="ch-labpanel muted small",
         )
     personal = personal_probabilities(data, snap, lab_store)
+    cfg = snap.config
     chosen = service.outcomes_for(snap, sels)
-    blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, CFG)
+    blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, cfg)
     taken = next((o for o in chosen if o.fixture_id == fixture_id), None)
     # what would be possible if the current pick on this match were swapped out
     swap_blocks = (
         selection_blocks(
-            [o for o in chosen if o is not taken], snap.outcomes, snap.snapshot_at, CFG
+            [o for o in chosen if o is not taken], snap.outcomes, snap.snapshot_at, cfg
         )
         if taken is not None
         else {}
@@ -407,7 +408,7 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
     for m in ("1X2", "BTTS", "OU25"):
         cards = []
         for o in by_market.get(m, []):
-            a = assess_outcome(o, snap.snapshot_at, CFG)
+            a = assess_outcome(o, snap.snapshot_at, cfg)
             bucket = a.bucket if a.eligible else None
             block = blocks.get(o.key)
             can_replace = (
@@ -426,6 +427,7 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
                     id_type="labreplace" if can_replace else "labpick",
                     show_you=True,
                     replace_from=c.outcome_text(taken) if can_replace else None,
+                    config=cfg,
                 )
             )
         groups.append(

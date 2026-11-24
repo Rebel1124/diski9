@@ -20,7 +20,7 @@ from uuid import UUID
 from sqlalchemy import Connection, Engine, func, insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
-from diski9.challenge.config import get_config
+from diski9.challenge.config import ChallengeConfig, get_config
 from diski9.challenge.roundsheet import RoundSnapshot, SnapshotKind, assess_round
 from diski9.challenge.scoring import RoundClassification, classify_round
 from diski9.screener.goal_model import GOAL_MODEL_VERSION
@@ -229,6 +229,20 @@ def current_round(engine: Engine, *, include_development: bool = False) -> Round
         return _view(conn, rid) if rid else None
 
 
+def round_config(conn: Connection, round_id: UUID) -> ChallengeConfig:
+    """The configuration a round is bound to: the version recorded at publication,
+    or (for a draft) the version of the round's own schedule row. Never the global
+    default; an unknown or unregistered version raises ``ConfigError``."""
+    r = conn.execute(
+        select(rounds.c.config_version, round_schedules.c.config_version.label("schedule_cfg"))
+        .select_from(rounds.join(round_schedules, rounds.c.schedule_id == round_schedules.c.id))
+        .where(rounds.c.id == round_id)
+    ).one_or_none()
+    if r is None:
+        raise NotFound("No such round.")
+    return get_config(r.config_version or r.schedule_cfg)
+
+
 def published_snapshot(engine: Engine, round_id: UUID) -> RoundSnapshot:
     """The frozen snapshot of a published round (cached per process)."""
     with read_only(engine) as conn:
@@ -268,6 +282,25 @@ def schedule_window(
 
 
 # ------------------------------------------------------------------ create
+def _current_schedule(conn: Connection, code: str):
+    """The schedule row a round created now is bound to (latest version of ``code``).
+    The single selection rule shared by round creation and :func:`schedule_config`,
+    so a snapshot built for a new round always uses that round's configuration."""
+    return conn.execute(
+        select(round_schedules)
+        .where(round_schedules.c.code == code)
+        .order_by(round_schedules.c.version.desc())
+        .limit(1)
+    ).one()
+
+
+def schedule_config(conn: Connection, code: str = "weekend") -> ChallengeConfig:
+    """The configuration a round created now under schedule ``code`` will use
+    (development snapshots are built before their round exists). Unknown versions
+    raise ``ConfigError``; never the global default."""
+    return get_config(_current_schedule(conn, code).config_version)
+
+
 def create_round(
     engine: Engine,
     principal: Principal,
@@ -291,12 +324,7 @@ def create_round(
             [{"field": "window", "reason": "empty"}],
         )
     with transaction(engine) as conn:
-        sched = conn.execute(
-            select(round_schedules)
-            .where(round_schedules.c.code == schedule_code)
-            .order_by(round_schedules.c.version.desc())
-            .limit(1)
-        ).one()
+        sched = _current_schedule(conn, schedule_code)
         if conn.execute(select(rounds.c.id).where(rounds.c.code == code)).first():
             raise ValidationFailed(
                 f"A round with code {code!r} already exists.",
@@ -380,12 +408,7 @@ def create_scheduled_draft(
         ) from None
     code = scheduled_code(iso_year, iso_week)
     with transaction(engine) as conn:
-        sched = conn.execute(
-            select(round_schedules)
-            .where(round_schedules.c.code == SCHEDULED_SCHEDULE)
-            .order_by(round_schedules.c.version.desc())
-            .limit(1)
-        ).one()
+        sched = _current_schedule(conn, SCHEDULED_SCHEDULE)
         series = conn.execute(
             select(championship_series.c.code).where(championship_series.c.id == sched.series_id)
         ).scalar_one()

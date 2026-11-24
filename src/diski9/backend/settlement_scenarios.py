@@ -289,7 +289,6 @@ def test_selections(snapshot, variant: int = 0) -> list[dict]:
     in, 2 from two thirds, 3 one fixture after variant 0, ...), so with enough
     fixtures (``round dev-open --fixtures 40``) variants 0, 1 and 2 use different
     matches; several test accounts get different portfolios."""
-    from ..challenge.config import DEFAULT_CONFIG
     from ..challenge.structured import selection_blocks
 
     outcomes = list(snapshot.outcomes)
@@ -309,7 +308,7 @@ def test_selections(snapshot, variant: int = 0) -> list[dict]:
     for o in ordered:
         if len(chosen) == 9:
             break
-        blocks = selection_blocks(chosen, outcomes, snapshot.snapshot_at, DEFAULT_CONFIG)
+        blocks = selection_blocks(chosen, outcomes, snapshot.snapshot_at, snapshot.config)
         if blocks.get(o.key) is None:
             chosen.append(o)
     if len(chosen) != 9:

@@ -26,7 +26,7 @@ from decimal import Decimal
 
 from diski9.app.challenge.service import ChallengeService
 from diski9.challenge import analysis, demo, scoring
-from diski9.challenge.config import DEFAULT_CONFIG, ProbabilitySource
+from diski9.challenge.config import REQUIRED_SELECTIONS, ProbabilitySource
 from diski9.challenge.structured import (
     assess_outcome,
     evaluate_market_and_model,
@@ -69,14 +69,14 @@ def portfolios(snap, count=6):
     for start in range(0, len(outs), max(1, len(outs) // (count * 2))):
         chosen = []
         for o in outs[start:] + outs[:start]:
-            if len(chosen) == DEFAULT_CONFIG.required_selections:
+            if len(chosen) == REQUIRED_SELECTIONS:
                 break
             if (
-                selection_blocks(chosen, snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG).get(o.key)
+                selection_blocks(chosen, snap.outcomes, snap.snapshot_at, snap.config).get(o.key)
                 is None
             ):
                 chosen.append(o)
-        if len(chosen) == DEFAULT_CONFIG.required_selections:
+        if len(chosen) == REQUIRED_SELECTIONS:
             found.append(chosen)
         if len(found) == count:
             break
@@ -88,12 +88,14 @@ def main() -> None:
     snap = svc.demo()
     out = {"snapshot": {"round": snap.round_id, "fingerprint": snap.fingerprint}}
     out["assessments"] = [
-        canon(assess_outcome(o, snap.snapshot_at, DEFAULT_CONFIG)) for o in snap.outcomes
+        canon(assess_outcome(o, snap.snapshot_at, snap.config)) for o in snap.outcomes
     ]
-    out["opening_report"] = canon(round_opening_report(snap.outcomes, snap.snapshot_at))
+    out["opening_report"] = canon(
+        round_opening_report(snap.outcomes, snap.snapshot_at, snap.config)
+    )
     out["portfolios"] = []
     for sels in portfolios(snap):
-        port = validate_portfolio(sels, snap.snapshot_at, DEFAULT_CONFIG, pool=snap.outcomes)
+        port = validate_portfolio(sels, snap.snapshot_at, snap.config, pool=snap.outcomes)
         mkt, mdl = evaluate_market_and_model(port)
         personal = {o.key: min(0.99, analysis.market_probability(o) * 1.05) for o in sels}
         srcs = analysis.evaluate_sources(port, personal)

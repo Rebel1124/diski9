@@ -438,6 +438,8 @@ class EntrySettlement:
     gross: Decimal  # settled so far (only resolved winning accumulators)
     complete: bool
     all_void: bool  # D-33
+    # the settling configuration's recovery target (C-20: 100.00 in every version)
+    recovery_target: Decimal = Decimal("100.00")
 
     @property
     def net(self) -> Decimal:
@@ -454,7 +456,7 @@ class EntrySettlement:
         a round-level invalidation (D-32b) overrides it."""
         if not self.complete:
             return None
-        return (not self.all_void) and self.gross >= DEFAULT_CONFIG.recovery_target
+        return (not self.all_void) and self.gross >= self.recovery_target
 
     @property
     def win_vector(self) -> tuple[int, ...] | None:
@@ -550,6 +552,7 @@ def settle_entry(
         gross,
         complete,
         all_void,
+        config.recovery_target,
     )
 
 

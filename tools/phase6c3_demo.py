@@ -22,7 +22,6 @@ from diski9.backend.services import drafts
 from diski9.backend.services import rounds as svc
 from diski9.backend.services import your_view as yv
 from diski9.backend.services.common import ServiceError, VersionConflict, cli_principal
-from diski9.challenge.config import DEFAULT_CONFIG
 from diski9.challenge.structured import selection_blocks
 
 
@@ -51,7 +50,7 @@ def main() -> int:
             if len(chosen) == 3:
                 break
             if (
-                selection_blocks(chosen, snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG).get(o.key)
+                selection_blocks(chosen, snap.outcomes, snap.snapshot_at, snap.config).get(o.key)
                 is None
             ):
                 chosen.append(o)

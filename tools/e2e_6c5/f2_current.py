@@ -73,9 +73,11 @@ def open_round(eng, me, label):
     op = fresh(eng, "operator")
     with transaction(eng) as conn:
         now = db_now(conn)
+        config = svc.schedule_config(conn)  # what create_round below binds the round to
     code = f"dev-f2-current-{label}-{now:%H%M%S}"
     snap = dev_snapshot(code, now, now + timedelta(minutes=15, seconds=25), fixtures=40,
-                        spacing=timedelta(minutes=1), seed=hash(label) % 1000)  # fmt: skip
+                        spacing=timedelta(minutes=1), seed=hash(label) % 1000,
+                        config=config)  # fmt: skip
     v = svc.create_round(eng, op, code=code, window_start=snap.window[0],
                          window_end=snap.window[1], development=True)  # fmt: skip
     v = svc.publish_round(eng, op, v.id, snap, source="development")

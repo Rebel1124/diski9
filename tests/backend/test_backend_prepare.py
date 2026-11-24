@@ -61,13 +61,13 @@ def place_clock(monkeypatch, eng, hours_after_tuesday: float) -> prepare.Week:
 
 
 def builder(fixtures: int = 20, calls: list | None = None, before=None):
-    def build(code, window_start, window_end, as_of):
+    def build(code, window_start, window_end, as_of, config):
         if calls is not None:
             calls.append(code)
         if before is not None:
             before()
         snap = dev_snapshot("dev-x", as_of, window_start + timedelta(hours=2), fixtures=fixtures)
-        return replace(snap, round_id=code)
+        return replace(snap, round_id=code, config_version=config.version)
 
     return build
 
@@ -492,7 +492,8 @@ def test_published_and_lapsed_states(db, monkeypatch):
     op = principal(eng, role="operator")
     with transaction(eng) as conn:
         now = db_now(conn)
-    snap = builder()(week.code, week.window_start, week.window_end, now)
+        config = svc.round_config(conn, row(eng, week.code).id)  # the draft's own config
+    snap = builder()(week.code, week.window_start, week.window_end, now, config)
     svc.publish_round(eng, op, row(eng, week.code).id, snap, source="football-db",
                       expected_fingerprint=snap.fingerprint)  # fmt: skip
     assert prepare.preparation_status(eng, PREP).state == "published"
@@ -576,7 +577,8 @@ def test_a_scheduled_draft_goes_live_only_through_round_publish(db, monkeypatch,
     op = principal(eng, role="operator")
     with transaction(eng) as conn:
         now = db_now(conn)
-    snap = builder()(week.code, week.window_start, week.window_end, now)
+        config = svc.round_config(conn, row(eng, week.code).id)  # the draft's own config
+    snap = builder()(week.code, week.window_start, week.window_end, now, config)
     monkeypatch.setenv("DISKI9_APP_DATABASE_URL", url)
     monkeypatch.setenv("DISKI9_APP_ENVIRONMENT", "test")
     monkeypatch.setattr(rs, "build_live_snapshot", lambda *a, **k: snap)

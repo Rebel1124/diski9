@@ -28,7 +28,6 @@ import time
 from datetime import UTC
 from uuid import UUID
 
-from diski9.challenge.config import DEFAULT_CONFIG
 from diski9.challenge.roundsheet import RoundAvailability, RoundStatus, assess_round
 
 from .service import key_str, parse_key
@@ -85,7 +84,7 @@ class Backend:
                 None,
             )
         view, snap = found
-        avail = assess_round(snap, now, DEFAULT_CONFIG)
+        avail = assess_round(snap, now)  # the published snapshot's own configuration
         if view.status != "open":
             return RoundAvailability(
                 RoundStatus.LOCKED,

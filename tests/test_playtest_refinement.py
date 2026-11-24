@@ -94,15 +94,15 @@ def test_builder_cards_show_your_view_only_for_adjusted_matches(snap):  # noqa: 
     o = snap.outcomes[0]
     a = assess_outcome(o, snap.snapshot_at, CFG)
     bucket = a.bucket if a.eligible else None
-    off = jtext(comp.outcome_button(o, bucket, None, False, None))
-    on = jtext(comp.outcome_button(o, bucket, None, False, 0.512, show_you=True))
+    off = jtext(comp.outcome_button(o, bucket, None, False, None, config=CFG))
+    on = jtext(comp.outcome_button(o, bucket, None, False, 0.512, show_you=True, config=CFG))
     assert "You " not in off and "You 51.2%" in on
-    assert f"Mkt {comp.pct_in_band(o.market_probability, bucket)}" in on  # Mkt always shown
+    assert f"Mkt {comp.pct_in_band(o.market_probability, bucket, CFG)}" in on  # Mkt always shown
 
 
 def test_disabled_outcomes_explain_with_icon_and_text(snap):  # noqa: F811
     o = snap.outcomes[0]
-    btn = comp.outcome_button(o, "A", SelectionBlock.BUCKET_FULL, False)
+    btn = comp.outcome_button(o, "A", SelectionBlock.BUCKET_FULL, False, config=CFG)
     assert "st-bucket_full" in btn.className and btn.disabled
     assert "Bucket full" in btn.title and "Bucket full" in getattr(btn, "aria-label")
     css = (APP / "assets/style.css").read_text()  # visible label and ban icon follow state
@@ -245,7 +245,7 @@ def test_how_to_play_has_build_steps_and_two_objectives():
     """Phase 6B.3: three build steps (superseding the four of 6B.2)."""
     from diski9.app.challenge import pages
 
-    text = jtext(pages.how_to_play(True))
+    text = jtext(pages.how_to_play(True, CFG))
     for t in ("Get your 100 credits back", "Finish in the top ten", "Build your portfolio",
               "Choose nine different matches", "Compare probabilities and assess your risk",
               "Review and submit", "Market probability determines bucket eligibility",

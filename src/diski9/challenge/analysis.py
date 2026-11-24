@@ -329,9 +329,15 @@ def calculation_breakdown(
 
 def state_label(wins: Sequence[int | bool], config: ChallengeConfig = DEFAULT_CONFIG) -> str:
     """Plain words for an eight-state outcome, e.g. 'Foundation + Challenger'."""
-    names = [b.name for b, w in zip(config.buckets, wins, strict=True) if w]
+    return state_label_for(wins, [b.name for b in config.buckets])
+
+
+def state_label_for(wins: Sequence[int | bool], bucket_names: Sequence[str]) -> str:
+    """:func:`state_label` from the bucket names an evaluation carries (taken from
+    the portfolio's own configuration), so no configuration lookup is needed."""
+    names = [n for n, w in zip(bucket_names, wins, strict=True) if w]
     if not names:
         return "No buckets complete"
-    if len(names) == len(config.buckets):
+    if len(names) == len(bucket_names):
         return "All nine correct"
     return " + ".join(names) + (" only" if len(names) == 1 else "")

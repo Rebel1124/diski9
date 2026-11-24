@@ -12,7 +12,7 @@ import math
 
 import plotly.graph_objects as go
 
-from diski9.challenge.analysis import CorrectCountAnalysis, state_label
+from diski9.challenge.analysis import CorrectCountAnalysis, state_label_for
 from diski9.challenge.structured import GroupEvaluation
 
 BG = "#151b23"
@@ -69,7 +69,8 @@ def state_rows(ev: GroupEvaluation) -> list:
 
 def states_figure(ev: GroupEvaluation) -> go.Figure:
     rows = state_rows(ev)
-    labels = [f"{state_label(s.wins)}  ·  {s.gross:,.2f}" for s in rows]
+    names = [b.name for b in ev.buckets]  # from the portfolio's own configuration
+    labels = [f"{state_label_for(s.wins, names)}  ·  {s.gross:,.2f}" for s in rows]
     colours = [TEAL if s.gross >= ev.target else (AMBER if s.gross > 0 else GREY) for s in rows]
     fig = go.Figure(
         go.Bar(
@@ -81,7 +82,8 @@ def states_figure(ev: GroupEvaluation) -> go.Figure:
             textposition="outside",
             cliponaxis=False,
             customdata=[
-                [state_label(s.wins), f"{s.gross:,.2f}", f"{s.probability:.2%}"] for s in rows
+                [state_label_for(s.wins, names), f"{s.gross:,.2f}", f"{s.probability:.2%}"]
+                for s in rows
             ],
             hovertemplate="%{customdata[0]}: total payout %{customdata[1]}, chance "
             "%{customdata[2]}<extra></extra>",

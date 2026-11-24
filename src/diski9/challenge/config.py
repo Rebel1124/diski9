@@ -36,6 +36,12 @@ class ConfigError(ValueError):
     """An invalid challenge or scoring configuration."""
 
 
+# Invariants of every Weekly Challenge configuration (enforced by _validate_config):
+# exactly nine selections on nine distinct fixtures (C-01) and 100 virtual credits.
+REQUIRED_SELECTIONS = 9
+TOTAL_CREDITS = 100
+
+
 class ProbabilitySource(StrEnum):
     MARKET = "market"  # margin-adjusted market-implied probability (consensus odds)
     MODEL = "model"  # Goal Model 1.0 probability
@@ -125,8 +131,8 @@ class ChallengeConfig:
     buckets: tuple[BucketSpec, ...]
     nine_fold_name: str
     nine_fold_credits: int
-    total_credits: int = 100
-    required_selections: int = 9
+    total_credits: int = TOTAL_CREDITS
+    required_selections: int = REQUIRED_SELECTIONS
     recovery_target: Decimal = Decimal("100.00")
     classification_source: ProbabilitySource = ProbabilitySource.MARKET
     supported_sources: tuple[ProbabilitySource, ...] = (
@@ -232,7 +238,7 @@ def _validate_config(c: ChallengeConfig) -> None:
                 )
     if not _positive_int(c.required_selections):
         raise ConfigError("required_selections must be a positive integer")
-    if c.required_selections != 9:
+    if c.required_selections != REQUIRED_SELECTIONS:
         raise ConfigError(
             f"The Weekly Challenge needs exactly 9 selections, got {c.required_selections}"
         )
@@ -242,7 +248,7 @@ def _validate_config(c: ChallengeConfig) -> None:
         )
     if not _positive_int(c.nine_fold_credits):
         raise ConfigError("nine_fold_credits must be a positive integer")
-    if not _positive_int(c.total_credits) or c.total_credits != 100:
+    if not _positive_int(c.total_credits) or c.total_credits != TOTAL_CREDITS:
         raise ConfigError(f"total_credits must be 100, got {c.total_credits!r}")
     allocated = sum(c.stakes) + c.nine_fold_credits
     if allocated != c.total_credits:

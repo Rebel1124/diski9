@@ -63,7 +63,8 @@ class FootballStoreUnavailable(Exception):
     """The football store (fixtures, odds, Goal Model cache) cannot be read."""
 
 
-SnapshotBuilder = Callable[[str, datetime, datetime, datetime], Any]
+# (round code, window start, window end, as_of, the round's ChallengeConfig) -> snapshot
+SnapshotBuilder = Callable[[str, datetime, datetime, datetime, Any], Any]
 
 
 # ------------------------------------------------------------------ the week
@@ -197,7 +198,7 @@ def football_snapshot_builder(url: str | None = None) -> SnapshotBuilder:
     readiness`` / ``round publish`` do. Fails closed (``FootballStoreUnavailable``)
     if the store is missing or not set up; never creates it."""
 
-    def build(code: str, window_start: datetime, window_end: datetime, as_of: datetime):
+    def build(code: str, window_start: datetime, window_end: datetime, as_of: datetime, config):
         from pathlib import Path
 
         from sqlalchemy import inspect
@@ -222,7 +223,9 @@ def football_snapshot_builder(url: str | None = None) -> SnapshotBuilder:
                 raise FootballStoreUnavailable(type(exc).__name__) from None
             if not {"fixtures", "screener_results", "odds_quotes"} <= names:
                 raise FootballStoreUnavailable("football store is not set up")
-            return build_live_snapshot(engine, as_of, window_start, window_end, code, LEAGUE_SHORT)
+            return build_live_snapshot(
+                engine, as_of, window_start, window_end, code, LEAGUE_SHORT, config
+            )
         finally:
             engine.dispose()
 
@@ -579,13 +582,14 @@ def _readiness_step(run, week: Week):
     try:
         with transaction(run.engine) as conn:
             as_of = db_now(conn)
+            config = rounds_svc.round_config(conn, rid)  # the draft's own schedule (never default)
             data = "refresh-off"
             if run.cfg.prepare_refresh:
                 from . import refresh
 
                 data = refresh.data_label(refresh.latest_closed(conn, week.code))
         builder = run.snapshot_builder or football_snapshot_builder()
-        snap = builder(week.code, week.window_start, week.window_end, as_of)
+        snap = builder(week.code, week.window_start, week.window_end, as_of, config)
         rd = rounds_svc.publication_readiness(run.engine, rid, snap, source="football-db")
         seconds = time.monotonic() - started
         run.lock.verify()  # still the owner before recording the verdict

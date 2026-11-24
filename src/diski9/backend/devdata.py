@@ -19,7 +19,7 @@ import random
 from datetime import datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from diski9.challenge.config import DEFAULT_CONFIG
+from diski9.challenge.config import DEFAULT_CONFIG, ChallengeConfig
 from diski9.challenge.roundsheet import RoundFixture, RoundSnapshot, SnapshotKind
 from diski9.challenge.structured import make_outcome
 
@@ -48,8 +48,11 @@ def dev_snapshot(
     fixtures: int = 20,
     seed: int = 2026,
     spacing: timedelta = timedelta(hours=2),
+    config: ChallengeConfig | None = None,
 ) -> RoundSnapshot:
-    """A deterministic synthetic round snapshot for a development round."""
+    """A deterministic synthetic round snapshot for a development round, frozen under
+    ``config`` (callers that create a round pass its schedule's configuration; the
+    active default applies only to free-standing synthetic data such as tests)."""
     if not code.startswith("dev-"):
         raise ValueError("development snapshots are only for 'dev-' rounds")
     rng = random.Random(seed)
@@ -94,7 +97,7 @@ def dev_snapshot(
         code,
         SnapshotKind.LIVE,
         as_of,
-        DEFAULT_CONFIG.version,
+        (config or DEFAULT_CONFIG).version,
         window,
         tuple(fx),
         tuple(outs),
@@ -119,6 +122,7 @@ def mirror_snapshot(
     seed: int = 2026,
     league_names: dict[int, str] | None = None,
     span: timedelta = timedelta(days=7),
+    config: ChallengeConfig | None = None,
 ) -> RoundSnapshot:
     """A development snapshot of **real upcoming fixtures** from the local football
     store (teams, kickoffs, the current Goal Model estimated goals and model
@@ -188,7 +192,7 @@ def mirror_snapshot(
         code,
         SnapshotKind.LIVE,
         as_of,
-        DEFAULT_CONFIG.version,
+        (config or DEFAULT_CONFIG).version,
         window,
         tuple(fx),
         tuple(outs),

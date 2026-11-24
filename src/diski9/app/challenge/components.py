@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from dash import dcc, html
 
-from diski9.challenge.config import DEFAULT_CONFIG
+from diski9.challenge.config import ChallengeConfig, ProbabilityBand
 from diski9.challenge.roundsheet import RoundAvailability, RoundSnapshot, RoundStatus
 from diski9.challenge.scoring import POINTS_150_75_V2, RoundClassification
 from diski9.challenge.structured import PortfolioEvaluation, SelectionBlock
@@ -14,9 +14,12 @@ from diski9.challenge.structured import PortfolioEvaluation, SelectionBlock
 from ..icons import icon
 from .service import key_str
 
-CFG = DEFAULT_CONFIG
 BUCKET_CLASS = {"A": "found", "B": "bal", "C": "chal", "NINE": "nine"}
-BUCKET_NAME = {b.code: b.name for b in CFG.buckets} | {"NINE": CFG.nine_fold_name}
+# Bucket names are structural (C-10, C-15) and identical in every registered
+# configuration; tests/test_config_version_guard.py checks that, so presentation code
+# needs no configuration lookup for them. Probability bands differ between versions and
+# always come from the round's own configuration (band_text, eligible_range_text).
+BUCKET_NAME = {"A": "Foundation", "B": "Balanced", "C": "Challenger", "NINE": "The Diski 9"}
 MARKET_NAME = {"1X2": "Match result", "BTTS": "Both teams to score", "OU25": "Over/Under 2.5"}
 MARKET_SHORT = {"1X2": "Match result", "BTTS": "Both teams score", "OU25": "Total goals"}
 OUTCOME_NAME = {
@@ -55,7 +58,28 @@ BLOCK_SHORT = {
     SelectionBlock.BUCKET_FULL: "Bucket full",
     SelectionBlock.WOULD_BLOCK_COMPLETION: "Can't complete",
 }
-BAND_TEXT = {"A": "60%–95%", "B": "40% to under 60%", "C": "20% to under 40%"}
+
+
+def _pct_number(x: float) -> str:
+    return f"{round(x * 100, 6):g}"
+
+
+def band_text(band: ProbabilityBand) -> str:
+    """A bucket's market-probability range in words: "60%–95%" (both ends included),
+    "40% to under 60%" (upper end excluded)."""
+    lo, hi = _pct_number(band.lower), _pct_number(band.upper)
+    if band.lower_inclusive and band.upper_inclusive:
+        return f"{lo}%–{hi}%"
+    if band.lower_inclusive:
+        return f"{lo}% to under {hi}%"
+    return f"above {lo}% to {hi}%" + ("" if band.upper_inclusive else " (exclusive)")
+
+
+def eligible_range_text(config: ChallengeConfig) -> str:
+    """The overall eligible market range of a configuration, e.g. "20%–95%"."""
+    lo = min(b.band.lower for b in config.buckets)
+    hi = max(b.band.upper for b in config.buckets)
+    return f"{_pct_number(lo)}%–{_pct_number(hi)}%"
 
 
 def T(name: str, i: int | str = 0) -> dict:
@@ -139,18 +163,18 @@ def status_panel(avail: RoundAvailability, snap: RoundSnapshot | None, local) ->
     )
 
 
-def structure_table() -> html.Div:
+def structure_table(config: ChallengeConfig) -> html.Div:
     rows = [
         html.Div(
             [
                 chip(b.code),
                 html.Span(f"{b.selections} predictions"),
-                html.Span(BAND_TEXT[b.code]),
+                html.Span(band_text(b.band)),
                 html.Span(f"{b.credits} credits"),
             ],
             className="ch-struct-row",
         )
-        for b in CFG.buckets
+        for b in config.buckets
     ]
     rows.append(
         html.Div(
@@ -158,7 +182,7 @@ def structure_table() -> html.Div:
                 chip("NINE"),
                 html.Span("All nine"),
                 html.Span("The whole portfolio"),
-                html.Span(f"{CFG.nine_fold_credits} credits"),
+                html.Span(f"{config.nine_fold_credits} credits"),
             ],
             className="ch-struct-row",
         )
@@ -312,13 +336,13 @@ def segment_bar(code: str, filled: int, total: int) -> html.Div:
 
 
 # ------------------------------------------------------------- builder
-def pct_in_band(p: float, bucket: str | None) -> str:
+def pct_in_band(p: float, bucket: str | None, config: ChallengeConfig) -> str:
     """One-decimal percentage that never contradicts the bucket: when rounding would
     put a value on the other side of a band boundary (e.g. 59.96% shown as 60.0% in
     Balanced), more decimals are shown."""
     for digits in (1, 2, 3, 4):
         text = f"{p * 100:.{digits}f}%"
-        if bucket is None or CFG.classify(float(text[:-1]) / 100) == bucket:
+        if bucket is None or config.classify(float(text[:-1]) / 100) == bucket:
             return text
     return f"{p * 100:.6f}%"
 
@@ -333,7 +357,9 @@ STATE_CLASS = {
 }
 
 
-def outcome_state(o, bucket, block, locked: bool, personal=None) -> tuple[str, bool, str]:
+def outcome_state(
+    o, bucket, block, locked: bool, personal=None, *, config: ChallengeConfig
+) -> tuple[str, bool, str]:
     """(className, disabled, title) for an outcome button. Every possible tag is
     rendered once and CSS shows the one matching the state class, so selection
     changes update only these three properties (fast in the browser)."""
@@ -351,7 +377,7 @@ def outcome_state(o, bucket, block, locked: bool, personal=None) -> tuple[str, b
         **BLOCK_SHORT,
     }.get(block, BUCKET_NAME.get(bucket, ""))
     title = BLOCK_HELP.get(block) or (
-        "Outside the 20%–95% market range, or the odds don't qualify"
+        f"Outside the {eligible_range_text(config)} market range, or the odds don't qualify"
         if block is SelectionBlock.INELIGIBLE
         else "Tap to remove"
         if selected
@@ -389,13 +415,14 @@ def outcome_button(
     id_type: str = "pick",
     show_you: bool = False,
     replace_from: str | None = None,
+    config: ChallengeConfig,
 ) -> html.Button:
     """One outcome card (builder and Match Lab): name, frozen odds, market (Mkt, which
     decides the bucket), Diski 9 (D9) and optionally Your View (You) probabilities,
     bucket label and selection state. Disabled outcomes say why in text with an icon,
     never by colour alone. ``replace_from`` marks a valid one-tap replacement of the
     pick already made on this match (Match Lab)."""
-    cls, disabled, title = outcome_state(o, bucket, block, locked, personal)
+    cls, disabled, title = outcome_state(o, bucket, block, locked, personal, config=config)
     name = BUCKET_NAME[bucket] if bucket else ""
     if replace_from and not locked:
         cls = cls.replace("st-fixture_taken", "st-replace").replace(" is-blocked", "")
@@ -403,7 +430,9 @@ def outcome_button(
         title = (
             f"{outcome_text(o)} (Replace, {name}): replace your pick on this match ({replace_from})"
         )
-    model = pct_in_band(o.model_probability, None) if o.model_probability is not None else "—"
+    model = (
+        pct_in_band(o.model_probability, None, config) if o.model_probability is not None else "—"
+    )
     return html.Button(
         [
             html.Span(
@@ -418,7 +447,7 @@ def outcome_button(
             html.Span(
                 [
                     html.Span(
-                        f"Mkt {pct_in_band(o.market_probability, bucket)}",
+                        f"Mkt {pct_in_band(o.market_probability, bucket, config)}",
                         title="Market probability (bookmaker margin removed): sets the bucket",
                     ),
                     html.Span(f"D9 {model}", className="muted", title="Diski 9 (Goal Model 1.0)"),
@@ -440,7 +469,9 @@ def outcome_button(
     )
 
 
-def fixture_card(fx, outs, assess, blocks, local, locked, personal=None) -> html.Div:
+def fixture_card(
+    fx, outs, assess, blocks, local, locked, personal=None, *, config: ChallengeConfig
+) -> html.Div:
     personal = personal or {}
     adjusted = any(o.key in personal for o in outs)  # Your View shown where it differs
     by_market: dict[str, list] = {}
@@ -462,6 +493,7 @@ def fixture_card(fx, outs, assess, blocks, local, locked, personal=None) -> html
                                 locked,
                                 personal.get(o.key),
                                 show_you=adjusted,
+                                config=config,
                             )
                             for o in items
                         ]

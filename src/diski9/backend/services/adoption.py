@@ -113,7 +113,7 @@ def _draft_item(conn: Connection, uid: UUID, guest: Mapping | None) -> AdoptionI
         return AdoptionItem("draft", f"draft:{rid}", "rejected", REASONS["other_round"])
     try:
         sels = drafts_svc.parse_selections(guest["selections"])
-        drafts_svc.validate_selections(snap, sels)
+        drafts_svc.validate_selections(snap, sels, snap.config)
     except ValidationFailed:
         return AdoptionItem("draft", f"draft:{rid}", "rejected", REASONS["invalid"])
     row = conn.execute(
@@ -264,7 +264,7 @@ def _save_draft_in(conn: Connection, uid: UUID, guest: Mapping, expected: int) -
     drafts_svc.ensure_before_deadline(conn, r)
     snap = snapshots.CACHE.get(conn, rid)
     sels = drafts_svc.parse_selections(guest["selections"])
-    drafts_svc.validate_selections(snap, sels)
+    drafts_svc.validate_selections(snap, sels, snap.config)
     if expected == 0:
         row = conn.execute(
             pg_insert(portfolio_drafts)
