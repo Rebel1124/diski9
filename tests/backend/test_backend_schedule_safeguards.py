@@ -121,14 +121,39 @@ def test_upgrade_from_app_0007_with_rounds_keeps_data_and_downgrade_restores_it(
     eng.dispose()
 
 
-def _refused(url, match):
+FUNCTIONS = (
+    "require_read_committed",
+    "schedule_write_lock",
+    "schedule_read_lock",
+    "round_schedules_write_lock",
+    "check_schedule_contiguity",
+    "round_schedules_contiguity",
+    "round_schedules_row_guard",
+    "round_schedule_valid",
+)
+
+
+def _schema_state(conn) -> dict:
+    """Everything app_0008 could add, plus the round and schedule data."""
+    got = _installed(conn)
+    got["functions"] = conn.execute(text(
+        "SELECT count(*) FROM pg_proc WHERE pronamespace = 'app'::regnamespace "
+        "AND proname = ANY(:f)"), {"f": list(FUNCTIONS)}).scalar_one()  # fmt: skip
+    got["data"] = _snapshot_data(conn)
+    return got
+
+
+def _refused(url, match, before=None):
     with pytest.raises(DBAPIError, match="app_0008 upgrade refused") as exc:
         migrate.upgrade(url)
     assert match in str(exc.value)
     assert migrate.current(url) == "app_0007"
     with _eng(url).connect() as conn:  # nothing installed
-        got = _installed(conn)
+        got = _schema_state(conn)
     assert got["constraint"] == 0 and got["triggers"] == set() and got["runtime_write"]
+    assert got["functions"] == 0 and got["index"] == 0
+    if before is not None:  # schema and data exactly as before the attempt
+        assert got == before
 
 
 def test_upgrade_refuses_inconsistent_history_and_repairs_nothing(fresh_url):
@@ -146,7 +171,10 @@ def test_upgrade_refuses_inconsistent_history_and_repairs_nothing(fresh_url):
     with eng.begin() as conn:
         conn.execute(text(copy), {"v": 1, "af": "2026-01-01Z", "at": None})
         conn.execute(text(copy), {"v": 2, "af": "2026-06-01Z", "at": None})
-    _refused(fresh_url, "overlapping versions")
+    with eng.connect() as conn:
+        before = _schema_state(conn)
+    assert before["btree_gist"] == 0  # a fresh database: the refusal must not add it
+    _refused(fresh_url, "overlapping versions", before)
     with eng.begin() as conn:
         rows = conn.execute(text("SELECT count(*) FROM app.round_schedules WHERE code='audit'"))
         assert rows.scalar_one() == 2  # not repaired
@@ -627,3 +655,243 @@ def test_schedule_config_cache_is_keyed_by_code_and_never_outlives_a_boundary(en
     while now_db(engine) < t + timedelta(seconds=1, milliseconds=50):
         time.sleep(0.05)
     assert be.schedule_config(c) is A3_432_V1
+
+
+# ===================================================================== migration-time locking
+def _relation_waiters(url) -> int:
+    with _eng(url).connect() as conn:
+        return conn.execute(text(
+            "SELECT count(*) FROM pg_locks WHERE locktype = 'relation' AND NOT granted"
+        )).scalar_one()  # fmt: skip
+
+
+def _wait_for_waiters(url, n, timeout=8.0):
+    end = time.monotonic() + timeout
+    while time.monotonic() < end:
+        if _relation_waiters(url) >= n:
+            return True
+        time.sleep(0.05)
+    return False
+
+
+INVALID_ROUND = (
+    "INSERT INTO app.rounds (code, schedule_id, series_id, window_start_at, window_end_at, "
+    "created_at) SELECT :c, id, series_id, now(), now() + interval '1 day', "
+    "'2026-11-01T00:00:00Z' FROM app.round_schedules "
+    "WHERE code = 'weekend' AND active_to IS NULL"
+)  # created before the open weekend row was valid: an invalid historical binding
+VALID_ROUND = (
+    "INSERT INTO app.rounds (code, schedule_id, series_id, window_start_at, window_end_at) "
+    "SELECT :c, id, series_id, now(), now() + interval '1 day' FROM app.round_schedules "
+    "WHERE code = 'weekend' AND active_to IS NULL"
+)
+
+
+def test_audit_waits_for_an_in_flight_invalid_write_and_refuses_it(fresh_url):
+    """Before the refinement the audit could not see an uncommitted round, and
+    CREATE TRIGGER then waited for it and installed on top of it. Now the table locks
+    come first: the migration waits for the writer, audits its committed row and
+    refuses, changing nothing."""
+    migrate.upgrade(fresh_url, "app_0007")
+    eng = _eng(fresh_url)
+    writer = eng.connect()
+    wtx = writer.begin()
+    writer.execute(text(INVALID_ROUND), {"c": "inflight"})  # uncommitted
+    t, out = _bg(lambda: migrate.upgrade(fresh_url))
+    assert _wait_for_waiters(fresh_url, 1)  # the migration waits at its table locks
+    wtx.commit()
+    writer.close()
+    t.join(30)
+    assert isinstance(out.get("error"), DBAPIError), out
+    assert "rounds outside their schedule validity" in str(out["error"])
+    assert migrate.current(fresh_url) == "app_0007"
+    with eng.connect() as conn:
+        got = _schema_state(conn)
+        kept = conn.execute(text("SELECT count(*) FROM app.rounds WHERE code = 'inflight'"))
+        assert kept.scalar_one() == 1  # never repaired or removed
+    assert got["triggers"] == set() and got["functions"] == 0 and got["constraint"] == 0
+    eng.dispose()
+
+
+def test_writes_during_the_migration_queue_and_then_meet_the_safeguards(fresh_url):
+    """Writers that do not use the advisory protocol (older application versions,
+    direct SQL) arrive while the migration holds its locks: they wait, and run only
+    after the safeguards are installed, which then refuse them. Nothing can slip in
+    between the audit and the installation."""
+    migrate.upgrade(fresh_url, "app_0007")
+    eng = _eng(fresh_url)
+    holder = eng.connect()
+    htx = holder.begin()
+    holder.execute(text(VALID_ROUND), {"c": "holder"})  # keeps the migration waiting
+    m, mout = _bg(lambda: migrate.upgrade(fresh_url))
+    assert _wait_for_waiters(fresh_url, 1)
+
+    def gap_writer():  # a closed-only schedule code: valid under app_0007, not after
+        with eng.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO app.round_schedules (code, version, timezone, "
+                "eligible_competitions, window_rule, publish_rule, deadline_buffer_minutes, "
+                "settle_cutoff_hours, correction_window_hours, config_version, rules_version, "
+                "scoring_version, series_id, active_from, active_to) SELECT 'race', 1, "
+                "timezone, eligible_competitions, window_rule, publish_rule, "
+                "deadline_buffer_minutes, settle_cutoff_hours, correction_window_hours, "
+                "config_version, rules_version, scoring_version, series_id, "
+                "'2020-01-01Z', '2030-01-01Z' FROM app.round_schedules "
+                "WHERE code = 'weekend' AND active_to IS NULL"))  # fmt: skip
+
+    def round_writer():  # the application's order: read the schedule, then insert
+        with eng.begin() as conn:
+            sid, series = conn.execute(
+                text(
+                    "SELECT id, series_id FROM app.round_schedules "
+                    "WHERE code = 'weekend' AND active_to IS NULL"
+                )
+            ).one()  # queues behind the migration's lock
+            conn.execute(
+                text(
+                    "INSERT INTO app.rounds (code, schedule_id, series_id, window_start_at, "
+                    "window_end_at, created_at) VALUES ('late', :s, :r, now(), now() + "
+                    "interval '1 day', '2026-11-01T00:00:00Z')"
+                ),
+                {"s": sid, "r": series},
+            )
+
+    g, gout = _bg(gap_writer)
+    r, rout = _bg(round_writer)
+    assert _wait_for_waiters(fresh_url, 3)  # migration, gap writer, round writer
+    htx.commit()
+    holder.close()
+    for t in (m, g, r):
+        t.join(30)
+    assert "error" not in mout, mout
+    assert migrate.current(fresh_url) == "app_0008"
+    assert isinstance(gout.get("error"), DBAPIError) and "open-ended" in str(gout["error"])
+    assert isinstance(rout.get("error"), DBAPIError) and "not valid at the round" in str(
+        rout["error"]
+    )
+    with eng.connect() as conn:
+        assert (
+            conn.execute(
+                text("SELECT count(*) FROM app.round_schedules WHERE code = 'race'")
+            ).scalar_one()
+            == 0
+        )
+        assert (
+            conn.execute(text("SELECT count(*) FROM app.rounds WHERE code = 'late'")).scalar_one()
+            == 0
+        )
+        bad = conn.execute(text(
+            "SELECT count(*) FROM app.rounds r JOIN app.round_schedules s ON s.id = r.schedule_id "
+            "WHERE NOT (s.active_from <= r.created_at AND (s.active_to IS NULL "
+            "OR r.created_at < s.active_to))")).scalar_one()  # fmt: skip
+    assert bad == 0  # the audited state still holds after installation
+    eng.dispose()
+
+
+def test_migration_gives_up_cleanly_behind_a_long_transaction(fresh_url):
+    """A writer that keeps its transaction open past the 10 s lock timeout: the
+    migration fails with nothing changed instead of holding writers behind it."""
+    migrate.upgrade(fresh_url, "app_0007")
+    eng = _eng(fresh_url)
+    holder = eng.connect()
+    htx = holder.begin()
+    holder.execute(text("SELECT count(*) FROM app.round_schedules"))  # holds ACCESS SHARE
+    with eng.connect() as conn:
+        before = _schema_state(conn)
+    t0 = time.monotonic()
+    with pytest.raises(DBAPIError, match="lock timeout"):
+        migrate.upgrade(fresh_url)
+    assert 9 <= time.monotonic() - t0 < 30
+    htx.rollback()
+    holder.close()
+    assert migrate.current(fresh_url) == "app_0007"
+    with eng.connect() as conn:
+        assert _schema_state(conn) == before
+    migrate.upgrade(fresh_url)  # once the transaction is gone it installs
+    assert migrate.current(fresh_url) == "app_0008"
+    eng.dispose()
+
+
+def test_runtime_role_cannot_bypass_triggers_or_privileges(engine, app_engine):
+    """Only a superuser or the owner of the tables (the migration role) can disable
+    these guards; the runtime role is neither."""
+    with transaction(engine) as conn:
+        priv = conn.execute(text(
+            "SELECT has_table_privilege('diski9_app', 'app.round_schedules', 'TRUNCATE'), "
+            "has_table_privilege('diski9_app', 'app.round_schedules', 'TRIGGER'), "
+            "has_table_privilege('diski9_app', 'app.rounds', 'TRIGGER'), "
+            "pg_has_role('diski9_app', (SELECT relowner FROM pg_class "
+            "WHERE oid = 'app.round_schedules'::regclass), 'MEMBER'), "
+            "(SELECT rolsuper OR rolbypassrls FROM pg_roles WHERE rolname = 'diski9_app')"
+        )).one()  # fmt: skip
+    assert tuple(priv) == (False, False, False, False, False)
+    for sql in ("ALTER TABLE app.rounds DISABLE TRIGGER rounds_schedule_valid",
+                "ALTER TABLE app.round_schedules DISABLE TRIGGER round_schedules_row_guard",
+                "DROP TRIGGER rounds_identity_immutable ON app.rounds",
+                "SET LOCAL session_replication_role = replica",
+                "TRUNCATE app.round_schedules"):  # fmt: skip
+        with (
+            pytest.raises(DBAPIError, match="must be owner|permission denied"),
+            transaction(app_engine) as conn,
+        ):
+            conn.execute(text(sql))
+
+
+@pytest.mark.parametrize("pattern", ["insert_select", "fk_only"])
+def test_a_reverse_order_writer_can_deadlock_but_nothing_invalid_commits(fresh_url, pattern):
+    """A direct insert that has not read round_schedules first locks rounds (the target)
+    before round_schedules (INSERT ... SELECT, or only the foreign-key check): the
+    reverse of the migration's order (schedules first, as the application resolves
+    them). PostgreSQL detects the deadlock and aborts one side. Either outcome is safe:
+    the writer fails, or the migration fails having changed nothing (and a later
+    attempt audits the writer's row)."""
+    migrate.upgrade(fresh_url, "app_0007")
+    eng = _eng(fresh_url)
+    with eng.connect() as conn:
+        sid, series = conn.execute(
+            text(
+                "SELECT id, series_id FROM app.round_schedules "
+                "WHERE code = 'weekend' AND active_to IS NULL"
+            )
+        ).one()
+    holder = eng.connect()
+    htx = holder.begin()
+    holder.execute(text(VALID_ROUND), {"c": "holder"})
+    m, mout = _bg(lambda: migrate.upgrade(fresh_url))
+    assert _wait_for_waiters(fresh_url, 1)
+
+    def reverse_writer():
+        with eng.begin() as conn:
+            if pattern == "insert_select":
+                conn.execute(text(INVALID_ROUND), {"c": "reverse"})
+            else:
+                conn.execute(
+                    text(
+                        "INSERT INTO app.rounds (code, schedule_id, series_id, window_start_at, "
+                        "window_end_at, created_at) VALUES ('reverse', :s, :r, now(), now() + "
+                        "interval '1 day', '2026-11-01T00:00:00Z')"
+                    ),
+                    {"s": sid, "r": series},
+                )
+
+    w, wout = _bg(reverse_writer)
+    time.sleep(1.5)  # let it queue (and the deadlock detector run, if it deadlocks)
+    htx.commit()
+    holder.close()
+    for t in (m, w):
+        t.join(30)
+    with eng.connect() as conn:
+        bad = conn.execute(text(
+            "SELECT count(*) FROM app.rounds r JOIN app.round_schedules s ON s.id = r.schedule_id "
+            "WHERE NOT (s.active_from <= r.created_at AND (s.active_to IS NULL "
+            "OR r.created_at < s.active_to))")).scalar_one()  # fmt: skip
+        state = _schema_state(conn)
+    if "error" in mout:  # the migration was the victim: nothing installed
+        assert migrate.current(fresh_url) == "app_0007" and state["functions"] == 0
+        assert state["triggers"] == set()
+        if bad:  # the writer's row committed under app_0007: the next attempt refuses it
+            _refused(fresh_url, "rounds outside their schedule validity")
+    else:  # installed: the writer was refused (deadlock or trigger), nothing invalid
+        assert "error" in wout and migrate.current(fresh_url) == "app_0008"
+        assert bad == 0
+    eng.dispose()

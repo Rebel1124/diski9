@@ -47,6 +47,31 @@ Schedule rows (``app.round_schedules``) are valid on ``[active_from, active_to)`
 8. **Privileges:** the runtime role keeps SELECT on ``round_schedules`` but loses
    INSERT, UPDATE and DELETE (schedules change only through migrations).
 
+**Migration-time locking (Checkpoint 4B refinement).** The audit and the
+installation run under table locks taken as the revision's first statements and held
+until it commits:
+* ``ACCESS EXCLUSIVE`` on ``round_schedules``: no reads or writes for the few
+  milliseconds the migration runs; the exclusion constraint needs this lock anyway;
+* ``SHARE ROW EXCLUSIVE`` on ``rounds``: readers continue, every INSERT, UPDATE and
+  DELETE waits; ``CREATE TRIGGER`` needs this lock anyway.
+
+So no write can land between the audit and the safeguards becoming effective. That
+covers older application versions and direct SQL writers that do not use the
+advisory protocol, and privileged roles too: table locks bind everyone. The locks
+also wait for every in-flight writer to finish first, so the audit sees all committed
+data.
+
+Order and limits:
+* the locks are taken schedules-then-rounds, and nothing else is taken first;
+* ``lock_timeout`` is 10 s: if long-running transactions hold conflicting locks, the
+  revision fails with nothing changed instead of queueing application writers
+  behind it;
+* READ COMMITTED is required, so the audit's snapshot is taken after the locks are
+  granted.
+
+Run it in a maintenance window with application writers (web and scheduler)
+quiesced; see the implementation record.
+
 Downgrade removes exactly these safeguards and restores the runtime role's previous
 INSERT, UPDATE and DELETE privileges. It changes no data, never drops the shared
 extension, and uses no CASCADE.
@@ -63,6 +88,21 @@ depends_on = None
 
 APP_ROLE = "diski9_app"
 LOCK_KEY = "hashtextextended('diski9.round_schedules', 0)"
+
+# First statements of the revision: freeze schedule and round writes for the audit and
+# the installation (held until the revision commits; see the module docstring).
+LOCKS = r"""
+DO $$
+BEGIN
+  IF current_setting('transaction_isolation') <> 'read committed' THEN
+    RAISE EXCEPTION 'app_0008 must run at READ COMMITTED (this transaction is %)',
+      current_setting('transaction_isolation');
+  END IF;
+END $$;
+SET LOCAL lock_timeout = '10s';
+LOCK TABLE app.round_schedules IN ACCESS EXCLUSIVE MODE;
+LOCK TABLE app.rounds IN SHARE ROW EXCLUSIVE MODE;
+"""
 
 AUDIT = r"""
 DO $$
@@ -298,6 +338,7 @@ END $$;
 
 
 def upgrade() -> None:
+    op.execute(LOCKS)  # before the audit; held through installation until commit
     op.execute(AUDIT)
     op.execute(UP)
 

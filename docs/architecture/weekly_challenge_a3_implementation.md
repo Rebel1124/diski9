@@ -523,8 +523,10 @@ Key: `hashtextextended('diski9.round_schedules', 0)`, transaction-level advisory
 
 * **Schedule writers:** every statement that writes `round_schedules` (any role, any
   path, TRUNCATE included) takes the **exclusive** lock through the statement trigger
-  `round_schedules_write_lock`. Privileged writers cannot skip it; only
-  `session_replication_role = replica`, which needs superuser, disables triggers.
+  `round_schedules_write_lock`. Ordinary roles cannot skip it. Only a superuser
+  (`session_replication_role = replica`, or disabling triggers) or the owner of the
+  tables, the migration role (`ALTER TABLE … DISABLE TRIGGER`, `DROP TRIGGER`), can
+  bypass the triggers (see "Remaining limitations").
   Writers should call `SELECT app.schedule_write_lock()` first, so their own later
   statements read after the lock.
 * **Round creators:** the application takes the **shared** lock
@@ -583,6 +585,69 @@ Key: `hashtextextended('diski9.round_schedules', 0)`, transaction-level advisory
 | `test_runtime_role_privileges` | `round_schedules` is read-only for the runtime role | the approved privilege change |
 | `test_upgrade_to_competition_results…` | after the refused downgrade to `app_0006`, the revision is `app_0007` (data unchanged) | `migrations_app/env.py` uses one transaction per migration, so `app_0008`'s downgrade (safeguards only) committed before `app_0007` refused. This is pre-existing behaviour; downgrade one revision at a time in operations |
 
+### Migration-time locking (4B refinement)
+
+**The race (confirmed).**
+* Alembic runs each revision in one READ COMMITTED transaction
+  (`transaction_per_migration=True`, no lock timeout). The original audit took no
+  table locks.
+* A write committed between the audit and the installation was never re-checked: the
+  insert trigger and the deferred gap check only act on later writes.
+* Worse, a write still uncommitted when the audit ran was invisible to it.
+  `CREATE TRIGGER` then simply waited for that writer to commit and installed on top
+  of the unaudited row. The test reproducing this
+  (`test_audit_waits_for_an_in_flight_invalid_write_and_refuses_it`) passes only with
+  the fix.
+
+**The fix.** The revision's first statements:
+1. check READ COMMITTED;
+2. `SET LOCAL lock_timeout = '10s'`;
+3. `LOCK TABLE app.round_schedules IN ACCESS EXCLUSIVE MODE`;
+4. `LOCK TABLE app.rounds IN SHARE ROW EXCLUSIVE MODE`.
+
+The audit runs only after both locks are granted. Both locks are the ones the
+installation itself needs (the exclusion constraint and `CREATE TRIGGER`), so there
+are no lock upgrades, and they are held until the revision commits. Table locks bind
+every writer: pre-4A application versions, direct SQL and privileged roles,
+including the owner and superusers.
+
+**What the locks guarantee (tests with separate connections):**
+* an in-flight write is waited for, audited after it commits, and refused;
+* writes arriving during the migration wait, then meet the installed safeguards;
+* nothing can be written between the audit and the safeguards taking effect;
+* a refused migration leaves the schema and the data exactly as before, and does not
+  even create `btree_gist` in that database;
+* behind a transaction that holds a conflicting lock for longer than 10 s, the
+  migration fails with nothing changed (lock timeout) and installs once it is retried.
+
+**Lock order and deadlocks.**
+* The order is schedules first, then rounds. The application already reads the
+  schedule before inserting a round, in the current code and in older versions, so
+  its writers cannot deadlock with the migration. Publication and lock updates do not
+  conflict either.
+* A direct insert that has not read `round_schedules` first locks `rounds` (the target)
+  before `round_schedules` (`INSERT … SELECT`, or merely its foreign-key check). That
+  is the reverse order. PostgreSQL detects the deadlock after `deadlock_timeout` and
+  aborts one side.
+* Both outcomes are safe. In the tests PostgreSQL aborted the migration: it rolled
+  back with nothing installed, and the next attempt's audit refused the writer's row.
+  A writer chosen instead fails with nothing written.
+* No lock order avoids every pattern, because the exclusion constraint needs ACCESS
+  EXCLUSIVE.
+
+**Operational requirement: quiesce writers.** Execute `app_0008` in a maintenance
+window:
+* stop the scheduler (`jobs tick` trigger) and web writes (or the whole web
+  service);
+* check that no long transactions are open (`pg_stat_activity`);
+* run the migration;
+* verify with `diski9 round schedules` and `app-db current`;
+* resume.
+
+The locks make concurrent writers *safe* (they wait, are refused or are
+deadlock-aborted), but quiescing avoids aborted user actions, lock-timeout failures
+and retries.
+
 ### Extension prerequisites (target environment unverified)
 
 * `btree_gist` is a trusted extension (PostgreSQL 13+). A non-superuser with CREATE on
@@ -630,8 +695,20 @@ The migration itself never repairs, rebinds, retimes or exempts.
 
 ### Remaining limitations
 
-* `session_replication_role = replica` (superuser only) disables every trigger,
-  including these guards.
+* **Who can bypass the guards** (verified by
+  `test_runtime_role_cannot_bypass_triggers_or_privileges`):
+  * **runtime role (`diski9_app`):** cannot. It has no INSERT, UPDATE, DELETE, TRUNCATE
+    or TRIGGER privilege on `round_schedules`, no TRIGGER privilege on `rounds`, no
+    membership of the owner role and no superuser or BYPASSRLS. `ALTER TABLE …
+    DISABLE TRIGGER`, `DROP TRIGGER`, `TRUNCATE` and `SET session_replication_role`
+    are refused for it;
+  * **table owner (the migration role):** owners bypass privilege checks and may
+    disable or drop triggers and constraints. Every trigger and constraint still
+    applies to the owner's ordinary writes;
+  * **superuser:** may do all of that, and also set `session_replication_role =
+    replica`, which disables every trigger.
+
+  The earlier wording ("superuser only") was incomplete and is corrected here.
 * Backdating `created_at` in a direct insert is still possible, but only to an instant
   where the bound row was valid, so the binding stays historically valid.
 * The `app_0009` activation (Checkpoint 4C) must call `app.schedule_write_lock()`
