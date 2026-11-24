@@ -49,7 +49,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # configuration instead, or (only for genuinely free-standing data) add it here with
 # a reason for review.
 ALLOWED_DEFAULT_CONFIG = {
-    "src/diski9/challenge/config.py": (1, "definition: DEFAULT_CONFIG = BROAD60_432_V1"),
+    "src/diski9/challenge/config.py": (1, "definition: DEFAULT_CONFIG = A3_432_V1"),
     "src/diski9/challenge/structured.py": (7, "library default parameters (callers guarded)"),
     "src/diski9/challenge/analysis.py": (2, "library default parameters (callers guarded)"),
     "src/diski9/challenge/education.py": (1, "free-standing illustration (no round)"),
@@ -157,9 +157,10 @@ def test_bucket_names_are_structural_in_every_registered_configuration():
 
 
 # ------------------------------------------------------------------ v1 unchanged
-def test_v1_remains_the_default_with_a3_registered_alongside():
-    """A3 Checkpoint 2: a3-432-v1 is registered but not the default."""
-    assert DEFAULT_CONFIG is BROAD60_432_V1
+def test_a3_is_the_default_with_v1_still_registered():
+    """A3 Checkpoint 4C (Option D): a3-432-v1 is the launch default (no-database
+    prototype only); broad60-432-v1 stays registered for rounds bound to it."""
+    assert DEFAULT_CONFIG is cfgmod.A3_432_V1
     assert set(cfgmod._REGISTRY) == {"broad60-432-v1", "a3-432-v1"}
 
 

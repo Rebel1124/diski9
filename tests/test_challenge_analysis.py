@@ -16,7 +16,6 @@ from hypothesis import strategies as st
 
 from diski9.challenge import analysis as pa
 from diski9.challenge.config import BROAD60_432_V1  # explicit: v1 behaviour (A3 4A)
-from diski9.challenge.config import DEFAULT_CONFIG as CFG
 from diski9.challenge.portfolio import round_credits
 from diski9.challenge.roundsheet import snapshot_from_research_pool
 from diski9.challenge.structured import (
@@ -28,6 +27,7 @@ from diski9.challenge.structured import (
     validate_portfolio,
 )
 
+CFG = BROAD60_432_V1  # v1 analysis tests (pinned when A3 became the default, 4C)
 D = Decimal
 ROOT = Path(__file__).parents[1]
 SNAP = snapshot_from_research_pool(

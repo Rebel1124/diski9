@@ -48,7 +48,8 @@ def test_demo_and_rules_follow_the_schedule_and_rebuild_on_change(data):  # noqa
 
 def test_a_real_round_always_uses_its_own_configuration(data):  # noqa: F811
     svc = ChallengeService(data, backend=FakeBackend(A3_432_V1))
-    v1_round = ChallengeService(data).demo()  # a snapshot bound to broad60
+    # a snapshot bound to broad60 (built under a broad60 schedule)
+    v1_round = ChallengeService(data, backend=FakeBackend(BROAD60_432_V1)).demo()
     assert v1_round.config is BROAD60_432_V1
     assert pages.rules_config(v1_round, svc) is BROAD60_432_V1
 

@@ -115,18 +115,19 @@ def test_unknown_round_configuration_fails_instead_of_falling_back(engine, op):
 
 
 def test_v1_and_a3_rounds_coexist_without_changing_the_active_schedule(engine, op, variant):
-    """A3 Checkpoint 2: a draft on a test-only A3 schedule publishes under A3 while the
-    active weekend schedule (and every round created on it) stays broad60-432-v1."""
+    """v1 and A3 coexist: since app_0009 the weekend schedule (and every round created
+    on it) is A3, while a draft on a broad60 schedule still publishes under broad60."""
+    assert variant is A3_432_V1
     sched = unique("bind").replace("-", "")
-    _add_schedule(engine, sched, 1, variant.version)
+    _add_schedule(engine, sched, 1, BROAD60_432_V1.version)
     draft, now = _draft(engine, op, sched)
     with transaction(engine) as conn:
-        assert svc.schedule_config(conn, "weekend") is BROAD60_432_V1  # active: unchanged
+        assert svc.schedule_config(conn, "weekend") is A3_432_V1  # active: A3
         config = svc.round_config(conn, draft.id)
-    assert config is variant
+    assert config is BROAD60_432_V1
     snap = dev_snapshot(draft.code, now, now + timedelta(hours=3), config=config)
     view = svc.publish_round(engine, op, draft.id, snap, source="development")
-    assert view.config_version == "a3-432-v1"
-    v1_draft, now = _draft(engine, op, "weekend")
+    assert view.config_version == "broad60-432-v1"
+    a3_draft, now = _draft(engine, op, "weekend")
     with transaction(engine) as conn:
-        assert svc.round_config(conn, v1_draft.id) is BROAD60_432_V1
+        assert svc.round_config(conn, a3_draft.id) is A3_432_V1

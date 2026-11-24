@@ -85,6 +85,16 @@ def portfolios(snap, count=6):
 
 def main() -> None:
     svc = ChallengeService(data=None)
+    # Fixed v1 inputs: this regression compares with a broad60-only baseline, and A3
+    # Checkpoint 4C made A3 the no-database default. Pin the demonstration round to
+    # broad60-432-v1 explicitly; older code (no rules_config) is broad60 already, so
+    # the same file still runs unchanged on the baseline commit.
+    try:
+        from diski9.challenge.config import BROAD60_432_V1
+    except ImportError:  # pragma: no cover - pre-registry baseline
+        BROAD60_432_V1 = None
+    if BROAD60_432_V1 is not None and hasattr(svc, "rules_config"):
+        svc.rules_config = lambda: BROAD60_432_V1
     snap = svc.demo()
     out = {"snapshot": {"round": snap.round_id, "fingerprint": snap.fingerprint}}
     out["assessments"] = [

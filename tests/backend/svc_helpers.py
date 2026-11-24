@@ -33,9 +33,12 @@ def principal(engine, *, role: str | None = None, user_id=None) -> Principal:
 
 
 def publish_dev(engine, op: Principal, *, deadline_in=timedelta(hours=2), seed=2026, **kw):
-    """Create and publish a development round through the services."""
+    """Create and publish a development round through the services. Schedule-aware:
+    unless a ``config`` is given, the snapshot uses the configuration of the weekend
+    schedule row a round created now binds to (A3 since app_0009)."""
     with transaction(engine) as conn:
         now = db_now(conn)
+        kw.setdefault("config", svc.schedule_config(conn))
     code = unique("dev-t")
     snap = dev_snapshot(code, now, now + deadline_in + timedelta(minutes=15), seed=seed, **kw)
     v = svc.create_round(
@@ -47,6 +50,13 @@ def publish_dev(engine, op: Principal, *, deadline_in=timedelta(hours=2), seed=2
         development=True,
     )
     return svc.publish_round(engine, op, v.id, snap, source="development"), snap
+
+
+def weekend_config(engine):
+    """The configuration of the weekend schedule row a round created now binds to
+    (schedule-aware publication fixtures; A3 since app_0009)."""
+    with transaction(engine) as conn:
+        return svc.schedule_config(conn)
 
 
 def valid_keys(snap, n: int = 9) -> list[dict]:

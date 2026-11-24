@@ -282,8 +282,8 @@ BROAD60_432_V1 = ChallengeConfig(
 
 # Scenario A3 (owner-approved; research: docs/research/weekly_challenge_bucket_review.md).
 # Identical to broad60-432-v1 except two bands: Foundation 60%-90% (both ends included)
-# and Challenger 10% to under 40%. REGISTERED ONLY: it is not the default and no schedule
-# uses it until the separately authorised activation (A3 Checkpoint 4).
+# and Challenger 10% to under 40%. The launch configuration: the default, and the
+# weekend schedule's configuration from migration app_0009 (A3 Checkpoint 4C).
 A3_432_V1 = ChallengeConfig(
     version="a3-432-v1",
     buckets=(
@@ -318,4 +318,8 @@ def get_config(version: str) -> ChallengeConfig:
 
 register_config(BROAD60_432_V1)
 register_config(A3_432_V1)  # permanent once registered; never redefined
-DEFAULT_CONFIG = BROAD60_432_V1  # the active configuration is unchanged
+# Scenario A3 is the launch configuration (Checkpoint 4C, Option D). This default is
+# used ONLY where no competition database is configured (prototype mode) and for
+# free-standing illustrations. Database-backed rounds use their schedule row (weekend
+# v3 = a3-432-v1 from migration app_0009) or their own pinned configuration.
+DEFAULT_CONFIG = A3_432_V1

@@ -18,7 +18,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 import sqlalchemy as sa
 from champ_helpers import drop, isolated_engine
-from svc_helpers import principal
+from svc_helpers import principal, weekend_config
 from test_backend_scheduler import BASE as SCHEDULER_BASE
 from test_backend_scheduler import after, world
 
@@ -31,7 +31,6 @@ from diski9.backend.ops import OpsConfig, collect, evaluate
 from diski9.backend.services import rounds as svc
 from diski9.backend.services.common import ValidationFailed
 from diski9.backend.services.rounds import SYSTEM
-from diski9.challenge.config import BROAD60_432_V1  # explicit: v1 behaviour (A3 4A)
 
 PREP = replace(SCHEDULER_BASE, provider_calls=False, prepare=True, prepare_streams=("beta",),
                prepare_min_seconds=10.0)  # fmt: skip
@@ -72,7 +71,7 @@ def builder(fixtures: int = 20, calls: list | None = None, before=None):
             as_of,
             window_start + timedelta(hours=2),
             fixtures=fixtures,
-            config=BROAD60_432_V1,
+            config=config,  # the round's own configuration
         )
         return replace(snap, round_id=code, config_version=config.version)
 
@@ -178,7 +177,8 @@ def test_existing_and_published_rounds_are_never_touched(db):
         now = db_now(conn)
     code = svc.scheduled_code(2031, 12)
     snap = replace(
-        dev_snapshot("dev-x", now, now + timedelta(hours=3), config=BROAD60_432_V1), round_id=code
+        dev_snapshot("dev-x", now, now + timedelta(hours=3), config=weekend_config(eng)),
+        round_id=code,
     )
     w = svc.create_round(eng, op, code=code, window_start=snap.window[0], window_end=snap.window[1])
     pub = svc.publish_round(eng, op, w.id, snap, source="football-db")

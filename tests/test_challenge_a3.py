@@ -58,11 +58,13 @@ down, up = (lambda x: math.nextafter(x, 0.0)), (lambda x: math.nextafter(x, 1.0)
 
 
 # ===================================================================== configuration
-def test_both_configurations_registered_and_v1_remains_the_default():
+def test_both_configurations_registered_and_a3_is_the_default():
+    """Checkpoint 4C (Option D): A3 is the launch default; broad60 stays registered
+    for every round already bound to it."""
     assert get_config("broad60-432-v1") is BROAD60_432_V1
     assert get_config("a3-432-v1") is A3_432_V1
     assert set(cfgmod._REGISTRY) == {"broad60-432-v1", "a3-432-v1"}
-    assert DEFAULT_CONFIG is BROAD60_432_V1
+    assert DEFAULT_CONFIG is A3_432_V1
 
 
 def test_fingerprints_are_pinned():
@@ -239,6 +241,20 @@ def _snaps():
     return v1, a3
 
 
+def _portfolio(snap, config):
+    """Nine distinct fixtures (20-23 Nov) matched 4/3/2 under ``config``."""
+    used, picks = set(), {"A": [], "B": [], "C": []}
+    for o in snap.outcomes:
+        if not ("2026-11-20" <= snap.fixture(o.fixture_id).kickoff.date().isoformat()
+                <= "2026-11-23"):  # fmt: skip
+            continue
+        b = config.classify(o.market_probability)
+        if b and o.fixture_id not in used and len(picks[b]) < {"A": 4, "B": 3, "C": 2}[b]:
+            picks[b].append(o)
+            used.add(o.fixture_id)
+    return [o for b in "ABC" for o in picks[b]]
+
+
 def _a3_only_portfolio(snap):
     """Nine distinct fixtures (20-23 Nov) with a 10%-20% Challenger pick: valid only under A3."""
     window = [
@@ -292,11 +308,18 @@ def test_confirmation_uses_the_snapshot_configuration_not_the_default():
     svc = _service(a3)
     keys = [key_str(o.key) for o in _a3_only_portfolio(a3)]
     avail = assess_round(a3, svc.now())
-    assert avail.playable and DEFAULT_CONFIG is BROAD60_432_V1
+    assert avail.playable and DEFAULT_CONFIG is A3_432_V1
     s = {"fp": a3.fingerprint, "selections": keys, "submitted": None}
     s, flash = cb.submit(svc, s, a3, avail)
     assert s["submitted"] is not None and s["submitted"]["config"] == "a3-432-v1", flash
     assert {p["bucket"] for p in s["submitted"]["picks"]} == {"A", "B", "C"}
+    # with A3 as the default, a v1 snapshot is still confirmed under its own version
+    v1, _ = _snaps()
+    v1_keys = [key_str(o.key) for o in _portfolio(v1, BROAD60_432_V1)]
+    v1_avail = assess_round(v1, _service(v1).now())
+    s1 = {"fp": v1.fingerprint, "selections": v1_keys, "submitted": None}
+    s1, flash1 = cb.submit(_service(v1), s1, v1, v1_avail)
+    assert s1["submitted"] is not None and s1["submitted"]["config"] == "broad60-432-v1", flash1
     # an unknown version is refused, never confirmed under the default
     bad = replace(a3, config_version="not-registered")
     s2 = {"fp": bad.fingerprint, "selections": keys, "submitted": None}

@@ -318,7 +318,7 @@ def test_match_lab_comparison_has_five_terms_and_lab_guidance():
 
 
 def test_configuration_and_fingerprints_unchanged():
-    assert DEFAULT_CONFIG is BROAD60_432_V1
+    assert DEFAULT_CONFIG is A3_432_V1  # A3 is the launch default (Checkpoint 4C)
     assert BROAD60_432_V1.fingerprint().startswith("b8cb7c0372e6")
     assert A3_432_V1.fingerprint().startswith("91dba48a002a")
     assert replace(A3_432_V1) == A3_432_V1

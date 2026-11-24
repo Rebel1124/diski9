@@ -11,7 +11,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import insert, select, text
 from sqlalchemy.exc import DBAPIError
-from svc_helpers import principal, publish_dev, unique, valid_keys
+from svc_helpers import principal, publish_dev, unique, valid_keys, weekend_config
 
 from diski9.backend.db import BackendDatabaseSettings, db_now, make_app_engine, migrate, transaction
 from diski9.backend.db.schema import (
@@ -446,7 +446,8 @@ def test_a_fresh_snapshot_with_stale_odds_is_refused(engine, op):
 
     with transaction(engine) as conn:
         now = db_now(conn)
-    snap = dev_snapshot(unique("dev-st"), now, now + timedelta(hours=3), config=BROAD60_432_V1)
+    snap = dev_snapshot(unique("dev-st"), now, now + timedelta(hours=3),
+                        config=weekend_config(engine))  # fmt: skip
     old = now - timedelta(hours=24, seconds=1)
     outs = tuple(
         make_outcome(

@@ -7,6 +7,23 @@ educational topics) is recorded separately in
 [`../architecture/weekly_challenge_a3_implementation.md`](../architecture/weekly_challenge_a3_implementation.md)
 ("Future educational opportunities").
 
+## Release dependency: Official championship scheduling (Phase 10; required)
+
+Recorded 24 Nov 2026 at Scenario A3 Checkpoint 4C. This is a **deployment and
+private-Beta exit requirement**, not optional backlog. The scheduled `weekend` series
+is Beta, and A3 (`app_0009`) preserves that binding; the scheduler supports Beta only.
+Before public Official competition, a separately approved Phase 10 work item must
+deliver:
+* Official championship scheduling;
+* automatic Official round creation;
+* A3 configuration binding for Official rounds;
+* Beta and Official isolation;
+* the controlled transition from private Beta to public Official competition.
+
+Not implemented in Scenario A3. Details:
+[`../architecture/weekly_challenge_a3_implementation.md`](../architecture/weekly_challenge_a3_implementation.md)
+(Checkpoint 4C).
+
 ## Personal Performance Analytics (post-launch; not implemented)
 
 Recorded 24 Nov 2026 at Scenario A3 Checkpoint 4B. Documentation only: no

@@ -11,9 +11,12 @@ Challenger 10% to under 40%, by margin-adjusted market probability. Unchanged:
 * the existing bucket completion probabilities.
 
 Approved alongside: general Goal Model guidance, and a high-risk underdog warning for a
-**selected** outcome whose market-implied probability is 10% to under 20%. Migration
-`app_0008` is accepted in principle as the activation mechanism but **not authorised for
-execution**. Evidence:
+**selected** outcome whose market-implied probability is 10% to under 20%.
+
+**A3 is the launch configuration (Checkpoint 4C, Option D):** migration `app_0009` makes
+`weekend` v3 on `a3-432-v1` active from the moment it runs, and `DEFAULT_CONFIG` is
+`A3_432_V1`. No migration has been executed on any protected database; that needs its
+own authorisation. Evidence:
 [`../research/weekly_challenge_bucket_review.md`](../research/weekly_challenge_bucket_review.md).
 
 | Checkpoint | Scope | Status |
@@ -23,10 +26,14 @@ execution**. Evidence:
 | 2 | Register `a3-432-v1` (inactive) | done (`30f4f28`, CI run 147 passed) |
 | 3 | Guidance, warning and educational popovers | done (`fa1307a`, CI run 148 passed) |
 | 3.1 | Minor UI refinements (target size, legend wrapping, Reference Odds) | done (`66c37f6`, CI run 149 passed) |
-| 4A | Schedule-aware application (no migrations) | conditionally accepted (`38cb0e1`); local verification only, full CI deferred to 4C |
-| 4B | Database schedule safeguards (`app_0008`) | this record (section below); targeted local verification, full CI deferred to 4C |
-| 4C | Controlled activation (`app_0009`, approved UTC timestamp, default switch) | not started; no timestamp approved |
+| 4A | Schedule-aware application (no migrations) | conditionally accepted (`38cb0e1`); full CI with 4C |
+| 4B | Database schedule safeguards (`app_0008`) | conditionally accepted (`a620a95`, `dfd81a6`); full CI with 4C |
+| 4C | A3 active from day one (`app_0009`, default switch); simplified, Option D | engineering complete, awaiting independent review and owner acceptance (section below) |
 | 5 | Final verification | not started |
+
+Status vocabulary: *engineering complete* (implemented and tested) is not *independently
+accepted*. Neither means any protected or production database has been migrated:
+nothing has been deployed.
 
 ## Checkpoint 1: version-aware application
 
@@ -711,8 +718,130 @@ The migration itself never repairs, rebinds, retimes or exempts.
   The earlier wording ("superuser only") was incomplete and is corrected here.
 * Backdating `created_at` in a direct insert is still possible, but only to an instant
   where the bound row was valid, so the binding stays historically valid.
-* The `app_0009` activation (Checkpoint 4C) must call `app.schedule_write_lock()`
-  first, and its downgrade must keep these safeguards.
+* The `app_0009` migration (Checkpoint 4C) calls `app.schedule_write_lock()` first,
+  and its downgrade keeps these safeguards.
+
+## Checkpoint 4C: A3 active from day one (simplified, Option D)
+
+**Owner decision (Option D, 24 Nov 2026).** Diski 9 has not launched, so A3 is active
+from day one. There is no future-dated transition. The original 4C proposal is
+**superseded**: a fixed or approved activation timestamp, administrative
+`activate-config` and `cancel-activation` commands, the 72-hour lead-time rule, the
+10-minute cancellation margin, transition-specific audit and recovery services, and
+startup build identity. Its unfinished draft is preserved, unapproved, on branch
+`archive/a3-transition-4c-wip` (`f4256dd`). Startup build identity is deferred to Stage
+F3 for reconsideration. Checkpoints 4A and 4B are **retained**: correct schedule
+selection by validity, and database-level integrity of historical bindings.
+
+### What changed
+
+| Change | Detail |
+|---|---|
+| `migrations_app/versions/app_0009_a3_active.py` | `weekend` v2 (`broad60-432-v1`) closes at this transaction's timestamp (`now()`); v3 opens at the same instant on `a3-432-v1`, every other attribute copied from v2 (timezone, eligible competitions, window and publication rules, deadline buffer, settlement cutoff, correction window, settlement rules, scoring, series **Beta**) |
+| `src/diski9/challenge/config.py` | `DEFAULT_CONFIG = A3_432_V1`, used only without a competition database (prototype) and by free-standing illustrations |
+| Tests | head is `app_0009`; 4B migration tests target `app_0008` explicitly; publication fixtures use the configuration of the schedule they publish into (`svc_helpers.publish_dev` / `weekend_config`); v1 tests stay explicitly pinned to `broad60-432-v1`; new `tests/backend/test_backend_a3_active.py` |
+| `tools/phase6c3_quant_regression.py` | inputs pinned to `broad60-432-v1` explicitly, because the baseline it compares with is broad60-only (output byte-identical) |
+
+Both configuration identifiers and fingerprints are unchanged: `broad60-432-v1`
+`b8cb7c0372e6aac15b1638e100be35955dacfd3f11c1f3654ad52c9263cbba94`, `a3-432-v1`
+`91dba48a002a4fed3dc340764ef1717228f7dea61401f29621e799de401b094e`.
+
+### Migration behaviour
+
+* **One transaction, bounded:** `lock_timeout` 10 s, `statement_timeout` 30 s. The
+  first data statement is `app.schedule_write_lock()`, the exclusive advisory lock of the
+  4B protocol, which also requires READ COMMITTED. **No explicit table locks** (see the
+  experiment findings below).
+* **Strict preconditions, never skipped or repaired:** exactly one open-ended `weekend`
+  row, which is v2 on `broad60-432-v1` with `settle/v1` and `points-150-75-v2`, and no
+  later version. Both configurations must be registered in the running code with their
+  approved fingerprints. Otherwise the revision fails and changes nothing.
+* **The 4B safeguards decide validity:** the row guard refuses to close v2 if a v2 round
+  was created at or after `now()`; the exclusion constraint and one-open-row index are
+  immediate (so v2 is closed before v3 is inserted); contiguity is checked at commit.
+* **Existing rounds:** published rounds and unpublished drafts created before the
+  migration keep their v2 binding and publish under `broad60-432-v1`. Rounds created
+  afterwards bind v3 (A3). Binding follows `rounds.created_at`, the transaction
+  timestamp (4A).
+* **Fresh database:** v1 (Thursday, from 19 Nov 2026), v2 (Friday, from the `app_0004`
+  transaction) and v3 (A3, from the `app_0009` transaction), contiguous. Each revision
+  runs in its own transaction, so v3 always starts after v2.
+* **Downgrade** (never in production: `diski9 app-db downgrade` refuses there): deletes
+  v3 and reopens v2, atomically. It refuses once any round is bound to v3, because
+  historical bindings are immutable, so the change is then forward-only.
+
+### Runbook (any existing environment; separately authorised)
+
+1. Stop application writers: disable the scheduler timer, let a running tick finish,
+   stop the web service.
+2. Take the required backup and run the preflight checks, including the existing
+   `app_0008` requirements: `btree_gist` available, READ COMMITTED, no long
+   transactions, the read-only history audit (section *Protected-database audit*).
+3. Apply the authorised migrations (`diski9 app-db upgrade`, as the migration owner):
+   `app_0008`, if not yet installed, then `app_0009`.
+4. Verify: `diski9 app-db current` shows `app_0009`; `diski9 round schedules --schedule
+   weekend` shows v3 `a3-432-v1` valid now and v2 closed at the same instant;
+   application readiness (`round readiness`, `/readyz`).
+5. Restart the approved application services (web, then the scheduler timer).
+
+A fresh database follows the same sequence with step 3 applying every revision. Steps 2
+and 3 run against a protected or production database only with explicit owner approval.
+
+### Concurrency experiment findings (preserved; Claude-reported, 4C pre-implementation)
+
+The experiment (41 of 41 cases passed, on a throwaway PostgreSQL 16 cluster that no longer
+exists) validated the advisory-only locking that `app_0009` uses. Harness and JSON results
+are on the archive branch:
+* `lock_timeout` bounds waits for the schedule advisory lock (SQLSTATE `55P03`).
+  `statement_timeout` must be longer than `lock_timeout`, otherwise `57014` masks it;
+* advisory-only schedule writes are deadlock-free against application round creation
+  and direct SQL round inserts, in both acquisition orders;
+* **negative control:** the exclusive advisory lock followed by `LOCK TABLE app.rounds IN
+  SHARE ROW EXCLUSIVE MODE` deadlocks against a direct SQL round insert (`40P01`: *"Process
+  … waits for ShareLock on advisory lock …; blocked by process …. Process … waits for
+  ShareRowExclusiveLock on relation …"*). So `app_0009` takes no table locks, and the
+  `app_0008` migration-time lock sequence was not reused;
+* a transaction that begins before the boundary binds v2 even if it commits after; a
+  direct SQL insert carrying a stale v2 id after the boundary is refused (`23000`),
+  never rebound; a v2 round created at or after the boundary makes the change refuse;
+* a failure after closing v2 or at the deferred contiguity check leaves no partial
+  state (audit rows included).
+
+### Deferred, not part of the MVP
+
+Future-dated activation, administrative activation and cancellation, the 72-hour and
+10-minute rules, transition audit and recovery services, startup build identity (Stage
+F3, for reconsideration) and general schedule management. Any later configuration change
+is a new forward-only schedule version through a separately approved migration.
+
+### Release dependency: Official championship scheduling (Phase 10)
+
+The scheduled `weekend` series is **Beta**; `app_0009` preserves that binding and the
+scheduler supports Beta only (`SCHEDULED_SERIES`). Before public Official competition, a
+separately approved Phase 10 work item must deliver Official championship scheduling,
+automatic Official round creation, A3 configuration binding, Beta and Official isolation,
+and the controlled transition from private Beta to public Official competition. This is a
+deployment and private-Beta exit requirement
+([`../product/future_enhancements.md`](../product/future_enhancements.md)).
+
+### Verification (local, Claude-reported; GitHub CI evidence in the completion report)
+
+Disposable PostgreSQL 16 cluster created for this checkpoint (`diski9_a3d_test`); no
+protected database was accessed.
+
+| Check | Result |
+|---|---|
+| `app_0009` focused tests (`tests/backend/test_backend_a3_active.py`, 7) | passed: fresh install, upgrade with broad60 rounds and a draft, refusal of unexpected states and of a v2 round created after the migration instant (rows unchanged), downgrade and its forward-only refusal, half-open boundary at T−1 µs / T / T+1 µs, A3 publication and database-backed rules |
+| PostgreSQL backend tests (`tests/backend`) | 794 passed, 57 skipped (Supabase Auth server), 0 failed |
+| Full local suite (`pytest -q -p no:cacheprovider -rs`) | 2,187 passed, 57 skipped (all need a real Supabase Auth server), 0 failed; 33 min 3 s |
+| v1 settlement regression (`tools/a3_v1_settlement_regression.py`) | byte-identical to `tests/fixtures/challenge/v1_settlement_regression.json` |
+| Phase 6C.3 quantitative regression | byte-identical: 1,473,435 bytes, sha256 prefix `88bcd717deca6c1c` |
+| Fingerprints | `broad60-432-v1` `b8cb7c03…cbba94` and `a3-432-v1` `91dba48a…b094e`, unchanged |
+
+Test updates keep their intent and weaken no assertion. Assertions of the old default or
+of `weekend` being broad60 now assert the approved A3 state. The confirmation test gains
+a v1 path, which is now the one that distinguishes snapshot from default. One draft test
+uses seed 114, because under A3 a synthetic round rarely has an outcome outside every band.
 
 ## Future educational opportunities (documented, not implemented)
 
@@ -741,7 +870,9 @@ Each would reuse `education.GLOSSARY` and `term()` with the same one-per-view ru
    * validity periods of one schedule code neither overlap nor leave unintended gaps
      (`active_to` of version *n* equals `active_from` of version *n + 1*), enforced by a
      test and, if approved, a database constraint;
-   * `active_from` is an explicit owner-approved timestamp, not `now()`;
+   * ~~`active_from` is an explicit owner-approved timestamp, not `now()`~~: superseded
+     by Option D (Checkpoint 4C): `app_0009` activates A3 at the migration's own
+     transaction timestamp, as `app_0004` did for the Friday schedule;
    * round creation selects the schedule version **valid at the creation time** (today:
      the latest version). `_current_schedule` is the single place to change, so creation
      and `schedule_config` stay identical.
@@ -778,7 +909,8 @@ Each would reuse `education.GLOSSARY` and `term()` with the same one-per-view ru
 
 * Done in Checkpoint 2: A3 boundaries, fingerprint, real pool, historical v1
   regression, coexistence.
-* Open v1 rounds confirmable after activation; new rounds created under A3 on the
-  `weekend` schedule; migration upgrade and downgrade (Checkpoint 4).
+* Done in Checkpoint 4C: new weekend rounds created under A3, pre-migration rounds and
+  drafts keep broad60, migration upgrade, refusal and downgrade
+  (`tests/backend/test_backend_a3_active.py`).
 * Done in Checkpoint 3: warning display at the 0.10, 0.1999… and 0.20 boundaries,
   driven by the market probability.

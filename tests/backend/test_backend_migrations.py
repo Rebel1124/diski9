@@ -22,9 +22,9 @@ def test_downgrade_removes_everything_and_upgrade_recreates_it(fresh_url):
         assert conn.execute(text("SELECT to_regnamespace('app')")).scalar() is None
     assert migrate.current(pg_url) is None
     migrate.upgrade(pg_url)
-    assert migrate.current(pg_url) == migrate.head() == "app_0008"
+    assert migrate.current(pg_url) == migrate.head() == "app_0009"
     migrate.upgrade(pg_url)  # repeat: no-op, no error
-    assert migrate.current(pg_url) == "app_0008"
+    assert migrate.current(pg_url) == "app_0009"
     eng.dispose()
 
 
@@ -46,11 +46,16 @@ def test_seed_configuration(pg_url):
                 "ORDER BY s.version DESC LIMIT 1"
             )
         ).one()
-        assert sched[:7] == (15, 48, 24, "broad60-432-v1", "settle/v1", "points-150-75-v2", "beta")
+        # A3 Checkpoint 4C (app_0009): weekend v3 on a3-432-v1, attributes copied from v2
+        assert sched[:7] == (15, 48, 24, "a3-432-v1", "settle/v1", "points-150-75-v2", "beta")
         assert sorted(sched[7]) == [39, 40, 61, 78, 135, 140, 288, 289]
         assert sched[8] == "Africa/Johannesburg" and sched[9] == "08:00"
-        # D-11 as revised at the 6C.3 checkpoint: Friday 08:00 SAST, schedule version 2
-        assert sched[10:13] == ("friday", 2, None)
+        # D-11 as revised at the 6C.3 checkpoint: Friday 08:00 SAST (v2, kept by v3)
+        assert sched[10:13] == ("friday", 3, None)
+        v2 = conn.execute(text(
+            "SELECT config_version, active_to IS NOT NULL FROM app.round_schedules "
+            "WHERE code = 'weekend' AND version = 2")).one()  # fmt: skip
+        assert tuple(v2) == ("broad60-432-v1", True)  # kept for rounds created under it
         old = conn.execute(
             text(
                 "SELECT publish_rule->>'weekday', active_to IS NOT NULL FROM app.round_schedules "

@@ -113,7 +113,7 @@ def test_demo_snapshot_is_labelled_and_assessed_at_its_own_time(snap):
 
 
 def test_fingerprint_is_stable_and_content_sensitive(snap):
-    again = snapshot_from_research_pool(POOL, snap.round_id, {}, config=BROAD60_432_V1)
+    again = snapshot_from_research_pool(POOL, snap.round_id, {}, config=snap.config)
     assert again.fingerprint == snap.fingerprint
     changed = replace(snap, outcomes=snap.outcomes[:-1])
     assert changed.fingerprint != snap.fingerprint

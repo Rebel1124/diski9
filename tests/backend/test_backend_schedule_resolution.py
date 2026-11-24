@@ -281,7 +281,7 @@ def test_dev_championship_buffer_comes_from_the_row_it_binds_to(engine, monkeypa
     code = _code("s4adev")
     t = now_db(engine)
     add_row(engine, code, 1, t - timedelta(days=2), t - timedelta(days=1), buffer=15)
-    sid = add_row(engine, code, 2, t - timedelta(days=1), buffer=7)
+    sid = add_row(engine, code, 2, t - timedelta(days=1), buffer=7, cfg=BROAD60_432_V1.version)
     monkeypatch.setattr(dc, "DEV_SCHEDULE", code)
     now, sched, config, first = dc.opening_parameters(engine, 300)
     assert sched.id == sid and sched.deadline_buffer_minutes == 7
@@ -297,7 +297,8 @@ def test_dev_championship_buffer_comes_from_the_row_it_binds_to(engine, monkeypa
 def test_schedule_report_lists_validity_configs_and_selection(engine):
     code = _code()
     boundary = datetime(2031, 3, 1, tzinfo=UTC)
-    add_row(engine, code, 1, datetime(2020, 1, 1, tzinfo=UTC), boundary)
+    add_row(engine, code, 1, datetime(2020, 1, 1, tzinfo=UTC), boundary,
+            cfg=BROAD60_432_V1.version)  # fmt: skip
     add_row(engine, code, 2, boundary, cfg="not-registered-v9")
     with read_only(engine) as conn:
         rep = schedules.schedule_report(conn, code, boundary)
@@ -324,7 +325,7 @@ def test_prepare_binding_explains_a_pre_activation_draft(engine, monkeypatch):
     code = _code("s4aprep")
     t = now_db(engine)
     boundary = t + timedelta(days=2)
-    v1 = add_row(engine, code, 1, t - timedelta(days=1), boundary)
+    v1 = add_row(engine, code, 1, t - timedelta(days=1), boundary, cfg=BROAD60_432_V1.version)
     add_row(engine, code, 2, boundary, cfg=A3_432_V1.version)
     monkeypatch.setattr(svc, "SCHEDULED_SCHEDULE", code)
     week = _week(t + timedelta(days=1), t + timedelta(days=3))  # due before, target after
@@ -348,7 +349,7 @@ def test_prepare_binding_explains_a_pre_activation_draft(engine, monkeypatch):
 def test_prepare_binding_without_boundary_has_no_note(engine, monkeypatch):
     code = _code("s4aprep")
     t = now_db(engine)
-    add_row(engine, code, 1, t - timedelta(days=1))
+    add_row(engine, code, 1, t - timedelta(days=1), cfg=BROAD60_432_V1.version)
     monkeypatch.setattr(svc, "SCHEDULED_SCHEDULE", code)
     week = _week(t + timedelta(days=1), t + timedelta(days=3))
     with read_only(engine) as conn:
@@ -364,7 +365,7 @@ def test_backend_schedule_config_follows_the_boundary_exactly(engine):
     code = _code("s4aapp")
     t = now_db(engine)
     boundary = t + timedelta(seconds=1.5)
-    add_row(engine, code, 1, t - timedelta(days=1), boundary)
+    add_row(engine, code, 1, t - timedelta(days=1), boundary, cfg=BROAD60_432_V1.version)
     add_row(engine, code, 2, boundary, cfg=A3_432_V1.version)
     be = Backend(engine)
     assert be.schedule_config(code) is BROAD60_432_V1  # cached until the row's active_to
@@ -402,7 +403,7 @@ def test_round_schedules_command_is_read_only_and_refuses_naive_instants(pg_url)
                          capture_output=True, text=True, timeout=120)  # fmt: skip
     assert out.returncode == 0, out.stderr
     rep = json.loads(out.stdout)
-    assert rep["codes"]["weekend"]["selected_now"]["config_version"] == "broad60-432-v1"
+    assert rep["codes"]["weekend"]["selected_now"]["config_version"] == "a3-432-v1"  # app_0009
     assert rep["codes"]["weekend"]["selected_at"]["version"] == 1
     bad = subprocess.run([*cmd, "--at", "2026-11-19T12:00:00"], env=env,
                          capture_output=True, text=True, timeout=120)  # fmt: skip

@@ -86,8 +86,11 @@ def _issues(fn):
     return [i["reason"] for i in exc.value.issues]
 
 
-def test_invalid_selections_are_refused_whole(engine, rnd):
-    view, snap = rnd
+def test_invalid_selections_are_refused_whole(engine, op):
+    # Under A3 (10%-90%) a synthetic round rarely has an outcome outside every band.
+    # Seed 114 has exactly one, on a fixture the nine valid keys do not use, which the
+    # "ineligible" case needs.
+    view, snap = publish_dev(engine, op, seed=114)
     p = principal(engine)
     keys = valid_keys(snap)
     base = drafts.save_draft(engine, p, view.id, keys[:2], expected_version=0)
@@ -127,10 +130,12 @@ def test_invalid_selections_are_refused_whole(engine, rnd):
     assert drafts.get_draft(engine, p, view.id) == base  # nothing was truncated or saved
 
 
-def svc_bucket(o):
-    from diski9.challenge.config import BROAD60_432_V1  # v1 rounds (explicit)
+def svc_bucket(o, config=None):
+    """The bucket under the round's configuration: rounds here are published on the
+    weekend schedule (A3 since app_0009)."""
+    from diski9.challenge.config import A3_432_V1
 
-    return BROAD60_432_V1.classify(o.market_probability)
+    return (config or A3_432_V1).classify(o.market_probability)
 
 
 def test_bucket_overflow_is_refused(engine, rnd):

@@ -83,7 +83,7 @@ def _snapshot_data(conn):
 
 # ===================================================================== migration
 def test_fresh_installation_installs_every_safeguard(fresh_url):
-    migrate.upgrade(fresh_url)
+    migrate.upgrade(fresh_url, "app_0008")
     assert migrate.current(fresh_url) == "app_0008"
     with _eng(fresh_url).connect() as conn:
         got = _installed(conn)
@@ -103,7 +103,7 @@ def test_upgrade_from_app_0007_with_rounds_keeps_data_and_downgrade_restores_it(
     with eng.connect() as conn:
         before = _snapshot_data(conn)
         assert _installed(conn)["runtime_write"]  # app_0007: projection privileges
-    migrate.upgrade(fresh_url)
+    migrate.upgrade(fresh_url, "app_0008")
     with eng.connect() as conn:
         assert _snapshot_data(conn) == before  # safeguards only: no data touched
         assert _installed(conn)["triggers"] == OBJECTS["triggers"]
@@ -114,7 +114,7 @@ def test_upgrade_from_app_0007_with_rounds_keeps_data_and_downgrade_restores_it(
     assert got["triggers"] == set() and got["constraint"] == 0 and got["index"] == 0
     assert got["runtime_write"] and got["runtime_read"]  # prior privileges restored
     assert got["btree_gist"] == 1  # the shared extension is never dropped
-    migrate.upgrade(fresh_url)  # re-upgrade
+    migrate.upgrade(fresh_url, "app_0008")  # re-upgrade
     with eng.connect() as conn:
         assert _installed(conn)["triggers"] == OBJECTS["triggers"]
         assert _snapshot_data(conn) == before
@@ -198,7 +198,7 @@ def test_upgrade_refuses_inconsistent_history_and_repairs_nothing(fresh_url):
         assert str(conn.execute(text("SELECT created_at FROM app.rounds WHERE id = :r"),
                                 {"r": rid}).scalar_one().isoformat()).startswith("2026-11-01")  # fmt: skip
         conn.execute(text("DELETE FROM app.rounds WHERE id = :r"), {"r": rid})
-    migrate.upgrade(fresh_url)  # consistent again: installs
+    migrate.upgrade(fresh_url, "app_0008")  # consistent again: installs
     assert migrate.current(fresh_url) == "app_0008"
     eng.dispose()
 
@@ -697,7 +697,7 @@ def test_audit_waits_for_an_in_flight_invalid_write_and_refuses_it(fresh_url):
     writer = eng.connect()
     wtx = writer.begin()
     writer.execute(text(INVALID_ROUND), {"c": "inflight"})  # uncommitted
-    t, out = _bg(lambda: migrate.upgrade(fresh_url))
+    t, out = _bg(lambda: migrate.upgrade(fresh_url, "app_0008"))
     assert _wait_for_waiters(fresh_url, 1)  # the migration waits at its table locks
     wtx.commit()
     writer.close()
@@ -723,7 +723,7 @@ def test_writes_during_the_migration_queue_and_then_meet_the_safeguards(fresh_ur
     holder = eng.connect()
     htx = holder.begin()
     holder.execute(text(VALID_ROUND), {"c": "holder"})  # keeps the migration waiting
-    m, mout = _bg(lambda: migrate.upgrade(fresh_url))
+    m, mout = _bg(lambda: migrate.upgrade(fresh_url, "app_0008"))
     assert _wait_for_waiters(fresh_url, 1)
 
     def gap_writer():  # a closed-only schedule code: valid under app_0007, not after
@@ -800,14 +800,14 @@ def test_migration_gives_up_cleanly_behind_a_long_transaction(fresh_url):
         before = _schema_state(conn)
     t0 = time.monotonic()
     with pytest.raises(DBAPIError, match="lock timeout"):
-        migrate.upgrade(fresh_url)
+        migrate.upgrade(fresh_url, "app_0008")
     assert 9 <= time.monotonic() - t0 < 30
     htx.rollback()
     holder.close()
     assert migrate.current(fresh_url) == "app_0007"
     with eng.connect() as conn:
         assert _schema_state(conn) == before
-    migrate.upgrade(fresh_url)  # once the transaction is gone it installs
+    migrate.upgrade(fresh_url, "app_0008")  # once the transaction is gone it installs
     assert migrate.current(fresh_url) == "app_0008"
     eng.dispose()
 
@@ -857,7 +857,7 @@ def test_a_reverse_order_writer_can_deadlock_but_nothing_invalid_commits(fresh_u
     holder = eng.connect()
     htx = holder.begin()
     holder.execute(text(VALID_ROUND), {"c": "holder"})
-    m, mout = _bg(lambda: migrate.upgrade(fresh_url))
+    m, mout = _bg(lambda: migrate.upgrade(fresh_url, "app_0008"))
     assert _wait_for_waiters(fresh_url, 1)
 
     def reverse_writer():

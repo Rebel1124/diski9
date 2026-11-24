@@ -15,7 +15,7 @@ import pytest
 from pg_helpers import confirm, make_round, make_user, unique
 from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.exc import DBAPIError
-from svc_helpers import principal, publish_dev, wait_until
+from svc_helpers import principal, publish_dev, wait_until, weekend_config
 
 from diski9.backend.auth.permissions import AuthorizationError
 from diski9.backend.db import db_now, transaction
@@ -111,7 +111,7 @@ def test_publish_freezes_snapshot_deadline_and_cutoff(engine, op):
     latest = max(f.kickoff for f in snap.fixtures)
     assert view.settle_cutoff_at == latest + timedelta(hours=48)
     assert (view.config_version, view.rules_version, view.scoring_version) == (
-        "broad60-432-v1",
+        "a3-432-v1",  # new weekend rounds bind v3 (app_0009)
         "settle/v1",
         "points-150-75-v2",
     )
@@ -320,14 +320,17 @@ def test_refuses_when_overlap_makes_432_infeasible(engine, op):
 def test_refuses_old_or_future_snapshots_and_wrong_round(engine, op):
     now = _now(engine)
     old = dev_snapshot(
-        unique("dev-o"), now - timedelta(hours=2), now + timedelta(hours=3), config=BROAD60_432_V1
+        unique("dev-o"),
+        now - timedelta(hours=2),
+        now + timedelta(hours=3),
+        config=weekend_config(engine),
     )
     assert "too old" in _refused(engine, op, old).message
     fut = dev_snapshot(
         unique("dev-f"),
         now + timedelta(minutes=10),
         now + timedelta(hours=3),
-        config=BROAD60_432_V1,
+        config=weekend_config(engine),
     )
     assert "future" in _refused(engine, op, fut).message
     snap = _fresh(engine)
@@ -338,7 +341,8 @@ def test_refuses_old_or_future_snapshots_and_wrong_round(engine, op):
 
 def test_refuses_past_deadline(engine, op):
     now = _now(engine)
-    snap = dev_snapshot(unique("dev-d"), now, now + timedelta(minutes=10), config=BROAD60_432_V1)
+    snap = dev_snapshot(unique("dev-d"), now, now + timedelta(minutes=10),
+                        config=weekend_config(engine))  # fmt: skip
     assert "deadline" in _refused(engine, op, snap).message
 
 
@@ -431,7 +435,7 @@ def test_live_data_changes_do_not_touch_published_snapshot(engine, op):
     the stored snapshot stays exactly as published."""
     view, snap = publish_dev(engine, op)
     newer = dev_snapshot(
-        view.code, _now(engine), snap.fixtures[0].kickoff, seed=99, config=BROAD60_432_V1
+        view.code, _now(engine), snap.fixtures[0].kickoff, seed=99, config=snap.config
     )
     assert newer.fingerprint != snap.fingerprint
     with pytest.raises(PublicationRefused):
@@ -626,7 +630,7 @@ def test_current_round_tie_on_deadline_shows_the_most_recently_published(engine,
     views = []
     for _ in range(2):
         code = unique("dev-tie")
-        snap = dev_snapshot(code, now, first, seed=3, config=BROAD60_432_V1)
+        snap = dev_snapshot(code, now, first, seed=3, config=weekend_config(engine))
         v = svc.create_round(engine, op, code=code, window_start=snap.window[0],
                              window_end=snap.window[1], development=True)  # fmt: skip
         views.append(svc.publish_round(engine, op, v.id, snap, source="development"))

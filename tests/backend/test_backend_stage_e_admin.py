@@ -26,7 +26,7 @@ import sqlalchemy as sa
 from champ_helpers import drop, isolated_engine
 from pg_helpers import unique
 from pty_cli import run_cli
-from svc_helpers import principal, publish_dev
+from svc_helpers import principal, publish_dev, weekend_config
 from test_backend_scheduler import BASE, FakeProvider, after, status, world
 
 from diski9 import cli
@@ -40,7 +40,6 @@ from diski9.backend.ops.inspect import inspect_round
 from diski9.backend.services import rounds as svc
 from diski9.backend.services.common import NotFound, PublicationRefused
 from diski9.backend.services.rounds import SYSTEM
-from diski9.challenge.config import BROAD60_432_V1  # explicit: v1 behaviour (A3 4A)
 
 
 @pytest.fixture
@@ -67,7 +66,8 @@ def _draft(eng, op, *, fixtures=20, first_in=timedelta(hours=3)):
     with transaction(eng) as conn:
         now = db_now(conn)
     code = unique("2031-W20-e")
-    snap = dev_snapshot("dev-x", now, now + first_in, fixtures=fixtures, config=BROAD60_432_V1)
+    snap = dev_snapshot("dev-x", now, now + first_in, fixtures=fixtures,
+                        config=weekend_config(eng))  # fmt: skip
     snap = replace(snap, round_id=code)
     v = svc.create_round(eng, op, code=code, window_start=snap.window[0],
                          window_end=snap.window[1])  # fmt: skip

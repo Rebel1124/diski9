@@ -3,9 +3,9 @@
 guidance and the high-risk underdog warning on desktop, tablet and phone, with mouse,
 keyboard and touch. Set DISKI9_SHOTS=<dir> to save the screenshots.
 
-The Weekly Challenge demonstration round is built under the REGISTERED (inactive)
-``a3-432-v1`` configuration by a test-only patch of the demo constructor; nothing is
-activated, DEFAULT_CONFIG and every schedule are unchanged."""
+The Weekly Challenge demonstration round is built under ``a3-432-v1`` (since
+Checkpoint 4C also the no-database default; the test-only patch of the demo
+constructor keeps that explicit)."""
 
 from __future__ import annotations
 
