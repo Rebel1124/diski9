@@ -1,0 +1,66 @@
+[
+ {
+  "exp": "E1",
+  "case": "lock_timeout_applies",
+  "pass": true,
+  "sqlstate": "55P03",
+  "elapsed_s": 1.002,
+  "error": "canceling statement due to lock timeout"
+ },
+ {
+  "exp": "E1",
+  "case": "aborted_then_usable",
+  "pass": true,
+  "tx_status_after_error": "INERROR"
+ },
+ {
+  "exp": "E1",
+  "case": "short_statement_timeout_obscures",
+  "pass": true,
+  "sqlstate": "57014",
+  "elapsed_s": 0.501,
+  "error": "canceling statement due to statement timeout"
+ },
+ {
+  "exp": "E1",
+  "case": "lock_timeout_wins_when_shorter",
+  "pass": true,
+  "sqlstate": "55P03",
+  "elapsed_s": 0.701
+ },
+ {
+  "exp": "E1",
+  "case": "statement_trigger_lock_also_bounded",
+  "pass": true,
+  "sqlstate": "55P03",
+  "elapsed_s": 1.002,
+  "error": "canceling statement due to lock timeout"
+ },
+ {
+  "exp": "E1",
+  "case": "exclusive_holder_bounded",
+  "pass": true,
+  "sqlstate": "55P03"
+ },
+ {
+  "exp": "E1",
+  "case": "no_timeout_means_unbounded_wait_observed",
+  "pass": true,
+  "wait": [
+   "Lock",
+   "advisory"
+  ],
+  "waiting_lock": [
+   [
+    "advisory",
+    "ExclusiveLock",
+    "key 638973239/3774963700"
+   ]
+  ]
+ },
+ {
+  "exp": "E1",
+  "case": "schedule_state_unchanged",
+  "pass": true
+ }
+]

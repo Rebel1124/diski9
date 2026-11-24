@@ -1,0 +1,279 @@
+[
+ {
+  "exp": "E5",
+  "case": "cancel_success_then_reactivation_new_identity",
+  "pass": true,
+  "v3_cancelled": 34,
+  "v3_recreated": 35,
+  "audit_rows": 3
+ },
+ {
+  "exp": "E5",
+  "case": "stale_identity_refused id=34 T_matches=False",
+  "pass": true,
+  "result": "refused: the identified transition does not exist (stale or conflicting cancellation instruction)"
+ },
+ {
+  "exp": "E5",
+  "case": "stale_identity_refused id=34 T_matches=True",
+  "pass": true,
+  "result": "refused: the identified transition does not exist (stale or conflicting cancellation instruction)"
+ },
+ {
+  "exp": "E5",
+  "case": "stale_identity_refused id=35 T_matches=False",
+  "pass": true,
+  "result": "refused: the identified transition does not exist (stale or conflicting cancellation instruction)"
+ },
+ {
+  "exp": "E5",
+  "case": "referenced_transition_cannot_be_removed",
+  "pass": true,
+  "service_check": "refused: at or too close to/after the activation time",
+  "raw_delete": [
+   "42501",
+   "app.round_schedules: e5c v3 is used by rounds and can never be deleted"
+  ]
+ },
+ {
+  "exp": "E5",
+  "case": "elapsed_unreferenced_refused",
+  "pass": true,
+  "result": "refused: at or too close to/after the activation time"
+ },
+ {
+  "exp": "E5",
+  "case": "lock_acquired_after_T_refused",
+  "pass": true,
+  "result": "refused: at or too close to/after the activation time"
+ },
+ {
+  "exp": "E5",
+  "case": "delay_past_T_caught_by_final_check",
+  "pass": true,
+  "result": "refused at final check: too close to/after T"
+ },
+ {
+  "exp": "E5",
+  "case": "limitation_commit_after_final_check_can_land_after_T",
+  "pass": true,
+  "note": "demonstrates why a pre-commit check alone is not a guarantee"
+ },
+ {
+  "exp": "E5",
+  "case": "idle_in_transaction_timeout_set_local_terminates_stall",
+  "pass": true,
+  "result": [
+   "25P03",
+   "terminating connection due to idle-in-transaction timeout"
+  ],
+  "connection_closed": true
+ },
+ {
+  "exp": "E5",
+  "case": "creator_during_cancel_waits_and_binds_v2",
+  "pass": true,
+  "creator": {
+   "created_at": "2026-11-24 11:46:44.225611+00:00",
+   "locked_at": "2026-11-24 11:46:44.936967+00:00",
+   "resolved_version": 2,
+   "committed_at": "2026-11-24 11:46:44.944714+00:00"
+  }
+ },
+ {
+  "exp": "E6",
+  "case": "error_mid_transition_rolls_back_everything",
+  "pass": true,
+  "sqlstate": "22012",
+  "rows_seen_inside_tx": 3,
+  "after": {
+   "schedules": [
+    [
+     57,
+     1,
+     "broad60-432-v1",
+     "2026-11-01 00:00:00+00:00",
+     "2026-11-10 00:00:00+00:00"
+    ],
+    [
+     58,
+     2,
+     "broad60-432-v1",
+     "2026-11-10 00:00:00+00:00",
+     null
+    ]
+   ],
+   "rounds": [
+    [
+     "d-87bb6d831c",
+     2,
+     "2026-11-24 11:46:44.957918+00:00"
+    ]
+   ],
+   "audit": 0
+  }
+ },
+ {
+  "exp": "E6",
+  "case": "deferred_contiguity_failure_at_commit",
+  "pass": true,
+  "result": [
+   "23000",
+   "app.round_schedules: e6: v3 must start exactly when v2 ends (2026-11-24 11:47:45.964647+00 vs 2026-11-24 11:47:44.964647+00): no gaps, no overlaps, chronological order"
+  ]
+ },
+ {
+  "exp": "E6",
+  "case": "wrong_order_insert_before_close_refused_immediately",
+  "pass": true,
+  "result": [
+   "23P01",
+   "conflicting key value violates exclusion constraint \"round_schedules_no_overlap\""
+  ]
+ },
+ {
+  "exp": "E6",
+  "case": "global_integrity",
+  "pass": true,
+  "overlaps": 0,
+  "gaps": 0,
+  "rounds_outside_validity": 0
+ },
+ {
+  "exp": "E7",
+  "case": "weekend_v2_to_v3_copied_attributes",
+  "pass": true,
+  "v2_active_to": "2026-12-04 11:46:44.989157+00:00",
+  "v3": [
+   3,
+   "a3-432-v1",
+   "2026-12-04 11:46:44.989157+00:00"
+  ]
+ },
+ {
+  "exp": "E7",
+  "case": "second_activation_refused_by_precondition",
+  "pass": true,
+  "result": "precondition: unexpected schedule state [(1, 1, 'broad60-432-v1', datetime.datetime(2026, 11, 24, 11, 42, 14, 166564, tzinfo=zoneinfo.ZoneInfo(key='Etc/UTC'))),"
+ },
+ {
+  "exp": "E7",
+  "case": "weekend_cancel_restores_rows",
+  "pass": true,
+  "audit_rows": 2
+ },
+ {
+  "exp": "E7",
+  "case": "privileges_individual",
+  "pass": true,
+  "table": [
+   [
+    "diski9_app",
+    "DELETE",
+    false
+   ],
+   [
+    "diski9_app",
+    "INSERT",
+    false
+   ],
+   [
+    "diski9_app",
+    "SELECT",
+    true
+   ],
+   [
+    "diski9_app",
+    "UPDATE",
+    false
+   ],
+   [
+    "lockexp_owner",
+    "DELETE",
+    true
+   ],
+   [
+    "lockexp_owner",
+    "INSERT",
+    true
+   ],
+   [
+    "lockexp_owner",
+    "SELECT",
+    true
+   ],
+   [
+    "lockexp_owner",
+    "UPDATE",
+    true
+   ],
+   [
+    "lockexp_web",
+    "DELETE",
+    false
+   ],
+   [
+    "lockexp_web",
+    "INSERT",
+    false
+   ],
+   [
+    "lockexp_web",
+    "SELECT",
+    true
+   ],
+   [
+    "lockexp_web",
+    "UPDATE",
+    false
+   ]
+  ],
+  "write_lock_fn_and_audit": [
+   [
+    "diski9_app",
+    false,
+    true
+   ],
+   [
+    "lockexp_owner",
+    true,
+    true
+   ],
+   [
+    "lockexp_web",
+    false,
+    true
+   ]
+  ]
+ },
+ {
+  "exp": "E7",
+  "case": "runtime_role_cannot_write_schedules",
+  "pass": true,
+  "result": [
+   "42501",
+   "permission denied for table round_schedules"
+  ]
+ },
+ {
+  "exp": "E7",
+  "case": "owner_cannot_set_session_replication_role",
+  "pass": true,
+  "result": [
+   "42501",
+   "permission denied to set parameter \"session_replication_role\""
+  ]
+ },
+ {
+  "exp": "E7",
+  "case": "owner_can_disable_triggers_detectable_via_tgenabled",
+  "pass": true,
+  "observed_inside_rolled_back_tx": [
+   "round_schedules_row_guard",
+   "D"
+  ],
+  "after": [
+   "O"
+  ]
+ }
+]
