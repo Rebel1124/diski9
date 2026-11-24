@@ -1565,3 +1565,28 @@ td.warn { color: var(--warn); }
 @media (min-width: 481px) and (max-width: 600px) {
   .nav-inner > .nav-links { flex-wrap: wrap; overflow: visible; }
 }
+
+/* Scenario A3: educational terms, guidance and the high-risk underdog indicator */
+.term { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+th .term { justify-content: flex-end; }
+details.term-info > summary { width: 22px; height: 22px; font-size: 12px; }  /* touch target */
+details.term-info > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+details.term-info > .info-pop { white-space: normal; text-align: left; max-width: calc(100vw - 24px); }
+.model-guidance { margin: 4px 0 10px; }
+.model-guidance > summary { display: flex; align-items: center; gap: 6px; padding: 8px 18px 8px 0;
+  font-size: 13px; }
+.model-guidance p { margin: 0 0 6px; line-height: 1.5; }
+.ch-risk-tag { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 600;
+  color: var(--warn); }
+.ch-risk-panel { margin: 8px 0; padding: 8px 10px; border-left: 3px solid var(--warn);
+  background: var(--warn-dim); border-radius: 6px; }
+.ch-risk-panel > p { margin: 0 0 4px; color: var(--warn); display: flex; align-items: center; gap: 4px; }
+.ch-risk-panel .acc { border-top: 0; }
+.ch-risk-panel .acc > summary { padding: 4px 18px 4px 0; font-size: 12.5px; }
+.ch-risk-panel p { line-height: 1.5; }
+.ch-risk-links { margin: 6px 0 0; padding-left: 18px; }
+/* Phones: the button sits under its column heading so it adds no column width
+   (the Match Lab model-versus-market table keeps every column visible). */
+@media (max-width: 480px) {
+  th .term { flex-direction: column; align-items: flex-end; gap: 2px; }
+}

@@ -33,6 +33,7 @@ from .data import (
     OddsView,
     ScreenerData,
 )
+from .education import info  # noqa: F401  (re-exported; the shared popover)
 from .icons import icon
 
 FORM_TOOLTIP = (
@@ -87,17 +88,6 @@ def basis_help(market: str) -> list:
         ]
         if market == "1X2"
         else []
-    )
-
-
-def info(content: Any, label: str = "More information", extra_class: str = "") -> html.Details:
-    """Small 'i' popover. Native <details>, so it works with mouse, keyboard and touch."""
-    return html.Details(
-        [
-            html.Summary("i", title=label, **{"aria-label": label}),
-            html.Div(content, className="info-pop"),
-        ],
-        className=f"info {extra_class}".strip(),
     )
 
 

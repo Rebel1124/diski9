@@ -41,6 +41,7 @@ from diski9.odds.value import (
 )
 from diski9.screener import goal_model as gm
 
+from . import education
 from .data import LEAGUE_SHORT, MARKET_KEYS, MARKET_OF, OddsView, ScreenerData, goals2, pct1
 from .views import (
     FORM_TOOLTIP,
@@ -1142,20 +1143,12 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> ht
 
 
 # ----------------------------------------------------- model vs market
-MODEL_PROB_HELP = "Model probability: the probability estimated by Goal Model 1.0."
-MARKET_PROB_HELP = (
-    "Market probability: inferred from the bookmaker odds (1 ÷ odds), then scaled so the "
-    "outcomes add up to 100% to remove the bookmaker margin. A simple proportional method, "
-    "not a perfect reading of the market's true beliefs."
-)
-EDGE_HELP = (
-    "Probability edge: probability minus market probability, in percentage points (pp). "
-    "55% vs 48% is +7.0 pp. An edge is not proof that the bookmaker is wrong."
-)
-EV_HELP = (
-    "Expected value (EV): probability × decimal odds − 1, using the original odds (with the "
-    "margin). A theoretical average return per unit staked, assuming the probability is right."
-)
+# Longer explanations from the central glossary (diski9.app.education), so the
+# popovers, the glossary list and these texts can never disagree.
+MODEL_PROB_HELP = education.long("model_probability")
+MARKET_PROB_HELP = education.long("market_probability")
+EDGE_HELP = education.long("edge")
+EV_HELP = education.long("ev")
 ODDS_SOURCE = (
     "Odds are Diski 9 consensus reference odds: for each outcome, the median price across "
     "independent bookmakers that quote the whole market. They are not an offer from any single "
@@ -1272,11 +1265,12 @@ def model_comparison(market: str, ov: OddsView | None, base: dict) -> html.Div:
     head = html.Tr(
         [
             html.Th("Outcome"),
-            html.Th("Model", className="num", title=MODEL_PROB_HELP),
-            html.Th("Market", className="num", title=MARKET_PROB_HELP),
-            html.Th("Edge", className="num", title=EDGE_HELP),
+            # one accessible popover per concept (keyboard and touch, not hover-only)
+            html.Th(education.term("Model", "model_probability"), className="num"),
+            html.Th(education.term("Market", "market_probability"), className="num"),
+            html.Th(education.term("Edge", "edge"), className="num"),
             html.Th("Odds", className="num", title=ODDS_SOURCE),
-            html.Th("EV", className="num", title=EV_HELP),
+            html.Th(education.term("EV", "ev"), className="num"),
         ]
     )
     notes = []
@@ -1312,6 +1306,7 @@ def model_comparison(market: str, ov: OddsView | None, base: dict) -> html.Div:
                 className="scroll-x",
             ),
             *[html.P(n, className="muted small") for n in notes],
+            education.model_guidance("lab"),
             value_glossary(),
         ],
         className="model-compare",

@@ -7,10 +7,12 @@ from decimal import Decimal
 from dash import dcc, html
 
 from diski9.challenge.config import ChallengeConfig, ProbabilityBand
+from diski9.challenge.guidance import HIGH_RISK_UNDERDOG
 from diski9.challenge.roundsheet import RoundAvailability, RoundSnapshot, RoundStatus
 from diski9.challenge.scoring import POINTS_150_75_V2, RoundClassification
 from diski9.challenge.structured import PortfolioEvaluation, SelectionBlock
 
+from .. import education
 from ..icons import icon
 from .service import key_str
 
@@ -357,6 +359,14 @@ STATE_CLASS = {
 }
 
 
+def high_risk(o, bucket) -> bool:
+    """The high-risk underdog indicator for one outcome: its OWN market probability is in
+    [10%, 20%) and it is eligible in the round's configuration (``bucket`` is the
+    eligible bucket under that configuration, else None). Never fixture-level, never
+    the Goal Model probability."""
+    return bucket is not None and HIGH_RISK_UNDERDOG.contains(o.market_probability)
+
+
 def outcome_state(
     o, bucket, block, locked: bool, personal=None, *, config: ChallengeConfig
 ) -> tuple[str, bool, str]:
@@ -384,6 +394,8 @@ def outcome_state(
         else "Tap to add"
     )
     title = f"{outcome_text(o)} ({short}): {title}"
+    if high_risk(o, bucket):
+        title += f" · {education.UNDERDOG_SHORT}"
     if personal is not None:
         title += f" · Your View {pct(personal, 1)}"
     return cls, disabled, title
@@ -433,33 +445,44 @@ def outcome_button(
     model = (
         pct_in_band(o.model_probability, None, config) if o.model_probability is not None else "—"
     )
+    parts = [
+        html.Span(
+            [
+                html.Span(
+                    OUTCOME_SHORT.get(str(o.outcome), outcome_text(o)), className="ch-out-name"
+                ),
+                html.Span(f"{o.reference_odds:.2f}", className="ch-odds"),
+            ],
+            className="ch-out-top",
+        ),
+        html.Span(
+            [
+                html.Span(
+                    f"Mkt {pct_in_band(o.market_probability, bucket, config)}",
+                    title="Market probability (bookmaker margin removed): sets the bucket",
+                ),
+                html.Span(f"D9 {model}", className="muted", title="Diski 9 (Goal Model 1.0)"),
+                you_line(o, personal, show_you),
+            ],
+            className="ch-out-nums",
+        ),
+    ]
+    if high_risk(o, bucket):
+        # targeted underdog indicator (text + icon, never colour alone); the full warning
+        # is in the tracker and the final review. Ordinary cards are unchanged.
+        parts.append(
+            html.Span(
+                [icon("alert", "ic-sm"), education.UNDERDOG_TAG],
+                className="ch-risk-tag",
+                **{"aria-hidden": "true"},
+            )
+        )
+    # one state tag: its label and icon come from the button's state and bucket classes
+    # (style.css), so a selection change updates only className, disabled and title; the
+    # same words are in the title / aria-label for assistive tech
+    parts.append(html.Span(className="ch-tag ch-tag-s", **{"aria-hidden": "true"}))
     return html.Button(
-        [
-            html.Span(
-                [
-                    html.Span(
-                        OUTCOME_SHORT.get(str(o.outcome), outcome_text(o)), className="ch-out-name"
-                    ),
-                    html.Span(f"{o.reference_odds:.2f}", className="ch-odds"),
-                ],
-                className="ch-out-top",
-            ),
-            html.Span(
-                [
-                    html.Span(
-                        f"Mkt {pct_in_band(o.market_probability, bucket, config)}",
-                        title="Market probability (bookmaker margin removed): sets the bucket",
-                    ),
-                    html.Span(f"D9 {model}", className="muted", title="Diski 9 (Goal Model 1.0)"),
-                    you_line(o, personal, show_you),
-                ],
-                className="ch-out-nums",
-            ),
-            # one state tag: its label and icon come from the button's state and bucket
-            # classes (style.css), so a selection change updates only className, disabled
-            # and title; the same words are in the title / aria-label for assistive tech
-            html.Span(className="ch-tag ch-tag-s", **{"aria-hidden": "true"}),
-        ],
+        parts,
         id={"t": id_type, "k": key_str(o.key)},
         n_clicks=0,
         disabled=disabled,
@@ -557,6 +580,7 @@ def tracker(
     can_continue,
     locked,
     review_enabled_label="Review & Submit →",
+    risk_panel=None,
 ) -> html.Div:
     rows = []
     for st in stats:
@@ -601,6 +625,7 @@ def tracker(
                     segment_bar(st.code, min(st.selected, st.required), st.required),
                     bucket_line(st),
                     html.Ul(items, className="ch-picks") if items else None,
+                    risk_panel if st.code == "C" else None,
                 ],
                 open=True,
                 className=f"ch-trk-row b-{BUCKET_CLASS[st.code]}",

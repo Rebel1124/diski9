@@ -14,6 +14,7 @@ from diski9.challenge.config import (
     ChallengeConfig,
     get_config,
 )
+from diski9.challenge.guidance import high_risk_selections
 from diski9.challenge.roundsheet import RoundStatus
 from diski9.challenge.scoring import POINTS_150_75_V2
 from diski9.challenge.structured import (
@@ -24,6 +25,7 @@ from diski9.challenge.structured import (
     selection_blocks,
 )
 
+from .. import education
 from . import charts, results_ui
 from . import components as c
 from . import state as st
@@ -489,10 +491,16 @@ def builder(service, snap, sels, avail, prefs, local, personal=None, state=None)
                             ),
                             filters,
                             html.P(
-                                "Mkt: the market's chance, which sets the bucket. D9: Diski 9's "
-                                "model. Odds: the frozen reference odds that set your payout.",
+                                [
+                                    education.term("Mkt", "market_probability"),
+                                    ": the market's chance, which sets the bucket. ",
+                                    education.term("D9", "model_probability"),
+                                    ": Diski 9's model. Odds: the frozen reference odds that "
+                                    "set your payout.",
+                                ],
                                 className="muted small ch-legend",
                             ),
+                            education.model_guidance("challenge"),
                             html.Div(cards, id=c.T("fixtures"), className="ch-fixtures"),
                         ],
                         id=c.T("matches-view"),
@@ -648,9 +656,29 @@ def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None
         fx = snap.fixture(o.fixture_id)
         return f"{fx.home} v {fx.away}"
 
+    risk = risk_panel(snap, chosen, cfg, "tracker")
     return c.tracker(
-        stats, nine, by_bucket, label, prob, msg, ev, port is not None and not is_locked, is_locked
+        stats,
+        nine,
+        by_bucket,
+        label,
+        prob,
+        msg,
+        ev,
+        port is not None and not is_locked,
+        is_locked,
+        risk_panel=risk,
     )
+
+
+def risk_panel(snap, chosen, cfg, where: str):
+    """One high-risk underdog warning for the SELECTED outcomes whose own market
+    probability is in [10%, 20%) and that are eligible in the round's configuration."""
+    picks = []
+    for o in high_risk_selections(chosen, snap.snapshot_at, cfg):
+        fx = snap.fixture(o.fixture_id)
+        picks.append((f"{fx.home} v {fx.away}: {c.outcome_text(o)}", o.fixture_id))
+    return education.underdog_panel(picks, where)
 
 
 # --------------------------------------------------------------- analysis
@@ -1197,8 +1225,8 @@ def picks_table(rows) -> html.Div:
             html.Th("Bucket"),
             html.Th("Match"),
             html.Th("Prediction"),
-            html.Th("Market", className="num"),
-            html.Th("Diski 9", className="num"),
+            html.Th(education.term("Market", "market_probability"), className="num"),
+            html.Th(education.term("Diski 9", "model_probability"), className="num"),
             html.Th("Odds", className="num"),
         ]
     )
@@ -1308,6 +1336,7 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
             ),
             html.Div(
                 [
+                    risk_panel(snap, list(port.selections), cfg, "review"),
                     picks_table(rows),
                     html.P(
                         f"Allocation: Foundation 40, Balanced 30, Challenger 20, The Diski 9 "

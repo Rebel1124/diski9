@@ -20,8 +20,8 @@ execution**. Evidence:
 |---|---|---|
 | R | Research preservation | done (`b01e057`, CI run 145 passed) |
 | 1 | Version-aware application; `broad60-432-v1` stays the only configuration | done (`1767c8d`, CI run 146 passed) |
-| 2 | Register `a3-432-v1` (inactive) | this record (section below) |
-| 3 | Guidance and underdog warning | not started |
+| 2 | Register `a3-432-v1` (inactive) | done (`30f4f28`, CI run 147 passed) |
+| 3 | Guidance, warning and educational popovers | this record (section below) |
 | 4 | Activation (`app_0008`, default switch, docs) | not started; migration not authorised |
 | 5 | Final verification | not started |
 
@@ -122,6 +122,115 @@ it is bound to. Production code never falls back to `DEFAULT_CONFIG` for them.
   * portfolios valid under both configurations (all 12; the pool has no outcome above 90%)
     settle identically under A3 using their frozen v1 buckets: no reclassification.
 
+## Checkpoint 3: guidance, warning and educational popovers
+
+Presentation only. No calculation, eligibility, scoring, settlement or configuration
+changes; A3 stays inactive and `DEFAULT_CONFIG` is still `broad60-432-v1`.
+
+### Architecture
+
+| Module | Content |
+|---|---|
+| `src/diski9/app/education.py` | the central glossary (`GLOSSARY`: title, approved short definition, the longer existing explanation); `info()` (the existing native `<details>` popover, moved from `views`, which re-exports it); `term(label, *keys)`; the guidance and warning text; `model_guidance(where)`; `underdog_panel(picks, where)` |
+| `src/diski9/challenge/guidance.py` | the pure warning rule: `HIGH_RISK_UNDERDOG = [0.10, 0.20)`, `is_high_risk_underdog`, `high_risk_selections`. Outside the configuration and its fingerprint |
+| `assets/diski9.js`, `assets/style.css` | positioning and style for the new `.term-info` popovers only; the existing popovers are unchanged |
+
+The Match Lab's longer explanations (`lab.MODEL_PROB_HELP` and the others) now come from
+the glossary, so each concept has one source.
+
+### Placements (one explanation per concept per view)
+
+| View | What |
+|---|---|
+| Weekly Challenge builder | `Mkt` and `D9` terms in the legend; "Understanding Model Probabilities" collapsed below it |
+| Final review | `Market` and `Diski 9` column headings; the warning reminder above the picks table |
+| Match Lab model-versus-market table | `Model`, `Market`, `Edge` and `EV` headings; the guidance (Match Lab wording: "review the match factors on this page") |
+| Screener | one term on "Rank by" covering Edge and EV |
+| Outcome card | a small "High risk" tag (only on eligible 10%–20% outcomes; the card title carries the explanation) |
+| Tracker | one warning panel in the Challenger section for all selected high-risk underdogs |
+
+No icons in repeated cells or cards apart from the targeted warning tag.
+
+### Warning rule
+
+The selected outcome's own margin-adjusted market probability is in `[0.10, 0.20)` **and**
+the outcome is eligible under the round's configuration (`assess_outcome(..., round
+config)`). Never fixture-level, never the model probability, no acknowledgement and never
+a block. Under `broad60-432-v1` such outcomes are ineligible, so the warning cannot appear
+on today's rounds. Several qualifying picks give one panel ("Includes 2 high-risk
+underdogs"), each with its existing Match Lab link. The standalone Match Lab shows only the
+general guidance, never the Weekly Challenge warning, so general guidance and challenge
+eligibility stay separate.
+
+### Verification
+
+* `tests/test_a3_guidance.py` (25 tests):
+  * the approved wording, verbatim;
+  * the glossary as the single source;
+  * the definitions against the calculations (normalisation; 55% vs 48% = +7.0 pp;
+    0.55 × 2.10 − 1 = 0.155);
+  * warning boundaries with adjacent floats (just below 0.10 no; 0.10, 0.15 and just
+    below 0.20 yes; 0.20 no);
+  * the market probability drives it, not the model;
+  * eligibility (v1 round and stale quotes: no warning);
+  * selected outcomes only, deduplicated;
+  * select and deselect (2 → 1 → none, one panel);
+  * review once, collapsed, with no acknowledgement;
+  * tags only on eligible high-risk cards;
+  * guidance and terms once per view;
+  * both fingerprints unchanged.
+* `tests/test_a3_guidance_browser.py` (Playwright) runs on desktop 1366 × 900 with the
+  mouse, iPad Mini with the keyboard (focus, then Enter) and iPhone 13 with touch. It checks
+  the builder, guidance, tracker warning, select and deselect, review, Screener and Match
+  Lab. For every popover:
+  * it opens;
+  * it lies fully inside the viewport, including the four inside the horizontally
+    scrolling Match Lab table;
+  * only one is open at a time;
+  * Escape closes it and returns focus to its button.
+
+  Every view also has no horizontal page overflow and no page errors. The demonstration
+  round is built under the registered `a3-432-v1` by a test-only patch; nothing is
+  activated.
+* Regression: the existing Weekly Challenge, Match Lab, market value, app and
+  configuration-guard suites pass unchanged; the historical v1 settlement regression
+  still reproduces exactly.
+* Screenshots: `docs/screenshots/a3_cp3/` (desktop, tablet and phone; popovers closed and
+  open; builder, guidance, tracker warning closed and open, review, Screener, Match Lab).
+
+### Accessibility findings
+
+| Concern | Result |
+|---|---|
+| Hover dependence | none: native `<details>`/`<summary>` opens with click, Enter/Space and tap |
+| Name | each button has an aria-label ("What is Market Probability?") |
+| Focus | visible `:focus-visible` outline; Escape closes and returns focus; a click outside closes |
+| Touch target | 22 px button with padding, in headings and legends only |
+| Narrow tables | on phones (≤ 480 px) a heading's button sits under its label, so the Match Lab model-versus-market table keeps every column visible without scrolling. The first full run caught a 22 px overflow here (existing `test_browser_value_rankings_and_lab`); fixed in CSS, test unchanged |
+| Clipping | `.term-info` popovers use fixed positioning, clamped 12 px from the screen edges, width `min(320 px, screen − 24 px)`, opening above when there is no room below. They escape the `.scroll-x` table container |
+| Colour | the warning uses the existing warn colour plus an icon and text, never colour alone; the card tag icon is `aria-hidden` and its meaning is in the card title |
+| Warning semantics | `role="note"`, not an alert: it informs and never interrupts |
+
+Known minor point: on narrow phones the builder legend can wrap between a term's button and
+the colon that follows it. It is readable and unchanged in meaning.
+
+## Future educational opportunities (documented, not implemented)
+
+Priority order is the owner's interest first.
+
+1. **Accumulator probability:** why nine 70% predictions together succeed only about 4% of
+   the time; the tracker's "All succeed" figures are the natural place.
+2. **Variance:** why a sound portfolio often returns nothing in a given week, and how
+   results spread over many rounds.
+3. **Recovery probability:** the chance to get at least the 100 credits back, already
+   shown as "Get 100+ back"; explain what drives it.
+4. **Implied probability:** 1 ÷ odds, before the margin is removed.
+5. **Bookmaker margin:** why implied probabilities add up to more than 100%.
+6. **Estimated Goals:** the model's expected goals per team (called "Estimated Goals", not
+   "xG").
+
+Each would reuse `education.GLOSSARY` and `term()` with the same one-per-view rule.
+
 ## Requirements recorded for later checkpoints (not implemented)
 
 1. **Activation boundary (Checkpoint 4):**
@@ -169,5 +278,5 @@ it is bound to. Production code never falls back to `DEFAULT_CONFIG` for them.
   regression, coexistence.
 * Open v1 rounds confirmable after activation; new rounds created under A3 on the
   `weekend` schedule; migration upgrade and downgrade (Checkpoint 4).
-* Warning display at the 0.10, 0.1999… and 0.20 boundaries, driven by the market
-  probability (Checkpoint 3).
+* Done in Checkpoint 3: warning display at the 0.10, 0.1999… and 0.20 boundaries,
+  driven by the market probability.

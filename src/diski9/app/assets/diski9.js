@@ -42,3 +42,57 @@ document.addEventListener("keydown", function (e) {
   new MutationObserver(label).observe(document.documentElement, { childList: true, subtree: true, characterData: true });
   document.addEventListener("DOMContentLoaded", label);
 })();
+
+/* Scenario A3: educational term popovers (``.term-info``). Native <details> keeps mouse,
+   keyboard (Tab, Enter/Space) and touch working without hover. When one opens it is
+   positioned in the viewport (fixed, clamped to 12 px margins) so it is never clipped
+   by a scrolling table or the screen edge; only one is open at a time; Escape or a tap
+   outside closes it and returns focus to its icon. */
+(function () {
+  const MARGIN = 12;
+  function place(d) {
+    const pop = d.querySelector(":scope > .info-pop");
+    const btn = d.querySelector(":scope > summary");
+    if (!pop || !btn) return;
+    pop.style.position = "fixed";
+    const w = Math.min(320, window.innerWidth - 2 * MARGIN);
+    pop.style.width = w + "px";
+    const r = btn.getBoundingClientRect();
+    let left = Math.min(Math.max(MARGIN, r.left - 8), window.innerWidth - w - MARGIN);
+    let top = r.bottom + 6;
+    pop.style.left = left + "px";
+    pop.style.top = top + "px";
+    pop.style.right = "auto";
+    const h = pop.getBoundingClientRect().height;
+    if (top + h > window.innerHeight - MARGIN && r.top - 6 - h > MARGIN) {
+      pop.style.top = (r.top - 6 - h) + "px";  // not enough room below: open above
+    }
+  }
+  function closeAll(except) {
+    document.querySelectorAll("details.term-info[open]").forEach(function (d) {
+      if (d !== except) d.open = false;
+    });
+  }
+  document.addEventListener("toggle", function (e) {
+    const d = e.target;
+    if (!(d instanceof HTMLDetailsElement) || !d.classList.contains("term-info")) return;
+    if (d.open) { closeAll(d); place(d); }
+  }, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "Escape") return;
+    const d = document.querySelector("details.term-info[open]");
+    if (!d) return;
+    d.open = false;
+    const s = d.querySelector(":scope > summary");
+    if (s) s.focus();
+  });
+  document.addEventListener("click", function (e) {
+    if (!e.target.closest || e.target.closest("details.term-info")) return;
+    closeAll(null);
+  });
+  function reflow() {
+    document.querySelectorAll("details.term-info[open]").forEach(place);
+  }
+  window.addEventListener("resize", reflow);
+  window.addEventListener("scroll", reflow, true);
+})();

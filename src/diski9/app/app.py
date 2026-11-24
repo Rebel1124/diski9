@@ -22,7 +22,7 @@ from dash.exceptions import PreventUpdate
 
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DIRECTIONS
 
-from . import lab_context
+from . import education, lab_context
 from .challenge import lab_persist
 from .challenge.callbacks import nav_links
 from .challenge.callbacks import register as register_challenge
@@ -443,7 +443,7 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                     ),
                     html.Div(
                         [
-                            html.Label("Rank by"),
+                            html.Label(education.term("Rank by", "edge", "ev")),
                             dcc.Dropdown(
                                 id="direction",
                                 clearable=False,
