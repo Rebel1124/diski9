@@ -3,13 +3,12 @@ real PostgreSQL. A draft keeps the configuration of the schedule row it was crea
 under even after a newer schedule version exists, publishes normally with a snapshot
 built for that configuration, and an unknown version fails instead of falling back.
 
-The tests use their own schedule codes (never ``weekend``) and a TEST-ONLY configuration
-registered in an isolated copy of the registry; no production schedule or
+The tests use their own schedule codes (never ``weekend``) and the registered but
+inactive ``a3-432-v1`` configuration (A3 Checkpoint 2); no production schedule or
 configuration is changed."""
 
 from __future__ import annotations
 
-from dataclasses import replace
 from datetime import timedelta
 
 import pytest
@@ -17,34 +16,18 @@ from pg_helpers import unique
 from sqlalchemy import text
 from svc_helpers import principal
 
-import diski9.challenge.config as cfgmod
 from diski9.backend.db import db_now, transaction
 from diski9.backend.devdata import dev_snapshot
 from diski9.backend.services import rounds as svc
 from diski9.backend.services.common import PublicationRefused
-from diski9.challenge.config import (
-    BROAD60_432_V1,
-    BucketSpec,
-    ConfigError,
-    ProbabilityBand,
-)
-
-VARIANT = replace(
-    BROAD60_432_V1,
-    version="test-binding-variant",
-    buckets=(
-        BucketSpec("A", "Foundation", ProbabilityBand(0.60, 0.90, True, True), 4, 40),
-        BucketSpec("B", "Balanced", ProbabilityBand(0.40, 0.60, True, False), 3, 30),
-        BucketSpec("C", "Challenger", ProbabilityBand(0.10, 0.40, True, False), 2, 20),
-    ),
-)
+from diski9.challenge.config import A3_432_V1, BROAD60_432_V1, ConfigError
 
 
 @pytest.fixture
-def variant(monkeypatch):
-    monkeypatch.setattr(cfgmod, "_REGISTRY", dict(cfgmod._REGISTRY))
-    cfgmod.register_config(VARIANT)
-    return VARIANT
+def variant():
+    """The registered (but inactive) a3-432-v1 configuration, used only on test-only
+    schedule codes; the active weekend schedule is never changed."""
+    return A3_432_V1
 
 
 @pytest.fixture(scope="module")
@@ -120,3 +103,21 @@ def test_unknown_round_configuration_fails_instead_of_falling_back(engine, op):
         svc.round_config(conn, draft.id)
     with transaction(engine) as conn, pytest.raises(ConfigError):
         svc.schedule_config(conn, sched)
+
+
+def test_v1_and_a3_rounds_coexist_without_changing_the_active_schedule(engine, op, variant):
+    """A3 Checkpoint 2: a draft on a test-only A3 schedule publishes under A3 while the
+    active weekend schedule (and every round created on it) stays broad60-432-v1."""
+    sched = unique("bind").replace("-", "")
+    _add_schedule(engine, sched, 1, variant.version)
+    draft, now = _draft(engine, op, sched)
+    with transaction(engine) as conn:
+        assert svc.schedule_config(conn, "weekend") is BROAD60_432_V1  # active: unchanged
+        config = svc.round_config(conn, draft.id)
+    assert config is variant
+    snap = dev_snapshot(draft.code, now, now + timedelta(hours=3), config=config)
+    view = svc.publish_round(engine, op, draft.id, snap, source="development")
+    assert view.config_version == "a3-432-v1"
+    v1_draft, now = _draft(engine, op, "weekend")
+    with transaction(engine) as conn:
+        assert svc.round_config(conn, v1_draft.id) is BROAD60_432_V1

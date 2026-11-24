@@ -157,9 +157,10 @@ def test_bucket_names_are_structural_in_every_registered_configuration():
 
 
 # ------------------------------------------------------------------ v1 unchanged
-def test_v1_is_still_the_only_registered_and_default_configuration():
+def test_v1_remains_the_default_with_a3_registered_alongside():
+    """A3 Checkpoint 2: a3-432-v1 is registered but not the default."""
     assert DEFAULT_CONFIG is BROAD60_432_V1
-    assert set(cfgmod._REGISTRY) == {"broad60-432-v1"}
+    assert set(cfgmod._REGISTRY) == {"broad60-432-v1", "a3-432-v1"}
 
 
 def test_v1_fingerprint_is_pinned():

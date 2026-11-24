@@ -280,6 +280,21 @@ BROAD60_432_V1 = ChallengeConfig(
     nine_fold_credits=10,
 )
 
+# Scenario A3 (owner-approved; research: docs/research/weekly_challenge_bucket_review.md).
+# Identical to broad60-432-v1 except two bands: Foundation 60%-90% (both ends included)
+# and Challenger 10% to under 40%. REGISTERED ONLY: it is not the default and no schedule
+# uses it until the separately authorised activation (A3 Checkpoint 4).
+A3_432_V1 = ChallengeConfig(
+    version="a3-432-v1",
+    buckets=(
+        BucketSpec("A", "Foundation", ProbabilityBand(0.60, 0.90, True, True), 4, 40),
+        BucketSpec("B", "Balanced", ProbabilityBand(0.40, 0.60, True, False), 3, 30),
+        BucketSpec("C", "Challenger", ProbabilityBand(0.10, 0.40, True, False), 2, 20),
+    ),
+    nine_fold_name="The Diski 9",
+    nine_fold_credits=10,
+)
+
 _REGISTRY: dict[str, ChallengeConfig] = {}
 
 
@@ -302,4 +317,5 @@ def get_config(version: str) -> ChallengeConfig:
 
 
 register_config(BROAD60_432_V1)
-DEFAULT_CONFIG = BROAD60_432_V1
+register_config(A3_432_V1)  # permanent once registered; never redefined
+DEFAULT_CONFIG = BROAD60_432_V1  # the active configuration is unchanged
