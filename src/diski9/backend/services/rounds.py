@@ -41,7 +41,12 @@ from ..repositories import ops, portfolios
 from ..repositories import rounds as rounds_repo
 from . import championships, snapshots
 from .common import LockRefused, NotFound, PublicationRefused, ValidationFailed
-from .schedules import ScheduleUnavailable, current_schedule, schedule_at  # noqa: F401
+from .schedules import (  # noqa: F401
+    ScheduleUnavailable,
+    current_schedule,
+    lock_for_round_creation,
+    schedule_at,
+)
 
 MODEL_VERSION = f"goal-model-{GOAL_MODEL_VERSION}"
 # Snapshot construction age (approved at the 6C.3 checkpoint): an operational
@@ -354,6 +359,7 @@ def create_round(
             [{"field": "window", "reason": "empty"}],
         )
     with transaction(engine) as conn:
+        lock_for_round_creation(conn)  # before resolving: waits for a schedule change
         sched = current_schedule(conn, schedule_code)
         _check_expected(sched, expected_schedule_id)
         if conn.execute(select(rounds.c.id).where(rounds.c.code == code)).first():
@@ -417,6 +423,7 @@ def create_scheduled_draft(
     iso_year: int,
     iso_week: int,
     job_run_id: int | None = None,
+    expected_schedule_id: int | None = None,
 ) -> ScheduledDraft:
     """Create the Beta draft for one ISO week of the weekend schedule (Phase 6C.6
     Stage E.1a, ADP-07). **Scheduler only**: the actor must be :data:`SYSTEM`; a
@@ -426,7 +433,10 @@ def create_scheduled_draft(
     already has the code (draft, published, locked or final, created by anyone),
     nothing is written and ``created`` is False. The row, its status history and the
     audit record are written in one transaction. A draft has no snapshot, is not
-    visible to participants and is published only by a person (``round publish``)."""
+    visible to participants and is published only by a person (``round publish``).
+    ``expected_schedule_id``: the row the caller planned the week with; if another
+    row applies at creation, :class:`ScheduleChanged` is raised and nothing is written
+    (the scheduler replans on its next tick)."""
     if not isinstance(actor, System):
         raise Forbidden("scheduled_only")
     if isinstance(iso_year, bool) or isinstance(iso_week, bool):
@@ -441,7 +451,9 @@ def create_scheduled_draft(
     with transaction(engine) as conn:
         # one row, at the transaction timestamp: window, series and (at publication)
         # configuration all come from the row the draft is bound to
+        lock_for_round_creation(conn)  # before resolving: waits for a schedule change
         sched = current_schedule(conn, SCHEDULED_SCHEDULE)
+        _check_expected(sched, expected_schedule_id)
         if sched.series not in SCHEDULED_SERIES:
             raise ValidationFailed(
                 "Scheduled drafts are created only for the beta series.",

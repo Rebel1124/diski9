@@ -230,7 +230,7 @@ def test_sessions_run_in_utc_with_timeouts(engine):
 
 def test_health_check(engine):
     health = check_health(engine)
-    assert health["ok"] and health["schema_revision"] == "app_0007"
+    assert health["ok"] and health["schema_revision"] == "app_0008"
 
 
 def test_connection_errors_never_reveal_the_password(pg_url):

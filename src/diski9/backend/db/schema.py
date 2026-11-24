@@ -6,8 +6,9 @@ tables and columns used to build statements. ``tests/backend/test_schema.py``
 checks that the two agree column by column.
 
 Table kinds: ``HISTORY`` tables are insert-only (enforced by triggers and
-privileges); ``GUARDED`` tables allow one narrow, trigger-checked change; all
-others are mutable current-state projections.
+privileges); ``GUARDED`` tables allow one narrow, trigger-checked change;
+``MIGRATION_ONLY`` tables are read-only for the runtime role (changed only by
+migrations); all others are mutable current-state projections.
 """
 
 from __future__ import annotations
@@ -728,4 +729,12 @@ GUARDED = frozenset(
 )
 # appended and purged (never updated): authentication rate-limit events
 APPEND_PURGE = frozenset({"auth_rate_events"})
-PROJECTION = frozenset(t.name for t in metadata.sorted_tables) - HISTORY - GUARDED - APPEND_PURGE
+# written only by migrations; the runtime role may only read (app_0008, A3 Checkpoint 4B)
+MIGRATION_ONLY = frozenset({"round_schedules"})
+PROJECTION = (
+    frozenset(t.name for t in metadata.sorted_tables)
+    - HISTORY
+    - GUARDED
+    - APPEND_PURGE
+    - MIGRATION_ONLY
+)

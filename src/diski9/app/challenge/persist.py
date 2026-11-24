@@ -46,23 +46,37 @@ class Backend:
         self._lock = threading.Lock()
         self._at = 0.0
         self._found = None
-        self._sched = None  # (config, cached-until monotonic)
-        self.schedule_ttl = 30.0
+        self._sched: dict[str, tuple] = {}  # code -> (config, cached-until monotonic)
+        self.schedule_ttl = 30.0  # maximum staleness after a schedule change commits
 
     def schedule_config(self, code: str = "weekend"):
         """The configuration of the ``code`` schedule row valid now (database clock):
         what explanatory text and the demonstration round describe when no round
-        applies. Cached until the earlier of the row's ``active_to`` and
-        ``schedule_ttl`` seconds, so a boundary is followed exactly once the new row
-        exists. Any database or resolution error raises
-        :class:`ScheduleConfigUnavailable`; there is never a fallback configuration."""
+        applies. Cached per schedule code.
+
+        Expiry is conservative. The entry expires at the earlier of ``schedule_ttl``
+        seconds and the row's ``active_to``, both measured from the monotonic instant
+        **before** the query was sent. The database timestamp is taken inside the query,
+        so query latency can only shorten the cache life, never extend it past the
+        boundary.
+
+        Maximum staleness:
+        * none at a boundary already recorded in the cached row (subject to clock skew
+          between this host and the database);
+        * up to ``schedule_ttl`` after a schedule change that commits while an entry is
+          cached.
+
+        Any database or resolution error raises :class:`ScheduleConfigUnavailable`;
+        there is never a fallback configuration."""
         with self._lock:
-            if self._sched is not None and time.monotonic() < self._sched[1]:
-                return self._sched[0]
+            hit = self._sched.get(code)
+            if hit is not None and time.monotonic() < hit[1]:
+                return hit[0]
         from diski9.backend.db import db_now, read_only
         from diski9.backend.services import schedules
         from diski9.challenge.config import get_config
 
+        sent = time.monotonic()  # before the query: latency only shortens the life
         try:
             with read_only(self.engine) as conn:
                 now = db_now(conn)
@@ -70,11 +84,11 @@ class Backend:
             config = get_config(row.config_version)
         except Exception as exc:  # noqa: BLE001 - reported, never replaced by a default
             raise ScheduleConfigUnavailable(str(exc)) from exc
-        ttl = self.schedule_ttl
+        life = self.schedule_ttl
         if row.active_to is not None:
-            ttl = min(ttl, max(0.0, (row.active_to - now).total_seconds()))
+            life = min(life, max(0.0, (row.active_to - now).total_seconds()))
         with self._lock:
-            self._sched = (config, time.monotonic() + ttl)
+            self._sched[code] = (config, sent + life)
         return config
 
     def published(self):

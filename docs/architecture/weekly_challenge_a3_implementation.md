@@ -23,8 +23,8 @@ execution**. Evidence:
 | 2 | Register `a3-432-v1` (inactive) | done (`30f4f28`, CI run 147 passed) |
 | 3 | Guidance, warning and educational popovers | done (`fa1307a`, CI run 148 passed) |
 | 3.1 | Minor UI refinements (target size, legend wrapping, Reference Odds) | done (`66c37f6`, CI run 149 passed) |
-| 4A | Schedule-aware application (no migrations) | this record (section below); local verification only, full CI deferred to 4C |
-| 4B | Database schedule safeguards (`app_0008`) | not started |
+| 4A | Schedule-aware application (no migrations) | conditionally accepted (`38cb0e1`); local verification only, full CI deferred to 4C |
+| 4B | Database schedule safeguards (`app_0008`) | this record (section below); targeted local verification, full CI deferred to 4C |
 | 4C | Controlled activation (`app_0009`, approved UTC timestamp, default switch) | not started; no timestamp approved |
 | 5 | Final verification | not started |
 
@@ -488,7 +488,158 @@ a note explains it:
    * `app_0004`'s downgrade silently skips when rounds reference v2. That behaviour is
      unchanged here and noted.
 
+## Checkpoint 4B: database schedule safeguards (`app_0008`)
+
+Safeguards only. No schedule, round or configuration data changes, no activation, no
+`app_0009`, and `DEFAULT_CONFIG` is unchanged. Full GitHub CI is **deferred** to
+Checkpoint 4C (`[skip ci]`, owner-approved); it has not run on this checkpoint.
+
+### Safeguards
+
+| Rule | Mechanism |
+|---|---|
+| No overlapping intervals per code | `round_schedules_no_overlap`: `EXCLUDE USING gist (code WITH =, tstzrange(active_from, active_to, '[)') WITH &&)` (`btree_gist`) |
+| Exactly one open-ended row per code | partial unique index `round_schedules_one_open (code) WHERE active_to IS NULL`, plus the deferred check (the highest version must be open-ended) |
+| No gaps, chronological order | deferred constraint trigger `round_schedules_contiguous`: ordered by version, each `active_to` equals the next `active_from` |
+| Referenced rows protected | `round_schedules_row_guard`: a row used by a round can never be deleted and no column may change except `active_to`. `active_to` may be set once from NULL, strictly after the latest `created_at` of its rounds (equality refused). It may be reopened only when no later version remains (the undo of an unused activation). Any other change to it is refused |
+| Validity at round insertion | `rounds_schedule_valid` (BEFORE INSERT): `active_from <= created_at < active_to` for the row it is bound to |
+| Round identity immutable | `rounds_identity_immutable`: `app.set_once('schedule_id', 'created_at')` (both NOT NULL, so immutable) |
+| Runtime privileges | `diski9_app` keeps SELECT on `round_schedules`; INSERT, UPDATE and DELETE are revoked. A new `MIGRATION_ONLY` table kind in the schema mirror records this |
+
+**Migration audit (before installing anything).** The upgrade refuses with
+`app_0008 upgrade refused: …` (and nothing is installed or changed) if existing data
+has:
+* overlapping versions;
+* non-contiguous versions (a gap, a closed highest version, or an open earlier
+  version);
+* rounds outside their schedule's validity at `created_at`.
+
+The message lists counts and examples. There is no repair, rebinding, timestamp
+change or exemption: resolution is an owner decision.
+
+### Locking protocol and concurrency guarantees
+
+Key: `hashtextextended('diski9.round_schedules', 0)`, transaction-level advisory locks.
+
+* **Schedule writers:** every statement that writes `round_schedules` (any role, any
+  path, TRUNCATE included) takes the **exclusive** lock through the statement trigger
+  `round_schedules_write_lock`. Privileged writers cannot skip it; only
+  `session_replication_role = replica`, which needs superuser, disables triggers.
+  Writers should call `SELECT app.schedule_write_lock()` first, so their own later
+  statements read after the lock.
+* **Round creators:** the application takes the **shared** lock
+  (`schedules.lock_for_round_creation`, calling `pg_advisory_xact_lock_shared` directly
+  so the code also works against `app_0007`) before resolving the schedule. The
+  insert trigger takes it again for any direct SQL insert. Creators never block each
+  other.
+* **Isolation:** both checks refuse anything but READ COMMITTED. Under READ COMMITTED
+  each query in the triggers takes a fresh snapshot after the lock is granted, so it
+  sees every change committed before. The transaction timestamp (and so
+  `created_at`) stays fixed, but the rows read do not. REPEATABLE READ or SERIALIZABLE
+  would read a snapshot from before the lock, so they are refused. Backend writers
+  already use READ COMMITTED; REPEATABLE READ is used only on read-only paths.
+* **Consequences, each proved by a test with separate connections:**
+  1. A creator whose transaction starts after a change began, but before it commits,
+     waits, then binds to the new version (`created_at` ≥ boundary, version 2).
+  2. A direct-SQL creator that read version 1 before the change and inserts after it
+     commits is refused: its fixed `created_at` is not inside version 1's new interval.
+  3. A writer waits for an uncommitted creation, then sees it and refuses a closing
+     time at or before its `created_at`.
+  4. Two concurrent conflicting activations cannot both commit; the result is
+     contiguous with exactly one open-ended row.
+  5. Two writers whose changes are each valid alone but would leave a gap together:
+     the deferred check of the second runs after the first commits and refuses.
+  6. Concurrent creators share the lock without waiting.
+* **Deadlock avoidance:** writers take the exclusive lock first, before touching any
+  row; creators take the shared lock before touching `rounds`. A transaction must not
+  mix round creation and schedule writes under concurrency, because upgrading a held
+  shared lock to exclusive can deadlock. PostgreSQL would detect it, and no
+  application path does this.
+
+### Application follow-ups (from the 4A review)
+
+* `Backend.schedule_config` cache is keyed by schedule code. Its lifetime is measured
+  from the monotonic instant **before** the query, so query latency only shortens it.
+  **Maximum staleness:**
+  * zero at a boundary already present in the cached row (subject to clock skew
+    between the application host and the database);
+  * up to `schedule_ttl` (30 s) after a schedule change that commits while an entry
+    is cached.
+* Preparation pins the schedule row the week was planned from (`Week.schedule_id` →
+  `create_scheduled_draft(expected_schedule_id=…)`). A change committed between
+  planning and creation writes nothing and is recorded as `retryable_failure`
+  ("replanned on the next tick"). The success message reports the created round's own
+  window, never the plan's.
+* `create_round` and `create_scheduled_draft` take the shared lock before resolving.
+
+### Fixture adjustments (assertions unchanged)
+
+| Test | Adjustment | Why |
+|---|---|---|
+| `test_backend_schedule_resolution.add_row` | inserts each version open-ended and closes the previous open version at its `active_from` in the same transaction | every committed state must be contiguous with one open-ended row; every caller already used contiguous versions |
+| `test_overlapping_versions…` / `test_a_gap…` (4A) | now assert the database refuses the overlap or gap | such states can no longer exist, so the resolver can no longer meet them |
+| `test_backend_weekly_results`, `test_backend_championship_repair` | the direct round insert binds to the `weekend` row valid now instead of the first table row | v1 is closed; these tests are about championship membership, not schedules |
+| `test_backend_migrations`, `test_backend_upgrade_paths`, `test_backend_concurrency` | head revision `app_0008` | new revision |
+| `test_runtime_role_privileges` | `round_schedules` is read-only for the runtime role | the approved privilege change |
+| `test_upgrade_to_competition_results…` | after the refused downgrade to `app_0006`, the revision is `app_0007` (data unchanged) | `migrations_app/env.py` uses one transaction per migration, so `app_0008`'s downgrade (safeguards only) committed before `app_0007` refused. This is pre-existing behaviour; downgrade one revision at a time in operations |
+
+### Extension prerequisites (target environment unverified)
+
+* `btree_gist` is a trusted extension (PostgreSQL 13+). A non-superuser with CREATE on
+  the database can install it; the migration uses `CREATE EXTENSION IF NOT EXISTS`
+  in the default schema.
+* Local PostgreSQL 16 and CI PostgreSQL 17 support it.
+* The exclusion constraint finds the default gist operator class regardless of
+  `search_path`.
+* **Unverified:** whether the target migration role may create it, and in which
+  schema (Supabase normally places extensions in `extensions`). Confirm before any
+  protected execution.
+* Downgrade never drops the extension.
+
+### Protected-database audit (prepared, not run)
+
+Run read-only (for example `BEGIN TRANSACTION READ ONLY; … ROLLBACK;`) on each
+protected database before an authorised `app_0008` execution. These queries mirror
+the migration's own audit:
+
+```sql
+-- 1. overlapping versions
+SELECT a.code, a.version, b.version FROM app.round_schedules a
+  JOIN app.round_schedules b ON a.code = b.code AND a.version < b.version
+ WHERE tstzrange(a.active_from, a.active_to, '[)') && tstzrange(b.active_from, b.active_to, '[)');
+-- 2. non-contiguous versions
+SELECT code, version, active_from, active_to,
+       lead(active_from) OVER (PARTITION BY code ORDER BY version) AS next_from
+  FROM app.round_schedules ORDER BY code, version;
+-- 3. rounds outside their schedule's validity (e.g. created before 19 Nov 2026)
+SELECT r.code, r.created_at, s.code AS schedule, s.version, s.active_from, s.active_to
+  FROM app.rounds r JOIN app.round_schedules s ON s.id = r.schedule_id
+ WHERE NOT (s.active_from <= r.created_at AND (s.active_to IS NULL OR r.created_at < s.active_to));
+-- 4. prerequisites
+SELECT extname, extnamespace::regnamespace FROM pg_extension WHERE extname = 'btree_gist';
+SELECT has_database_privilege(current_user, current_database(), 'CREATE');
+```
+
+If anything is found, stop. Report the rows to the owner, who decides case by case.
+Possible outcomes:
+* a documented one-off correction migration;
+* leaving that database at `app_0007`;
+* a revised design.
+
+The migration itself never repairs, rebinds, retimes or exempts.
+
+### Remaining limitations
+
+* `session_replication_role = replica` (superuser only) disables every trigger,
+  including these guards.
+* Backdating `created_at` in a direct insert is still possible, but only to an instant
+  where the bound row was valid, so the binding stays historically valid.
+* The `app_0009` activation (Checkpoint 4C) must call `app.schedule_write_lock()`
+  first, and its downgrade must keep these safeguards.
+
 ## Future educational opportunities (documented, not implemented)
+
+Separate product backlog (for example Personal Performance Analytics): [`../product/future_enhancements.md`](../product/future_enhancements.md).
 
 Priority order is the owner's interest first.
 

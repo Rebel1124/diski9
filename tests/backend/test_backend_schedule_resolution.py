@@ -41,9 +41,23 @@ def _code(prefix="s4a") -> str:
 
 
 def add_row(engine, code, version, active_from, active_to=None, *, cfg=None, buffer=None):
-    """A synthetic schedule row copied from the weekend row valid now."""
+    """A synthetic schedule version copied from the weekend row valid now.
+
+    A3 Checkpoint 4B (app_0008): every committed state must be contiguous with one
+    open-ended row per code. So, as a real schedule change does, the new version is
+    inserted open-ended and the previous open version is closed at its
+    ``active_from`` in the same transaction. ``active_to`` documents the intended end
+    of this version, which the next ``add_row`` sets; it must equal that version's
+    ``active_from`` (every caller uses contiguous versions)."""
     with transaction(engine) as conn:
         base = schedules.current_schedule(conn, "weekend")
+        conn.execute(
+            text(
+                "UPDATE app.round_schedules SET active_to = :af "
+                "WHERE code = :code AND active_to IS NULL"
+            ),
+            {"code": code, "af": active_from},
+        )
         conn.execute(
             text(
                 "INSERT INTO app.round_schedules (code, version, timezone, eligible_competitions,"
@@ -55,8 +69,8 @@ def add_row(engine, code, version, active_from, active_to=None, *, cfg=None, buf
                 " rules_version, scoring_version, series_id, :af, :at"
                 " FROM app.round_schedules WHERE id = :base"
             ),
-            {"code": code, "version": version, "af": active_from, "at": active_to,
-             "cfg": cfg or base.config_version, "base": base.id,
+            {"code": code, "version": version, "af": active_from,
+             "at": None, "cfg": cfg or base.config_version, "base": base.id,
              "buffer": base.deadline_buffer_minutes if buffer is None else buffer},
         )  # fmt: skip
         return conn.execute(
@@ -134,26 +148,48 @@ def test_no_valid_schedule_refuses_creation_and_writes_nothing(engine, op):
     assert _round_count(engine, code) == 0
 
 
-def test_overlapping_versions_refuse_creation_and_never_pick_the_latest(engine, op):
+def _raw_insert(conn, code, version, active_from, active_to=None):
+    conn.execute(
+        text(
+            "INSERT INTO app.round_schedules (code, version, timezone, eligible_competitions,"
+            " window_rule, publish_rule, deadline_buffer_minutes, settle_cutoff_hours,"
+            " correction_window_hours, config_version, rules_version, scoring_version,"
+            " series_id, active_from, active_to)"
+            " SELECT :code, :v, timezone, eligible_competitions, window_rule, publish_rule,"
+            " deadline_buffer_minutes, settle_cutoff_hours, correction_window_hours,"
+            " config_version, rules_version, scoring_version, series_id, :af, :at"
+            " FROM app.round_schedules WHERE code = 'weekend' AND active_to IS NULL"
+        ),
+        {"code": code, "v": version, "af": active_from, "at": active_to},
+    )
+
+
+def test_overlapping_versions_are_refused_by_the_database(engine, op):
+    """4A refused overlaps at resolution; since app_0008 they can no longer exist (the
+    exclusion constraint), so creation can never meet them."""
+    from sqlalchemy.exc import IntegrityError
+
     code = _code()
     add_row(engine, code, 1, datetime(2020, 1, 1, tzinfo=UTC))
-    add_row(engine, code, 2, datetime(2021, 1, 1, tzinfo=UTC))  # both open-ended
-    with read_only(engine) as conn, pytest.raises(schedules.ScheduleUnavailable,
-                                                  match="overlapping versions"):  # fmt: skip
-        schedules.current_schedule(conn, code)
-    with pytest.raises(schedules.ScheduleUnavailable):
-        _draft(engine, op, code)
-    with read_only(engine) as conn, pytest.raises(schedules.ScheduleUnavailable):
-        svc.schedule_config(conn, code)
-    assert _round_count(engine, code) == 0
+    with pytest.raises(IntegrityError), transaction(engine) as conn:  # both open-ended
+        _raw_insert(conn, code, 2, datetime(2021, 1, 1, tzinfo=UTC))
+    with read_only(engine) as conn:
+        assert schedules.current_schedule(conn, code).version == 1  # unchanged, never v2
+    assert _draft(engine, op, code).status == "draft"
 
 
-def test_a_gap_between_versions_is_refused_inside_the_gap(engine):
+def test_a_gap_between_versions_is_refused_by_the_database(engine):
+    """4A refused resolution inside a gap; since app_0008 a gap cannot commit."""
+    from sqlalchemy.exc import IntegrityError
+
     code = _code()
-    add_row(engine, code, 1, datetime(2020, 1, 1, tzinfo=UTC), datetime(2030, 1, 1, tzinfo=UTC))
-    add_row(engine, code, 2, datetime(2030, 1, 2, tzinfo=UTC))
-    with read_only(engine) as conn, pytest.raises(schedules.ScheduleUnavailable):
-        schedules.schedule_at(conn, code, datetime(2030, 1, 1, 12, tzinfo=UTC))
+    add_row(engine, code, 1, datetime(2020, 1, 1, tzinfo=UTC))
+    with pytest.raises(IntegrityError, match="must start exactly"), transaction(engine) as conn:
+        conn.execute(text("UPDATE app.round_schedules SET active_to = '2030-01-01Z' "
+                          "WHERE code = :c"), {"c": code})  # fmt: skip
+        _raw_insert(conn, code, 2, datetime(2030, 1, 2, tzinfo=UTC))
+    with read_only(engine) as conn:  # rolled back: v1 open-ended again, no v2
+        assert schedules.schedule_at(conn, code, datetime(2030, 1, 1, 12, tzinfo=UTC)).version == 1
 
 
 # ------------------------------------------------------------------ one timestamp, one row

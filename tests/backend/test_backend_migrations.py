@@ -22,9 +22,9 @@ def test_downgrade_removes_everything_and_upgrade_recreates_it(fresh_url):
         assert conn.execute(text("SELECT to_regnamespace('app')")).scalar() is None
     assert migrate.current(pg_url) is None
     migrate.upgrade(pg_url)
-    assert migrate.current(pg_url) == migrate.head() == "app_0007"
+    assert migrate.current(pg_url) == migrate.head() == "app_0008"
     migrate.upgrade(pg_url)  # repeat: no-op, no error
-    assert migrate.current(pg_url) == "app_0007"
+    assert migrate.current(pg_url) == "app_0008"
     eng.dispose()
 
 
@@ -133,4 +133,7 @@ def test_runtime_role_privileges(pg_url):
             assert can(t, "UPDATE") and can(t, "DELETE"), t
         for t in schema.APPEND_PURGE:
             assert can(t, "INSERT") and can(t, "DELETE") and not can(t, "UPDATE"), t
+        for t in schema.MIGRATION_ONLY:  # app_0008: schedules change only via migrations
+            assert can(t, "SELECT"), t
+            assert not (can(t, "INSERT") or can(t, "UPDATE") or can(t, "DELETE")), t
     eng.dispose()

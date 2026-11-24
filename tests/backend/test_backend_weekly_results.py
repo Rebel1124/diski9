@@ -553,7 +553,7 @@ def test_championship_tables_protect_identity_and_membership(engine):
         draft = conn.execute(sa.text(
             "INSERT INTO app.rounds (code, schedule_id, series_id, window_start_at, "
             "window_end_at) SELECT :c, id, series_id, now(), now() + interval '1 day' "
-            "FROM app.round_schedules ORDER BY id LIMIT 1 RETURNING id"),
+            "FROM app.round_schedules WHERE code = 'weekend' AND active_to IS NULL RETURNING id"),
             {"c": f"draft-{uuid.uuid4().hex[:8]}"}).scalar_one()  # fmt: skip
         cid = conn.execute(sa.text(
             "INSERT INTO app.championships (stream, series_id, ordinal, start_date, display_name) "

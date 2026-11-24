@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, date, datetime, timedelta
 from datetime import time as dtime
 from typing import Any
@@ -79,6 +79,7 @@ class Week:
     window_end: datetime
     target: datetime  # publication target (schedule publish_rule)
     create_at: datetime  # when the draft is created
+    schedule_id: int | None = None  # the schedule row this plan was computed from
 
 
 def _shift(iso_year: int, iso_week: int, weeks: int) -> tuple[int, int]:
@@ -393,7 +394,9 @@ def preparation_status(engine: Engine, cfg: SchedulerConfig | None) -> Preparati
         st.now = now
         sched = load_schedule(conn)
         lead = cfg.prepare_create_lead if cfg else timedelta(hours=78)
-        week = week_at(now, sched.window_rule, sched.publish_rule, lead)
+        week = replace(
+            week_at(now, sched.window_rule, sched.publish_rule, lead), schedule_id=sched.id
+        )
         st.week = week
         row = conn.execute(
             select(rounds_t.c.id, rounds_t.c.status, rounds_t.c.schedule_id,
@@ -513,7 +516,8 @@ def plan(engine: Engine, cfg: SchedulerConfig) -> tuple[list[tuple[str, str]], W
         sched = load_schedule(conn)
         if sched.series not in PREPARABLE_STREAMS:
             return [("prepare_draft", "refused: the weekend schedule is not a beta schedule")], None
-        week = week_at(now, sched.window_rule, sched.publish_rule, cfg.prepare_create_lead)
+        week = replace(week_at(now, sched.window_rule, sched.publish_rule,
+                               cfg.prepare_create_lead), schedule_id=sched.id)  # fmt: skip
         row = conn.execute(
             select(rounds_t.c.id, rounds_t.c.status).where(rounds_t.c.code == week.code)
         ).one_or_none()
@@ -610,19 +614,25 @@ def _draft_step(run, week: Week):
                      "tick": run.tick_id, "run_token": run.token, "step": "prepare_draft"},
                     run.host)  # fmt: skip
     try:
+        # pinned to the schedule row the week was planned from (A3 4B): if a schedule
+        # change committed in between, nothing is written and the next tick replans
         res = rounds_svc.create_scheduled_draft(
-            run.engine, SYSTEM, iso_year=week.iso_year, iso_week=week.iso_week, job_run_id=run_id
-        )
+            run.engine, SYSTEM, iso_year=week.iso_year, iso_week=week.iso_week, job_run_id=run_id,
+            expected_schedule_id=week.schedule_id,
+        )  # fmt: skip
         if res.created:
+            r = res.round  # the created round's own window, never the plan's
             outcome, detail = (
                 Outcome.SUCCEEDED,
                 (
-                    f"draft created for {_iso(week.window_start)} to {_iso(week.window_end)}; "
+                    f"draft created for {_iso(r.window_start_at)} to {_iso(r.window_end_at)}; "
                     "readiness is evaluated separately; publication stays with an operator"
                 ),
             )
         else:
             outcome, detail = Outcome.SKIPPED, f"exists ({res.round.status}); not changed"
+    except rounds_svc.ScheduleChanged as exc:
+        outcome, detail = Outcome.RETRYABLE, f"{exc.message} (replanned on the next tick)"
     except Exception as exc:  # noqa: BLE001 - classified, recorded, never fatal
         outcome, detail = _classify(exc)
     _end(run.engine, run_id, outcome, detail)

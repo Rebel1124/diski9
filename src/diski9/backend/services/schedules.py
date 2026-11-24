@@ -16,10 +16,17 @@ Rules:
 * the comparison happens in PostgreSQL on ``timestamptz`` values, so neither the
   server's nor the application's time zone takes part; naive datetimes are refused.
 
-Database-level guarantees (no overlaps, no gaps, one open-ended row per code,
-immutable referenced rows, validity checked at round insertion, coordination with
-schedule migrations) are **not** provided here; they are planned for Checkpoint 4B.
-Until then two overlapping rows are detected and refused at resolution time only.
+Database-level guarantees come from migration ``app_0008`` (Checkpoint 4B):
+* no overlaps (exclusion constraint) and no gaps (a deferred trigger);
+* one open-ended row per code;
+* referenced rows protected;
+* validity checked when a round is inserted;
+* one advisory-lock protocol shared with schedule changes.
+
+Round creation takes the shared lock (:func:`lock_for_round_creation`) before
+resolving, so it waits for an in-progress schedule change and then resolves against
+the committed rows. The resolver still refuses none or several valid rows on its own,
+so it is safe against ``app_0007`` too.
 """
 
 from __future__ import annotations
@@ -28,7 +35,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Connection, or_, select
+from sqlalchemy import Connection, or_, select, text
 
 from diski9.challenge.config import ChallengeConfig, ConfigError, get_config
 
@@ -81,6 +88,20 @@ def schedule_at(conn: Connection, code: str, at: datetime) -> Any:
             f"(versions {versions}); nothing was created."
         )
     return rows[0]
+
+
+# The advisory-lock key of the schedule protocol (app_0008): schedule writers take it
+# exclusively, round creators shared. Called directly (not through the app_0008 SQL
+# helper) so the application also works against app_0007, before the migration.
+SCHEDULE_LOCK_SQL = "hashtextextended('diski9.round_schedules', 0)"
+
+
+def lock_for_round_creation(conn: Connection) -> None:
+    """Take the shared schedule lock for the rest of this transaction (round
+    creation). It waits while a schedule change holds the exclusive lock, so the
+    resolution that follows reads the committed result. Creators never block each
+    other. Must run at READ COMMITTED (the app_0008 triggers enforce it)."""
+    conn.execute(text(f"SELECT pg_advisory_xact_lock_shared({SCHEDULE_LOCK_SQL})"))
 
 
 def current_schedule(conn: Connection, code: str) -> Any:

@@ -263,7 +263,7 @@ def test_member_outside_the_stream_never_blocks_processing(rep):
             sa.text(
                 "INSERT INTO app.rounds (code, schedule_id, series_id, window_start_at, "
                 "window_end_at) SELECT 'draft-outside', id, series_id, now(), now() + interval "
-                "'1 day' FROM app.round_schedules ORDER BY id LIMIT 1 RETURNING id"
+                "'1 day' FROM app.round_schedules WHERE code = 'weekend' AND active_to IS NULL RETURNING id"
             )
         ).scalar_one()
         cid = conn.execute(sa.text(
