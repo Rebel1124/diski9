@@ -41,6 +41,7 @@ from ..repositories import ops, portfolios
 from ..repositories import rounds as rounds_repo
 from . import championships, snapshots
 from .common import LockRefused, NotFound, PublicationRefused, ValidationFailed
+from .schedules import ScheduleUnavailable, current_schedule, schedule_at  # noqa: F401
 
 MODEL_VERSION = f"goal-model-{GOAL_MODEL_VERSION}"
 # Snapshot construction age (approved at the 6C.3 checkpoint): an operational
@@ -268,37 +269,61 @@ def weekly_window(rule: dict[str, Any], iso_year: int, iso_week: int) -> tuple[d
     return start, end
 
 
+@dataclass(frozen=True)
+class PlannedWindow:
+    """A round window planned from the schedule row valid now, with that row's id so
+    creation can confirm the same row still applies (see ``expected_schedule_id``)."""
+
+    start: datetime
+    end: datetime
+    schedule_id: int
+    schedule_version: int
+    config_version: str
+
+
+def plan_window(
+    engine: Engine, iso_year: int, iso_week: int, code: str = "weekend"
+) -> PlannedWindow:
+    """The window of an ISO week under the ``code`` schedule valid now (database
+    clock). Raises :class:`ScheduleUnavailable` when no single row is valid."""
+    with read_only(engine) as conn:
+        sched = current_schedule(conn, code)
+    start, end = weekly_window(sched.window_rule, iso_year, iso_week)
+    return PlannedWindow(start, end, sched.id, sched.version, sched.config_version)
+
+
 def schedule_window(
     engine: Engine, iso_year: int, iso_week: int, code: str = "weekend"
 ) -> tuple[datetime, datetime]:
-    with read_only(engine) as conn:
-        rule = conn.execute(
-            select(round_schedules.c.window_rule)
-            .where(round_schedules.c.code == code)
-            .order_by(round_schedules.c.version.desc())
-            .limit(1)
-        ).scalar_one()
-    return weekly_window(rule, iso_year, iso_week)
+    """The window of an ISO week under the ``code`` schedule valid now."""
+    w = plan_window(engine, iso_year, iso_week, code)
+    return w.start, w.end
 
 
 # ------------------------------------------------------------------ create
-def _current_schedule(conn: Connection, code: str):
-    """The schedule row a round created now is bound to (latest version of ``code``).
-    The single selection rule shared by round creation and :func:`schedule_config`,
-    so a snapshot built for a new round always uses that round's configuration."""
-    return conn.execute(
-        select(round_schedules)
-        .where(round_schedules.c.code == code)
-        .order_by(round_schedules.c.version.desc())
-        .limit(1)
-    ).one()
+class ScheduleChanged(ScheduleUnavailable):
+    """The schedule row valid at creation differs from the one the caller planned
+    with (a schedule boundary passed in between). Nothing was created; plan again."""
+
+    code = "schedule_changed"
 
 
 def schedule_config(conn: Connection, code: str = "weekend") -> ChallengeConfig:
-    """The configuration a round created now under schedule ``code`` will use
-    (development snapshots are built before their round exists). Unknown versions
-    raise ``ConfigError``; never the global default."""
-    return get_config(_current_schedule(conn, code).config_version)
+    """The configuration a round created in this transaction under schedule ``code``
+    would use: the row valid at the transaction timestamp (development snapshots are
+    built before their round exists; pass ``expected_schedule_id`` to
+    :func:`create_round` to keep the two consistent). Unknown versions raise
+    ``ConfigError`` and an unresolvable schedule :class:`ScheduleUnavailable`; never
+    the global default or the latest version."""
+    return get_config(current_schedule(conn, code).config_version)
+
+
+def _check_expected(sched, expected_schedule_id: int | None) -> None:
+    if expected_schedule_id is not None and sched.id != expected_schedule_id:
+        raise ScheduleChanged(
+            f"The {sched.code!r} schedule that applies now (version {sched.version}) is "
+            "not the one this round was planned with; nothing was created. Plan again."
+        )
 
 
 def create_round(
@@ -310,8 +335,13 @@ def create_round(
     window_end: datetime,
     schedule_code: str = "weekend",
     development: bool = False,
+    expected_schedule_id: int | None = None,
 ) -> RoundView:
-    """A new ``draft`` round (needs ``round.publish``)."""
+    """A new ``draft`` round (needs ``round.publish``), bound to the ``schedule_code``
+    row valid at this transaction's database timestamp (the round's ``created_at``).
+    ``expected_schedule_id``: the row the caller planned the window or snapshot with;
+    if another row applies now, :class:`ScheduleChanged` is raised and nothing is
+    written."""
     authorize(principal, Capability.PUBLISH_ROUND)
     if development != code.startswith("dev-"):
         raise ValidationFailed(
@@ -324,7 +354,8 @@ def create_round(
             [{"field": "window", "reason": "empty"}],
         )
     with transaction(engine) as conn:
-        sched = _current_schedule(conn, schedule_code)
+        sched = current_schedule(conn, schedule_code)
+        _check_expected(sched, expected_schedule_id)
         if conn.execute(select(rounds.c.id).where(rounds.c.code == code)).first():
             raise ValidationFailed(
                 f"A round with code {code!r} already exists.",
@@ -408,11 +439,10 @@ def create_scheduled_draft(
         ) from None
     code = scheduled_code(iso_year, iso_week)
     with transaction(engine) as conn:
-        sched = _current_schedule(conn, SCHEDULED_SCHEDULE)
-        series = conn.execute(
-            select(championship_series.c.code).where(championship_series.c.id == sched.series_id)
-        ).scalar_one()
-        if series not in SCHEDULED_SERIES:
+        # one row, at the transaction timestamp: window, series and (at publication)
+        # configuration all come from the row the draft is bound to
+        sched = current_schedule(conn, SCHEDULED_SCHEDULE)
+        if sched.series not in SCHEDULED_SERIES:
             raise ValidationFailed(
                 "Scheduled drafts are created only for the beta series.",
                 [{"field": "series", "reason": "not_beta"}],

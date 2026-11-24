@@ -35,7 +35,9 @@ from diski9.backend.repositories import portfolios
 from diski9.backend.services import rounds as svc
 from diski9.backend.services import snapshots
 from diski9.backend.services.common import LockRefused, PublicationRefused, ValidationFailed
-from diski9.challenge.config import DEFAULT_CONFIG
+from diski9.challenge.config import (
+    BROAD60_432_V1,  # explicit: v1 behaviour (A3 4A)
+)
 from diski9.challenge.roundsheet import SnapshotKind, snapshot_from_research_pool
 from diski9.challenge.structured import make_outcome
 from tests.test_app import populated
@@ -131,7 +133,7 @@ def test_publish_freezes_snapshot_deadline_and_cutoff(engine, op):
         assert o.market_prob == src.market_probability  # exact float round trip
         assert o.consensus_odds == src.reference_odds
         assert o.eligible == (o.bucket is not None)
-        assert o.bucket == DEFAULT_CONFIG.classify(src.market_probability)
+        assert o.bucket == snap.config.classify(src.market_probability)  # the round's
 
 
 def test_published_snapshot_round_trips_with_identical_fingerprint(engine, op):
@@ -161,14 +163,17 @@ def test_real_pool_round_trips_at_full_precision(engine, op):
     probability and odds value and the fingerprint are identical."""
     pool = json.loads(POOL.read_text())
     code = unique("dev-pool")
-    snap = replace(snapshot_from_research_pool(pool, code, {39: "EPL"}), kind=SnapshotKind.LIVE)
+    snap = replace(
+        snapshot_from_research_pool(pool, code, {39: "EPL"}, config=BROAD60_432_V1),
+        kind=SnapshotKind.LIVE,
+    )
     view = _draft_round(engine, op, snap)
     with transaction(engine) as conn:
         snapshots.store_snapshot(
             conn,
             view.id,
             snap,
-            DEFAULT_CONFIG,
+            BROAD60_432_V1,
             source="development",
             report=snap.opening_report(),
             model_version=svc.MODEL_VERSION,
@@ -201,7 +206,9 @@ def test_prototype_live_snapshot_fingerprint_is_preserved(engine, op, football):
     from tests.factories import T0
 
     code = unique("dev-live")
-    snap = build_live_snapshot(football, T0, T0, T0 + timedelta(days=30), code, {})
+    snap = build_live_snapshot(
+        football, T0, T0, T0 + timedelta(days=30), code, {}, config=BROAD60_432_V1
+    )
     assert snap.outcomes
     view = svc.create_round(
         engine, op, code=code, window_start=T0, window_end=T0 + timedelta(days=30), development=True
@@ -211,7 +218,7 @@ def test_prototype_live_snapshot_fingerprint_is_preserved(engine, op, football):
             conn,
             view.id,
             snap,
-            DEFAULT_CONFIG,
+            BROAD60_432_V1,
             source="development",
             report=snap.opening_report(),
             model_version=svc.MODEL_VERSION,
@@ -312,9 +319,16 @@ def test_refuses_when_overlap_makes_432_infeasible(engine, op):
 
 def test_refuses_old_or_future_snapshots_and_wrong_round(engine, op):
     now = _now(engine)
-    old = dev_snapshot(unique("dev-o"), now - timedelta(hours=2), now + timedelta(hours=3))
+    old = dev_snapshot(
+        unique("dev-o"), now - timedelta(hours=2), now + timedelta(hours=3), config=BROAD60_432_V1
+    )
     assert "too old" in _refused(engine, op, old).message
-    fut = dev_snapshot(unique("dev-f"), now + timedelta(minutes=10), now + timedelta(hours=3))
+    fut = dev_snapshot(
+        unique("dev-f"),
+        now + timedelta(minutes=10),
+        now + timedelta(hours=3),
+        config=BROAD60_432_V1,
+    )
     assert "future" in _refused(engine, op, fut).message
     snap = _fresh(engine)
     view = _draft_round(engine, op, replace(snap, round_id=unique("dev-other")))
@@ -324,7 +338,7 @@ def test_refuses_old_or_future_snapshots_and_wrong_round(engine, op):
 
 def test_refuses_past_deadline(engine, op):
     now = _now(engine)
-    snap = dev_snapshot(unique("dev-d"), now, now + timedelta(minutes=10))
+    snap = dev_snapshot(unique("dev-d"), now, now + timedelta(minutes=10), config=BROAD60_432_V1)
     assert "deadline" in _refused(engine, op, snap).message
 
 
@@ -416,7 +430,9 @@ def test_live_data_changes_do_not_touch_published_snapshot(engine, op):
     """A newer build for the same round (new odds, new model estimates) is refused;
     the stored snapshot stays exactly as published."""
     view, snap = publish_dev(engine, op)
-    newer = dev_snapshot(view.code, _now(engine), snap.fixtures[0].kickoff, seed=99)
+    newer = dev_snapshot(
+        view.code, _now(engine), snap.fixtures[0].kickoff, seed=99, config=BROAD60_432_V1
+    )
     assert newer.fingerprint != snap.fingerprint
     with pytest.raises(PublicationRefused):
         svc.publish_round(engine, op, view.id, newer, source="development")
@@ -610,7 +626,7 @@ def test_current_round_tie_on_deadline_shows_the_most_recently_published(engine,
     views = []
     for _ in range(2):
         code = unique("dev-tie")
-        snap = dev_snapshot(code, now, first, seed=3)
+        snap = dev_snapshot(code, now, first, seed=3, config=BROAD60_432_V1)
         v = svc.create_round(engine, op, code=code, window_start=snap.window[0],
                              window_end=snap.window[1], development=True)  # fmt: skip
         views.append(svc.publish_round(engine, op, v.id, snap, source="development"))

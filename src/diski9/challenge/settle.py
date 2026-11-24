@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
-from .config import DEFAULT_CONFIG, ChallengeConfig
+from .config import ChallengeConfig
 from .structured import evaluate_groups
 
 POLICY_VERSION = "settle/v1"  # amended 19 Nov 2026 (S-03, S-04, S-05)
@@ -476,9 +476,13 @@ def _acc_status(verdicts: Sequence[str]) -> str:
 def settle_entry(
     legs: Sequence[Leg],
     verdicts: dict[tuple[int, str, str], str],
-    config: ChallengeConfig = DEFAULT_CONFIG,
+    config: ChallengeConfig,
 ) -> EntrySettlement:
     """Settle one locked entry from its frozen legs and the current verdicts.
+
+    ``config`` is required (A3 Checkpoint 4A): the configuration the entry's round is
+    bound to (``rounds.config_version``). There is no default, so settlement can never
+    silently use another configuration's buckets or stakes.
 
     Payouts come from :func:`evaluate_groups` (the same code that produced the
     confirmed submission's eight states) with void legs at 1.00 (D-32); a bucket

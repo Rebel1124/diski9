@@ -31,6 +31,7 @@ changed), **130** stopped with Ctrl-C (nothing changed).
 | When | What | Command |
 |---|---|---|
 | Any time | Is anything wrong? | `uv run diski9 ops check` (exit 0 healthy, 1 warning, 2 critical) |
+| Any time | Which schedule version and configuration apply now, or at a given UTC instant (read-only, no password) | `uv run diski9 round schedules --schedule weekend --at 2026-12-01T00:00:00Z` |
 | Before publication | Create the draft (once per week) — automatic when `DISKI9_JOBS_PREPARE` is on (Stage E.1a; Tuesday 00:00 UTC) | `uv run diski9 round create --week 2026-W48 --operator EMAIL` (manual) |
 | Tuesday–Friday | Watch preparation: draft state and the latest readiness verdict (advisory) | `uv run diski9 ops status` / `uv run diski9 jobs status` |
 | Tue–Fri (E.1b, when on) | Football data refreshed automatically: daily 04:15 UTC, Friday 04:15 and 05:15, hourly in the grace | scheduler; manual fallback `uv run diski9 refresh-data --with-odds` |

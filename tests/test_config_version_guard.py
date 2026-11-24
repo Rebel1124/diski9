@@ -52,7 +52,6 @@ ALLOWED_DEFAULT_CONFIG = {
     "src/diski9/challenge/config.py": (1, "definition: DEFAULT_CONFIG = BROAD60_432_V1"),
     "src/diski9/challenge/structured.py": (7, "library default parameters (callers guarded)"),
     "src/diski9/challenge/analysis.py": (2, "library default parameters (callers guarded)"),
-    "src/diski9/challenge/settle.py": (1, "library default parameter (callers guarded)"),
     "src/diski9/challenge/education.py": (1, "free-standing illustration (no round)"),
     "src/diski9/challenge/roundsheet.py": (
         2,
@@ -64,11 +63,12 @@ ALLOWED_DEFAULT_CONFIG = {
     ),
     "src/diski9/app/challenge/service.py": (
         2,
-        "prototype live snapshot and demonstration round: new snapshots, no round record",
+        "prototype live snapshot and rules_config(): ONLY when no competition database is "
+        "configured (with one, the demonstration round and rules follow the schedule)",
     ),
     "src/diski9/app/challenge/pages.py": (
         1,
-        "rules_config(): explanatory text when no round exists at all",
+        "rules_config(): no round and no competition database configured",
     ),
 }
 
@@ -294,3 +294,62 @@ def test_settlement_uses_the_given_configuration_and_records_its_target():
     verdicts = {(100 + i, "1X2", "HOME"): "won" for i in range(9)}
     es = settle_entry(legs, verdicts, get_config("broad60-432-v1"))
     assert es.recovery_target == Decimal("100.00") and es.recovered is True
+
+
+# ------------------------------------------------------------- A3 Checkpoint 4A guards
+def test_settlement_requires_an_explicit_configuration():
+    """settle_entry has no library default (owner decision 6): settlement can never
+    silently use another configuration."""
+    import inspect
+
+    from diski9.challenge.settle import settle_entry as se
+
+    assert inspect.signature(se).parameters["config"].default is inspect.Parameter.empty
+
+
+SCHEDULE_RESOLVER = "src/diski9/backend/services/schedules.py"
+
+
+def _statements_using(tree, needle: str, src: str):
+    """The source of each innermost statement that mentions ``needle``."""
+    out = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.stmt) and not isinstance(
+            n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.If, ast.For,
+                ast.While, ast.With, ast.Try)
+        ):  # fmt: skip
+            seg = ast.get_source_segment(src, n) or ""
+            if needle in seg:
+                out.append((n.lineno, seg))
+    return out
+
+
+def test_no_latest_version_or_first_row_schedule_selection_in_production():
+    """Schedules are selected only by validity interval (services/schedules.py) or by
+    the bound row's id. No ``ORDER BY version DESC LIMIT 1`` and no first-row reads in
+    production code or tools (A3 Checkpoint 4A)."""
+    problems = []
+    for f in _py_files("src/diski9", "tools"):
+        rel = _rel(f)
+        if rel in (SCHEDULE_RESOLVER, "src/diski9/backend/db/schema.py"):
+            continue
+        src = f.read_text()
+        if "round_schedules" not in src:
+            continue
+        for line, seg in _statements_using(ast.parse(src), "round_schedules", src):
+            compact = " ".join(seg.split())
+            upper = compact.upper()
+            if "version.desc()" in compact or "order_by(round_schedules" in compact:
+                problems.append(f"{rel}:{line} orders schedules (latest-version selection)")
+            if "APP.ROUND_SCHEDULES" in upper and ("ORDER BY" in upper or "LIMIT" in upper):
+                problems.append(f"{rel}:{line} SQL orders or limits schedule rows")
+            if "select(round_schedules" in compact and not (
+                "round_schedules.c.id ==" in compact or "round_schedules.c.version ==" in compact
+            ):
+                problems.append(f"{rel}:{line} selects schedules without the bound id")
+    assert not problems, problems
+
+
+def test_the_resolver_never_falls_back_to_the_latest_version():
+    src = (ROOT / SCHEDULE_RESOLVER).read_text()
+    assert "version.desc()" not in src and ".limit(1)" not in src

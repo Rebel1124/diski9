@@ -11,7 +11,9 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from diski9.challenge.config import DEFAULT_CONFIG
+from diski9.challenge.config import (
+    BROAD60_432_V1,  # explicit: v1 behaviour (A3 4A)
+)
 from diski9.challenge.settle import Leg, evaluate_round, settle_entry
 from diski9.challenge.structured import evaluate_groups
 
@@ -49,7 +51,9 @@ def independent(odds, verdicts):
 def test_settlement_equals_independent_arithmetic(odds, verdicts):
     legs = legs_for(odds)
     es = settle_entry(
-        legs, {(x.fixture_id, "1X2", "HOME"): v for x, v in zip(legs, verdicts, strict=True)}
+        legs,
+        {(x.fixture_id, "1X2", "HOME"): v for x, v in zip(legs, verdicts, strict=True)},
+        config=BROAD60_432_V1,
     )
     assert es.complete and es.gross == independent(odds, verdicts)
     assert es.all_void == all(v == "void" for v in verdicts)
@@ -59,8 +63,8 @@ def test_settlement_equals_independent_arithmetic(odds, verdicts):
 @given(st.lists(odds_st, min_size=9, max_size=9))
 def test_every_win_vector_equals_the_stored_engine_state(odds):
     groups = [[(0.5, o) for b, o in zip(BUCKETS, odds, strict=True) if b == c] for c in "ABC"]
-    ev = evaluate_groups(groups, DEFAULT_CONFIG.stakes, DEFAULT_CONFIG.nine_fold_credits,
-                         codes=DEFAULT_CONFIG.bucket_codes)  # fmt: skip
+    ev = evaluate_groups(groups, BROAD60_432_V1.stakes, BROAD60_432_V1.nine_fold_credits,
+                         codes=BROAD60_432_V1.bucket_codes)  # fmt: skip
     stored = {s.wins: s.gross for s in ev.states}
     legs = legs_for(odds)
     for wins in itertools.product((0, 1), repeat=3):
@@ -69,14 +73,18 @@ def test_every_win_vector_equals_the_stored_engine_state(odds):
             w = wins["ABC".index(b)]
             verdicts.append("won" if w else "lost")
         es = settle_entry(
-            legs, {(x.fixture_id, "1X2", "HOME"): v for x, v in zip(legs, verdicts, strict=True)}
+            legs,
+            {(x.fixture_id, "1X2", "HOME"): v for x, v in zip(legs, verdicts, strict=True)},
+            config=BROAD60_432_V1,
         )
         assert es.gross == stored[wins] and es.win_vector == wins
 
 
 def test_all_nine_void_returns_exactly_one_hundred():
     legs = legs_for([Decimal("7.77")] * 9)
-    es = settle_entry(legs, {(x.fixture_id, "1X2", "HOME"): "void" for x in legs})
+    es = settle_entry(
+        legs, {(x.fixture_id, "1X2", "HOME"): "void" for x in legs}, config=BROAD60_432_V1
+    )
     assert es.gross == Decimal("100.00") and es.all_void and es.rank_eligible is False
     assert es.recovered is False
 
@@ -86,7 +94,7 @@ def test_pending_buckets_are_never_zero_and_losses_are_certain():
     v = {(x.fixture_id, "1X2", "HOME"): "won" for x in legs}
     v[(100, "1X2", "HOME")] = "pending"  # Foundation pending
     v[(107, "1X2", "HOME")] = "lost"  # Challenger lost
-    es = settle_entry(legs, v)
+    es = settle_entry(legs, v, config=BROAD60_432_V1)
     accs = {a.code: a for a in es.accumulators}
     assert accs["A"].status == "pending" and accs["A"].payout is None
     assert accs["C"].status == "lost" and accs["C"].payout == Decimal("0.00")
@@ -97,7 +105,9 @@ def test_pending_buckets_are_never_zero_and_losses_are_certain():
 def _entry(verdicts):
     legs = legs_for([Decimal("2.00")] * 9)
     return settle_entry(
-        legs, {(x.fixture_id, "1X2", "HOME"): v for x, v in zip(legs, verdicts, strict=True)}
+        legs,
+        {(x.fixture_id, "1X2", "HOME"): v for x, v in zip(legs, verdicts, strict=True)},
+        config=BROAD60_432_V1,
     )
 
 

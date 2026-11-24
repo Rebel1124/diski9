@@ -128,9 +128,9 @@ def test_invalid_selections_are_refused_whole(engine, rnd):
 
 
 def svc_bucket(o):
-    from diski9.challenge.config import DEFAULT_CONFIG
+    from diski9.challenge.config import BROAD60_432_V1  # v1 rounds (explicit)
 
-    return DEFAULT_CONFIG.classify(o.market_probability)
+    return BROAD60_432_V1.classify(o.market_probability)
 
 
 def test_bucket_overflow_is_refused(engine, rnd):

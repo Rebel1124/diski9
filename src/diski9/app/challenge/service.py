@@ -24,6 +24,7 @@ from diski9.challenge.config import DEFAULT_CONFIG
 from diski9.challenge.roundsheet import (
     RoundAvailability,
     RoundSnapshot,
+    RoundStatus,
     assess_round,
     build_live_snapshot,
     snapshot_from_research_pool,
@@ -39,6 +40,12 @@ DEMO_POOL = (
     Path(__file__).resolve().parents[4] / "docs/research/weekly_challenge_risk/pool_weekend.json"
 )
 DEMO_ROUND_ID = "DEMO-2026-W47"
+
+
+class ScheduleConfigUnavailable(Exception):
+    """The configuration of the schedule valid now could not be read (database or
+    schedule resolution error). Shown as temporarily unavailable; never replaced by
+    another configuration."""
 
 
 def key_str(key: tuple) -> str:
@@ -64,6 +71,7 @@ class ChallengeService:
         self._live: RoundSnapshot | None = None
         self._live_at = 0.0
         self._demo: RoundSnapshot | None = None
+        self.demo_error: str | None = None
         self._lock = threading.Lock()
         self._eval_cache: dict = {}
         self._pinned: dict[str, RoundSnapshot] = {}
@@ -89,8 +97,9 @@ class ChallengeService:
                 return pinned
             if self._live is None or time.monotonic() - self._live_at > self.live_ttl:
                 try:
-                    # prototype mode (no backend, no round record): a NEW snapshot
-                    # is built under the active configuration
+                    # prototype mode: no competition database is configured (no
+                    # backend, no schedule, no round record), the only case where the
+                    # library default is the legitimate configuration
                     self._live = build_live_snapshot(
                         self.data.engine,
                         now,
@@ -107,14 +116,32 @@ class ChallengeService:
                     self._pinned[round_id] = self._live
             return self._live
 
+    def rules_config(self):
+        """The configuration explanatory text describes when no round applies: with
+        a competition database, the configuration of the ``weekend`` schedule row
+        valid now; without one (prototype), the library default. A database or
+        schedule error raises :class:`ScheduleConfigUnavailable` (no fallback)."""
+        if self.backend is not None:
+            return self.backend.schedule_config()
+        return DEFAULT_CONFIG  # no competition database configured (prototype only)
+
     def demo(self) -> RoundSnapshot | None:
+        """The demonstration round, built under :meth:`rules_config` (so it follows
+        the schedule valid now) and rebuilt when that configuration changes. None,
+        with ``demo_error`` set, when the configuration cannot be resolved."""
+        try:
+            config = self.rules_config()
+        except ScheduleConfigUnavailable as exc:
+            with self._lock:
+                self.demo_error = str(exc)
+            return None
         with self._lock:
+            self.demo_error = None
+            if self._demo is not None and self._demo.config is not config:
+                self._demo = None
             if self._demo is None and self.demo_pool.exists():
                 pool = json.loads(self.demo_pool.read_text())
-                # the demonstration round is built now, under the active configuration
-                self._demo = snapshot_from_research_pool(
-                    pool, DEMO_ROUND_ID, LEAGUE_SHORT, DEFAULT_CONFIG
-                )
+                self._demo = snapshot_from_research_pool(pool, DEMO_ROUND_ID, LEAGUE_SHORT, config)
             return self._demo
 
     def snapshot(self, mode: str | None) -> RoundSnapshot | None:
@@ -123,7 +150,16 @@ class ChallengeService:
     def availability(self, mode: str | None) -> RoundAvailability:
         if mode != "demo" and self.backend is not None:
             return self.backend.availability(self.now())
-        return assess_round(self.snapshot(mode), self.now())  # the snapshot's own config
+        snap = self.snapshot(mode)
+        if mode == "demo" and snap is None and self.demo_error:
+            return RoundAvailability(
+                RoundStatus.NO_ROUND,
+                "Demonstration round temporarily unavailable",
+                "The current competition rules could not be read. Please try again in a "
+                "moment. The Match Lab and statistics still work.",
+                None,
+            )
+        return assess_round(snap, self.now())  # the snapshot's own config
 
     def round_view(self):
         """The published round's record (status, deadline, frozen time) or None."""

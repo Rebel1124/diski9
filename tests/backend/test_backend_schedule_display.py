@@ -26,6 +26,7 @@ from diski9.backend.db import db_now, transaction
 from diski9.backend.db.schema import round_schedules, rounds
 from diski9.backend.devdata import dev_snapshot
 from diski9.backend.services import rounds as svc
+from diski9.challenge.config import BROAD60_432_V1  # explicit: v1 behaviour (A3 4A)
 
 SAST = ZoneInfo("Africa/Johannesburg")
 APP = Path(__file__).resolve().parents[2] / "src/diski9/app"
@@ -95,7 +96,7 @@ def test_alternative_schedule_is_supported_with_the_same_deadline_rule(engine):
     assert end == datetime(2026, 12, 3, 22, 0, tzinfo=UTC)  # Fri 4 Dec 00:00 SAST
     # A round on the alternative schedule: same 15-minute deadline rule.
     rcode = unique("dev-mw")
-    snap = dev_snapshot(rcode, now, now + timedelta(hours=5), seed=5)
+    snap = dev_snapshot(rcode, now, now + timedelta(hours=5), seed=5, config=BROAD60_432_V1)
     v = svc.create_round(engine, op, code=rcode, window_start=snap.window[0],
                          window_end=snap.window[1], schedule_code=code,
                          development=True)  # fmt: skip

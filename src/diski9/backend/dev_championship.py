@@ -54,6 +54,8 @@ from uuid import UUID
 
 from sqlalchemy import Engine, select, text
 
+from diski9.challenge.config import get_config
+
 from .auth.permissions import (
     Capability,
     Principal,
@@ -65,6 +67,27 @@ from .db.schema import profiles, user_identities
 from .repositories import accounts as accounts_repo
 from .repositories import ops as ops_repo
 from .services.common import ServiceError
+
+DEV_SCHEDULE = "weekend"  # the schedule development championship rounds are bound to
+
+
+def opening_parameters(engine: Engine, deadline_seconds: int):
+    """``(now, schedule row, configuration, earliest kickoff)`` for opening a round.
+
+    One row (A3 Checkpoint 4A): the ``DEV_SCHEDULE`` row valid at the database
+    timestamp gives both the deadline buffer and the configuration, and the caller
+    passes its id to ``create_round(expected_schedule_id=...)`` so the round is bound
+    to that same row (previously the buffer came from the first schedule row in the
+    table, whatever its code or version)."""
+    from .services import schedules
+
+    with transaction(engine) as conn:
+        now = db_now(conn)
+        sched = schedules.current_schedule(conn, DEV_SCHEDULE)
+    config = get_config(sched.config_version)
+    first = now + timedelta(seconds=deadline_seconds, minutes=sched.deadline_buffer_minutes)
+    return now, sched, config, first
+
 
 DEV_PROVIDER = "development"  # never issued by Supabase Auth: these accounts cannot sign in
 SUBJECT_PREFIX = "dev-participant-"
@@ -647,17 +670,13 @@ def _run_round(engine, session, plan, run_id, k, rp, step, log, stop) -> None:
 
         def open_round():
             p = session.get("operator", Capability.PUBLISH_ROUND)
-            with transaction(engine) as conn:
-                now = db_now(conn)
-                buffer = conn.execute(text(
-                    "SELECT deadline_buffer_minutes FROM app.round_schedules "
-                    "ORDER BY id LIMIT 1")).scalar_one()  # fmt: skip
-                config = rounds_svc.schedule_config(conn)  # what create_round binds to
-            first = now + timedelta(seconds=plan.deadline_seconds, minutes=buffer)
+            now, sched, config, first = opening_parameters(engine, plan.deadline_seconds)
             snap = dev_snapshot(s.code, now, first, seed=plan.seed + k, fixtures=plan.fixtures,
                                 spacing=timedelta(minutes=1), config=config)  # fmt: skip
             v = rounds_svc.create_round(engine, p, code=s.code, window_start=snap.window[0],
-                                        window_end=snap.window[1], development=True)  # fmt: skip
+                                        window_end=snap.window[1], development=True,
+                                        schedule_code=DEV_SCHEDULE,
+                                        expected_schedule_id=sched.id)  # fmt: skip
             rounds_svc.publish_round(engine, p, v.id, snap, source="development")
 
         step("open", k, open_round)

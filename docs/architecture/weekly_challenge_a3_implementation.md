@@ -22,8 +22,10 @@ execution**. Evidence:
 | 1 | Version-aware application; `broad60-432-v1` stays the only configuration | done (`1767c8d`, CI run 146 passed) |
 | 2 | Register `a3-432-v1` (inactive) | done (`30f4f28`, CI run 147 passed) |
 | 3 | Guidance, warning and educational popovers | done (`fa1307a`, CI run 148 passed) |
-| 3.1 | Minor UI refinements (target size, legend wrapping, Reference Odds) | this record (section below) |
-| 4 | Activation (`app_0008`, default switch, docs) | not started; migration not authorised |
+| 3.1 | Minor UI refinements (target size, legend wrapping, Reference Odds) | done (`66c37f6`, CI run 149 passed) |
+| 4A | Schedule-aware application (no migrations) | this record (section below); local verification only, full CI deferred to 4C |
+| 4B | Database schedule safeguards (`app_0008`) | not started |
+| 4C | Controlled activation (`app_0009`, approved UTC timestamp, default switch) | not started; no timestamp approved |
 | 5 | Final verification | not started |
 
 ## Checkpoint 1: version-aware application
@@ -266,6 +268,225 @@ Test robustness: one full local run had a single intermittent failure of the Wee
 
 Screenshots: `docs/screenshots/a3_cp3_1/` (builder legend and Match Lab table on desktop,
 tablet and phone, with popovers closed and open, including Reference Odds).
+
+## Checkpoint 4A: schedule-aware application
+
+Owner decisions applied:
+* selection by round-creation time, half-open validity `[active_from, active_to)`;
+* one database timestamp and one schedule row per creation;
+* no match or several matches refuse; never the latest version.
+
+No migration, schedule or configuration change. `DEFAULT_CONFIG` is still
+`broad60-432-v1` and the application works against `app_0007`.
+
+### Resolution and transaction design
+
+| Piece | Behaviour |
+|---|---|
+| `services/schedules.schedule_at(conn, code, at)` | the single row of `code` with `active_from <= at < active_to` (NULL `active_to` = open-ended); none or several raise `ScheduleUnavailable`; naive datetimes are refused; the comparison runs in PostgreSQL on `timestamptz` |
+| `schedules.current_schedule(conn, code)` | `schedule_at` at `transaction_timestamp()`, the same instant `rounds.created_at` receives in the same transaction |
+| `rounds.create_round(..., expected_schedule_id=None)` | binds to `current_schedule` in its own write transaction; if the caller planned with another row, `ScheduleChanged` is raised and nothing is written |
+| `rounds.create_scheduled_draft` | window, series check and binding from one `current_schedule` row in one transaction |
+| `rounds.plan_window` / `schedule_window` | window from the row valid now, with its id (CLI `round create` passes it as `expected_schedule_id`) |
+| `rounds.schedule_config` | configuration of the row valid at the transaction timestamp |
+| `prepare.load_schedule` | `current_schedule` at the real database clock: the row a draft created now binds to (the test seam `_now` still drives week decisions) |
+| `dev_championship.opening_parameters` | deadline buffer **and** configuration from the same row, whose id is then pinned in `create_round` |
+| CLI `round dev-open`, `tools/e2e_6c5/f2_current.py` | configuration from the resolved row, id pinned in `create_round` |
+| `repositories.rounds.schedule_id` (test helper) | an explicit version, or the row valid now |
+
+Paths that plan in one transaction and create in another (CLI, dev championship, F2
+tool) pin the planned row id. A boundary passing in between is refused instead of
+producing a round whose snapshot or window came from another row. Publication still
+uses the round's own row, and still refuses a snapshot built for another configuration.
+
+### Demonstration round, prototype and rules text
+
+* With a competition database: `ChallengeService.rules_config()` returns the
+  configuration of the `weekend` row valid now (`Backend.schedule_config`). It is
+  cached until the earlier of that row's `active_to` and 30 seconds, so a boundary is
+  followed exactly once the new row exists.
+* The demonstration round is built under that configuration and rebuilt when it
+  changes. "How to play" with no round uses it.
+* A real round always uses its own configuration.
+* Errors (database unavailable, no or overlapping schedule, unregistered
+  configuration) raise `ScheduleConfigUnavailable`:
+  * the demonstration round shows "temporarily unavailable";
+  * the rules text shows a notice instead of another configuration's rules.
+* Without a competition database (prototype mode only), `DEFAULT_CONFIG` applies.
+* The "This round" credits line uses the `TOTAL_CREDITS` invariant (100 under every
+  configuration).
+
+### Read-only inspection and readiness reporting
+
+`diski9 round schedules [--schedule CODE] [--at ISO8601Z] [--json]` (no sign-in, writes
+nothing) lists for each code:
+* every version with its validity interval and whether it is valid now;
+* its configuration, and whether that configuration is registered in this build
+  (with its fingerprint prefix);
+* rules, scoring, series and deadline buffer;
+* the row selected now and at `--at`.
+
+A timestamp without a UTC offset is refused.
+
+`ops status` / `jobs status` (preparation lines) now show the configuration the
+week's round is bound to: frozen at publication, bound at creation, or applying when
+the draft is due. When a different row takes effect before the publication target,
+a note explains it:
+* for a draft that already exists: "this draft was created under weekend vN (…)
+  before weekend vM (…) takes effect at T; it keeps vN and will publish under the
+  original rules";
+* for a draft not yet created: "… takes effect at T, after this draft is due; the
+  draft will be bound to vN and publish under its rules".
+
+### Default dependency audit
+
+* `DEFAULT_CONFIG` production references (allowlist in
+  `tests/test_config_version_guard.py`):
+  * the definition;
+  * library defaults: `structured` ×7, `analysis` ×2, `roundsheet` ×2;
+  * `devdata` ×2 (free-standing synthetic data);
+  * `education.illustrate`;
+  * `service` ×2 and `pages` ×1, now reached **only when no competition database is
+    configured**.
+* `settle.py` no longer has a default.
+* **`settle_entry` now requires `config`.** Its production caller (`services/settlement`)
+  and the regression tool already passed it, so there is no production compatibility
+  change. Six test calls were updated: five pinned to v1, and one security test now
+  uses its round's `config_version`.
+* Tests intended to exercise v1 rules:
+  * 69 implicit-default calls in 12 files, plus explicit `DEFAULT_CONFIG` inputs in
+    `settle_helpers`, `test_backend_rounds`, `test_backend_drafts` and
+    `test_settle_entry`, now pass `BROAD60_432_V1` explicitly;
+  * snapshot-bound helpers (`svc_helpers.valid_keys`, one entries assertion, one rounds
+    assertion) use the snapshot's own `snap.config`;
+  * assertions are unchanged.
+* New guards:
+  * `settle_entry` has no default;
+  * no production or tool code orders schedule rows, limits them, or selects them
+    without the bound id (checked against the previous commit: it flags all five old
+    paths);
+  * the resolver contains no latest-version fallback.
+
+### Verification (local; full CI deferred to Checkpoint 4C)
+
+* `tests/backend/test_backend_schedule_resolution.py` (PostgreSQL, synthetic codes),
+  covering:
+  * the boundary one microsecond before, at and after;
+  * other UTC offsets, with the session time zone set to Pacific/Auckland;
+  * naive instants refused;
+  * no valid row, overlapping rows and a gap all refused, with nothing written;
+  * the bound row valid at `created_at`;
+  * a real boundary passing between two creations, where the pre-boundary draft keeps
+    broad60 and publishes under it afterwards;
+  * `expected_schedule_id` mismatch refused;
+  * planned-window identity;
+  * the scheduled draft's single-row binding and its refusal;
+  * the dev championship buffer from the bound row (the first table row differs);
+  * the inspection report and command, including the naive `--at` refusal;
+  * prepare binding notes;
+  * `Backend.schedule_config` following a real boundary exactly, and never falling
+    back (unregistered configuration, no schedule, unreachable database).
+* `tests/test_schedule_following_app.py`: the default only without a database; the
+  demonstration round and rules follow the schedule and rebuild on change; a real
+  round keeps its own configuration; errors show "unavailable" and recover.
+* Historical regressions:
+  * the v1 settlement regression generator output is byte-identical to the committed
+    pre-A3 fixture;
+  * the Phase 6C.3 quantitative regression is byte-identical between `66c37f6` and
+    Checkpoint 4A (1,473,435 bytes; sha256 prefix `88bcd717deca6c1c`);
+  * both fingerprints are unchanged.
+
+### Limitations carried to Checkpoint 4B
+
+* Overlaps and gaps are detected only when a row is resolved; the database does not
+  prevent them yet.
+* `rounds.schedule_id` and `rounds.created_at` can still be updated by the runtime
+  role (only the foreign key protects `schedule_id`).
+* No validity check at round insertion for writers outside these services. Several
+  test fixtures insert rounds directly bound to the first schedule row.
+* No coordination between round creation and a concurrent schedule change beyond
+  the atomicity of each transaction (see the 4B plan below).
+
+## Checkpoint 4B preparation (planning evidence only; nothing implemented)
+
+1. **Historical consistency.**
+   * Fresh databases: `weekend` v1 `[2026-11-19T00:00Z, t4)` and v2 `[t4, ∞)`, where t4
+     is the `app_0004` migration time (one `now()`, so contiguous). They are
+     consistent.
+   * Protected databases were **not** inspected. Run this read-only audit there before
+     installing guards (it lists rows that would violate them):
+     ```sql
+     -- rounds whose schedule row was not valid at their creation
+     SELECT r.code, r.created_at, s.code AS schedule, s.version, s.active_from, s.active_to
+       FROM app.rounds r JOIN app.round_schedules s ON s.id = r.schedule_id
+      WHERE NOT (s.active_from <= r.created_at
+                 AND (s.active_to IS NULL OR r.created_at < s.active_to));
+     -- overlaps within a code
+     SELECT a.code, a.version, b.version FROM app.round_schedules a
+       JOIN app.round_schedules b ON a.code = b.code AND a.version < b.version
+      WHERE tstzrange(a.active_from, a.active_to, '[)') && tstzrange(b.active_from, b.active_to, '[)');
+     -- gaps and open-ended rows per code
+     SELECT code, version, active_from, active_to,
+            lead(active_from) OVER (PARTITION BY code ORDER BY version) AS next_from
+       FROM app.round_schedules ORDER BY code, version;
+     ```
+   * A likely finding: rounds created before `2026-11-19T00:00Z` (v1's seeded
+     `active_from`), if any were made in development before that date. They would
+     need an owner decision: a documented exemption, or a corrected v1 `active_from`.
+   * Test fixtures that need changing in 4B:
+     * the direct round inserts bound to `ORDER BY id LIMIT 1` (`test_backend_weekly_results`,
+       `test_backend_championship_repair`);
+     * the 4A overlap and gap tests, which become "the database refuses" tests;
+     * the `test_backend_config_binding` helper (it already closes the previous row).
+2. **Runtime schedule writes:** none in `src` or `tools`. Writes happen only in
+   migrations and tests (test engine, owner role). Revoking INSERT, UPDATE and DELETE
+   on `round_schedules` from `diski9_app` changes `test_runtime_role_privileges` only.
+   Note: `SELECT … FOR SHARE` needs UPDATE privilege, so coordination must not rely on
+   row locks once UPDATE is revoked.
+3. **Concurrency and locking proposal:**
+   * Schedule changes (migrations) take an exclusive transaction-level advisory lock
+     (`pg_advisory_xact_lock(hashtextextended('diski9.round_schedules', 0))`).
+   * Round creation takes the shared form (`pg_advisory_xact_lock_shared`) before
+     resolving. Advisory locks need no table privilege, and creators never block each
+     other.
+   * The `EXCLUDE USING gist` constraint is concurrency-safe by itself. The no-gap rule
+     is a deferred constraint trigger that serialises per code with
+     `pg_advisory_xact_lock(hashtextextended('diski9.round_schedules:' || code, 0))`.
+   * The partial unique index on `(code) WHERE active_to IS NULL` gives one open-ended
+     row per code.
+4. **Coordinating creation with schedule migrations:**
+   * With a future activation time T and the lock pair above, a creation either
+     finishes before the migration (bound to the old row) or waits and then resolves
+     against the committed new rows.
+   * The `rounds` insert trigger re-checks validity at `created_at` against committed
+     rows, so a creation that started before a commit can never be bound to a row
+     that is not valid at its `created_at`. It is refused instead.
+   * Referenced rows may only receive `active_to` once, never earlier than their
+     latest round's `created_at`.
+   * `rounds.schedule_id` and `created_at` become immutable (the existing
+     `app.set_once()` mechanism, extended; `schedule_id` is NOT NULL, so set-once means
+     immutable).
+5. **`btree_gist`:**
+   * It is a trusted extension (PostgreSQL 13+), so a database owner with CREATE on
+     the database can install it; superuser is not needed.
+   * Local and CI PostgreSQL (16 and 17) support it.
+   * **Unresolved:** whether the role that runs migrations in the target environment
+     may create it, and in which schema (Supabase installs extensions into
+     `extensions`). It needs confirmation in the target environment.
+   * If unavailable: a constraint trigger with the per-code advisory lock above, with a
+     concurrency test (two transactions inserting overlapping rows must not both
+     commit).
+6. **SQLAlchemy mirror:** `test_mirror_matches_migrated_schema` compares tables,
+   columns and primary keys only. Constraints, triggers and indexes need no mirror
+   change unless columns are added (none planned).
+7. **Migration and downgrade complications:**
+   * `app_0008` must audit existing rows first and refuse with a clear message if any
+     violate the new rules;
+   * `app_0008`'s downgrade drops only its own constraints and triggers (and the
+     extension only if it created it), and must not touch data;
+   * `app_0009`'s downgrade (4C) must not remove `app_0008`'s safeguards;
+   * `app_0004`'s downgrade silently skips when rounds reference v2. That behaviour is
+     unchanged here and noted.
 
 ## Future educational opportunities (documented, not implemented)
 

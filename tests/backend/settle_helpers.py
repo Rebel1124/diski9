@@ -25,7 +25,7 @@ from diski9.backend.db.schema import user_roles
 from diski9.backend.repositories import portfolios
 from diski9.backend.repositories import rounds as rounds_repo
 from diski9.backend.services import rounds as svc
-from diski9.challenge.config import DEFAULT_CONFIG
+from diski9.challenge.config import BROAD60_432_V1
 from diski9.challenge.structured import evaluate_groups
 
 N_FIXTURES = 18
@@ -143,10 +143,10 @@ def confirm_entry(conn, rid, snap, fids, user, spec=DEFAULT_ENTRY):
             }
         )  # fmt: skip
     groups = [[(r["market_prob"], r["consensus_odds"]) for r in rows if r["bucket"] == c]
-              for c in DEFAULT_CONFIG.bucket_codes]  # fmt: skip
+              for c in BROAD60_432_V1.bucket_codes]  # fmt: skip
     ev = evaluate_groups(
-        groups, DEFAULT_CONFIG.stakes, DEFAULT_CONFIG.nine_fold_credits,
-        codes=DEFAULT_CONFIG.bucket_codes,
+        groups, BROAD60_432_V1.stakes, BROAD60_432_V1.nine_fold_credits,
+        codes=BROAD60_432_V1.bucket_codes,
     )  # fmt: skip
     states = [{"wins": list(s.wins), "p": s.probability, "gross": str(s.gross)} for s in ev.states]
     entry_id = portfolios.create_entry(conn, rid, user)

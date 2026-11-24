@@ -13,7 +13,6 @@ from diski9.backend.db import db_now, transaction
 from diski9.backend.db.schema import user_roles
 from diski9.backend.devdata import dev_snapshot
 from diski9.backend.services import rounds as svc
-from diski9.challenge.config import DEFAULT_CONFIG
 from diski9.challenge.structured import selection_blocks
 
 
@@ -56,7 +55,7 @@ def valid_keys(snap, n: int = 9) -> list[dict]:
     for o in snap.outcomes:
         if len(chosen) == n:
             break
-        blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, DEFAULT_CONFIG)
+        blocks = selection_blocks(chosen, snap.outcomes, snap.snapshot_at, snap.config)
         if blocks.get(o.key) is None:
             chosen.append(o)
     return [

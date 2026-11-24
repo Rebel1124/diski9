@@ -36,8 +36,17 @@ def op(engine):
 
 
 def _add_schedule(engine, code: str, version: int, config_version: str) -> None:
-    """A copy of the current weekend schedule under a test-only code."""
+    """A copy of the current weekend schedule under a test-only code. A later version
+    takes over at this transaction's timestamp: the previous version is closed there
+    (half-open validity, A3 Checkpoint 4A), as a real schedule change would do."""
     with transaction(engine) as conn:
+        conn.execute(
+            text(
+                "UPDATE app.round_schedules SET active_to = now() "
+                "WHERE code = :code AND active_to IS NULL"
+            ),
+            {"code": code},
+        )
         conn.execute(
             text(
                 "INSERT INTO app.round_schedules (code, version, timezone, eligible_competitions,"

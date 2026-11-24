@@ -25,7 +25,7 @@ from diski9.backend.services.common import (
     ValidationFailed,
     VersionConflict,
 )
-from diski9.challenge.config import DEFAULT_CONFIG, ProbabilitySource
+from diski9.challenge.config import ProbabilitySource
 from diski9.challenge.structured import evaluate_portfolio, validate_portfolio
 
 
@@ -86,7 +86,7 @@ def test_confirmation_stores_snapshot_values_and_engine_evaluation(engine, rnd):
         assert s["model_prob"] == o.model_probability
         assert s["consensus_odds"] == str(o.reference_odds)
     outs = [snap.outcome((s["fixture_id"], s["market"], s["outcome"])) for s in sels]
-    pf = validate_portfolio(outs, snap.snapshot_at, DEFAULT_CONFIG, pool=snap.outcomes)
+    pf = validate_portfolio(outs, snap.snapshot_at, snap.config, pool=snap.outcomes)
     market = evaluate_portfolio(pf, ProbabilitySource.MARKET)
     model = evaluate_portfolio(pf, ProbabilitySource.MODEL)
     assert e.current.p_recover_market == market.p_recover

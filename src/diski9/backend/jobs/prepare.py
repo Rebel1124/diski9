@@ -32,9 +32,10 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import Engine, func, select, text
 
 from ..db import db_now, transaction
-from ..db.schema import championship_series, job_runs, round_schedules
+from ..db.schema import job_runs, round_schedules
 from ..db.schema import rounds as rounds_t
 from ..services import rounds as rounds_svc
+from ..services import schedules
 from ..services.rounds import SYSTEM
 from .config import PREPARABLE_STREAMS, SchedulerConfig
 from .locking import LockLost
@@ -113,14 +114,89 @@ def week_at(now: datetime, window_rule: dict, publish_rule: dict, create_lead: t
 
 
 def load_schedule(conn) -> Any:
-    """The active weekend schedule row with its series code."""
-    return conn.execute(
-        select(round_schedules, championship_series.c.code.label("series"))
-        .join(championship_series, championship_series.c.id == round_schedules.c.series_id)
-        .where(round_schedules.c.code == rounds_svc.SCHEDULED_SCHEDULE)
-        .order_by(round_schedules.c.version.desc())
-        .limit(1)
-    ).one()
+    """The weekend schedule row valid at this transaction's database timestamp (the
+    row a draft created now is bound to), with its series code. Never the latest
+    version; an unresolvable schedule raises ``ScheduleUnavailable``."""
+    return schedules.current_schedule(conn, rounds_svc.SCHEDULED_SCHEDULE)
+
+
+@dataclass(frozen=True)
+class ScheduleBinding:
+    """Which schedule row and configuration the week's round is (or will be) bound to.
+
+    ``bound`` is the round's own row when the round exists, otherwise the row valid
+    when the draft is due (``max(now, create_at)``). ``later`` is set only when a
+    different row is valid at the publication target: the draft keeps ``bound``
+    (selection is by creation time) and publishes under its rules."""
+
+    exists: bool
+    bound: Any | None
+    later: Any | None = None
+    published_config: str | None = None
+    problem: str | None = None
+
+    def lines(self, week: Week) -> list[str]:
+        if self.bound is None:
+            return [f"  configuration: unavailable ({self.problem})"]
+        b = self.bound
+        cfg = self.published_config or b.config_version
+        how = ("frozen at publication" if self.published_config
+               else "bound at creation" if self.exists
+               else f"applies when the draft is created ({_iso(week.create_at)})")  # fmt: skip
+        out = [f"  configuration {cfg} ({b.code} v{b.version}; {how})"]
+        if self.later is not None and not self.published_config:
+            n = self.later
+            if self.exists:
+                out.append(
+                    f"  note: this draft was created under {b.code} v{b.version} "
+                    f"({b.config_version}) before {n.code} v{n.version} ({n.config_version}) "
+                    "takes effect at "
+                    f"{_iso(n.active_from)}; it keeps v{b.version} and will publish under the "
+                    "original rules"
+                )
+            else:
+                out.append(
+                    f"  note: {n.code} v{n.version} ({n.config_version}) takes effect at "
+                    f"{_iso(n.active_from)}, after this draft is due; the draft will be bound to "
+                    f"v{b.version} and publish under its rules"
+                )
+        return out
+
+    def as_dict(self) -> dict[str, Any]:
+        def row(r):
+            return None if r is None else {
+                "schedule_id": r.id, "code": r.code, "version": r.version,
+                "config_version": r.config_version, "active_from": r.active_from,
+                "active_to": r.active_to,
+            }  # fmt: skip
+
+        return {"exists": self.exists, "bound": row(self.bound), "later": row(self.later),
+                "published_config": self.published_config, "problem": self.problem}  # fmt: skip
+
+
+def schedule_binding(conn, week: Week, round_row: Any | None, real: datetime) -> ScheduleBinding:
+    """Derived, read-only: the configuration the week's round is bound to and whether
+    a different schedule row applies by its publication target."""
+    try:
+        if round_row is not None:
+            bound = conn.execute(
+                select(round_schedules).where(round_schedules.c.id == round_row.schedule_id)
+            ).one()
+            at = real  # the round exists: only a row taking effect from now on matters
+        else:
+            at = max(real, week.create_at)
+            bound = schedules.schedule_at(conn, rounds_svc.SCHEDULED_SCHEDULE, at)
+    except schedules.ScheduleUnavailable as exc:
+        return ScheduleBinding(round_row is not None, None, problem=str(exc))
+    later = None
+    if week.target > at:
+        try:
+            nxt = schedules.schedule_at(conn, rounds_svc.SCHEDULED_SCHEDULE, week.target)
+            later = nxt if nxt.id != bound.id else None
+        except schedules.ScheduleUnavailable:
+            later = None
+    published = getattr(round_row, "config_version", None) if round_row is not None else None
+    return ScheduleBinding(round_row is not None, bound, later, published)
 
 
 # ------------------------------------------------------------------ readiness record
@@ -250,6 +326,7 @@ class PreparationStatus:
     now: datetime | None = None
     notes: list[str] = field(default_factory=list)
     refresh: Any = None  # Stage E.1b: refresh.RefreshStatus (derived)
+    schedule: ScheduleBinding | None = None  # A3 4A: the configuration it binds to
 
     def as_dict(self) -> dict[str, Any]:
         w = self.week
@@ -275,6 +352,7 @@ class PreparationStatus:
             "blocked": self.blocked,
             "lapsed_recent": self.lapsed_recent,
             "refresh": None if self.refresh is None else self.refresh.as_dict(),
+            "schedule": None if self.schedule is None else self.schedule.as_dict(),
         }  # fmt: skip
 
 
@@ -318,8 +396,10 @@ def preparation_status(engine: Engine, cfg: SchedulerConfig | None) -> Preparati
         week = week_at(now, sched.window_rule, sched.publish_rule, lead)
         st.week = week
         row = conn.execute(
-            select(rounds_t.c.id, rounds_t.c.status).where(rounds_t.c.code == week.code)
-        ).one_or_none()
+            select(rounds_t.c.id, rounds_t.c.status, rounds_t.c.schedule_id,
+                   rounds_t.c.config_version).where(rounds_t.c.code == week.code)
+        ).one_or_none()  # fmt: skip
+        st.schedule = schedule_binding(conn, week, row, real)
         last = _last(conn, PREPARE_READINESS, week.code)
         fails_r, err_r = _streak(conn, PREPARE_READINESS, week.code)
         fails_d, err_d = _streak(conn, PREPARE_DRAFT, week.code)
@@ -661,6 +741,8 @@ def preparation_lines(st: PreparationStatus) -> list[str]:
         f"  window {_iso(w.window_start)} to {_iso(w.window_end)}; draft due "
         f"{_iso(w.create_at)}; publication target {_iso(w.target)}",
     ]
+    if st.schedule is not None:
+        lines.extend(st.schedule.lines(w))
     if st.round_status:
         lines.append(f"  round status {st.round_status}"
                      + (f" (created by {st.created_by})" if st.created_by else ""))  # fmt: skip

@@ -156,16 +156,16 @@ def test_registry_refuses_a_changed_meaning_for_a_version():
     ],
 )  # fmt: skip
 def test_exact_boundaries(p, bucket):
-    assert sx.classify_probability(p) == bucket
+    assert sx.classify_probability(p, config=CFG) == bucket
 
 
 def test_boundary_neighbours_use_full_precision():
     for edge, below, above in ((0.2, None, "C"), (0.4, "C", "B"), (0.6, "B", "A"),
                                (0.95, "A", None)):  # fmt: skip
-        assert sx.classify_probability(math.nextafter(edge, 0)) == below
-        assert sx.classify_probability(math.nextafter(edge, 1)) == above
+        assert sx.classify_probability(math.nextafter(edge, 0), config=CFG) == below
+        assert sx.classify_probability(math.nextafter(edge, 1), config=CFG) == above
     # 0.59996 displays as "60.0%" but is Balanced; display rounding never classifies
-    assert f"{0.59996:.1%}" == "60.0%" and sx.classify_probability(0.59996) == "B"
+    assert f"{0.59996:.1%}" == "60.0%" and sx.classify_probability(0.59996, config=CFG) == "B"
 
 
 # ------------------------------------------------------------ input checks
@@ -199,7 +199,7 @@ def test_invalid_outcomes_rejected(kw, match):
 
 
 def test_assessment_odds_rules_and_ranges():
-    codes = lambda o: {i.code for i in sx.assess_outcome(o, SNAP).issues}  # noqa: E731
+    codes = lambda o: {i.code for i in sx.assess_outcome(o, SNAP, config=CFG).issues}  # noqa: E731
     assert codes(oc(1, 0.5)) == set()
     assert codes(oc(1, 0.5, groups=2)) == {IssueCode.ODDS_TOO_FEW_GROUPS}
     assert codes(oc(1, 0.5, seen=SNAP - timedelta(hours=24))) == set()  # exactly 24 h is fresh
@@ -210,57 +210,59 @@ def test_assessment_odds_rules_and_ranges():
     assert codes(oc(1, 0.1)) == {IssueCode.PROBABILITY_BELOW_RANGE}
     assert codes(oc(1, 0.97)) == {IssueCode.PROBABILITY_ABOVE_RANGE}
     with pytest.raises(sx.ChallengeInputError, match="timezone"):
-        sx.assess_outcome(oc(1, 0.5), datetime(2026, 11, 17))
+        sx.assess_outcome(oc(1, 0.5), datetime(2026, 11, 17), config=CFG)
 
 
 # ----------------------------------------------------------- partial progress
 def test_progress_empty_partial_and_complete():
-    p = sx.portfolio_progress([], SNAP)
+    p = sx.portfolio_progress([], SNAP, config=CFG)
     assert p.selected == {"A": 0, "B": 0, "C": 0} and p.remaining == {"A": 4, "B": 3, "C": 2}
     assert p.total_selected == 0 and p.total_required == 9 and not p.is_complete and p.is_valid
     assert p.can_complete is None
     sel = sample_portfolio()
-    p = sx.portfolio_progress(sel[:5], SNAP)
+    p = sx.portfolio_progress(sel[:5], SNAP, config=CFG)
     assert p.selected == {"A": 4, "B": 1, "C": 0} and p.remaining == {"A": 0, "B": 2, "C": 2}
     assert [i.code for i in p.issues] == [IssueCode.INCOMPLETE]
-    p = sx.portfolio_progress(sel, SNAP)
+    p = sx.portfolio_progress(sel, SNAP, config=CFG)
     assert p.is_complete and p.issues == () and p.total_selected == 9
 
 
 def test_progress_reports_conflicts():
     sel = sample_portfolio()
     dup_fixture = sel[:8] + [oc(1, 0.30, market="BTTS", outcome="BTTS_YES")]
-    p = sx.portfolio_progress(dup_fixture, SNAP)
+    p = sx.portfolio_progress(dup_fixture, SNAP, config=CFG)
     assert p.issues_of(IssueCode.DUPLICATE_FIXTURE) and not p.is_valid and not p.is_complete
-    p = sx.portfolio_progress(sel + [sel[0]], SNAP)
+    p = sx.portfolio_progress(sel + [sel[0]], SNAP, config=CFG)
     assert p.issues_of(IssueCode.DUPLICATE_OUTCOME)
     over = sel[:4] + [oc(10, 0.9, "1.10")] + sel[4:8]
-    p = sx.portfolio_progress(over, SNAP)
+    p = sx.portfolio_progress(over, SNAP, config=CFG)
     assert p.issues_of(IssueCode.BUCKET_OVER_CAPACITY)[0].bucket == "A"
     assert p.selected["A"] == 5 and p.remaining["A"] == 0
-    p = sx.portfolio_progress(sel[:8] + [oc(9, 0.15, "6.00")], SNAP)
+    p = sx.portfolio_progress(sel[:8] + [oc(9, 0.15, "6.00")], SNAP, config=CFG)
     assert p.issues_of(IssueCode.PROBABILITY_BELOW_RANGE) and p.selected["C"] == 1
-    p = sx.portfolio_progress(sel[:8] + [oc(9, 0.25, "3.80", groups=1)], SNAP)
+    p = sx.portfolio_progress(sel[:8] + [oc(9, 0.25, "3.80", groups=1)], SNAP, config=CFG)
     assert p.issues_of(IssueCode.ODDS_TOO_FEW_GROUPS)
 
 
 def test_partial_feasibility_against_a_pool():
     pool = sample_portfolio() + [oc(20, 0.3, "3.10"), oc(21, 0.5, "1.95")]
-    p = sx.portfolio_progress(pool[:3], SNAP, pool=pool)
+    p = sx.portfolio_progress(pool[:3], SNAP, pool=pool, config=CFG)
     assert p.can_complete is True
     # Using both Challenger-capable fixtures as Balanced/other picks blocks completion:
     blockers = [oc(8, 0.35, "2.75"), oc(9, 0.25, "3.80"), oc(20, 0.3, "3.10")]
     small = sample_portfolio()[:7] + blockers
-    p = sx.portfolio_progress(sample_portfolio()[:4], SNAP, pool=small[:7] + blockers[:1])
+    p = sx.portfolio_progress(
+        sample_portfolio()[:4], SNAP, pool=small[:7] + blockers[:1], config=CFG
+    )
     assert p.can_complete is False and p.issues_of(IssueCode.CANNOT_COMPLETE)
     off_sheet = [oc(99, 0.7, "1.40")]
-    p = sx.portfolio_progress(off_sheet, SNAP, pool=pool)
+    p = sx.portfolio_progress(off_sheet, SNAP, pool=pool, config=CFG)
     assert p.issues_of(IssueCode.NOT_IN_POOL) and p.can_complete is False
 
 
 def test_incomplete_or_invalid_portfolios_never_evaluate():
     with pytest.raises(sx.PortfolioValidationError) as e:
-        sx.validate_portfolio(sample_portfolio()[:8], SNAP)
+        sx.validate_portfolio(sample_portfolio()[:8], SNAP, config=CFG)
     assert e.value.issues[0].code is IssueCode.INCOMPLETE
     with pytest.raises(sx.PortfolioValidationError):
         sx.evaluate_portfolio(sample_portfolio())  # raw selections are not a portfolio
@@ -268,7 +270,7 @@ def test_incomplete_or_invalid_portfolios_never_evaluate():
 
 def test_buckets_are_derived_not_chosen():
     sel = sample_portfolio()
-    port = sx.validate_portfolio(list(reversed(sel)), SNAP)
+    port = sx.validate_portfolio(list(reversed(sel)), SNAP, config=CFG)
     assert [len(b) for b in port.buckets] == [4, 3, 2]
     assert all(CFG.classify(o.market_probability) == c
                for c, b in zip("ABC", port.buckets, strict=True) for o in b)  # fmt: skip
@@ -290,8 +292,10 @@ def test_exact_feasibility_matches_exhaustive_count():
         for _ in range(30):
             sub = set(rnd.sample(fixtures, size))
             outs = [o for o in REAL if o.fixture_id in sub]
-            got = sx.portfolio_feasible(outs, SNAP)
-            assert got == _brute_exists([o for o in outs if sx.assess_outcome(o, SNAP).eligible])
+            got = sx.portfolio_feasible(outs, SNAP, config=CFG)
+            assert got == _brute_exists(
+                [o for o in outs if sx.assess_outcome(o, SNAP, config=CFG).eligible]
+            )
             seen.add(got)
     assert seen == {True, False}
 
@@ -300,20 +304,20 @@ def test_multi_band_fixtures_fill_only_one_slot():
     outs = []
     for f in range(6):  # each fixture has an A, a B and a C outcome
         outs += [oc(f, 0.7, outcome="HOME"), oc(f, 0.5, outcome="DRAW"), oc(f, 0.3, outcome="AWAY")]
-    assert not sx.portfolio_feasible(outs, SNAP)  # six fixtures cannot hold nine picks
+    assert not sx.portfolio_feasible(outs, SNAP, config=CFG)  # six fixtures cannot hold nine picks
     for f in range(6, 9):
         outs.append(oc(f, 0.7))
-    assert sx.portfolio_feasible(outs, SNAP)
+    assert sx.portfolio_feasible(outs, SNAP, config=CFG)
 
 
 def test_round_opening_report_on_real_pool():
-    r = sx.round_opening_report(REAL, SNAP)
+    r = sx.round_opening_report(REAL, SNAP, config=CFG)
     assert r.eligible_fixtures == 60 and r.eligible_leagues == 6 and r.portfolio_feasible
     assert r.opens and sum(r.eligible_outcomes_by_bucket.values()) == r.eligible_outcomes
     epl = [o for o in REAL if o.league_id == 39]
-    r = sx.round_opening_report(epl, SNAP)
+    r = sx.round_opening_report(epl, SNAP, config=CFG)
     assert not r.opens and not r.checks["min_eligible_leagues"]
-    late = sx.round_opening_report(REAL, SNAP + timedelta(hours=25))  # odds now stale
+    late = sx.round_opening_report(REAL, SNAP + timedelta(hours=25), config=CFG)  # odds now stale
     assert late.eligible_outcomes == 0 and not late.opens
 
 
@@ -336,7 +340,7 @@ def _fraction_reference(port, src):
 
 
 def test_sample_portfolio_metrics_and_eight_states():
-    port = sx.validate_portfolio(sample_portfolio(), SNAP)
+    port = sx.validate_portfolio(sample_portfolio(), SNAP, config=CFG)
     mk, md = sx.evaluate_market_and_model(port)
     assert len(mk.states) == 8 and [s.wins for s in mk.states] == list(
         itertools.product((0, 1), repeat=3)
@@ -364,7 +368,7 @@ def test_sample_portfolio_metrics_and_eight_states():
 
 
 def test_payout_distribution_contract():
-    port = sx.validate_portfolio(sample_portfolio(), SNAP)
+    port = sx.validate_portfolio(sample_portfolio(), SNAP, config=CFG)
     for ev in sx.evaluate_market_and_model(port):
         dist = ev.distribution()
         assert math.isclose(sum(p.probability for p in dist), 1.0, abs_tol=1e-12)
@@ -411,7 +415,7 @@ def test_half_up_rounding_and_recovery_threshold():
 
 def test_matches_research_reference_on_real_pool_portfolios():
     rnd = random.Random(42)
-    by_bucket = {c: [o for o in REAL if sx.assess_outcome(o, SNAP).eligible
+    by_bucket = {c: [o for o in REAL if sx.assess_outcome(o, SNAP, config=CFG).eligible
                      and CFG.classify(o.market_probability) == c] for c in "ABC"}  # fmt: skip
     for _ in range(50):
         used, sel = set(), []
@@ -424,7 +428,7 @@ def test_matches_research_reference_on_real_pool_portfolios():
                 break
         if len({o.fixture_id for o in sel}) != 9:
             continue
-        port = sx.validate_portfolio(sel, SNAP, pool=REAL)
+        port = sx.validate_portfolio(sel, SNAP, pool=REAL, config=CFG)
         for src in (Src.MARKET, Src.MODEL):
             ev = sx.evaluate_portfolio(port, src)
             ref = rs.evaluate([[(o.probability(src), o.reference_odds) for o in b]

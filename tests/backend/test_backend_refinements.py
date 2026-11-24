@@ -26,6 +26,7 @@ from diski9.backend.services import adoption, drafts
 from diski9.backend.services import rounds as svc
 from diski9.backend.services import your_view as yv
 from diski9.backend.services.common import NotFound, PersistenceFailed, VersionConflict
+from diski9.challenge.config import BROAD60_432_V1  # explicit: v1 behaviour (A3 4A)
 
 
 @pytest.fixture(scope="module")
@@ -420,7 +421,7 @@ def test_construction_age_boundaries():
     from datetime import UTC, datetime
 
     t = datetime(2026, 11, 27, 6, 0, tzinfo=UTC)
-    snap = dev_snapshot("dev-age", t, t + timedelta(hours=10))
+    snap = dev_snapshot("dev-age", t, t + timedelta(hours=10), config=BROAD60_432_V1)
     assert _problem(snap, t) is None
     assert _problem(snap, t + timedelta(hours=1)) is None  # exactly the limit
     assert "too old" in _problem(snap, t + timedelta(hours=1, microseconds=1))
@@ -445,7 +446,7 @@ def test_a_fresh_snapshot_with_stale_odds_is_refused(engine, op):
 
     with transaction(engine) as conn:
         now = db_now(conn)
-    snap = dev_snapshot(unique("dev-st"), now, now + timedelta(hours=3))
+    snap = dev_snapshot(unique("dev-st"), now, now + timedelta(hours=3), config=BROAD60_432_V1)
     old = now - timedelta(hours=24, seconds=1)
     outs = tuple(
         make_outcome(

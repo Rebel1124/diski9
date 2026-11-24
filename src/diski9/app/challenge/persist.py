@@ -30,7 +30,7 @@ from uuid import UUID
 
 from diski9.challenge.roundsheet import RoundAvailability, RoundStatus, assess_round
 
-from .service import key_str, parse_key
+from .service import ScheduleConfigUnavailable, key_str, parse_key
 
 
 class Backend:
@@ -46,6 +46,36 @@ class Backend:
         self._lock = threading.Lock()
         self._at = 0.0
         self._found = None
+        self._sched = None  # (config, cached-until monotonic)
+        self.schedule_ttl = 30.0
+
+    def schedule_config(self, code: str = "weekend"):
+        """The configuration of the ``code`` schedule row valid now (database clock):
+        what explanatory text and the demonstration round describe when no round
+        applies. Cached until the earlier of the row's ``active_to`` and
+        ``schedule_ttl`` seconds, so a boundary is followed exactly once the new row
+        exists. Any database or resolution error raises
+        :class:`ScheduleConfigUnavailable`; there is never a fallback configuration."""
+        with self._lock:
+            if self._sched is not None and time.monotonic() < self._sched[1]:
+                return self._sched[0]
+        from diski9.backend.db import db_now, read_only
+        from diski9.backend.services import schedules
+        from diski9.challenge.config import get_config
+
+        try:
+            with read_only(self.engine) as conn:
+                now = db_now(conn)
+                row = schedules.current_schedule(conn, code)
+            config = get_config(row.config_version)
+        except Exception as exc:  # noqa: BLE001 - reported, never replaced by a default
+            raise ScheduleConfigUnavailable(str(exc)) from exc
+        ttl = self.schedule_ttl
+        if row.active_to is not None:
+            ttl = min(ttl, max(0.0, (row.active_to - now).total_seconds()))
+        with self._lock:
+            self._sched = (config, time.monotonic() + ttl)
+        return config
 
     def published(self):
         with self._lock:

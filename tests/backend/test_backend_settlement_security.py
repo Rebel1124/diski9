@@ -23,6 +23,7 @@ from diski9.backend.repositories import results as repo
 from diski9.backend.services import corrections as co
 from diski9.backend.services import results as rs
 from diski9.backend.services import settlement as st
+from diski9.challenge.config import get_config
 from diski9.challenge.settle import resolve_fixture, settle_entry
 
 NEW_TABLES = ("settlement_versions", "settlement_alerts", "settlement_alert_resolutions")
@@ -159,7 +160,7 @@ def test_restart_reconstructs_every_settlement_from_its_manifest(engine, pg_url)
                                   evaluated_at=run.evaluated_at)  # fmt: skip
             verdicts.update({(fid, v.market, v.outcome): v.verdict for v in res.verdicts})
         for entry_id, (_, ls, _) in legs.items():
-            rebuilt = settle_entry(ls, verdicts)
+            rebuilt = settle_entry(ls, verdicts, get_config(r.config_version))  # its round's
             assert rebuilt.gross == stored[entry_id].gross
             assert rebuilt.complete == stored[entry_id].complete
     finally:

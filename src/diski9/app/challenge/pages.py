@@ -11,6 +11,7 @@ from diski9.challenge import demo
 from diski9.challenge.config import (
     DEFAULT_CONFIG,
     REQUIRED_SELECTIONS,
+    TOTAL_CREDITS,
     ChallengeConfig,
     get_config,
 )
@@ -29,13 +30,20 @@ from .. import education
 from . import charts, results_ui
 from . import components as c
 from . import state as st
-from .service import ChallengeService, key_str
+from .service import ChallengeService, ScheduleConfigUnavailable, key_str
 
 
-def rules_config(snap) -> ChallengeConfig:
-    """The configuration that explanatory text describes: the round's own, or, when
-    there is no round at all, the active default (what a newly created round uses)."""
-    return snap.config if snap is not None else DEFAULT_CONFIG
+def rules_config(snap, service=None) -> ChallengeConfig:
+    """The configuration that explanatory text describes: the round's own; when there
+    is no round, the configuration of the schedule valid now (``service.rules_config``,
+    what a newly created round uses). The library default only when no competition
+    database is configured (no service backend). A database or schedule error raises
+    ``ScheduleConfigUnavailable``; it never falls back to another configuration."""
+    if snap is not None:
+        return snap.config
+    if service is not None:
+        return service.rules_config()
+    return DEFAULT_CONFIG  # no competition database configured
 
 
 def entry_config(rec: dict) -> ChallengeConfig:
@@ -340,9 +348,21 @@ def unavailable(service, state, mode, snap, avail, local) -> html.Div:
                 className="ch-ribbon warn",
             ),
             html.Div(actions, className="ch-actions ch-demo-actions"),
-            how_to_play(True, rules_config(snap)),
+            _rules_or_notice(service, snap),
         ]
     )
+
+
+def _rules_or_notice(service, snap):
+    """How to play for the configuration that applies, or a notice when it cannot be
+    read (never another configuration's rules)."""
+    try:
+        return how_to_play(True, rules_config(snap, service))
+    except ScheduleConfigUnavailable:
+        return html.P(
+            "The competition rules are temporarily unavailable. Please try again in a moment.",
+            className="muted small ch-rules-unavailable",
+        )
 
 
 def _filter(label, control, cls="filter"):
@@ -1573,12 +1593,13 @@ def round_state(state, snap, avail, sels, kind="prototype", rv=None) -> tuple[st
 def round_facts(state, snap, avail, sels, sub, label, local, rv=None) -> list[tuple[str, str]]:
     """Round details for the "This round" card, all from the stored prototype state
     and the round snapshot (nothing hard-coded beyond the approved allocation)."""
-    cfg = rules_config(snap)
     if snap is None or not (avail.playable or locked(avail)):
         facts = [("Status", label)]
         if snap is not None:
             facts.insert(0, ("Round", snap.round_id))
-        return facts + [("Credits", f"{cfg.total_credits} virtual credits per entry")]
+        # the same under every configuration (validated invariant)
+        return facts + [("Credits", f"{TOTAL_CREDITS} virtual credits per entry")]
+    cfg = snap.config
     facts = [
         ("Round", ("Demonstration · " if snap.is_demo else "Live · ") + snap.round_id),
         ("Status", label),

@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from diski9.backend import devdata
+from diski9.challenge.config import BROAD60_432_V1  # explicit: v1 behaviour (A3 4A)
 from diski9.screener import cache
 
 T0 = datetime(2026, 11, 20, 18, 0, tzinfo=UTC)
@@ -55,7 +56,12 @@ def rows(monkeypatch):
 
 def _snap(fixtures):
     return devdata.mirror_snapshot(
-        "dev-mirror-t", T0 - timedelta(days=1), _Engine(), earliest_kickoff=T0, fixtures=fixtures
+        "dev-mirror-t",
+        T0 - timedelta(days=1),
+        _Engine(),
+        earliest_kickoff=T0,
+        fixtures=fixtures,
+        config=BROAD60_432_V1,
     )
 
 
@@ -74,6 +80,11 @@ def test_zero_means_every_fixture_within_seven_days(rows):
 
 def test_fixtures_before_the_earliest_kickoff_are_skipped(rows):
     s = devdata.mirror_snapshot(
-        "dev-mirror-t", T0, _Engine(), earliest_kickoff=T0 + timedelta(hours=30), fixtures=0
+        "dev-mirror-t",
+        T0,
+        _Engine(),
+        earliest_kickoff=T0 + timedelta(hours=30),
+        fixtures=0,
+        config=BROAD60_432_V1,
     )
     assert min(f.kickoff for f in s.fixtures) >= T0 + timedelta(hours=30)

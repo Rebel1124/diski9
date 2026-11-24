@@ -33,10 +33,17 @@ from ..db.schema import (
 
 
 def schedule_id(conn: Connection, code: str = "weekend", version: int | None = None) -> int:
-    q = select(round_schedules.c.id).where(round_schedules.c.code == code)
+    """The id of an explicit ``version`` of ``code``, or (no version) of the row valid
+    at this transaction's database timestamp. Never the latest version (A3 4A)."""
     if version is not None:
-        q = q.where(round_schedules.c.version == version)
-    return conn.execute(q.order_by(round_schedules.c.version.desc()).limit(1)).scalar_one()
+        return conn.execute(
+            select(round_schedules.c.id).where(
+                round_schedules.c.code == code, round_schedules.c.version == version
+            )
+        ).scalar_one()
+    from ..services.schedules import current_schedule
+
+    return current_schedule(conn, code).id
 
 
 def series_id(conn: Connection, code: str) -> int:

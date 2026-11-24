@@ -15,6 +15,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from diski9.challenge import analysis as pa
+from diski9.challenge.config import BROAD60_432_V1  # explicit: v1 behaviour (A3 4A)
 from diski9.challenge.config import DEFAULT_CONFIG as CFG
 from diski9.challenge.portfolio import round_credits
 from diski9.challenge.roundsheet import snapshot_from_research_pool
@@ -33,6 +34,7 @@ SNAP = snapshot_from_research_pool(
     json.loads((ROOT / "docs/research/weekly_challenge_risk/pool_weekend.json").read_text()),
     "demo",
     {},
+    config=BROAD60_432_V1,
 )
 T0 = datetime(2026, 11, 17, tzinfo=UTC)
 COMB = [1, 9, 36, 84, 126, 126, 84, 36, 9, 1]
@@ -47,7 +49,7 @@ def synthetic():
          oc(4, 0.62, "1.55", 0.66)]  # fmt: skip
     b = [oc(5, 0.55, "1.75", 0.50), oc(6, 0.48, "2.00", 0.52), oc(7, 0.42, "2.30", 0.45)]
     c = [oc(8, 0.35, "2.75", 0.30), oc(9, 0.25, "3.80", 0.33)]
-    return validate_portfolio(a + b + c, T0)
+    return validate_portfolio(a + b + c, T0, config=BROAD60_432_V1)
 
 
 def random_real_portfolios(n, seed=4):
@@ -65,7 +67,9 @@ def random_real_portfolios(n, seed=4):
                     break
                 sel.append(rnd.choice(cands))
         if len(sel) == 9:
-            out.append(validate_portfolio(sel, SNAP.snapshot_at, pool=SNAP.outcomes))
+            out.append(
+                validate_portfolio(sel, SNAP.snapshot_at, pool=SNAP.outcomes, config=BROAD60_432_V1)
+            )
     return out
 
 
@@ -142,7 +146,7 @@ def test_more_correct_does_not_mean_more_payout():
 
 def test_conditioning_on_impossible_counts_is_safe():
     sels = [oc(i, 0.9 if i <= 4 else 0.5 if i <= 7 else 0.3, "2.00") for i in range(1, 10)]
-    port = validate_portfolio(sels, T0)
+    port = validate_portfolio(sels, T0, config=BROAD60_432_V1)
     cc = pa.correct_count_analysis(port, lambda o: 1.0)  # every prediction certain
     assert cc.rows[9].probability == 1.0 and cc.most_likely == 9
     for r in cc.rows[:9]:
@@ -178,10 +182,12 @@ def test_property_random_probabilities(ps):
 def test_bucket_stats_partial_and_complete():
     port = synthetic()
     sel = list(port.selections)
-    stats, nine = pa.bucket_stats([], pa.market_probability)
+    stats, nine = pa.bucket_stats([], pa.market_probability, config=BROAD60_432_V1)
     assert all(s.selected == 0 and s.combined_probability is None for s in stats)
     assert nine.combined_probability is None and nine.required == 9
-    stats, nine = pa.bucket_stats(sel[:2] + sel[7:8])  # two Foundation, one Challenger
+    stats, nine = pa.bucket_stats(
+        sel[:2] + sel[7:8], config=BROAD60_432_V1
+    )  # two Foundation, one Challenger
     a, b, c = stats
     assert (a.selected, a.required, a.complete) == (2, 4, False)
     assert math.isclose(a.combined_probability, 0.80 * 0.70)
@@ -192,7 +198,7 @@ def test_bucket_stats_partial_and_complete():
     assert nine.selected == 3 and nine.payout == round_credits(
         10 * D("1.20") * D("1.36") * D("2.75")
     )
-    stats, nine = pa.bucket_stats(sel, pa.model_probability)
+    stats, nine = pa.bucket_stats(sel, pa.model_probability, config=BROAD60_432_V1)
     ev = pa.evaluate_with(port, pa.model_probability)
     for s, acc in zip(stats, ev.buckets, strict=True):
         assert s.complete and s.payout == acc.payout and s.combined_odds == acc.combined_odds
@@ -204,7 +210,9 @@ def test_probability_sources_never_change_classification_or_odds():
     port = synthetic()
     personal = {o.key: 0.05 for o in port.selections}  # wildly different personal view
     for source in pa.SOURCES:
-        stats, _ = pa.bucket_stats(port.selections, pa.probability_for(source, personal))
+        stats, _ = pa.bucket_stats(
+            port.selections, pa.probability_for(source, personal), config=BROAD60_432_V1
+        )
         assert [s.selected for s in stats] == [4, 3, 2]  # buckets come from the market only
     assert [o.reference_odds for o in port.selections] == [
         o.reference_odds for o in synthetic().selections
@@ -214,7 +222,7 @@ def test_probability_sources_never_change_classification_or_odds():
 
 
 def test_state_labels():
-    assert pa.state_label((0, 0, 0)) == "No buckets complete"
-    assert pa.state_label((1, 0, 0)) == "Foundation only"
-    assert pa.state_label((1, 0, 1)) == "Foundation + Challenger"
-    assert pa.state_label((1, 1, 1)) == "All nine correct"
+    assert pa.state_label((0, 0, 0), config=BROAD60_432_V1) == "No buckets complete"
+    assert pa.state_label((1, 0, 0), config=BROAD60_432_V1) == "Foundation only"
+    assert pa.state_label((1, 0, 1), config=BROAD60_432_V1) == "Foundation + Challenger"
+    assert pa.state_label((1, 1, 1), config=BROAD60_432_V1) == "All nine correct"

@@ -504,6 +504,7 @@ def cmd_round(args) -> int:
     from diski9.backend.db import BackendDatabaseSettings, db_now, transaction
     from diski9.backend.services import rounds as svc
     from diski9.backend.services.common import ServiceError
+    from diski9.challenge.config import get_config
     from diski9.settlement_cli import _principal, guarded
 
     def show(v) -> None:
@@ -539,6 +540,26 @@ def cmd_round(args) -> int:
         if args.action == "list":
             for v in svc.list_rounds(engine):
                 show(v)
+            return 0
+        if args.action == "schedules":
+            # read-only (A3 4A): versions, validity, configurations, selection
+            from diski9.backend.db import read_only
+            from diski9.backend.services import schedules
+
+            at = None
+            if args.at:
+                try:
+                    at = datetime.fromisoformat(args.at.replace("Z", "+00:00"))
+                except ValueError:
+                    raise ServiceError("--at must be ISO 8601", code="usage") from None
+                if at.tzinfo is None:
+                    raise ServiceError("--at needs a UTC offset (for example Z)", code="usage")
+            with read_only(engine) as conn:
+                rep = schedules.schedule_report(conn, args.schedule, at)
+            if args.json:
+                print(json.dumps(rep, default=str, indent=2))
+            else:
+                print("\n".join(schedules.report_lines(rep)))
             return 0
         if args.action in ("show", "lock", "publish", "readiness", "inspect") and not args.code:
             raise ServiceError("--code is required, for example 2026-W48-weekend", code="usage")
@@ -584,14 +605,15 @@ def cmd_round(args) -> int:
             if not args.week or "-W" not in args.week:
                 raise ServiceError("--week is required, for example 2026-W48", code="usage")
             year, week = (int(x) for x in args.week.split("-W"))
-            start, end = svc.schedule_window(engine, year, week)
+            planned = svc.plan_window(engine, year, week)  # the weekend row valid now
             p = _principal(engine, args.operator)
             v = svc.create_round(
                 engine,
                 p,
                 code=f"{year}-W{week:02d}-weekend",
-                window_start=start,
-                window_end=end,
+                window_start=planned.start,
+                window_end=planned.end,
+                expected_schedule_id=planned.schedule_id,
             )
             show(v)
             return 0
@@ -630,7 +652,8 @@ def cmd_round(args) -> int:
             p = _principal(engine, args.operator)
             with transaction(engine) as conn:
                 now = db_now(conn)
-                config = svc.schedule_config(conn)  # what create_round below binds the round to
+                sched = svc.current_schedule(conn, "weekend")  # the row create_round binds to
+            config = get_config(sched.config_version)
             first = now + timedelta(minutes=args.deadline_minutes + 15)
             code = args.code or f"dev-{now:%Y%m%d-%H%M%S}"
             if args.mirror_upcoming:
@@ -664,6 +687,7 @@ def cmd_round(args) -> int:
                 window_start=snap.window[0],
                 window_end=snap.window[1],
                 development=True,
+                expected_schedule_id=sched.id,
             )
             show(svc.publish_round(engine, p, v.id, snap, source="development"))
             print(
@@ -870,7 +894,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     s = sub.add_parser(
         "round",
-        help="weekly rounds: list, show, readiness, inspect, create, publish, lock; "
+        help="weekly rounds: list, show, readiness, inspect, create, publish, lock, "
+        "schedules; "
         "invalidate, finalise, reopen (competition DB)",
     )
     s.add_argument(
@@ -884,11 +909,18 @@ def build_parser() -> argparse.ArgumentParser:
             "publish",
             "lock",
             "dev-open",
+            "schedules",
             *ROUND_ACTIONS,
         ],
     )
     s.add_argument("--code", help="round code, for example 2026-W48-weekend")
     s.add_argument("--week", help="ISO week for create, for example 2026-W48")
+    s.add_argument("--schedule", help="schedules: one schedule code (default: every code)")
+    s.add_argument(
+        "--at",
+        help="schedules: also show the row selected at this instant (ISO 8601 with a UTC "
+        "offset, for example 2026-12-01T00:00:00Z)",
+    )
     s.add_argument("--json", action="store_true", help="readiness: machine-readable output")
     s.add_argument("--by-email", help=argparse.SUPPRESS)  # removed (S-07): guidance error
     s.add_argument("--seed", type=int, default=2026, help="dev-open: fixture seed")

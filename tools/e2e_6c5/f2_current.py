@@ -69,17 +69,20 @@ def open_round(eng, me, label):
     from diski9.backend.db import db_now, transaction
     from diski9.backend.devdata import dev_snapshot
     from diski9.backend.services import rounds as svc
+    from diski9.challenge.config import get_config
 
     op = fresh(eng, "operator")
     with transaction(eng) as conn:
         now = db_now(conn)
-        config = svc.schedule_config(conn)  # what create_round below binds the round to
+        sched = svc.current_schedule(conn, "weekend")  # the row create_round binds to
+    config = get_config(sched.config_version)
     code = f"dev-f2-current-{label}-{now:%H%M%S}"
     snap = dev_snapshot(code, now, now + timedelta(minutes=15, seconds=25), fixtures=40,
                         spacing=timedelta(minutes=1), seed=hash(label) % 1000,
                         config=config)  # fmt: skip
     v = svc.create_round(eng, op, code=code, window_start=snap.window[0],
-                         window_end=snap.window[1], development=True)  # fmt: skip
+                         window_end=snap.window[1], development=True,
+                         expected_schedule_id=sched.id)  # fmt: skip
     v = svc.publish_round(eng, op, v.id, snap, source="development")
     sc.submit_test_entry(eng, me, v.id, variant=7)
     dc.ensure_participants(eng, op, 5, preview=False)

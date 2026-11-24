@@ -20,6 +20,7 @@ from diski9.app.challenge import charts, pages
 from diski9.app.challenge.service import ChallengeService, key_str, parse_key
 from diski9.challenge import analysis as pa
 from diski9.challenge import demo, education
+from diski9.challenge.config import BROAD60_432_V1  # explicit: v1 behaviour (A3 4A)
 from diski9.challenge.config import DEFAULT_CONFIG as CFG
 from diski9.challenge.roundsheet import (
     RoundFixture,
@@ -112,7 +113,7 @@ def test_demo_snapshot_is_labelled_and_assessed_at_its_own_time(snap):
 
 
 def test_fingerprint_is_stable_and_content_sensitive(snap):
-    again = snapshot_from_research_pool(POOL, snap.round_id, {})
+    again = snapshot_from_research_pool(POOL, snap.round_id, {}, config=BROAD60_432_V1)
     assert again.fingerprint == snap.fingerprint
     changed = replace(snap, outcomes=snap.outcomes[:-1])
     assert changed.fingerprint != snap.fingerprint
@@ -157,7 +158,9 @@ def test_round_states(snap):
 def test_live_snapshot_reads_database_without_api(data):  # noqa: F811
     from tests.factories import T0
 
-    s = build_live_snapshot(data.engine, T0, T0, T0 + timedelta(days=30), "W", {})
+    s = build_live_snapshot(
+        data.engine, T0, T0, T0 + timedelta(days=30), "W", {}, config=BROAD60_432_V1
+    )
     assert s.kind is SnapshotKind.LIVE and s.snapshot_at == T0
     assert s.diagnostics["fixtures_in_window"] >= 1
     for o in s.outcomes:  # everything on the sheet passed the strict consensus
@@ -207,7 +210,7 @@ def test_partial_payout_probability():
 
 
 def test_education_defaults_and_validation():
-    ill = education.illustrate(education.DEFAULT_ILLUSTRATION)
+    ill = education.illustrate(education.DEFAULT_ILLUSTRATION, config=BROAD60_432_V1)
     got = {b.code: b for b in ill.buckets}
     assert f"{got['A'].combined:.2%}" == "24.01%"
     assert f"{got['B'].combined:.2%}" == "12.50%"
@@ -218,7 +221,7 @@ def test_education_defaults_and_validation():
     assert [b.legs for b in ill.buckets] == [4, 3, 2]
     assert [b.credits for b in ill.buckets] == [40, 30, 20]
     with pytest.raises(ValueError):
-        education.illustrate({"A": 0})
+        education.illustrate({"A": 0}, config=BROAD60_432_V1)
 
 
 # ------------------------------------------------------------------ reducer
