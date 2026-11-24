@@ -29,13 +29,16 @@ own authorisation. Evidence:
 | 4A | Schedule-aware application (no migrations) | accepted by the owner (`38cb0e1`); full CI run 150 passed |
 | 4B | Database schedule safeguards (`app_0008`) | accepted by the owner (`a620a95`, `dfd81a6`); full CI run 150 passed |
 | 4C | A3 active from day one (`app_0009`, default switch); simplified, Option D | independently reviewed and accepted by the owner (`6d11978`, CI run 150: 2,244 passed, 0 failed, 0 skipped) |
-| 5 | Final verification and closure | engineering complete; awaiting independent review and final owner acceptance (section *Checkpoint 5*) |
+| 5 | Final verification and closure | independently reviewed and accepted by the owner (`776ae31`, CI run 152: 2,244 passed, 0 failed, 0 skipped) |
 
 Status vocabulary: *engineering complete* (implemented and tested) is not *independently
 accepted*. Neither means any protected or production database has been migrated:
 nothing has been deployed. **Final architecture: Option D** (`app_0009`, A3 active from
 the migration instant); the original future-dated activation proposal is superseded.
-Scenario A3 is engineering complete, awaiting final owner acceptance.
+**Scenario A3 is formally accepted and engineering-closed** (owner acceptance, 24 Nov 2026,
+after ChatGPT's independent review; accepted baseline `776ae3198b4a2152086d5ded84c738cd35f73c5e`).
+This is engineering closure only: no protected or production database has been
+migrated and nothing has been deployed.
 
 ## Checkpoint 1: version-aware application
 
@@ -923,7 +926,9 @@ otherwise; no protected database was accessed.
 * Full local suite (`pytest -q -p no:cacheprovider -rs`, PostgreSQL 16 disposable
   database): 2,187 passed, 0 failed, 57 skipped (all need a real Supabase Auth server),
   32 min 40 s.
-* GitHub CI on the Checkpoint 5 commit: recorded in the completion report.
+* GitHub CI on the Checkpoint 5 commit `776ae31`: push run 151 (documentation-only path:
+  lint, formatting, links) succeeded; full run 152 (`workflow_dispatch`, which always runs
+  the full suite) succeeded with 2,244 passed, 0 failed, 0 skipped (independently verified).
 
 ### Observations (not defects; no change made)
 
@@ -934,6 +939,21 @@ otherwise; no protected database was accessed.
   behaviour (settlement under the round's own stored configuration). A later tidy-up
   could make those fixtures schedule-aware. No database constraint ties a round's
   configuration to its schedule row's; the services enforce it.
+
+### Closure and non-blocking housekeeping
+
+Final owner acceptance of Checkpoint 5 and engineering closure of Scenario A3 (24 Nov
+2026). Option D is the final architecture. The following are recorded as non-blocking
+housekeeping, explicitly not reasons to reopen Scenario A3:
+* the two low-level test fixtures described under *Observations* (direct inserts storing
+  `broad60-432-v1` on the current `weekend` row);
+* an outdated configuration docstring.
+
+Development principles agreed for the rest of the roadmap: MVP first; the simplest
+reliable solution; no compromise on security, correctness or data integrity; document
+future requirements rather than implementing them early; proportionate testing; and
+independent review and owner acceptance at meaningful checkpoints. Architectural
+complexity needs an actual requirement, not a hypothetical future scenario.
 
 ### Remaining operational requirements and deferred scope
 
