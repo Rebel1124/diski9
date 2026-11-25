@@ -24,6 +24,22 @@ Not implemented in Scenario A3. Details:
 [`../architecture/weekly_challenge_a3_implementation.md`](../architecture/weekly_challenge_a3_implementation.md)
 (Checkpoint 4C).
 
+## Release dependency: administration device migration (Phase 10; required before Phase 11)
+
+Recorded 25 Nov 2026 at Stage F3 Checkpoint 2 (owner decision). Diski 9 is
+administered during the MVP from the owner's **employer-managed** MacBook, an accepted
+risk ([`../architecture/phase6c6_implementation.md`](../architecture/phase6c6_implementation.md)
+§13.14). Credential security and privacy risks are reassessed before the F5 invited
+Beta. **Before Phase 11 public launch**, a Phase 10 work item must move administration
+to the owner's personal MacBook, including:
+* new SSH and WireGuard credentials generated on the new device;
+* revocation of the old device's access (WireGuard peer, SSH key);
+* credential review and rotation where appropriate;
+* removal of the private CA trust from the old device;
+* independent verification of access from the new device.
+
+Not implemented in Stage F3.
+
 ## Personal Performance Analytics (post-launch; not implemented)
 
 Recorded 24 Nov 2026 at Scenario A3 Checkpoint 4B. Documentation only: no

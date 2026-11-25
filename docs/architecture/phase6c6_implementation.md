@@ -1325,7 +1325,7 @@ refusal matrices): `tests/test_f2_wsgi_health.py` (20), `tests/test_f2_backup_re
   Supabase acceptance; before F4 the SF-14 analysis; before F5 tighter RPO, ML-01 and
   D-36.
 
-## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 accepted; Checkpoint 1 PASSED (23 Nov 2026)**
+## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 accepted; Checkpoint 1 PASSED (23 Nov 2026); Checkpoint 2 G2 PASSED (25 Nov 2026, pending review and acceptance)**
 
 Authorised by the owner on 22 Nov 2026 (plan [`phase6c6_stage_f3_plan.md`](phase6c6_stage_f3_plan.md)
 §X–§Y, commit `fa6a4ae`, CI run 126), for Stage F3 only: Hostinger KVM 2 monthly in
@@ -1891,3 +1891,132 @@ review.
 **Checkpoint 2 is not started and requires separate explicit owner authorisation.** No
 Backblaze key identifier, billing email address, payment detail or other account
 identifier is recorded.
+
+### 13.14 Checkpoint 2: server security and private access — **G2 PASSED with recorded limitations** (25 Nov 2026; pending independent review and owner acceptance)
+
+Authorised by the owner on 24 Nov 2026 (CP2 preparation and read-only verification;
+each security-sensitive change approved as it was made). Executed 24–25 Nov 2026 in two
+owner-led sessions. Claude had no server access and held no credential: the owner ran
+every command and returned the output, which Claude reviewed before each next step.
+Steps 0–7 were provisionally accepted by ChatGPT on 24 Nov 2026 (interim report),
+subject to this final verification. **Not done in CP2:** no application, database
+access, migration, provider call, participant or public endpoint.
+
+**Final configuration (reproducible; no secret recorded):**
+
+| Area | Setting |
+|---|---|
+| OS | Ubuntu 24.04.5 LTS, kernel 6.8.0-151 after the persistence reboot; updates applied; `unattended-upgrades` enabled (`APT::Periodic::Update-Package-Lists "1"`, `APT::Periodic::Unattended-Upgrade "1"`) |
+| Admin | user `d9admin` (sudo; password in the owner's password manager); key login with the owner's ED25519 key (`SHA256:WYTt4IaK…uKM`) |
+| SSH | `/etc/ssh/sshd_config.d/00-diski9-hardening.conf` (read before the cloud-init drop-in that enables passwords): `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin prohibit-password`, `AuthenticationMethods publickey`, `AllowUsers d9admin root@169.254.0.1`, `MaxAuthTries 3`, `X11Forwarding no`. SSH listens on all addresses; the firewalls restrict it (below) |
+| WireGuard | `wg0` `10.88.0.1/24`, UDP **31091** (random, not 51820); server key generated on the VPS, never displayed; `/etc/wireguard` `700`, `wg0.conf` `600`; `wg-quick@wg0` enabled; IPv4/IPv6 forwarding `0` |
+| Peers | owner Mac `10.88.0.2/32`, owner iPhone `10.88.0.3/32`; each keypair generated on its device; unique preshared key per peer; clients `AllowedIPs = 10.88.0.1/32` (split tunnel), keepalive 25 s. No operator peer |
+| Host firewall (`ufw`, `IPV6=yes`) | default deny incoming, allow outgoing, routing disabled. Allow: 31091/udp (v4, v6); 22/tcp from `169.254.0.1`; 22/tcp on `wg0` from `10.88.0.2` and `10.88.0.3`; 443/tcp on `wg0` (v4, v6). Nothing else |
+| hPanel firewall `diski9-f3` (active, synchronised) | accept UDP 31091 from any; accept SSH 22 from `169.254.0.1` only; drop all other inbound (hPanel default) |
+| TLS | server key generated on the VPS (`deploy/f3/host/f3-make-server-csr.sh`, script SHA-256 `dde9cfa2…c902`); one-shot CA on the owner's Mac (`deploy/f3/owner/f3-sign-server-cert.sh` `072d8a8c…9e79`, `lib-ramdir.sh` `9448c9e1…5665`; OpenSSL 3.5.7). CA SHA-256 `73:27:E3:AA:2A:37:EC:18:E3:26:76:34:FC:F6:22:02:4C:57:EE:5D:34:9A:4A:99:8F:E9:18:1B:AE:48:D3:9C`; server certificate `2B:F2:9B:FD:EB:0D:12:1C:A0:D4:EF:B7:73:68:6A:AA:8A:97:A6:B1:DA:97:9A:D5:EF:9C:61:BD:45:8B:A7:3A`; SAN `IP:10.88.0.1` only; valid to 24 May 2027 (180 days). CA key destroyed with its RAM disk (`NO-RAM-DISK`; output directory holds the four public files only) |
+| TLS files | `/etc/diski9` `710 root:caddy` (traverse only; later secret files stay `600`); `/etc/diski9/tls` `750 root:caddy`; `server.key` `640 root:caddy`; `server.crt` `644 root:caddy` |
+| Caddy | 2.6.2 (Ubuntu). `/etc/caddy/Caddyfile`: global `auto_https disable_redirects`; site `https://10.88.0.1` with `bind 10.88.0.1`, manual `tls` (no ACME), headers `X-Content-Type-Options nosniff`, `X-Frame-Options DENY`, `Referrer-Policy no-referrer`, `-Server`; `respond` placeholder text only (no application, no reverse proxy yet). Drop-in `/etc/systemd/system/caddy.service.d/10-diski9-wg0.conf`: `After=` and `Requires=wg-quick@wg0.service` (Caddy binds the tunnel address) |
+| Listening (after reboot) | UDP 31091 (v4, v6); TCP 22 (all addresses, firewalled); Caddy TCP/UDP `10.88.0.1:443` and admin `127.0.0.1:2019`. Nothing on port 80 or on a public address except WireGuard |
+
+**G2 evidence:**
+
+| Requirement | Result |
+|---|---|
+| Only the WireGuard UDP port reachable from the internet (IPv4) | **PASSED.** External TCP scan from the owner's home Wi-Fi (iPhone, VPN off, outside the corporate gateway): **0 open ports**. Public SSH from the owner's Mac: `Operation timed out`. A scan over Vodacom mobile data reported port 80 "open"; `http://<server>/` over the same network timed out, the server has no port-80 listener and both firewalls drop it: a **carrier transparent-proxy artefact**, not server exposure |
+| Same for IPv6 | **Not externally tested (limitation).** The scanner app does not accept IPv6 targets. Host evidence instead: `ip6tables` `-P INPUT DROP`; `ufw6-user-input` holds only `udp --dport 31091` and `-i wg0 tcp --dport 443`; no IPv6 rule for 22 or 80. Whether the hPanel firewall also filters IPv6 is not established |
+| WireGuard reachable from fibre/Wi-Fi and mobile networks (IT-6) | **PASSED.** iPhone handshakes on Wi-Fi and on Vodacom mobile data; Mac handshakes throughout |
+| SSH only through the tunnel | **PASSED.** `ssh d9admin@10.88.0.1` works; public SSH times out; root and password login are refused (`Permission denied (publickey)`, re-tested against the final configuration) |
+| HTTPS only through the tunnel | **PASSED.** `https://10.88.0.1`: `HTTP/2 200`, security headers, no `Server` header (curl with the pinned CA: `200 0`); with the tunnel off it does not load |
+| Certificate trusted on each real device (IT-6) | **PASSED.** Mac: `security add-trusted-cert -r trustRoot -p ssl` into the login keychain (allowed by the managed device; no control bypassed), fingerprint matched, Safari loads with no warning (owner-confirmed). iPhone: profile SHA-256 matched in full, full trust enabled, Safari loads with no warning |
+| Hostinger management access preserved | **PASSED.** The Web Console logs in over SSH as root from `169.254.0.1` (per-session key injected through the QEMU guest agent) after every change, including after the reboot |
+| Serial-console recovery | **PASSED.** Controlled test: a temporary `ufw` rule denied `169.254.0.1`, the Web Console fell back to the serial console, `d9admin` logged in with its password (`tty` `/dev/ttyS0`), and the rule was removed |
+| Reboot persistence | **PASSED.** After `systemctl reboot`: `ssh.socket`, `wg-quick@wg0`, `ufw`, `caddy` active and enabled; `qemu-guest-agent` active; SSH settings, `ufw` rules and listeners unchanged; tunnel SSH, tunnel HTTPS (`200 0`) and the Web Console all work; `no-reboot-required` |
+
+**Stage F3 Checkpoint 2: G2 PASSED (25 Nov 2026), with the IPv6 external-scan
+limitation recorded**, subject to ChatGPT's independent review and explicit owner
+acceptance.
+
+**Findings and incidents (all resolved; no exposure beyond the CP1 baseline):**
+1. **The Hostinger Web Terminal is SSH-based**, not a local console. It needs root by key
+   from `169.254.0.1`, a running `sshd` and `qemu-guest-agent`, and port 22 allowed from
+   that address. Hence `AllowUsers … root@169.254.0.1`, the firewall rules above and the
+   **firewall-only** SSH restriction instead of `ListenAddress 10.88.0.1` (binding SSH to
+   the tunnel address would break the console). Its fallback is the serial console
+   (password login), independent of SSH, the firewall and the network.
+2. **Two accidental rollbacks** (the SSH hardening, then WireGuard), run from blocks that
+   also contained the rollback command. Detected in the returned output and re-applied
+   at once. Corrective action: rollback commands are given only as plain text marked
+   "only if a test fails", never in executable blocks.
+3. **`ufw` enabled before any allow rule** (`ufw show added` → `(None)`): new inbound
+   connections were blocked for a few minutes; the open session restored the rules. It
+   confirmed the open-session precaution and revealed the serial fallback.
+4. **Part of a preshared key was visible** at the edge of a screenshot shared in chat.
+   The key was replaced before use; later server-side pastes used `stty -echo`.
+5. **iPhone handshake failure:** a preshared-key mismatch, because `pbcopy` does not
+   write the clipboard on the owner's employer-managed Mac (two independent keys gave
+   the same clipboard hash). Fixed by generating the key on the server and moving it to
+   the phone as a QR code shown only on the owner's screen (`qrencode`, removed after).
+6. **A stray preshared-key file** (`/etc/wireguard/iphone.psk`, mode 644, an unused old
+   key) from one attempt. Not reachable by other users (`/etc/wireguard` is 700) and
+   deleted; backup copies of `wg0.conf` holding old keys were removed.
+7. **The hPanel firewall had not been synchronised** on 24 Nov (rules saved but not
+   applied). Synchronised on 25 Nov before step 8; the 24 Nov hPanel test is therefore
+   not relied on. All G2 evidence above post-dates synchronisation.
+8. **A first serial-console test did nothing:** `ufw` refused to insert a deny rule with
+   the same match as the existing allow rule ("Skipping inserting existing rule"); a
+   broader temporary rule was used.
+9. **A probe from Claude's sandbox** reported ports 80/443 open: the sandbox intercepts
+   web ports itself. Discarded as invalid evidence.
+
+**Deviations from the plan (§X.2, §Y.1):**
+* SSH is restricted by the firewalls, not by `ListenAddress 10.88.0.1` (finding 1).
+* `AllowUsers` admits `root@169.254.0.1` for the Hostinger console; root cannot log in
+  from anywhere else, and never by password.
+* `/etc/diski9` is `710 root:caddy`, not `700`, so Caddy can reach `tls/`; secret files
+  placed there later stay `600`.
+* Egress is **allow-all** in CP2 (owner decision, 24 Nov): the planned API-Football egress
+  block would be IP-based and fragile. **Deferred to CP3** (application install). The
+  server holds no API-Football key; provider calls stay off.
+* Caddy advertises HTTP/3 (`alt-svc: h3`); UDP 443 is not allowed on `wg0`, so browsers
+  use HTTP/2. Left unchanged (harmless).
+
+**Owner decision: administration device (24–25 Nov 2026).** The owner continues to use
+the existing **employer-managed MacBook** (corporate SASE client; traffic leaves through
+the employer's gateway) for MVP development, testing, debugging and Diski 9
+administration, superseding the earlier instruction to migrate immediately. Conditions:
+* the employer-device risks remain explicitly acknowledged (employer endpoint visibility
+  of clipboard, screen, files, keychain and possibly traffic; acceptable-use policy);
+* use must comply with the employer's policies;
+* credential security and privacy risks are reassessed **before the F5 invited Beta**;
+* **migration to the owner's personal MacBook is a mandatory pre-public-launch
+  requirement**, recorded under Phase 10, before Phase 11
+  ([`../product/future_enhancements.md`](../product/future_enhancements.md)). It must
+  include new SSH and WireGuard credentials, revocation of this device's access, credential
+  review and rotation where appropriate, removal of the CA trust, and independent access
+  verification.
+
+Effects observed: a round trip of about 550 ms from the Mac (the corporate route; the
+tunnel adds almost nothing) and the clipboard restriction (finding 5). **Measurement
+rule:** the IT-5 South African page timings (CP3 onwards) must be measured outside the
+corporate gateway, for example from the iPhone on mobile data.
+
+**Residual risks (accepted for F3):**
+* WireGuard UDP 31091 is the one public service (silent to unauthenticated packets).
+* The Hostinger console path: SSH as root from `169.254.0.1`, controlled by Hostinger and
+  protected by the Hostinger account's MFA; the serial fallback relies on the `d9admin`
+  and root passwords in the password manager.
+* IPv6 exposure is evidenced by the host firewall only (limitation above).
+* The employer-managed administration device (owner decision above).
+* The one-shot CA's residual key-handling risks (runbook §5.1).
+
+**Carried forward to Checkpoint 3 (not CP2 blockers):**
+* the egress policy, including the API-Football block decision;
+* Caddy reverse proxy to Gunicorn (`127.0.0.1:8050`) in place of the placeholder;
+* account for `app_0009` (it replaces the original `app_0007` migration baseline);
+* reconsider startup build identity proportionately;
+* IT-5 measured outside the corporate gateway;
+* G3a (database TLS) and G3b (hosted advisory locking).
+
+**Checkpoint 3 is not started and requires separate explicit owner authorisation.** No
+private key, preshared key, password, full public IP address or account identifier is
+recorded.

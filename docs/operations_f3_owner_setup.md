@@ -808,3 +808,35 @@ Any mismatch fails **G5**.
 - **Checkpoint 1: PASSED (23 Nov 2026).** All of O-1 to O-7 and the running-cost item
   are evidenced (implementation record §13.13). Checkpoint 2 requires separate explicit
   owner authorisation.
+
+### 8.3 Checkpoint 2 (owner-run; Claude reviews)
+Evidence and final configuration: implementation record
+[§13.14](architecture/phase6c6_implementation.md).
+- [x] Baseline re-check (25 Nov 2026): SSH hardening effective; WireGuard and both
+  firewall layers as configured; root and password SSH refused.
+- [x] Recovery: Hostinger Web Console (SSH from `169.254.0.1`) works after every change;
+  serial-console login (`d9admin`, `/dev/ttyS0`) verified in a controlled test.
+- [x] Host hardening: updates, unattended upgrades, `d9admin`, key-only SSH drop-in.
+- [x] WireGuard `wg0` (`10.88.0.1`, UDP 31091); Mac and iPhone enrolled with on-device
+  keys and per-peer preshared keys; handshakes on Wi-Fi and mobile data (IT-6).
+- [x] `ufw` and the hPanel firewall (synchronised): public SSH closed; SSH only from
+  the tunnel peers and the Hostinger console address.
+- [x] Private HTTPS: CSR on the VPS, one-shot CA on the owner's Mac (key destroyed),
+  Caddy placeholder on `10.88.0.1:443` only.
+- [x] Certificate trusted on the Mac and the iPhone; fingerprints matched (IT-6).
+- [x] External IPv4 scan outside the corporate gateway: 0 open ports. **IPv6 external
+  scan not performed** (tool limitation; host-firewall evidence instead).
+- [x] Reboot persistence: all services, rules and access paths return.
+- **Checkpoint 2: G2 PASSED (25 Nov 2026), IPv6 limitation recorded**, pending
+  independent review and explicit owner acceptance. Checkpoint 3 requires separate
+  authorisation.
+
+**Operating notes (from CP2):**
+* Keep the root and `d9admin` passwords valid in the password manager: the serial
+  console needs them.
+* Do not remove root's `.ssh` directory, stop `qemu-guest-agent`, or block port 22 from
+  `169.254.0.1`: the Hostinger Web Console depends on them.
+* After editing hPanel firewall rules, click **Synchronize**; saved rules are not
+  applied until then.
+* Rollback commands are run only when a test fails, never as part of a normal step.
+
