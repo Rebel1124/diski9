@@ -1325,7 +1325,7 @@ refusal matrices): `tests/test_f2_wsgi_health.py` (20), `tests/test_f2_backup_re
   Supabase acceptance; before F4 the SF-14 analysis; before F5 tighter RPO, ML-01 and
   D-36.
 
-## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 accepted; Checkpoint 1 PASSED (23 Nov 2026); Checkpoint 2 G2 PASSED (25 Nov 2026, pending review and acceptance)**
+## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 accepted; Checkpoint 1 PASSED (23 Nov 2026); Checkpoint 2 formally accepted and closed (25 Nov 2026)**
 
 Authorised by the owner on 22 Nov 2026 (plan [`phase6c6_stage_f3_plan.md`](phase6c6_stage_f3_plan.md)
 §X–§Y, commit `fa6a4ae`, CI run 126), for Stage F3 only: Hostinger KVM 2 monthly in
@@ -1892,7 +1892,7 @@ review.
 Backblaze key identifier, billing email address, payment detail or other account
 identifier is recorded.
 
-### 13.14 Checkpoint 2: server security and private access — **G2 PASSED with recorded limitations** (25 Nov 2026; pending independent review and owner acceptance)
+### 13.14 Checkpoint 2: server security and private access — **formally accepted and closed (25 Nov 2026), IPv6 external-verification limitation recorded**
 
 Authorised by the owner on 24 Nov 2026 (CP2 preparation and read-only verification;
 each security-sensitive change approved as it was made). Executed 24–25 Nov 2026 in two
@@ -1922,7 +1922,7 @@ access, migration, provider call, participant or public endpoint.
 
 | Requirement | Result |
 |---|---|
-| Only the WireGuard UDP port reachable from the internet (IPv4) | **PASSED.** External TCP scan from the owner's home Wi-Fi (iPhone, VPN off, outside the corporate gateway): **0 open ports**. Public SSH from the owner's Mac: `Operation timed out`. A scan over Vodacom mobile data reported port 80 "open"; `http://<server>/` over the same network timed out, the server has no port-80 listener and both firewalls drop it: a **carrier transparent-proxy artefact**, not server exposure |
+| Only the WireGuard UDP port reachable from the internet (IPv4) | **PASSED.** External TCP scan from the owner's home Wi-Fi (iPhone, VPN off, outside the corporate gateway): **0 open ports**. Public SSH from the owner's Mac: `Operation timed out`. A scan over Vodacom mobile data reported port 80 "open"; `http://<server>/` over the same network timed out, the server has no port-80 listener and both firewalls drop it. **Likely a carrier transparent-proxy artefact** (not conclusively proven); the Wi-Fi scan and host evidence show no server exposure |
 | Same for IPv6 | **Not externally tested (limitation).** The scanner app does not accept IPv6 targets. Host evidence instead: `ip6tables` `-P INPUT DROP`; `ufw6-user-input` holds only `udp --dport 31091` and `-i wg0 tcp --dport 443`; no IPv6 rule for 22 or 80. Whether the hPanel firewall also filters IPv6 is not established |
 | WireGuard reachable from fibre/Wi-Fi and mobile networks (IT-6) | **PASSED.** iPhone handshakes on Wi-Fi and on Vodacom mobile data; Mac handshakes throughout |
 | SSH only through the tunnel | **PASSED.** `ssh d9admin@10.88.0.1` works; public SSH times out; root and password login are refused (`Permission denied (publickey)`, re-tested against the final configuration) |
@@ -2017,6 +2017,26 @@ corporate gateway, for example from the iPhone on mobile data.
 * IT-5 measured outside the corporate gateway;
 * G3a (database TLS) and G3b (hosted advisory locking).
 
-**Checkpoint 3 is not started and requires separate explicit owner authorisation.** No
+No
 private key, preshared key, password, full public IP address or account identifier is
 recorded.
+
+**Formal owner acceptance (25 Nov 2026).** ChatGPT independently verified the remote
+HEAD (`2926897`), the documentation-only scope (three files), CI run 154 (lint,
+formatting and link checks passed) and the record, runbook and Phase 10 requirement.
+The owner **formally accepts Stage F3 Checkpoint 2 with the recorded IPv6
+external-verification limitation. Checkpoint 2 is closed.** Conditions recorded:
+1. **External IPv6 exposure verification is mandatory before the F5 invited Beta.**
+   Host-firewall evidence is accepted provisionally for the current operator-only
+   environment.
+2. IPv6 remains enabled; no architectural change or additional infrastructure is
+   required.
+3. The Vodacom port-80 result is described as a **likely** carrier proxy artefact, not a
+   conclusively proven explanation.
+4. The hPanel firewall **Synchronize** requirement stays in the operational checklist
+   (runbook §8.3).
+5. The mandatory Phase 10 personal-MacBook migration and the pre-F5 credential and
+   privacy risk reassessment are retained.
+6. The Checkpoint 3 dependencies above are carried forward unchanged.
+
+**Checkpoint 3 is not started and requires separate explicit owner authorisation.**

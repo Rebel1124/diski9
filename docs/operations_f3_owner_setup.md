@@ -827,16 +827,17 @@ Evidence and final configuration: implementation record
 - [x] External IPv4 scan outside the corporate gateway: 0 open ports. **IPv6 external
   scan not performed** (tool limitation; host-firewall evidence instead).
 - [x] Reboot persistence: all services, rules and access paths return.
-- **Checkpoint 2: G2 PASSED (25 Nov 2026), IPv6 limitation recorded**, pending
-  independent review and explicit owner acceptance. Checkpoint 3 requires separate
-  authorisation.
+- **Checkpoint 2: formally accepted and closed (25 Nov 2026)** with the IPv6
+  external-verification limitation. **External IPv6 exposure verification is mandatory
+  before the F5 invited Beta** (host-firewall evidence accepted provisionally for the
+  operator-only environment). Checkpoint 3 requires separate authorisation.
 
 **Operating notes (from CP2):**
 * Keep the root and `d9admin` passwords valid in the password manager: the serial
   console needs them.
 * Do not remove root's `.ssh` directory, stop `qemu-guest-agent`, or block port 22 from
   `169.254.0.1`: the Hostinger Web Console depends on them.
-* After editing hPanel firewall rules, click **Synchronize**; saved rules are not
-  applied until then.
+* **Required:** after editing hPanel firewall rules, click **Synchronize** and confirm the
+  banner has gone; saved rules are not applied until then.
 * Rollback commands are run only when a test fails, never as part of a normal step.
 

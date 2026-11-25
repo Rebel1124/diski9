@@ -38,7 +38,8 @@ to the owner's personal MacBook, including:
 * removal of the private CA trust from the old device;
 * independent verification of access from the new device.
 
-Not implemented in Stage F3.
+Retained at Checkpoint 2 acceptance (25 Nov 2026), together with the pre-F5
+reassessment. Not implemented in Stage F3.
 
 ## Personal Performance Analytics (post-launch; not implemented)
 
