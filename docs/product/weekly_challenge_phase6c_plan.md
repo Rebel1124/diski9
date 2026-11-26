@@ -456,8 +456,9 @@ security, recovery, operational and release acceptance requirements are unchange
 *Phase 7 scope (owner, 26 Nov 2026):* six recognition-only badges and three derived levels
 (Beginner, Semi-Pro, Pro), calculated from published official results with no new
 persistence. CP0 and CP1/CP2 accepted; the CP3 visual design is approved; end-to-end
-validation and the full regression are complete, and Phase 7 awaits final owner acceptance
-(26 Nov 2026). The record is
+validation and the full regression are complete. **Phase 7 formally accepted and closed by
+the owner on 26 Nov 2026** (closure commit `8ac29e4`, CI run 162). The record is
 [`../architecture/phase7_achievements.md`](../architecture/phase7_achievements.md), which
 supersedes the earlier "badges and achievements" roadmap entries above. Next on the roadmap:
-Phase 8 (Champions League & Europa League), only when separately authorised.
+Phase 8 (Champions League & Europa League); discovery and implementation only when
+separately authorised. Phase 6 remains paused with all its gates intact.

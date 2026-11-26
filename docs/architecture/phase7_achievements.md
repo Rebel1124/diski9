@@ -6,7 +6,10 @@
   closed.
 - CP3 visual design: formally approved (`1e11889`, CI run 161).
 - CP3 end-to-end validation, full regression and closure preparation: complete (§14).
-- **Phase 7 awaits the final independent review and the owner's explicit acceptance.**
+- **Phase 7 formally accepted and closed by the owner on 26 Nov 2026**, after ChatGPT's
+  independent review. Accepted closure commit `8ac29e4`, CI run 162 (2,315 passed, 0
+  failed, 0 skipped). The 176 end-to-end checks, the local regression and the clean-up
+  are accepted as evidence run by Claude.
 
 **Code:**
 - Backend: `src/diski9/backend/services/achievements.py`.
@@ -307,7 +310,7 @@ before any architecture is added.
 |---|---|---|
 | CP0 | Requirements and discovery | Accepted, 26 Nov 2026 |
 | CP1/CP2 | Design record, backend, focused tests | Accepted and closed (`36b79d3`, `fe1972e`; CI runs 158 and 159) |
-| CP3 | Frontend, visual review, end-to-end validation, full regression, closure | Visual design approved (`d5e48f8`, `1e11889`; CI runs 160 and 161). End-to-end validation and full regression complete (§14). Awaiting final review and acceptance |
+| CP3 | Frontend, visual review, end-to-end validation, full regression, closure | Visual design approved (`d5e48f8`, `1e11889`; CI runs 160 and 161). End-to-end validation and full regression complete (§14). Closure `8ac29e4` (CI run 162). **Accepted, 26 Nov 2026** |
 
 ## 13. Deferred and out of scope
 
