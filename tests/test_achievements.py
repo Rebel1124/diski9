@@ -153,6 +153,21 @@ def test_stored_legs_validate_against_the_rounds_own_configuration(version):
     assert "".join(leg.bucket for leg in parsed) == BUCKETS  # frozen labels, never reclassified
 
 
+def test_every_valid_market_outcome_pair_is_accepted():
+    pairs = [("1X2", "HOME"), ("1X2", "DRAW"), ("1X2", "AWAY"), ("BTTS", "BTTS_YES"),
+             ("BTTS", "BTTS_NO"), ("OU25", "OVER_2_5"), ("OU25", "UNDER_2_5")]  # fmt: skip
+    for m, o in pairs:
+        parsed = parse_legs(stored(override={0: {"market": m, "outcome": o}}), "a3-432-v1")
+        assert (parsed[0].market, parsed[0].outcome) == (m, o)
+
+
+def test_a_missing_field_is_refused():
+    data = stored()
+    del data["legs"][2]["outcome"]
+    with pytest.raises(AchievementIntegrityError):
+        parse_legs(data, "a3-432-v1")
+
+
 @pytest.mark.parametrize(
     ("data", "version"),
     [
@@ -161,6 +176,19 @@ def test_stored_legs_validate_against_the_rounds_own_configuration(version):
         (stored(override={8: {"bucket": "A"}}), "a3-432-v1"),  # buckets 5/2/2, not 4/3/2
         (stored(override={3: {"verdict": "pending"}}), "a3-432-v1"),  # never in a final result
         (stored(override={3: {"market": "AH"}}), "a3-432-v1"),
+        # outcome not valid for its market
+        (stored(override={3: {"market": "BTTS", "outcome": "DRAW"}}), "a3-432-v1"),
+        (stored(override={3: {"market": "1X2", "outcome": "OVER_2_5"}}), "a3-432-v1"),
+        (stored(override={3: {"market": "OU25", "outcome": "BTTS_YES"}}), "a3-432-v1"),
+        (stored(override={3: {"outcome": "home"}}), "a3-432-v1"),  # case matters
+        # missing fields and unexpected JSON types
+        (stored(override={3: {"outcome": None}}), "a3-432-v1"),
+        (stored(override={3: {"market": ["1X2"]}}), "a3-432-v1"),
+        (stored(override={3: {"verdict": {"won": True}}}), "a3-432-v1"),
+        (stored(override={3: {"bucket": 1}}), "a3-432-v1"),
+        (stored(override={3: {"position": "3"}}), "a3-432-v1"),
+        (stored(override={3: {"position": 3.0}}), "a3-432-v1"),
+        (stored(override={1: {"position": True}}), "a3-432-v1"),
         (stored(override={3: {"position": 0}}), "a3-432-v1"),  # duplicate position
         ({"legs": [None] * 9}, "a3-432-v1"),
         ({"accumulators": []}, "a3-432-v1"),

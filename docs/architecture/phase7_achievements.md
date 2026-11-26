@@ -121,8 +121,14 @@ market badge. All six are available from the start, with no unlocking, expiry or
   (`rounds.config_version` → `get_config`). The checks are:
   - nine predictions with positions 0–8;
   - 4/3/2 bucket counts;
-  - known markets;
-  - verdicts of `won`, `lost` or `void`.
+  - each outcome valid for its market, taken from the authoritative definitions
+    (`diski9.api_football.markets.MARKET_OUTCOMES`):
+    - 1X2: `HOME`, `DRAW` or `AWAY`;
+    - BTTS: `BTTS_YES` or `BTTS_NO`;
+    - OU25: `OVER_2_5` or `UNDER_2_5`;
+  - verdicts of `won`, `lost` or `void`;
+  - exact JSON types: an integer position, and string bucket, market, outcome and
+    verdict. Missing fields or values of another type are refused.
 - **No reclassification:** buckets are never reclassified, so Broad60 and A3 bindings are
   preserved.
 - **Bad or missing records:** a missing, incomplete or malformed authoritative record, or

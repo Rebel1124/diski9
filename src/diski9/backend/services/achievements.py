@@ -42,6 +42,7 @@ from uuid import UUID
 
 from sqlalchemy import Engine, text
 
+from diski9.api_football.markets import MARKET_OUTCOMES
 from diski9.challenge.config import ConfigError, get_config
 
 from ..auth.permissions import Principal
@@ -82,7 +83,8 @@ LEVEL_THRESHOLDS: tuple[tuple[Level, int], ...] = ((Level.SEMI_PRO, 1), (Level.P
 LEVEL_ORDER = {Level.BEGINNER: 0, Level.SEMI_PRO: 1, Level.PRO: 2}
 
 VERDICTS = frozenset({"won", "lost", "void"})  # "pending" never appears in a final result
-MARKETS = frozenset({"1X2", "BTTS", "OU25"})
+#: the valid outcomes of each market (the authoritative definitions)
+OUTCOMES_BY_MARKET = {str(m): frozenset(str(o) for o in os) for m, os in MARKET_OUTCOMES.items()}
 
 
 class AchievementIntegrityError(ServiceError):
@@ -164,13 +166,16 @@ def parse_legs(legs_json, config_version: str) -> tuple[Leg, ...]:
     for item in raw:
         if not isinstance(item, dict):
             raise bad("malformed prediction")
-        try:
-            leg = Leg(int(item["position"]), item["bucket"], item["market"], item["outcome"],
-                      item["verdict"])  # fmt: skip
-        except (KeyError, TypeError, ValueError):
-            raise bad("malformed prediction") from None
-        if leg.market not in MARKETS or leg.verdict not in VERDICTS:
-            raise bad("unexpected market or verdict")
+        position = item.get("position")
+        fields = [item.get(k) for k in ("bucket", "market", "outcome", "verdict")]
+        # exact JSON types only: no booleans, floats or numeric strings as positions
+        if type(position) is not int or not all(type(f) is str for f in fields):
+            raise bad("malformed prediction")
+        leg = Leg(position, *fields)
+        if leg.outcome not in OUTCOMES_BY_MARKET.get(leg.market, ()):
+            raise bad("unexpected market or outcome")
+        if leg.verdict not in VERDICTS:
+            raise bad("unexpected verdict")
         legs.append(leg)
     if sorted(leg.position for leg in legs) != list(range(config.required_selections)):
         raise bad("unexpected prediction positions")
