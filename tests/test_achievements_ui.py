@@ -52,20 +52,20 @@ def test_tabs_offer_achievements_as_a_third_segment():
 def test_beginner_with_no_badges_is_an_honest_empty_state():
     t = text(aui.view(result(0, 0, 0, 0, 0, 0, rounds=0)))
     assert "Beginner" in t and "Next: Semi-Pro" in t and "You have not earned a badge yet" in t
-    assert "0 of 6 categories" in t
+    assert "0 of 6 categories complete" in t
     assert t.count("0 of 1 for Semi-Pro") == 6
 
 
 def test_beginner_names_the_missing_categories():
     t = text(aui.view(result(3, 1, 0, 2, 0, 1)))
-    assert "Beginner" in t and "4 of 6 categories have 1 or more" in t
+    assert "Beginner" in t and "4 of 6 categories complete" in t
     assert "Still needed: Challenger Champ, BTTS Bonanza." in t
     assert t.count("Semi-Pro target met") == 4 and "You have not earned" not in t
 
 
 def test_semi_pro_shows_progress_to_pro_per_category():
     t = text(aui.view(result(5, 3, 1, 4, 2, 1)))
-    assert "Semi-Pro" in t and "Next: Pro" in t and "16" in t
+    assert "Semi-Pro" in t and "Next: Pro" in t and "16" in t and "3 of 6 categories complete" in t
     assert "Still needed: Challenger Champ, BTTS Bonanza, Draw Dynamo." in t
     assert "2 of 3 for Pro" in t and t.count("1 of 3 for Pro") == 2
     assert t.count("Pro target met") == 3
@@ -82,9 +82,55 @@ def test_every_card_and_the_every_category_rule_and_wording():
     for name, *_ in aui.BADGE_INFO.values():
         assert name in t
     assert "Bucket achievements" in t and "Market achievements" in t
-    assert "at least 1 of each of the six badges for Semi-Pro" in t
-    assert "at least 3 of each for Pro" in t  # thresholds read from the backend
-    assert "not a rating of skill" in t and "skill rating" not in t
+    assert "How levels work: " in t and "Every category must meet the target." in t
+    assert "Semi-Pro: 1 of every badge type." in t  # thresholds read from the backend
+    assert "Pro: 3 of every badge type." in t
+    assert "do not measure skill" in t and "skill rating" not in t
+    assert "may change after corrections" in t and "refunded entries do not qualify" in t
+    for desc in (
+        "All 4 Foundation picks correct.",
+        "All 3 Balanced picks correct.",
+        "Both Challenger picks correct.",
+        "3+ correct Over/Under 2.5 picks.",
+        "3+ correct BTTS Yes/No picks.",
+        "2+ correct draw picks.",
+    ):
+        assert desc in t
+    assert '"earned"' not in t  # no repeated "earned" label; the count has an aria label
+    assert '"aria-label": "1 earned"' in t
+
+
+def segments(view) -> list[bool]:
+    """The overall bar's six segments (True = filled), in order."""
+    out = []
+
+    def walk(node):
+        if isinstance(node, (list, tuple)):
+            for x in node:
+                walk(x)
+        elif hasattr(node, "to_plotly_json"):
+            cls = getattr(node, "className", "") or ""
+            if cls.split()[:1] == ["ach-seg"]:
+                out.append("met" in cls.split())
+            walk(getattr(node, "children", None))
+
+    walk(view)
+    return out
+
+
+@pytest.mark.parametrize(
+    ("counts", "filled"),
+    [
+        ((0, 0, 0, 0, 0, 0), 0),
+        ((0, 4, 0, 1, 0, 1), 3),  # met categories are not in the first positions
+        ((5, 3, 1, 4, 2, 1), 3),
+        ((9, 6, 3, 5, 4, 3), 6),  # Pro: all six filled
+    ],
+)
+def test_overall_bar_fills_left_to_right_from_categories_met(counts, filled):
+    a = result(*counts)
+    assert a.progress.categories_met == filled or a.progress.next_level is None
+    assert segments(aui.view(a)) == [True] * filled + [False] * (6 - filled)
 
 
 def test_level_and_progress_come_from_the_backend_object_not_recomputed():

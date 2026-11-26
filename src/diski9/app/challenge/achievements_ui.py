@@ -25,20 +25,17 @@ from . import leaderboards_ui as lbu
 from . import persist
 
 #: presentation of each badge: (name, icon, colour class, qualification text)
+#: (display descriptions only; the rules live in the backend service)
 BADGE_INFO = {
     ac.Badge.FOUNDATION_FUNDI: ("Foundation Fundi", "landmark", "found",
-                                "All four Foundation selections correct in one round."),
+                                "All 4 Foundation picks correct."),
     ac.Badge.BALANCED_BRAWLER: ("Balanced Brawler", "scale", "bal",
-                                "All three Balanced selections correct in one round."),
+                                "All 3 Balanced picks correct."),
     ac.Badge.CHALLENGER_CHAMP: ("Challenger Champ", "mountain", "chal",
-                                "Both Challenger selections correct in one round."),
-    ac.Badge.GOALS_GURU: ("Goals Guru", "goal", "goals",
-                          "At least three correct Over/Under 2.5 Goals selections in one round."),
-    ac.Badge.BTTS_BONANZA: ("BTTS Bonanza", "users", "btts",
-                            "At least three correct Both Teams to Score (Yes or No) "
-                            "selections in one round."),
-    ac.Badge.DRAW_DYNAMO: ("Draw Dynamo", "equal", "draw",
-                           "At least two correct draw selections in one round."),
+                                "Both Challenger picks correct."),
+    ac.Badge.GOALS_GURU: ("Goals Guru", "goal", "goals", "3+ correct Over/Under 2.5 picks."),
+    ac.Badge.BTTS_BONANZA: ("BTTS Bonanza", "users", "btts", "3+ correct BTTS Yes/No picks."),
+    ac.Badge.DRAW_DYNAMO: ("Draw Dynamo", "equal", "draw", "2+ correct draw picks."),
 }  # fmt: skip
 GROUPS = (
     ("Bucket achievements", "Perfect buckets: every selection in the bucket correct.",
@@ -59,13 +56,14 @@ def _empty(text: str) -> list:
     return [html.Div(text, className="ch-ribbon")]
 
 
-def rule_text() -> str:
-    semi, pro = THRESHOLD[ac.Level.SEMI_PRO], THRESHOLD[ac.Level.PRO]
-    return (
-        f"Levels need badges in every category: at least {semi} of each of the six badges for "
-        f"Semi-Pro, and at least {pro} of each for Pro. A large total in some categories "
-        "does not make up for a category with none."
-    )
+def how_levels_work() -> html.Div:
+    """The level rule in three short lines; the thresholds come from the backend."""
+    lines = [f"{level}: {n} of every badge type." for level, n in ac.LEVEL_THRESHOLDS]
+    return html.Div(
+        [html.Strong("How levels work: "), *[html.Span(t) for t in lines],
+         html.Span("Every category must meet the target.")],
+        className="ach-how muted small",
+    )  # fmt: skip
 
 
 # ------------------------------------------------------------------ the tab
@@ -131,11 +129,10 @@ def view(a: ac.Achievements) -> list:
 
 def note() -> str:
     return (
-        "Badges come from official published results of competitive rounds. Practice and "
-        "void rounds, refunded entries and rounds awaiting results do not count, and a "
-        "corrected result can add or remove a badge. Levels recognise badges collected "
-        "across categories; they are not a rating of skill. Achievements are private to you "
-        "and never affect credits, rankings or championship points."
+        "Badges come from published competitive results and may change after corrections. "
+        "Practice rounds, void rounds and refunded entries do not qualify. Achievements are "
+        "private, do not measure skill and do not affect credits, rankings or championship "
+        "points."
     )
 
 
@@ -154,17 +151,13 @@ def summary(a: ac.Achievements) -> html.Div:
                 "counting, with no further level to unlock.")  # fmt: skip
     else:
         head = f"Next: {pr.next_level}"
-        if pr.missing:
-            names = ", ".join(BADGE_INFO[b][0] for b in pr.missing)
-            line = (f"{pr.categories_met} of 6 categories have {pr.target} or more. "
-                    f"Still needed: {names}.")  # fmt: skip
-        else:  # pragma: no cover - a level below Pro always has a missing category
-            line = ""
-    segments = [
-        html.Span(className="ach-seg" + ("" if b in pr.missing else " met"),
-                  title=BADGE_INFO[b][0])
-        for b in ac.BADGES
-    ]  # fmt: skip
+        names = ", ".join(BADGE_INFO[b][0] for b in pr.missing)
+        line = f"Still needed: {names}." if names else ""
+    total = len(ac.BADGES)
+    done = f"{pr.categories_met} of {total} categories complete"
+    # filled left to right from the backend's count (not by category position)
+    segments = [html.Span(className="ach-seg" + (" met" if i < pr.categories_met else ""))
+                for i in range(total)]  # fmt: skip
     rounds = lbu.plural(a.eligible_rounds, "eligible round", "eligible rounds")
     lv = LEVEL_INFO[a.level][1]
     return html.Div(
@@ -187,10 +180,11 @@ def summary(a: ac.Achievements) -> html.Div:
             html.Div(
                 [
                     html.Div([html.Strong(head)], className="ach-next"),
-                    html.Div(segments, className="ach-segs",
-                             **{"aria-label": f"{pr.categories_met} of 6 categories complete"}),
-                    html.P(line, className="small"),
-                    html.P(rule_text(), className="muted small"),
+                    html.Div(segments, className="ach-segs", role="img",
+                             **{"aria-label": done}),
+                    html.Div(done, className="ach-done small"),
+                    html.P(line, className="small") if line else None,
+                    how_levels_work(),
                 ],
                 className="ach-progress",
             ),  # fmt: skip
@@ -230,22 +224,17 @@ def card(a: ac.Achievements, badge: ac.Badge) -> html.Div:
             html.Div(
                 [
                     html.Div(icons.icon(ic), className="ach-badge-ic", **{"aria-hidden": "true"}),
-                    html.Div(
-                        [
-                            html.Div(name, className="ach-badge-name"),
-                            html.Div(rule, className="ach-badge-rule small"),
-                        ]
-                    ),
-                    html.Div(
-                        [
-                            html.Span(f"{n:,}", className="ach-count"),
-                            html.Span("earned", className="muted small"),
-                        ],
-                        className="ach-count-wrap",
+                    html.Div(name, className="ach-badge-name"),
+                    html.Span(
+                        f"{n:,}",
+                        className="ach-count",
+                        title=f"{n:,} earned",
+                        **{"aria-label": f"{n:,} earned"},
                     ),
                 ],
                 className="ach-card-top",
-            ),  # fmt: skip
+            ),
+            html.Div(rule, className="ach-badge-rule small"),  # fmt: skip
             html.Div(
                 [
                     html.Div(
