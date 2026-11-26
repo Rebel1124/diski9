@@ -1,0 +1,107 @@
+{
+ "snapshots": 167,
+ "unique_fixtures": 107,
+ "fixtures_by_league": {
+  "EPL": 20,
+  "La Liga": 20,
+  "Serie A": 20,
+  "Ligue 1": 18,
+  "Bundesliga": 17,
+  "Championship": 12
+ },
+ "snapshots_meeting_input_rule": 131,
+ "fixtures_meeting_input_rule": 89,
+ "rejected_input_reasons": {
+  "fresh=none; eligible=none": 21,
+  "fresh=1x2+btts+ou25; eligible=none": 4,
+  "fresh=1x2+btts+ou25; eligible=1x2": 3,
+  "fresh=1x2; eligible=none": 3,
+  "fresh=1x2+ou25; eligible=none": 2,
+  "fresh=1x2; eligible=1x2": 1,
+  "fresh=1x2+ou25; eligible=ou25": 1,
+  "fresh=1x2+btts; eligible=1x2": 1
+ },
+ "status_counts": {
+  "good_fit": 101,
+  "approximate_fit": 30,
+  "rejected_inputs": 36
+ },
+ "status_latest_per_fixture": {
+  "good_fit": 71,
+  "approximate_fit": 18
+ },
+ "status_by_league_latest": {
+  "Serie A: good_fit": 17,
+  "EPL: good_fit": 15,
+  "Ligue 1: good_fit": 14,
+  "La Liga: good_fit": 9,
+  "Championship: good_fit": 8,
+  "Bundesliga: good_fit": 8,
+  "EPL: approximate_fit": 5,
+  "Championship: approximate_fit": 4,
+  "Ligue 1: approximate_fit": 4,
+  "Serie A: approximate_fit": 3,
+  "La Liga: approximate_fit": 1,
+  "Bundesliga: approximate_fit": 1
+ },
+ "markets_used": {
+  "1x2+btts+ou25": 129,
+  "1x2+ou25": 2
+ },
+ "max_abs_residual": {
+  "p10": 0.00727,
+  "median": 0.01523,
+  "p90": 0.02173,
+  "max": 0.02473,
+  "n": 131
+ },
+ "mean_residual_fitted_minus_market": {
+  "home": 0.00706,
+  "draw": -0.01462,
+  "away": 0.00757,
+  "btts_yes": -0.00552,
+  "over": 5e-05
+ },
+ "lambda_home": {
+  "p10": 1.15694,
+  "median": 1.6362,
+  "p90": 2.30752,
+  "max": 3.48807,
+  "n": 131
+ },
+ "lambda_away": {
+  "p10": 0.91028,
+  "median": 1.23936,
+  "p90": 1.90212,
+  "max": 2.4001,
+  "n": 131
+ },
+ "smallest_singular_value": {
+  "p10": 0.29394,
+  "median": 0.3696,
+  "p90": 0.41959,
+  "max": 0.45532,
+  "n": 131
+ },
+ "not_converged": 1,
+ "at_boundary": 0,
+ "not_identified": 0,
+ "fit_latency_seconds": {
+  "p10": 0.01594,
+  "median": 0.02077,
+  "p90": 0.02939,
+  "max": 0.04773,
+  "n": 131
+ },
+ "footprint": {
+  "installed_mib": {
+   "numpy": 53.8,
+   "scipy": 116.6
+  },
+  "import_scipy_optimize_seconds": 0.413,
+  "rss_scipy_numpy_only_mib": 72.1,
+  "rss_dash_sqlalchemy_mib": 55.1,
+  "rss_dash_sqlalchemy_plus_scipy_mib": 105.0,
+  "note": "production code imports neither numpy nor scipy today (research modules only)"
+ }
+}
