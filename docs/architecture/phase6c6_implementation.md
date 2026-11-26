@@ -1325,7 +1325,7 @@ refusal matrices): `tests/test_f2_wsgi_health.py` (20), `tests/test_f2_backup_re
   Supabase acceptance; before F4 the SF-14 analysis; before F5 tighter RPO, ML-01 and
   D-36.
 
-## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 accepted; Checkpoint 1 PASSED (23 Nov 2026); Checkpoint 2 formally accepted and closed (25 Nov 2026)**
+## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 accepted; Checkpoint 1 PASSED (23 Nov 2026); Checkpoint 2 formally accepted and closed (25 Nov 2026); partial CP3 evidence (26 Nov 2026, pending acceptance)**
 
 Authorised by the owner on 22 Nov 2026 (plan [`phase6c6_stage_f3_plan.md`](phase6c6_stage_f3_plan.md)
 §X–§Y, commit `fa6a4ae`, CI run 126), for Stage F3 only: Hostinger KVM 2 monthly in
@@ -2040,3 +2040,113 @@ external-verification limitation. Checkpoint 2 is closed.** Conditions recorded:
 6. The Checkpoint 3 dependencies above are carried forward unchanged.
 
 **Checkpoint 3 is not started and requires separate explicit owner authorisation.**
+
+### 13.15 Targeted infrastructure verification (Option C): **partial CP3 evidence** (26 Nov 2026; pending independent review and owner acceptance)
+
+Owner decision (25 Nov 2026, after ChatGPT review): **Option C**. Before Phase 6 pauses,
+one narrowly scoped session verifies the hosting items with a deadline (IT-3 inside the
+Hostinger refund window, 17 Dec 2026) and the outstanding CP2 external-IPv6 limitation.
+Executed 26 Nov 2026 by the owner to the reviewed checklist v2 plus six safeguards
+(no `postgres` fallback; stop on main-database write rights; echo restored and credentials
+removed on every exit; negative TLS tests for the intended reason with no password over
+plaintext; actual deletion verified; IPv6 timebox 30 min). **This is not CP3 acceptance.**
+No application service, migration of the main database, Auth change, provider call,
+participant or Official activation; protected local databases untouched (unreachable
+from the VPS and never named).
+
+**Setup:**
+* repository `5bb0502` (application code identical to the A3 baseline `776ae31`), copied
+  as a `git archive` over the tunnel; installed as `d9admin` with `uv` (via `pipx`) into a
+  temporary directory; no service enabled;
+* Supabase project identity confirmed (Diski 9 / `diski9-f3` / `eu-central-1` /
+  `xswu…lfrf`); `diski9_lockprobe_test`, `diski9_it_probe` and `diski9-tick:` sessions
+  confirmed absent first;
+* temporary role `diski9_it_probe`: `LOGIN CREATEDB`, no superuser, `CREATEROLE`,
+  replication or RLS bypass, no memberships, `VALID UNTIL` 27 Nov. Effective permissions
+  checked, including PUBLIC: `CONNECT` on `postgres` only; **no** `CREATE` on the database
+  or `public`; **0** PUBLIC write grants;
+* password only in a `mktemp` file on tmpfs `/dev/shm` (no swap) read by libpq via
+  `PGPASSFILE`, inside a throwaway shell whose exit trap restored echo and removed it;
+  never on a command line, in a URL or in chat. The CA used: Supabase Root 2021 CA, SHA-256
+  `80:70:25:AD:…:E6:CA:FA` (identical on the Mac and the VPS).
+
+**IT-4 (G3a part) — database TLS:**
+
+| Test | Result |
+|---|---|
+| Direct endpoint (IPv6), `verify-full`, pinned CA | **PASS** — `ssl=True`, TLSv1.3, `TLS_AES_256_GCM_SHA384` |
+| Direct, plaintext (`sslmode=disable`, fictitious user, no password file) | **PASS** — refused: `no pg_hba.conf entry … no encryption` |
+| Direct, wrong CA | **PASS** — `SSL error: certificate verify failed` |
+| Direct, IP literal instead of the host name | **PASS** — `server certificate … does not match host name` |
+| Session pooler (IPv4), `verify-full` | **Not verified.** The pooler rejected the temporary role (`tenant/user … not found`) after the `verify-full` handshake (which suggests, but does not demonstrate, that its certificate verifies against the pinned CA). **Outstanding CP3 issue:** test with the real application role |
+| Session pooler, plaintext refusal | **Not demonstrated** (the pooler performed the user lookup instead of refusing). **Outstanding CP3 issue.** The application always connects with `verify-full`; no TLS setting was weakened |
+
+**IT-3 (G3b part) — hosted advisory locking** (`tools/ops/scheduler_lock_probe.py`, direct
+endpoint over IPv6 with `verify-full`, fake provider, throw-away database):
+* **First run: harness limitation, not a lock failure.** The probe's cleanup
+  `DROP DATABASE … WITH (FORCE)` was refused (`permission denied to terminate process`):
+  a transient session of another role (a Supabase background service) was attached to the
+  new database, and a least-privilege role may terminate only its own sessions. No lock
+  scenario had run. The leftover database was dropped without `FORCE` once idle
+  (verified).
+* **Owner-approved option (b):** a temporary, uncommitted wrapper (removed at cleanup) ran
+  the unchanged probe with only its `drop_db()` cleanup replaced by a plain `DROP
+  DATABASE` retried while another session is attached (no termination, no extra
+  privilege). Exit 0; 63 s; `drop retries = 0` on this run.
+* **Results against the accepted local evidence (§6.4), field by field:**
+
+| Scenario | Accepted (§6.4) | Hosted 26 Nov | |
+|---|---|---|---|
+| idle-in-transaction 2 s, provider 5 s | second `busy`; first completes (exit 0); no abandonment; 1 results step; ledger 1 = sent 1 | second **`busy`**; first **`completed (exit 0)`**; `false_abandonment false`; `overlap false`; 1 results step; ledger **1 = sent 1** | ✔ |
+| holder terminated mid-tick | first `lock_lost` (exit 1); second `indeterminate` (exit 0, no work); no abandonment | first **`lock_lost (exit 1)`** (recorded "lock lost"); second **`indeterminate (exit 0)`** (no lifecycle work); `false_abandonment false`; ledger 1 = sent 1 | ✔ |
+| transaction-pooler URL | `unsafe_connection`, exit 2, no secret | **`unsafe_connection`, exit 2, `secret_in_message false`** | ✔ |
+| session-level lock | held across the idle timeout; second session blocked | acquired, still held, second session not acquired | ✔ |
+| tick duration (1 / 5 / 5 rounds with 1 s latency) | 0.27 / 0.87 / 5.9 s | **1.48 / 13.47 / 14.47 s** | observation |
+
+  Durations are higher because every statement crosses the network (≈ 4.5 ms RTT); 5
+  rounds stay far below the 240 s tick budget. **To be measured with the real job load in
+  CP3/CP6.** Still deferred: a real `jobs tick` with provider calls off and the ≥ 72-hour
+  soak (CP6).
+
+**External IPv6 exposure (CP2 limitation):** IPVoid TCP port scanner (third party, run
+from the owner's iPhone with consent) against the server's IPv6 address:
+* "All common ports" (27 TCP ports, including 21, 22, 23, 25, 53, 80, 110, 443): **0 open,
+  all filtered**;
+* custom 22, 53, 80, 443, 2019, 3000, 5432, 8050, 8443, 31091: **0 open, all filtered**.
+
+Coverage is about 33 distinct TCP ports, **not all 65,535**; UDP is not covered (WireGuard
+reachability rests on the CP2 handshakes); the host IPv6 firewall separately defaults to
+`DROP` (CP2). Completed in about 15 minutes, inside the timebox. Whether this fully closes
+the pre-F5 IPv6 requirement is for the owner's acceptance; recommended: closed for the
+externally checkable ports, with the coverage recorded.
+
+**Cleanup (verified, success path):**
+* `diski9_lockprobe_test` and `diski9_it_probe`: **both absent by query** (`0 | 0`);
+  the saved dashboard queries deleted;
+* password file removed by the trap (`PGPASS-REMOVED`, `NO-PGPASS-FILE`); no `.pgpass`,
+  `d9pg.*`, `it-cp3*`, wrapper or check script anywhere on the VPS;
+* code, environment, `uv`, `~/.local`, `~/.cache/uv|pipx|pip` removed; the **12 packages**
+  added by `apt-get install pipx` removed exactly (dry run 12, then `PIPX-GONE`); the Mac
+  copy of the archive deleted (the probe JSON kept as evidence);
+* not added by this session and left in place: three public CP2 files in `d9admin`'s home
+  (`f3-make-server-csr.sh`, `server.csr`, `server.crt`), optional tidying.
+
+**Return to the CP2 baseline:** enabled units unchanged (`NO-CHANGE`, 53); SSH settings,
+services, WireGuard peers, `ufw` rules and listeners identical to the accepted CP2 record;
+hPanel firewall unchanged (3 rules, synchronised); tunnel HTTPS `200 0`; Web Console logs
+in; `no-reboot-required`. The VPS holds no database credential. Nine Ubuntu security
+updates were pending at the end; `unattended-upgrades` applies them (a later reboot may be
+needed, part of pause maintenance).
+
+**Partial CP3 evidence recorded:** IT-4 on the direct (scheduler) endpoint; IT-3 probe
+scenarios on the direct endpoint; external IPv6 for common ports. **Not CP3 acceptance.**
+Carried to CP3 (unchanged plus new): pooler TLS and plaintext refusal with the real
+application role; real `jobs tick`; tick duration with the real load; the ≥ 72-hour soak
+(CP6); egress policy after Phase 9; Caddy reverse proxy; `app_0009`; build identity; IT-5
+outside the corporate gateway; full G3a/G3b. The Supabase CA is not left on the VPS
+(`/etc/diski9` is `710 root:caddy`); CP3 places it.
+
+**Phase 6 pause:** on owner acceptance of this record, Phase 6 pauses at F3 CP2 plus this
+partial CP3 evidence. Hostinger and Supabase stay on their current plans. Resume order:
+CP3 (once, on the feature-complete application), CP4–CP7, F4, F5, F6, Stage G, then
+Phase 10. All security, recovery, operational and release requirements stand.

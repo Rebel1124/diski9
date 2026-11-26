@@ -437,3 +437,18 @@ deployment and private beta → 11 public launch and YouTube → 12 advanced
 quantitative enhancements → 13 commercialisation and monetisation. **Private
 mini-leagues are not on the MVP roadmap** (removed by the owner on 20 Nov 2026);
 they may be reconsidered after launch, based on active users and feedback.
+
+*Master Roadmap update (owner decisions 24–26 Nov 2026; supersedes the phase numbering
+above):* **Phase 6** pauses at F3 CP2 plus partial CP3 evidence (Option C,
+[`../architecture/phase6c6_implementation.md`](../architecture/phase6c6_implementation.md)
+§13.14–§13.15) → **7 Rewards & Achievements** → **8 Champions League & Europa League** →
+**9 Lucy and LiveKit** → **resume Phase 6** from F3 CP3 and complete CP4–CP7, F4, F5, F6
+and Stage G → **10 Deployment and complete-MVP private Beta** → **11 Public launch and
+YouTube**. Phase 12 (Commercialisation) is removed from the active roadmap; it may be
+reconsidered after launch based on traction (subscriptions, payments and premium
+restrictions are outside the MVP). F5 and Phase 10 participant recruitment and Beta
+activities are to be consolidated in principle, subject to a later detailed review, with
+separate acceptance requirements. Final outbound-traffic policy deferred until Phase 9
+requirements are known. Phase 10 release dependencies: Official championship scheduling;
+the personal-MacBook administration migration (pre-F5 reassessment retained). All
+security, recovery, operational and release acceptance requirements are unchanged.

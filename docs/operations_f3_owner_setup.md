@@ -841,3 +841,15 @@ Evidence and final configuration: implementation record
   banner has gone; saved rules are not applied until then.
 * Rollback commands are run only when a test fails, never as part of a normal step.
 
+### 8.4 Targeted infrastructure verification (Option C, 26 Nov 2026)
+Evidence: implementation record [§13.15](architecture/phase6c6_implementation.md).
+- [x] IT-4 on the direct endpoint (`verify-full`, plaintext, wrong-CA and host-name
+  negatives). Pooler TLS and plaintext refusal: outstanding CP3 issues.
+- [x] IT-3 probe scenarios on the direct endpoint match §6.4 (temporary cleanup wrapper,
+  owner-approved).
+- [x] External IPv6: 0 open of about 33 TCP ports scanned (common ports plus 10 custom).
+- [x] Temporary role and database deleted (verified by query); no credential, code or
+  tooling left; CP2 baseline verified.
+- **Partial CP3 evidence only**, pending independent review and owner acceptance; then
+  Phase 6 pauses.
+
