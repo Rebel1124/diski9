@@ -1325,7 +1325,7 @@ refusal matrices): `tests/test_f2_wsgi_health.py` (20), `tests/test_f2_backup_re
   Supabase acceptance; before F4 the SF-14 analysis; before F5 tighter RPO, ML-01 and
   D-36.
 
-## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 accepted; Checkpoint 1 PASSED (23 Nov 2026); Checkpoint 2 formally accepted and closed (25 Nov 2026); partial CP3 evidence (26 Nov 2026, pending acceptance)**
+## 13. Stage F3: private environment and recovery — **implementation authorised; Checkpoint 0 accepted; Checkpoint 1 PASSED (23 Nov 2026); Checkpoint 2 formally accepted and closed (25 Nov 2026); partial CP3 evidence accepted; **Phase 6 formally paused (26 Nov 2026)**
 
 Authorised by the owner on 22 Nov 2026 (plan [`phase6c6_stage_f3_plan.md`](phase6c6_stage_f3_plan.md)
 §X–§Y, commit `fa6a4ae`, CI run 126), for Stage F3 only: Hostinger KVM 2 monthly in
@@ -2041,7 +2041,7 @@ external-verification limitation. Checkpoint 2 is closed.** Conditions recorded:
 
 **Checkpoint 3 is not started and requires separate explicit owner authorisation.**
 
-### 13.15 Targeted infrastructure verification (Option C): **partial CP3 evidence** (26 Nov 2026; pending independent review and owner acceptance)
+### 13.15 Targeted infrastructure verification (Option C): **partial CP3 evidence — accepted; Phase 6 paused** (26 Nov 2026)
 
 Owner decision (25 Nov 2026, after ChatGPT review): **Option C**. Before Phase 6 pauses,
 one narrowly scoped session verifies the hosting items with a deadline (IT-3 inside the
@@ -2150,3 +2150,68 @@ outside the corporate gateway; full G3a/G3b. The Supabase CA is not left on the 
 partial CP3 evidence. Hostinger and Supabase stay on their current plans. Resume order:
 CP3 (once, on the feature-complete application), CP4–CP7, F4, F5, F6, Stage G, then
 Phase 10. All security, recovery, operational and release requirements stand.
+
+**Formal owner acceptance and Phase 6 pause (26 Nov 2026).** ChatGPT independently
+reviewed the completion report, commit `82390a6` and CI run 156. The owner accepts:
+1. **External IPv6 verification**: the pre-F5 IPv6 requirement is **closed for the
+   current infrastructure configuration**. The actual coverage stays documented (about 33
+   TCP ports; UDP not covered). Relevant exposure checks must be **repeated after any
+   material infrastructure change**.
+2. IT-4 (direct endpoint TLS) and IT-3 (hosted advisory locking) as **partial CP3
+   evidence only**. Full CP3, G3a and G3b acceptance remain outstanding.
+3. The execution deviations, the temporary cleanup wrapper, credential invalidation, the
+   verified deletion of the database and role, and the return to the CP2 baseline.
+4. Hostinger and Supabase stay on their current plans; today's results trigger no
+   provider change (X.4 not triggered).
+5. **Pooler TLS verification and plaintext refusal are mandatory CP3 requirements before
+   the session pooler is approved for application use.** No security requirement is
+   waived.
+6. **Phase 6 is formally paused** at F3 CP2 plus this accepted partial CP3 evidence.
+
+**Outstanding CP3 requirements (on resume):**
+* session pooler: `verify-full` login and plaintext refusal with the real application
+  role (mandatory before application use);
+* full G3a (IT-4 on every endpoint, IT-10 Supabase settings) and full G3b (real `jobs
+  tick` with provider calls off; tick duration under the real load; ≥ 72-hour soak in
+  CP6);
+* application install at a recorded commit; migrations to the head then current
+  (`app_0009` or later); Auth settings, templates and owner bootstrap; systemd units;
+  Caddy reverse proxy to Gunicorn; the Supabase CA placed with permissions the service
+  user can read;
+* egress policy after Phase 9 requirements are known (API-Football block decision);
+* proportionate startup build identity; IT-5 page timings outside the corporate gateway;
+* repeat the external exposure checks (IPv4 and IPv6) after the CP3 changes.
+
+**Future test-harness consideration (no code change now):** on Supabase, a least-privilege
+role cannot use `DROP DATABASE … WITH (FORCE)` when a transient background session of
+another role is attached. When CP3 resumes, consider making
+`tools/ops/scheduler_lock_probe.py`'s cleanup tolerate this: plain `DROP DATABASE`
+retried while in use, as the accepted temporary wrapper did, with no termination and no
+extra privilege. This is a separate, reviewed change.
+
+**Pause maintenance (proportionate; owner, with Claude on request):**
+* **Security updates:** `unattended-upgrades` stays on. Check monthly over the tunnel
+  that updates apply and whether `/var/run/reboot-required` exists.
+* **Reboots:** when a reboot is required (kernel updates), reboot over the tunnel with
+  the Web Console available. Afterwards confirm WireGuard, `ufw`, SSH and Caddy are
+  active, tunnel HTTPS returns `200 0`, and the Web Console logs in (the CP2 persistence
+  check).
+* **Certificate expiry:** the private server certificate and CA expire **24 May 2027**.
+  If the pause extends towards then, rerun the one-shot CA procedure (runbook §5.1,
+  CP2 §13.14) and replace the root on both devices.
+* **Monthly cost reconciliation** on the 1st (cost log): Hostinger, Supabase Pro,
+  Backblaze, against the $65 warning and $75 ceiling. Hostinger refund decision 17 Dec
+  2026 (calendar).
+* **hPanel firewall:** any rule edit is followed by **Synchronize**, and the exposure
+  checks are repeated after material changes.
+* **Credentials:** none are on the VPS. Keep the root and `d9admin` passwords valid in
+  1Password (serial-console fallback). The employer-device reassessment before F5 and the
+  Phase 10 personal-MacBook migration remain.
+* **Supabase project:** no application data; spend cap on. Nothing deployed; no
+  scheduler running; provider calls, automated refresh, participants and Official
+  competition remain disabled.
+
+**Resume order:** F3 CP3 (once, on the feature-complete application) → CP4 → CP5 → CP6
+→ CP7 → F4 → F5 → F6 → Stage G → Phase 10. All security, recovery, operational, privacy
+and release acceptance requirements stand.
+

@@ -438,8 +438,8 @@ quantitative enhancements → 13 commercialisation and monetisation. **Private
 mini-leagues are not on the MVP roadmap** (removed by the owner on 20 Nov 2026);
 they may be reconsidered after launch, based on active users and feedback.
 
-*Master Roadmap update (owner decisions 24–26 Nov 2026; supersedes the phase numbering
-above):* **Phase 6** pauses at F3 CP2 plus partial CP3 evidence (Option C,
+*Master Roadmap update (owner decisions 24–26 Nov 2026, formally confirmed 26 Nov 2026;
+supersedes the phase numbering above):* **Phase 6** is formally paused (26 Nov 2026) at F3 CP2 plus accepted partial CP3 evidence (Option C,
 [`../architecture/phase6c6_implementation.md`](../architecture/phase6c6_implementation.md)
 §13.14–§13.15) → **7 Rewards & Achievements** → **8 Champions League & Europa League** →
 **9 Lucy and LiveKit** → **resume Phase 6** from F3 CP3 and complete CP4–CP7, F4, F5, F6

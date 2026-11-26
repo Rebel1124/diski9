@@ -850,6 +850,9 @@ Evidence: implementation record [§13.15](architecture/phase6c6_implementation.m
 - [x] External IPv6: 0 open of about 33 TCP ports scanned (common ports plus 10 custom).
 - [x] Temporary role and database deleted (verified by query); no credential, code or
   tooling left; CP2 baseline verified.
-- **Partial CP3 evidence only**, pending independent review and owner acceptance; then
-  Phase 6 pauses.
+- **Accepted (26 Nov 2026): partial CP3 evidence only.** The pre-F5 IPv6 requirement is
+  closed for the current configuration (repeat the exposure checks after material
+  changes). Pooler TLS and plaintext refusal are mandatory before the pooler is used by
+  the application. **Phase 6 is paused**; pause maintenance and outstanding CP3
+  requirements are in record §13.15.
 
