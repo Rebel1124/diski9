@@ -1991,6 +1991,7 @@ def my_challenge(service, state, local) -> html.Div:
             html.Div(history_ui.tabs("current"), className="ch-row-between me-tabs"),
             html.Div(id=c.T("me"), children=my_challenge_body(service, state, local)),
             html.Div(id=c.T("me-hist"), style={"display": "none"}),
+            html.Div(id=c.T("me-ach"), style={"display": "none"}),
         ],
         className="ch-page",
     )

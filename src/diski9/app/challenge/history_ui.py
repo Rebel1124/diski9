@@ -35,6 +35,7 @@ def tabs(value: str = "current") -> dcc.RadioItems:
         options=[
             {"label": "Current", "value": "current"},
             {"label": "History", "value": "history"},
+            {"label": "Achievements", "value": "achievements"},
         ],  # fmt: skip
     )
 
@@ -528,6 +529,9 @@ def detail(service, local, stream: str, code: str) -> html.Div:
                     className="muted small",
                 )
             )
+    from . import achievements_ui
+
+    head.append(achievements_ui.round_chips(service, rid, stream))  # published result only
     panel = results_ui.panel(res, rec, local) if res is not None else [
         html.P("No settlement for this entry yet.", className="muted small")]  # fmt: skip
     return html.Div([*head, *panel], className="me-hist-detail")

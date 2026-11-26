@@ -825,20 +825,38 @@ def register(app, data, service: ChallengeService) -> None:
         Output({"t": "me", "i": ALL}, "style"),
         Output({"t": "me-hist", "i": ALL}, "style"),
         Output({"t": "me-hist", "i": ALL}, "children"),
+        Output({"t": "me-ach", "i": ALL}, "style"),
+        Output({"t": "me-ach", "i": ALL}, "children"),
         Input(c.T("me-tab", ALL), "value"),
         prevent_initial_call=True,
     )
     def my_challenge_tab(tab):
-        """Current or History (Stage E). History is rendered when it is opened, from
-        the authoritative read services, so it is never stale."""
+        """Current, History (Stage E) or Achievements (Phase 7). History and
+        Achievements are rendered each time they are opened, from the authoritative
+        read services, so they are never stale."""
         if not tab:
             raise PreventUpdate  # wildcard outputs: a bare no_update is rejected by Dash
-        from . import history_ui
+        from . import achievements_ui, history_ui
 
         hide, show = {"display": "none"}, {}
         if tab[0] == "history":
-            return [hide], [show], [history_ui.section(service, local)]
-        return [show], [hide], [no_update]
+            return [hide], [show], [history_ui.section(service, local)], [hide], [no_update]
+        if tab[0] == "achievements":
+            return [hide], [hide], [no_update], [show], [achievements_ui.section(service, local)]
+        return [show], [hide], [no_update], [hide], [no_update]
+
+    @app.callback(
+        Output({"t": "me-abody", "i": ALL}, "children"),
+        Input(c.T("me-astream", ALL), "value"),
+        prevent_initial_call=True,
+    )
+    def my_achievements(stream):
+        """Another stream's achievements (streams never mix, D-3)."""
+        from . import achievements_ui
+
+        if not stream:
+            raise PreventUpdate  # wildcard outputs: a bare no_update is rejected by Dash
+        return [achievements_ui.body(service, stream[0])]
 
     @app.callback(
         Output({"t": "me-hbody", "i": ALL}, "children"),
