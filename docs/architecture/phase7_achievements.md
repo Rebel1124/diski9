@@ -1,13 +1,24 @@
 # Phase 7: Rewards & Achievements (design and decision record)
 
-**Status:** Checkpoint 0 (requirements and discovery) accepted by the owner on 26 Nov 2026.
-CP1/CP2 (this design record, the backend and focused tests) is implemented and awaits
-independent review and owner acceptance. CP3 (frontend, visual review, end-to-end
-validation, full regression and closure) is not yet authorised.
+**Status (26 Nov 2026):**
+- CP0 (requirements and discovery): accepted.
+- CP1/CP2 (backend and focused tests, `36b79d3` and refinement `fe1972e`): accepted and
+  closed.
+- CP3 visual design: formally approved (`1e11889`, CI run 161).
+- CP3 end-to-end validation, full regression and closure preparation: complete (§14).
+- **Phase 7 awaits the final independent review and the owner's explicit acceptance.**
 
-**Code:** `src/diski9/backend/services/achievements.py`.
-**Tests:** `tests/test_achievements.py` (pure rules) and
-`tests/backend/test_backend_achievements.py` (PostgreSQL).
+**Code:**
+- Backend: `src/diski9/backend/services/achievements.py`.
+- UI: `src/diski9/app/challenge/achievements_ui.py`, with styles in
+  `src/diski9/app/assets/style.css` (Phase 7 block) and icons in
+  `src/diski9/app/icons.py`.
+
+**Tests:**
+- `tests/test_achievements.py` (pure rules).
+- `tests/backend/test_backend_achievements.py` (PostgreSQL).
+- `tests/test_achievements_ui.py` (UI rendering).
+- `tools/e2e_p7/` (end-to-end, local only).
 
 This record supersedes earlier achievement proposals. In particular, the "Phase 9 badges
 and achievements derived from `domain_events`" notes in
@@ -183,18 +194,71 @@ before any architecture is added.
   private for the MVP. Account deletion and anonymisation (D-36) are unchanged; derived
   achievements need nothing extra.
 
-## 10. User interface (D-7; CP3, not yet authorised)
+## 10. User interface (D-7; implemented and visually approved in CP3)
 
-- **Placement:** a third **Achievements** segment beside Current and History on My
-  Challenge, with no new navigation tab.
-- **Contents:**
-  - the level emblem and name;
-  - the total;
-  - progress that makes the every-category rule clear;
-  - six cards in Bucket and Market groups, each with a name, icon, rule, count and
-    progress towards the next level.
-- **Per-round chips:** optional small badge chips in the History detail view.
-- **Owner review:** the visual design is reviewed by the owner in CP3.
+**What it does**
+
+- **Placement:** My Challenge has three segments, **Current | History | Achievements**.
+  There is no new navigation tab.
+- **Presentation only:** the UI shows the counts, level and progress the backend derives.
+  No rule is re-implemented in the frontend.
+- **Fresh reads:** each view is read afresh when it opens and when the stream changes, so
+  a republished correction (a lost badge or a lower level) is never hidden.
+- **Streams:** the stream selector reuses the History pattern. Development appears only
+  with the server's `Backend.show_development` setting.
+
+**Summary card**
+
+- A level emblem: a sprout for Beginner, a rosette for Semi-Pro, a crown for Pro.
+- The level name, total badges and eligible rounds.
+- **Next level:**
+  - a six-segment bar that fills **left to right** from `Progress.categories_met`;
+  - "N of 6 categories complete" (also the accessible label);
+  - "Still needed:" from `Progress.missing`.
+  - At Pro, all six segments are filled and the card reads "Top level reached".
+- **"How levels work":** built from `LEVEL_THRESHOLDS`.
+- **Footnote:** recognition only. It mentions refunded entries but does not say that
+  partially voided entries are excluded.
+
+**Badge cards**
+
+- Six cards in **Bucket** and **Market** groups.
+- Each card shows:
+  - a header row with the icon, name and count (labelled "N earned" for screen readers);
+  - a short display description on its own line;
+  - the badge's own progress bar and target message.
+- **Layout:** three equal cards per group on desktop and tablet; one per row at 720 px
+  and below. The segments stay on one row on phones and wrap only below 340 px.
+
+**Approved colours**
+
+| Item | Colour |
+|---|---|
+| Beginner | #A5B2C3 |
+| Semi-Pro | #60A5FA |
+| Pro | #F5C451 |
+| Foundation Fundi | #2DD4A0 |
+| Balanced Brawler | #60A5FA |
+| Challenger Champ | #F5B942 |
+| Goals Guru | #F5A56B |
+| BTTS Bonanza | #B69AF5 |
+| Draw Dynamo | #F472B6 |
+
+- There is no red in the palette.
+- Teal remains for the overall bar and the app accent.
+
+**History detail**
+
+- One chip for each badge the round's **published** result earned. During a review, that
+  is the last published result.
+- No chips when the round earned none.
+- The results panel for each prediction is unchanged.
+
+**Other states**
+
+- **Integrity error:** an "Achievements unavailable" card, never Beginner or zero counts,
+  with no diagnostics shown. History detail shows a quiet line instead.
+- **Guests:** a sign-in prompt, and no achievement data.
 
 ## 11. Testing
 
@@ -228,16 +292,22 @@ before any architecture is added.
 - **Test helpers:** the test helpers gained optional, default-preserving parameters:
   extra Draw, Over 2.5 and BTTS No offers, a configuration version, a non-development
   stream and a correction window.
-- **Full regression:** the full regression run and the end-to-end development
-  championship exercise are reserved for CP3.
+- **UI tests** (`tests/test_achievements_ui.py`, pure):
+  - every level state, with wording and thresholds taken from the backend;
+  - the bar filling left to right;
+  - compact cards with no repeated "earned";
+  - the integrity-error state, guests and the case with no database;
+  - development visibility coming from the server's backend setting;
+  - History chips.
+- **End-to-end and full regression:** see §14.
 
 ## 12. Checkpoints (D-8)
 
 | Checkpoint | Scope | State |
 |---|---|---|
 | CP0 | Requirements and discovery | Accepted, 26 Nov 2026 |
-| CP1/CP2 | Design record, backend, focused tests | Implemented; awaiting review and acceptance |
-| CP3 | Frontend, visual review, end-to-end validation, full regression, closure | Not authorised. Backend acceptance is the gate |
+| CP1/CP2 | Design record, backend, focused tests | Accepted and closed (`36b79d3`, `fe1972e`; CI runs 158 and 159) |
+| CP3 | Frontend, visual review, end-to-end validation, full regression, closure | Visual design approved (`d5e48f8`, `1e11889`; CI runs 160 and 161). End-to-end validation and full regression complete (§14). Awaiting final review and acceptance |
 
 ## 13. Deferred and out of scope
 
@@ -257,3 +327,86 @@ work:
 Personal Performance Analytics, broader educational enhancements, private mini-leagues
 and commercialisation remain deferred. Stored achievements would be reconsidered only if
 an approved future feature (for example, public achievements) needed them.
+
+## 14. CP3 end-to-end validation and closure evidence (26 Nov 2026)
+
+**Environment.** Everything was local and disposable:
+- a fresh `diski9_p7_e2e` database on a separate PostgreSQL 16 cluster (port 55437);
+- the local Supabase Auth harness;
+- two app servers from the approved commit: one with development rounds shown (server
+  setting on) and one with them hidden.
+
+There was no protected or acceptance database, no hosted infrastructure, no provider call
+and no real participant.
+
+**Scenario.** `tools/e2e_p7/seed.py` built it through the real services:
+- entries confirmed;
+- lock;
+- results (synthetic for development rounds, provider evidence for the beta round);
+- settlement, finalisation and publication;
+- owner reopening and correction.
+
+The two viewer accounts were created and onboarded through the real sign-in flow.
+
+**Checks.** `tools/e2e_p7/checks.js` compares every page with the service, stage by
+stage:
+
+| Stage | What is published | Development result (counts F, B, C, GG, BT, DD) | Browser checks |
+|---|---|---|---|
+| none | nothing | Beginner (0, 0, 0, 0, 0, 0); the honest empty state | 34 passed |
+| base | see note 1 | Semi-Pro (3, 3, 2, 1, 1, 1). Beta separately (1, 1, 1, 0, 1, 0) | 44 passed |
+| pro | four more rounds | **Pro (7, 7, 6, 3, 3, 3)**: all six badge types, all six segments filled | 24 passed |
+| reopen | R9 reopened and corrected (a draw becomes an away win); under review | Pro unchanged; R9's chips still show its last published badges | 22 passed |
+| republish | R9 re-finalised | **Semi-Pro (7, 7, 5, 3, 3, 2)**: Challenger and Draw Dynamo removed from R9; the level drops | 40 passed |
+| corrupt | a malformed settlement revision inserted (disposable database) | "Achievements unavailable" (no level or counts); History shows the quiet line; Beta and other rounds unaffected | 12 passed |
+
+Note 1: the base stage publishes:
+- two competitive rounds with all picks correct;
+- a practice round, a void round and a refunded entry, which award nothing;
+- a partially voided entry, which earns Foundation and Balanced only;
+- a beta round on a3-432-v1, finalised on the real clock.
+
+**What each stage checked:**
+- the level;
+- each of the six counts;
+- the total;
+- the categories met and the left-to-right bar;
+- the History chips per round, matching the service exactly;
+- the absence of the synthetic banner and preview placeholder;
+- no e-mail address or UUID in the page;
+- no browser errors;
+- the Current tab still renders;
+- page loads wrote nothing (score sets, settlements and audit rows unchanged).
+
+**Privacy and isolation checks:**
+- The second participant sees only their own achievements.
+- Guests see no achievement data.
+- The server with development hidden offers no Development stream and shows the beta
+  counts.
+- The Official stream is not offered before it starts (D-38), and the service reports
+  zero for it.
+
+**Screenshots** of the real application at desktop, tablet and mobile widths are in
+`docs/screenshots/phase7/`: Achievements and one History detail per stage. On the
+element-level History captures, the sticky navigation bar can appear over the panel; that
+is a capture artefact, not a layout fault.
+
+**Full regression.** One deliberate local run of the whole suite was made with the CI
+settings (PostgreSQL, real Supabase Auth and browser tests required) passed: **2,315
+passed, 0 failed, 0 skipped** (32 min). CI also passed on every Phase 7 commit (runs 158
+to 161).
+
+**Clean-up.** After the evidence was collected, the following were stopped or removed:
+- the disposable cluster, with its end-to-end, test and local auth databases;
+- the temporary app, auth and preview servers;
+- `tmp/e2e_p7/` (the throw-away accounts and server environment files).
+
+The shared, git-ignored local auth harness folder from earlier phases was left as it was.
+
+**Remaining limitations (accepted earlier):**
+- three correct draws in one entry remain practically unachievable under the current
+  configurations;
+- pace and achievability are to be reassessed with Beta data;
+- there is no dedicated test for a completely missing settlement revision (insert-only
+  history);
+- D-36 (deletion and anonymisation) is unchanged.
