@@ -1275,7 +1275,7 @@ official weekly results.
 | `settle run` without `--confirm`; development time overrides limited to settle and finalise | documented 6C.4 behaviour | Unchanged |
 | 6C.3 backlog (Screener latency and fixture URLs → 6D; CLI tracebacks → 6C.6; D-41 Your View freezing) | unchanged | None |
 | **Private mini-leagues** | **removed from the MVP roadmap**; reconsider only with active users and feedback | Nothing anticipatory built |
-| Badges and achievements | Phase 9 | Domain events written (already designed) |
+| Badges and achievements | Phase 9 (*superseded 26 Nov 2026: Phase 7, derived from published results; [`phase7_achievements.md`](phase7_achievements.md)*) | Domain events written (already designed); not needed by Phase 7 |
 | Official series start (D-38) | launch decision | A schedule version pointing to `official`, no code change (Q-1) |
 
 ---

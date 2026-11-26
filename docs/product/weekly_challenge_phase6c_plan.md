@@ -452,3 +452,9 @@ separate acceptance requirements. Final outbound-traffic policy deferred until P
 requirements are known. Phase 10 release dependencies: Official championship scheduling;
 the personal-MacBook administration migration (pre-F5 reassessment retained). All
 security, recovery, operational and release acceptance requirements are unchanged.
+
+*Phase 7 scope (owner, 26 Nov 2026):* six recognition-only badges and three derived levels
+(Beginner, Semi-Pro, Pro), calculated from published official results with no new
+persistence. CP0 accepted; the record is
+[`../architecture/phase7_achievements.md`](../architecture/phase7_achievements.md), which
+supersedes the earlier "badges and achievements" roadmap entries above.

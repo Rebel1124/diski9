@@ -36,7 +36,13 @@ OUTCOMES = (
     ("OU25", "UNDER_2_5", "B", 0.47, lambda i: Decimal("2.03") + Decimal(i) / 100),
     ("1X2", "AWAY", "C", 0.28, lambda i: Decimal("3.15") + Decimal(i) / 100),
 )
-BY_KEY = {(m, o): (b, p, f) for m, o, b, p, f in OUTCOMES}
+#: optional extra offers (Phase 7 achievement tests): a draw, Over 2.5 and BTTS No
+EXTRA_OUTCOMES = (
+    ("1X2", "DRAW", "C", 0.27, lambda i: Decimal("3.40") + Decimal(i) / 100),
+    ("OU25", "OVER_2_5", "B", 0.53, lambda i: Decimal("1.80") + Decimal(i) / 100),
+    ("BTTS", "BTTS_NO", "B", 0.48, lambda i: Decimal("1.98") + Decimal(i) / 100),
+)
+BY_KEY = {(m, o): (b, p, f) for m, o, b, p, f in OUTCOMES + EXTRA_OUTCOMES}
 DEFAULT_ENTRY = (
     (0, "1X2", "HOME"), (1, "1X2", "HOME"), (2, "1X2", "HOME"), (3, "1X2", "HOME"),
     (4, "BTTS", "BTTS_YES"), (5, "BTTS", "BTTS_YES"), (6, "OU25", "UNDER_2_5"),
@@ -58,6 +64,8 @@ def make_settlement_round(
     published_at=None,
     correction_window_hours: int | None = None,
     series: str = "beta",
+    extra_outcomes: bool = False,
+    config_version: str = "broad60-432-v1",
 ):
     """``published_at`` (default: now) may be set in the past, e.g. to test SAST
     month boundaries of championship names. ``correction_window_hours`` (default:
@@ -97,7 +105,7 @@ def make_settlement_round(
     ]
     offers = []
     for i, f in enumerate(fids):
-        for m, o, b, p, odds in OUTCOMES:
+        for m, o, b, p, odds in OUTCOMES + (EXTRA_OUTCOMES if extra_outcomes else ()):
             offers.append(
                 {
                     "fixture_id": f, "market": m, "outcome": o, "model_prob": p,
@@ -123,7 +131,7 @@ def make_settlement_round(
         published_at=published_at or now,
         deadline_at=deadline,
         settle_cutoff_at=deadline + cutoff_after,
-        config_version="broad60-432-v1",
+        config_version=config_version,
         rules_version="settle/v1",
         scoring_version="points-150-75-v2",
         model_version="goal-model-1.0",
@@ -131,7 +139,8 @@ def make_settlement_round(
     return rid, snap, fids, deadline, deadline + cutoff_after
 
 
-def confirm_entry(conn, rid, snap, fids, user, spec=DEFAULT_ENTRY):
+def confirm_entry(conn, rid, snap, fids, user, spec=DEFAULT_ENTRY,
+                  config_version="broad60-432-v1"):  # fmt: skip
     rows = []
     for pos, (i, m, o) in enumerate(spec):
         b, p, odds = BY_KEY[(m, o)]
@@ -159,7 +168,7 @@ def confirm_entry(conn, rid, snap, fids, user, spec=DEFAULT_ENTRY):
             "p_recover_market": ev.p_recover, "p_recover_model": None,
             "expected_gross_market": ev.expected_gross, "expected_gross_model": None,
             "max_gross": ev.max_gross, "states": {"market": states, "model": None},
-            "config_version": "broad60-432-v1", "calc_version": "structured-1",
+            "config_version": config_version, "calc_version": "structured-1",
             "model_version": "goal-model-1.0", "rules_version": "settle/v1",
         },
         rows,

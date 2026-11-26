@@ -41,6 +41,19 @@ to the owner's personal MacBook, including:
 Retained at Checkpoint 2 acceptance (25 Nov 2026), together with the pre-F5
 reassessment. Not implemented in Stage F3.
 
+## Achievements beyond the Phase 7 MVP (not committed)
+
+Phase 7 delivers six badges and three levels only
+([`../architecture/phase7_achievements.md`](../architecture/phase7_achievements.md)). Removed
+proposals are **not** committed future work. They may be reconsidered after launch only if
+genuine user feedback justifies them:
+* Beat the Bookie, Payback Pirate and Payback Week, Top Ten Titan and Top Ten,
+  Championship Winner, Clean Sweep, Consistency Champion, Away Day Specialist;
+* unlocking, XP, streaks, achievement leaderboards, public achievement profiles, reward
+  shops, feature unlocks, configurable rules and levels beyond Pro.
+
+Draw Dynamo and level achievability can be reassessed with Beta data.
+
 ## Personal Performance Analytics (post-launch; not implemented)
 
 Recorded 24 Nov 2026 at Scenario A3 Checkpoint 4B. Documentation only: no

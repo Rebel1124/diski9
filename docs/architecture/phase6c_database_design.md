@@ -454,7 +454,9 @@ erDiagram
   `round_id NULL`, `payload jsonb`.
 * Written by the service layer in the same transaction as the fact. Used later
   for achievements (Phase 9) and Lucy's read model (Phase 7); nothing in Phase 6C
-  depends on it.
+  depends on it. *(Superseded for achievements on 26 Nov 2026: Phase 7 derives them
+  from published results, not events; see
+  [`phase7_achievements.md`](phase7_achievements.md).)*
 
 ## 9. Transactions and race protection
 

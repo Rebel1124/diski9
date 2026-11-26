@@ -75,7 +75,9 @@ def users(engine, n: int, prefix: str = "player"):
         return [make_user(conn, f"{prefix}{i:02d}") for i in range(n)]
 
 
-def build(engine, plan, *, published=None, cutoff_after=timedelta(seconds=4)):
+def build(engine, plan, *, published=None, cutoff_after=timedelta(seconds=4),
+          development=True, series="beta", extra_outcomes=False,
+          config_version="broad60-432-v1", correction_window_hours=None):  # fmt: skip
     """Development rounds in deadline order; ``plan`` = [[(user, spec), ...], ...].
     Returns one dict per round (locked after the shared deadline wait)."""
     made = []
@@ -87,9 +89,12 @@ def build(engine, plan, *, published=None, cutoff_after=timedelta(seconds=4)):
                 # deadline order (as in real weekly rounds)
                 conn, deadline_in=timedelta(seconds=3, milliseconds=10 * k),
                 cutoff_after=cutoff_after,
-                development=True, published_at=at,
+                development=development, published_at=at, series=series,
+                extra_outcomes=extra_outcomes, config_version=config_version,
+                correction_window_hours=correction_window_hours,
             )  # fmt: skip
-            ents = [confirm_entry(conn, rid, snap, fids, u, spec)[0] for u, spec in entries]
+            ents = [confirm_entry(conn, rid, snap, fids, u, spec, config_version)[0]
+                    for u, spec in entries]  # fmt: skip
             made.append({"round": rid, "fixtures": fids, "deadline": deadline, "cutoff": cutoff,
                          "users": [u for u, _ in entries], "entries": ents})  # fmt: skip
     wait_until(engine, max(w["deadline"] for w in made))
