@@ -27,8 +27,8 @@ from .service import ChallengeService, key_str, parse_key
 # Phase 8 CP3A-1: the five approved tabs. Portfolio Build (the fixture-selection
 # entry point) is the home page; the Match Lab moved to /lab. Old /challenge links
 # are redirected to / by the server (``legacy_redirect``) and aliased here. The
-# learning tab is labelled "Training Grounds" (owner, 27 Nov 2026); its route stays
-# /learn.
+# learning tab is labelled "Training Ground" and the leaderboards tab "Leaderboard"
+# (owner, 27 Nov 2026); their routes stay /learn and /leaderboards.
 PORTFOLIO = "/"
 LAB = "/lab"
 LEGACY_PORTFOLIO = "/challenge"
@@ -36,8 +36,8 @@ NAV = (
     (PORTFOLIO, "Portfolio Build"),
     (LAB, "Match Lab"),
     ("/challenge/me", "My Challenge"),
-    ("/learn", "Training Grounds"),
-    ("/leaderboards", "Leaderboards"),
+    ("/learn", "Training Ground"),
+    ("/leaderboards", "Leaderboard"),
 )
 
 

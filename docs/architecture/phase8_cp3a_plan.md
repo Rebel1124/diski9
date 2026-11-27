@@ -37,13 +37,15 @@ Markers used below:
 | Portfolio Build | `/` | Homepage introduction and the domestic card (CP3A-2), with the domestic challenge list (the existing builder) or the domestic research list (the existing Screener table), chosen by the card's **Research only** toggle (§6) |
 | Match Lab | `/lab` | Detail of the selected fixture; no selectors after CP3A-3 |
 | My Challenge | `/challenge/me` | Unchanged |
-| **Training Grounds** (formerly Learn) | `/learn` | Route and tab; the approved Learn content follows in CP3B |
-| Leaderboards | `/leaderboards` | Unchanged |
+| **Training Ground** (formerly Learn) | `/learn` | Route and tab; the approved Learn content follows in CP3B |
+| **Leaderboard** (formerly Leaderboards) | `/leaderboards` | Unchanged functionality |
 
-- **Training Grounds [D, 27 Nov 2026]:**
-  - the Learn tab is renamed **Training Grounds**, in keeping with the football theme, and moved before Leaderboards;
-  - it keeps all approved Learn functionality, content and future enhancements;
-  - the internal route `/learn` and identifiers are unchanged.
+- **Tab names [D, 27 Nov 2026]:**
+  - the Learn tab is renamed **Training Ground**, in keeping with the football theme, and moved before the leaderboard tab;
+  - Leaderboards is renamed **Leaderboard**;
+  - Training Ground keeps all approved Learn functionality, content and future enhancements;
+  - Leaderboard keeps all leaderboard functionality, championship standings and history;
+  - the internal routes (`/learn`, `/leaderboards`) and identifiers are unchanged. Page headings follow the tab names; general prose about the weekly and championship leaderboards stays plural.
 
 - **Old addresses** [V, CP3A-1]:
   - `/challenge` is redirected to `/` by the server (query string kept) and aliased by the router;
@@ -184,11 +186,11 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
 
 ### 10.1 CP3A-1 as implemented
 
-- **`NAV`:** Portfolio Build `/`, Match Lab `/lab`, My Challenge `/challenge/me`, Training Grounds `/learn`, Leaderboards `/leaderboards`. The longer label was verified at 390, 768 and 1280 px: one line, no horizontal scroll.
+- **`NAV`:** Portfolio Build `/`, Match Lab `/lab`, My Challenge `/challenge/me`, Training Ground `/learn`, Leaderboard `/leaderboards`. All five labels were verified at 390, 768 and 1280 px: one line each, no horizontal scroll.
 - **Router:**
   - `/` (and the `/challenge` alias) renders the existing Weekly Challenge builder unchanged;
   - `/lab` shows the existing Screener and Match Lab unchanged;
-  - `/learn` shows a plain Training Grounds page;
+  - `/learn` shows a plain Training Ground page;
   - unknown paths show "Page not found" with a link back to Portfolio Build.
 - **Path checks moved from `/` to `/lab`:** `update_detail`, `match_lab_panel`, `screener_strip`, `data_context` and `open_fixture`, which now acts only on `/lab`. `sync_round_views` moved from `/challenge` to `/`.
 - **Visibility:** `screener-root` starts hidden, so the Match Lab never flashes on the home page.
@@ -203,7 +205,7 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
 
 ## 11. Testing and browser acceptance (proportionate)
 
-- **Route and label tests:** tab order and labels (including Training Grounds), the redirects, `/lab`, `/learn`, the active tab and unknown paths (CP3A-1).
+- **Route and label tests:** tab order and labels (including Training Ground), the redirects, `/lab`, `/learn`, the active tab and unknown paths (CP3A-1).
 - **Context tests** (callback level):
   - frozen to latest to frozen restores the frozen adjustments;
   - latest adjustments never appear frozen, and the reverse;

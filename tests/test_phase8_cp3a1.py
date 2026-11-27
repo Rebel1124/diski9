@@ -2,7 +2,7 @@
 
 Portfolio Build (the Weekly Challenge builder, the fixture-selection entry point) is
 the home page ``/``; the Match Lab (with the Screener list, unchanged in CP3A-1) moved
-to ``/lab``; Training Grounds (route ``/learn``) has a route and tab. Old addresses keep working: ``/challenge`` is
+to ``/lab``; Training Ground (route ``/learn``) has a route and tab. Old addresses keep working: ``/challenge`` is
 redirected to ``/`` by the server and aliased by the router, and old Match Lab deep
 links ``/?fixture=<id>`` are redirected to ``/lab?fixture=<id>``. Every callback that
 renders only while the Match Lab shows now checks ``/lab``."""
@@ -49,8 +49,8 @@ def test_five_tabs_in_the_approved_order():
         ("/", "Portfolio Build"),
         ("/lab", "Match Lab"),
         ("/challenge/me", "My Challenge"),
-        ("/learn", "Training Grounds"),
-        ("/leaderboards", "Leaderboards"),
+        ("/learn", "Training Ground"),
+        ("/leaderboards", "Leaderboard"),
     )
 
 
@@ -89,8 +89,8 @@ def test_router_shows_each_page(data):  # noqa: F811
         style, content, nav, sig = route(path, None, None, None)
         assert style == hidden and "Weekly Challenge" in jtext(content) and sig is not None
         assert [x.href for x in nav if x.className.endswith(" on")] == ["/"]
-    for path, words in (("/challenge/me", "My Challenge"), ("/leaderboards", "Leaderboards"),
-                        ("/learn", "Training Grounds")):  # fmt: skip
+    for path, words in (("/challenge/me", "My Challenge"), ("/leaderboards", "Leaderboard"),
+                        ("/learn", "Training Ground")):  # fmt: skip
         style, content, _, sig = route(path, None, None, None)
         assert style == hidden and words in jtext(content) and sig is None
     style, content, _, _ = route("/nowhere", None, None, None)
@@ -163,7 +163,7 @@ def test_internal_links_use_the_new_routes():
 
 def test_learn_page_is_a_plain_page():
     text = jtext(pages.learn_page())
-    assert "Training Grounds" in text and "Go to Portfolio Build" in text
+    assert "Training Ground" in text and "Go to Portfolio Build" in text
     assert "coming soon" not in text.lower()
 
 
@@ -209,17 +209,17 @@ const fs = require('fs');
     await p.waitForSelector('.ch-page');
     await p.waitForFunction((t) => document.querySelector('.ch-total') && document.querySelector('.ch-total').innerText === t, r.totalBefore);
     r.totalAfter = await p.locator('.ch-total').first().innerText();
-    // Training Grounds (route /learn): the longer label stays on one line, inside the bar
+    // Training Ground (route /learn): the longer label stays on one line, inside the bar
     r.navFit = await p.evaluate(() => {
       const links = [...document.querySelectorAll('#site-nav-links .nav-link')];
-      const tg = links.find(a => a.innerText === 'Training Grounds');
+      const tg = links.find(a => a.innerText === 'Training Ground');
       const lh = parseFloat(getComputedStyle(tg).lineHeight) || 20;
       const bar = document.querySelector('.site-nav');
       return { oneLine: tg.getBoundingClientRect().height < 2 * lh,
                inside: tg.getBoundingClientRect().right <= bar.getBoundingClientRect().right + 0.5
                        || getComputedStyle(document.querySelector('#site-nav-links')).overflowX !== 'visible' };
     });
-    await p.locator('#site-nav-links .nav-link', { hasText: 'Training Grounds' }).click();
+    await p.locator('#site-nav-links .nav-link', { hasText: 'Training Ground' }).click();
     await p.waitForSelector('text=Go to Portfolio Build');
     r.learnActive = await active();
     r.overflowLearn = await overflow();
@@ -255,7 +255,7 @@ const fs = require('fs');
 @pytest.mark.skipif(shutil.which("node") is None, reason="node not available")
 def test_browser_navigation_at_three_widths(data):  # noqa: F811
     """Guest navigation through the five tabs at 390, 768 and 1280 px: Portfolio Build
-    is home, the Match Lab is at /lab, Training Grounds opens, picks survive the round trip, old
+    is home, the Match Lab is at /lab, Training Ground opens, picks survive the round trip, old
     addresses land on the right page, and nothing scrolls horizontally. Set
     ``DISKI9_SHOTS`` to a directory to save screenshots for visual review."""
     if subprocess.run(["node", "-e", "require('playwright')"], capture_output=True).returncode:
@@ -279,10 +279,10 @@ def test_browser_navigation_at_three_widths(data):  # noqa: F811
         server.shutdown()
     assert out["errors"] == []
     for w, r in out["widths"].items():
-        assert r["tabs"] == ["Portfolio Build", "Match Lab", "My Challenge", "Training Grounds",
-                             "Leaderboards"], w  # fmt: skip
+        assert r["tabs"] == ["Portfolio Build", "Match Lab", "My Challenge", "Training Ground",
+                             "Leaderboard"], w  # fmt: skip
         assert r["homeActive"] == ["Portfolio Build"] and r["labHiddenOnHome"], w
-        assert r["labActive"] == ["Match Lab"] and r["learnActive"] == ["Training Grounds"], w
+        assert r["labActive"] == ["Match Lab"] and r["learnActive"] == ["Training Ground"], w
         assert r["navFit"] == {"oneLine": True, "inside": True}, (w, r["navFit"])
         assert r["totalBefore"] == r["totalAfter"] and r["totalBefore"].startswith("1"), w
         assert r["legacyUrl"] == "/" and r["legacyActive"] == ["Portfolio Build"], w

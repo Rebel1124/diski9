@@ -240,7 +240,7 @@ def page(service) -> html.Div:
     try:
         streams = lb.stream_options(b.engine, include_development=b.show_development)
     except Exception:  # noqa: BLE001
-        return html.Div([c.page_header("Leaderboards"), *unavailable()], className="ch-page")
+        return html.Div([c.page_header("Leaderboard"), *unavailable()], className="ch-page")
     stream = streams[0] if "official" in streams else "beta"
     options, value = selector_options(service, "weekly", stream)
     stream_ctl = (
@@ -255,7 +255,7 @@ def page(service) -> html.Div:
     )  # fmt: skip
     return html.Div(
         [
-            c.page_header("Leaderboards"),
+            c.page_header("Leaderboard"),
             html.Div(
                 [
                     dcc.RadioItems(

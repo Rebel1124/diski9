@@ -302,7 +302,7 @@ def test_navigation_and_page_headings_are_consistent(data):  # noqa: F811
     from diski9.app.challenge.service import ChallengeService
 
     assert [label for _, label in callbacks.NAV] == [
-        "Portfolio Build", "Match Lab", "My Challenge", "Training Grounds", "Leaderboards"]  # fmt: skip
+        "Portfolio Build", "Match Lab", "My Challenge", "Training Ground", "Leaderboard"]  # fmt: skip
     app = create_app(data)
     layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
     assert "Screener & Match Lab" not in layout
@@ -313,7 +313,7 @@ def test_navigation_and_page_headings_are_consistent(data):  # noqa: F811
         "Match Lab": layout,
         "Weekly Challenge": jtext(pg.challenge_shell(service, None, None, data.local)),
         "My Challenge": jtext(pg.my_challenge(service, None, data.local)),
-        "Leaderboards": jtext(pg.leaderboards()),
+        "Leaderboard": jtext(pg.leaderboards()),
     }
     for title, text in heads.items():  # the same heading component everywhere
         h1 = rf'"children":\s*"{title}"[^}}]*"className":\s*"ch-h1"'

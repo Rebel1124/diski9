@@ -2176,7 +2176,7 @@ def current_championship_card(service, rv) -> html.Div | None:
             html.P(
                 [
                     "Full standings on ",
-                    dcc.Link("Leaderboards", href="/leaderboards"),
+                    dcc.Link("Leaderboard", href="/leaderboards"),
                     "; your past entries and statistics under History.",
                 ],
                 className="muted small",
@@ -2285,11 +2285,11 @@ def illustrative_blocks():
 
 # -------------------------------------------------------------- leaderboards
 def learn_page() -> html.Div:
-    """The Training Grounds tab, route ``/learn`` (Phase 8 CP3A-1: route and tab only;
+    """The Training Ground tab, route ``/learn`` (Phase 8 CP3A-1: route and tab only;
     its learning content is CP3B)."""
     return html.Div(
         [
-            c.page_header("Training Grounds"),
+            c.page_header("Training Ground"),
             html.P(
                 "Guides to the Weekly Challenge, the Match Lab and the ideas behind them "
                 "will be added here. Until then, the information icons next to each term "
@@ -2318,7 +2318,7 @@ def demo_leaderboards() -> html.Div:
     rounds = demo.demo_rounds()
     return html.Div(
         [
-            c.page_header("Leaderboards"),
+            c.page_header("Leaderboard"),
             html.Div(
                 "Demonstration data: invented players and results, scored with the real "
                 "points rules. Leaderboards from real entries arrive with settlement in a "

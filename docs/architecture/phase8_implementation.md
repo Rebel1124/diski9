@@ -1098,11 +1098,11 @@ The owner approved the CP3A plan ([`phase8_cp3a_plan.md`](phase8_cp3a_plan.md)) 
   - **C2:** Match Lab restoration keeps the fixture, list, context, round and snapshot identity, and fails safely otherwise;
   - **C3:** guest **and** signed-in journeys are tested (browser and account persistence);
   - **C4:** Match Lab has no selectors, restores the last valid fixture or shows an empty state, and returning keeps the list, filters, page, selections, drafts and adjustments.
-- **Training Grounds (owner, 27 Nov 2026):**
-  - the Learn tab is renamed **Training Grounds** and moved before Leaderboards. The order is now Portfolio Build, Match Lab, My Challenge, Training Grounds, Leaderboards;
-  - it keeps all approved Learn functionality, educational content and future enhancements;
-  - the route `/learn` and internal identifiers are unchanged;
-  - references to "Learn" elsewhere in this record mean this tab.
+- **Tab names (owner, 27 Nov 2026):**
+  - Learn is renamed **Training Ground** and Leaderboards **Leaderboard**, and the two swap positions. The order is now Portfolio Build, Match Lab, My Challenge, Training Ground, Leaderboard;
+  - all functionality is kept: the approved Learn content and future enhancements, and the leaderboards, championship standings and history;
+  - the routes `/learn` and `/leaderboards` and the internal identifiers are unchanged;
+  - "Learn" and "Leaderboards" elsewhere in this record mean these tabs.
 - **Checkpoints:** CP3A-1 routes and navigation; CP3A-2 homepage, domestic card, research access and status; CP3A-3 Match Lab navigation and state; CP3A-4 frozen/latest toggle and isolation; CP3A-4B ML-01; CP3A-5 integration, browser, full CI and docs. Each is reviewed and accepted separately.
 - **CI frequency (owner, 27 Nov 2026):**
   - CP3A-1 to CP3A-4: focused local tests, regressions, lint, formatting and browser checks, committed with `[skip ci]`;

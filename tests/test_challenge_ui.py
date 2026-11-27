@@ -506,8 +506,8 @@ def test_routes_and_existing_screener(data):  # noqa: F811
     style, content, nav, _ = route("/lab", None, None, None)  # Phase 8 CP3A-1: Match Lab
     assert style == {"display": "block"} and content is None
     for path, words in (("/", "Weekly Challenge"), ("/challenge", "Weekly Challenge"),
-                        ("/challenge/me", "My Challenge"), ("/leaderboards", "Leaderboards"),
-                        ("/learn", "Training Grounds")):  # fmt: skip
+                        ("/challenge/me", "My Challenge"), ("/leaderboards", "Leaderboard"),
+                        ("/learn", "Training Ground")):  # fmt: skip
         style, content, nav, _ = route(path, None, None, None)
         assert style == {"display": "none"}
         assert words in jtext(content)

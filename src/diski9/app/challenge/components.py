@@ -115,7 +115,7 @@ def outcome_text(o) -> str:
 
 def page_header(title: str, meta=None) -> html.Div:
     """The one heading used by all main pages (Portfolio Build, Match Lab, My
-    Challenge, Training Grounds, Leaderboards): same element, size, weight, colour and spacing."""
+    Challenge, Training Ground, Leaderboard): same element, size, weight, colour and spacing."""
     return html.Div(
         [
             html.H1(title, className="ch-h1"),
