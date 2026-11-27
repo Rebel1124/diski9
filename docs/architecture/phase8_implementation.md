@@ -757,6 +757,7 @@ No blocker prevents CP2A once it is authorised.
   - the JSON output carries it under `pool_diagnostics`;
   - the scheduler's readiness verdict line adds `no_payload=<n>`.
 - No automatic refresh, retry, provider call, cache architecture, migration or dependency was added.
+- *Validation note:* the first CI run of this refinement (run 170, `a2852f4`) failed 10 tests: 2,368 passed, 10 failed. In every case a readiness test double in `tests/test_prepare_week.py` lacked the `diagnostics` field that the real `PublicationReadiness` always carries. The double was corrected; production code is unchanged.
 
 **Historical quantitative regression tool: compatibility change deferred (not approved).** `tools/phase6c3_quant_regression.py` is unchanged.
 - The accepted Goal Model 1.0 baseline remains reproducible at its original commit (fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`).

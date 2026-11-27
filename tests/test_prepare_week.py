@@ -86,6 +86,7 @@ class _Rd:
         self.fixtures = 20
         self.earliest_kickoff = utc(2026, 11, 27, 19)
         self.deadline_at = utc(2026, 11, 27, 18, 45)
+        self.diagnostics = {}  # as PublicationReadiness (pool diagnostics; Phase 8 CP2A)
 
 
 @pytest.mark.parametrize(
