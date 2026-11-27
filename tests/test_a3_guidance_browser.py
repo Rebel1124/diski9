@@ -219,13 +219,14 @@ LAB = r"""
     const p = await ctx.newPage();
     const r = { errors: [] };
     p.on('pageerror', e => r.errors.push(e.message));
-    await p.goto(BASE + 'lab'); await p.waitForSelector('#direction', { timeout: 20000 });
+    await p.goto(BASE); await p.waitForSelector('#direction', { timeout: 20000 });
     await p.waitForTimeout(800);
     r.rankTerms = await p.locator('label details.term-info').count();
     await shot(p, `${name}-screener-closed`);
     r.rank = await openTerm(p, p.locator('label details.term-info > summary').first(), how);
     await shot(p, `${name}-screener-popover-open`);
     r.rankClosed = await escapeClose(p);
+    r.rankTargets = await targets(p, 'label');  // CP3A-3: measured on the research list
     const row = p.locator('table.results tr.row').first();
     if (await row.isVisible()) await row.click(); else await p.locator('.fx-card').first().click();
     await p.waitForSelector('#lab-compare table', { timeout: 20000 });
@@ -241,7 +242,6 @@ LAB = r"""
     }));
     r.labIconTop = Math.max(...geo.map((g) => g.top)) - Math.min(...geo.map((g) => g.top));
     r.labIconRight = Math.max(...geo.map((g) => Math.abs(g.right)));
-    r.rankTargets = await targets(p, 'label');
     r.compareScroll = await p.evaluate(() => {
       const el = document.querySelector('#lab-compare .scroll-x');
       return el.scrollWidth - el.clientWidth; });

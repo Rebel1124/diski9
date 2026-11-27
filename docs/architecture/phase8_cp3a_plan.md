@@ -4,8 +4,9 @@
 
 - **Status:**
   - **CP3A-1** (routes and navigation) is **formally accepted** (27 Nov 2026; `e7c2aae`, `951a33a`; §10.1);
-  - **CP3A-2** (Portfolio Build home, domestic card, Research only, status, notices) is implemented, awaiting review (§10.3);
-  - **CP3A-3 onwards are not authorised.**
+  - **CP3A-2** is **formally accepted** (27 Nov 2026; `2bd1e4f`, `5d63f7a`; §10.3);
+  - **CP3A-3** (Match Lab separation, navigation and restoration, Minimum Market Probability, locked read-only access) is implemented, awaiting review (§10.4);
+  - **CP3A-4 onwards are not authorised.**
 
 Decisions this plan implements: [`phase8_implementation.md`](phase8_implementation.md) §15 (governs), with §11 OD-4 where not superseded.
 
@@ -184,11 +185,11 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
 |---|---|---|
 | **CP3A-1** | Routes and tabs, `/lab`, `/learn`, redirects of old addresses, re-pointed route checks | 3–4 |
 | CP3A-2 | Homepage introduction, icon, domestic card, Research only toggle and research list, status messaging, snapshot notice | 4–5 |
-| CP3A-3 | Match Lab without selectors, last-fixture restore with identity (C2), empty state, back link, filter persistence | 3–4 |
+| CP3A-3 | Match Lab without selectors, last-fixture restore with identity (C2), empty state, back link, filter persistence; Minimum Market Probability (restored to the step list, see §10.4) | 5–7 |
 | CP3A-4 | Frozen/latest toggle (C1), timestamps, unavailable or stale handling, selection controls only when frozen (D1) | 2–3 |
 | CP3A-4B | ML-01: regression test first, smallest correction (§10.2) | 2–3 |
 | CP3A-5 | Integration, guest and signed-in browser journeys at 3 widths (C3), screenshots, full CI, docs | 5–7 |
-| **Total** | | **19–26 h** |
+| **Total** | | **21–29 h** |
 
 - **Why +1 h on the provisional 18–25 h:** the local Research only toggle (control, tooltip, button text, two mounted lists, preserved state and the no-challenge default) costs about 1 h more than the secondary link it replaces. The signed-in journeys (C3) fit inside CP3A-5, because per-checkpoint browser checks now absorb some of its earlier scope.
 - **CI:** CP3A-1 to CP3A-4 run focused local tests, regressions, lint and browser checks, and commit with `[skip ci]` (owner instruction, 27 Nov 2026). The full CI suite runs at CP3A-4B and CP3A-5. Intermediate acceptance is not CP3A acceptance.
@@ -254,6 +255,46 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
 - **Dependency on CP3A-3, documented:**
   - until the Match Lab detail moves to `/lab` only, selecting a match in the research list shows its analysis beneath the list (latest data, no selection controls), as the Screener did before;
   - the Match Lab tab itself is unchanged.
+
+### 10.4 CP3A-3 as implemented
+
+- **One entry point:**
+  - Portfolio Build holds both domestic lists;
+  - selecting a research match (`open_from_research`) or a challenge card's Match Lab link opens `/lab`;
+  - nothing is analysed beneath a list any more;
+  - the Screener layout is split into the research list (`screener-root`) and the Match Lab page (`lab-root`: back link, heading, challenge strip, detail, selection panel, bookmaker reference, footer). The Match Lab has no competition or fixture selectors, list, filters or Matches control.
+  - **Market control (raised for review):** the Match Lab keeps its own market selector (1X2, BTTS, Over/Under 2.5; `lab-market`), because its analysis is per market and the list's market selector is no longer on the page. Opening a research match carries the list's market across. It is not a fixture or universe selector.
+- **Links name their context** (`app/links.py`):
+  - `/lab?fixture=<id>&ctx=challenge&round=<round>` from the builder and its guidance panel;
+  - `ctx=research` from the research list;
+  - demonstration cards link without a challenge round;
+  - old links without a context open the latest data, never a frozen snapshot they did not name.
+- **Restoration:**
+  - `open_lab` reads the address, including on a full page load, which fixes the CP3A-1 deep-link limitation;
+  - `update_detail` resolves it with `lab_context.resolve_target`; the last valid target is kept in the browser session (`lab-target`) and restored when the tab is opened directly;
+  - a challenge target resolves only to the same published round and snapshot fingerprint, and only to its frozen context;
+  - invalid, missing or unavailable targets show a safe message or the empty state ("Choose a match in Portfolio Build"), never an arbitrary match and never latest data in place of a frozen context;
+  - the same fixture in both lists keeps separate contexts and Your View keys.
+- **Originating state:**
+  - the research list stays mounted (filters, ranking, Minimum Market Probability and page kept);
+  - the builder stays mounted while the Match Lab shows, and the router leaves it untouched on return (`ch-mounted`), so its filters, page, picks and draft are as left;
+  - Research only is unchanged by navigation;
+  - the challenge strip and selection panel appear only for challenge matches.
+- **Minimum Market Probability [OD-4]:**
+  - one control, 0–100% (0 = no minimum), inclusive, on actual margin-adjusted consensus, independent of the ranking;
+  - research list: a fixture qualifies when any outcome of the selected market has a fresh consensus probability meeting it, and all outcomes stay displayed; above 0, fixtures without fresh consensus are excluded; model or market-implied estimates are never substituted;
+  - model ranks only order fixtures (model-absent last, never dropped);
+  - edge and EV consider only qualifying outcomes (`best_edge`/`best_ev` now filter on market probability) and still need the independent model (CP2B.1);
+  - builder: a display filter on outcomes by their frozen market probability, like the bucket filter, with no freshness test, never changing picks, eligibility, buckets, odds or payouts;
+  - the frozen Screener path (`frozen_order`) follows the same rule on frozen market probabilities.
+- **Locked and settling challenges:**
+  - the builder's locked view now lists the published fixtures read-only (pick buttons disabled) with frozen Match Lab links;
+  - the Match Lab panel says entries are closed;
+  - the reducer and the services refuse changes after the deadline, whatever the route or link.
+- **Footer (B7):** distinguishes the independent Goal Model (results and goals, not bookmaker odds) from the market-implied model (market probabilities, where a reliable fit exists).
+- **Estimate:**
+  - the filter was approved for CP3A (OD-4) and counted in the original CP3A estimate (§9.3, "one slider") but omitted from the step list when this plan was rebuilt;
+  - restoring it to CP3A-3 corrects that understatement rather than adding scope or double-counting. CP3A-3 5–7 h, CP3A 21–29 h, Phase 8 baseline 50–71 h.
 
 ## 11. Testing and browser acceptance (proportionate)
 

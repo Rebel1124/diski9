@@ -146,3 +146,43 @@ def service_context(ctx: LabContext):
     if ctx.kind == "live":
         return yv.LiveContext(ctx.fixture_id, lab.model_context(ctx.r))
     return None
+
+
+# ------------------------------------------------- Phase 8 CP3A-3: Match Lab targets
+NO_TARGET, INVALID, MISSING, CHALLENGE_GONE = "none", "invalid", "missing", "challenge_gone"
+
+
+def resolve_target(service, data, target) -> tuple[LabContext | None, str | None]:
+    """The analytical context for a Match Lab target, or ``(None, reason)``.
+
+    A target names the fixture and the context it was opened from (``ctx``):
+    ``research`` resolves against the latest data; ``challenge`` only against the
+    **same** published round (``round``) and, when recorded, the same snapshot
+    (``fp``), and only to its frozen context. A challenge match whose round or
+    snapshot is no longer the published one fails safely: it is never silently
+    analysed with latest data, nor attached to another round."""
+    from .links import CHALLENGE, CONTEXTS, RESEARCH
+
+    if not target:
+        return None, NO_TARGET
+    fid, ctx = target.get("fixture"), target.get("ctx")
+    if target.get("invalid") or not isinstance(fid, int) or ctx not in CONTEXTS:
+        return None, INVALID
+    if ctx == RESEARCH:
+        lc = resolve(service, data, fid, "all")
+        return (lc, None) if lc is not None else (None, MISSING)
+    assert ctx == CHALLENGE
+    snap = service.snapshot("live")
+    if (snap is None or snap.is_demo or snap.round_id != target.get("round")
+            or (target.get("fp") and snap.fingerprint != target["fp"])):  # fmt: skip
+        return None, CHALLENGE_GONE
+    try:
+        snap.fixture(fid)
+    except KeyError:
+        return None, CHALLENGE_GONE
+    lc = resolve(service, data, fid, "challenge")
+    if lc is None:  # the snapshot holds it, but the football store has no analysis for it
+        return None, MISSING
+    if lc.kind != "round":
+        return None, CHALLENGE_GONE
+    return lc, None

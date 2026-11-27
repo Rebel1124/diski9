@@ -27,11 +27,9 @@ from . import education, lab_context
 from .challenge import lab_persist
 from .challenge.callbacks import (
     LAB,
-    PORTFOLIO,
     legacy_redirect,
     nav_links,
     norm_path,
-    research_list_shown,
 )
 from .challenge.callbacks import register as register_challenge
 from .challenge.components import page_header
@@ -101,20 +99,10 @@ def league_labels(selected: int, total: int) -> dict:
 
 
 EARLY_TITLE = "Early season: at least one team has played fewer than five league matches"
-THRESHOLD_DISABLED = KICKOFF_DIRECTIONS
 STAT_PAIR = {  # header toggle between two statistical directions of a market
     "1X2": ("home_win", "away_win"),
     "BTTS": ("btts_yes", "btts_no"),
     "OU25": ("over", "under"),
-}
-DIRECTION_OUTCOME = {
-    "home_win": "home win",
-    "draw": "draw",
-    "away_win": "away win",
-    "btts_yes": "BTTS Yes",
-    "btts_no": "BTTS No",
-    "over": "Over 2.5",
-    "under": "Under 2.5",
 }
 
 
@@ -135,8 +123,8 @@ VALUE_LEGEND = (
     "positive value is not proof the market is wrong; select a match for the full comparison."
 )
 THRESHOLD_VALUE_HINT = (
-    " The minimum model probability still applies: edge and EV only consider outcomes the "
-    "model rates at least that likely."
+    " With a Minimum Market Probability set, edge and EV only consider outcomes whose market "
+    "probability meets it."
 )
 
 
@@ -185,37 +173,25 @@ THRESHOLD_MARKS = {0: "Any", 50: "50%", 100: "100%"}
 THRESHOLD_TOOLTIP = {"always_visible": True, "placement": "top", "transform": "thresholdLabel"}
 
 
+MMP_LABEL = "Minimum Market Probability"
+MMP_HINT = "Actual market consensus (bookmaker margin removed). 0% keeps every match."
+
+
 def threshold_config(market: str, direction: str, preferred: float | None = 0) -> dict:
-    """The threshold is a minimum model probability (whole percentages) for the ranked
-    outcome. For kickoff ordering it is disabled, shows Any and never filters; the
-    user's last probability threshold is restored when a probability ranking returns."""
-    base = {"min": 0, "max": 100, "step": 1, "marks": THRESHOLD_MARKS}
-    if direction in THRESHOLD_DISABLED:
-        return {
-            **base,
-            "value": 0,
-            "disabled": True,
-            "label": "Minimum probability",
-            "hint": "Available when ranking by a probability",
-            "tooltip": None,
-        }
+    """Phase 8 CP3A-3 (OD-4): the one **Minimum Market Probability** filter, in whole
+    percentages (0 = no minimum), on actual margin-adjusted consensus. It is the same
+    for every ranking (kickoff, probability, edge or EV) and replaces the former
+    minimum model probability threshold."""
     value = int(round(min(max(float(preferred or 0), 0), 100)))
-    if direction in VALUE_DIRECTIONS:  # still a minimum *model* probability
-        return {
-            **base,
-            "value": value,
-            "disabled": False,
-            "label": "Minimum model probability",
-            "hint": None,  # explained in the legend (a hint here would sit under the tooltip)
-            "tooltip": THRESHOLD_TOOLTIP,
-        }
-    outcome = DIRECTION_OUTCOME[direction]
     return {
-        **base,
+        "min": 0,
+        "max": 100,
+        "step": 1,
+        "marks": THRESHOLD_MARKS,
         "value": value,
         "disabled": False,
-        "label": f"Minimum {outcome} probability",
-        "hint": None,  # the label already names the outcome
+        "label": MMP_LABEL,
+        "hint": MMP_HINT,
         "tooltip": THRESHOLD_TOOLTIP,
     }
 
@@ -295,10 +271,17 @@ def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> 
             # Portfolio Build introduction and Domestic Weekly Challenge card (CP3A-2)
             html.Div(id="pb-home"),
             html.Div(
-                build_layout(data, "challenge" if service.availability("live").playable else "all"),
+                build_layout(data, "all"),
                 id="screener-root",
-                style={"display": "none"},  # shown by ``layout_mode`` (/lab; research list)
+                style={"display": "none"},  # the research list; shown by ``layout_mode``
             ),
+            html.Div(build_lab(data), id="lab-root", style={"display": "none"}),
+            # Match Lab target (CP3A-3): the last valid match opened (this browser tab),
+            # and what the current address asked for
+            dcc.Store(id="lab-target", storage_type="session"),
+            dcc.Store(id="lab-request", storage_type="memory"),
+            dcc.Store(id="lab-active", storage_type="memory"),
+            dcc.Store(id="ch-mounted", storage_type="memory"),
             html.Div(id="ch-root"),
             dcc.Store(id="ch-session", storage_type="session"),
             dcc.Store(id="ch-prefs", storage_type="session", data={"source": "market"}),
@@ -384,21 +367,18 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                 className="banner warn",
             )
         )
+    # Phase 8 CP3A-3: the research list only (shown in Portfolio Build). Selecting a
+    # match opens it in the Match Lab (``build_lab``); the list has no heading of its own
     return html.Div(
         [
-            page_header(
-                "Match Lab",
-                f"Times in {data.tz_label} · statistics calculated "
-                f"{data.local(snap.cache_calculated_at)}",
-            ),
             *banner,
             methodology_section(),
             html.Div(
                 [
-                    # The global Challenge Mode control is removed from the page (Phase 8
-                    # CP3A-2): Research only in Portfolio Build and the Match Lab links
-                    # set it. It stays as hidden internal state until CP3A-3/4 replace
-                    # it with the list origin and the frozen/latest toggle.
+                    # The global Challenge Mode control is not shown (Phase 8 CP3A-2). The
+                    # research list is always the latest data ("all"); the Match Lab takes
+                    # its context from the link it was opened with (CP3A-3), never from
+                    # this value. Kept as the list's internal state.
                     html.Div(
                         [
                             html.Label("Matches"),
@@ -500,7 +480,6 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                 className="filters",
             ),
             html.Div(id="data-context"),
-            html.Div(id="ch-strip"),
             html.Div(id="legend", className="legend"),
             html.Div(
                 [
@@ -529,21 +508,65 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
             # browser tab only; survives navigation, refresh and a server restart, ends
             # when the tab closes. Never sent to the server's storage or shared.
             dcc.Store(id="lab-store", storage_type="session", data={}),
-            # Match Lab journey: model analysis and Your View (detail), then the Weekly
-            # Challenge selection cards, then the bookmaker market reference
+            html.Footer(footer_text(), className="footer muted small"),
+        ],
+        className="page",
+    )
+
+
+def footer_text() -> str:
+    """Phase 8 CP3A-3 (B7): distinguishes the two accepted models."""
+    return (
+        "Diski 9 is an educational football analytics tool. Probabilities are statistical "
+        f"estimates, not guarantees. The Diski 9 Goal Model ({gm.GOAL_MODEL_VERSION}) uses "
+        "football results and goals, not bookmaker odds. When it is unavailable, a "
+        "market-implied model may estimate expected goals from market probabilities, where a "
+        "reliable fit exists. Bookmaker odds are reference values, not offers. No betting or "
+        "staking advice is provided."
+    )
+
+
+def build_lab(data: ScreenerData) -> html.Div:
+    """The Match Lab page (Phase 8 CP3A-3): analysis of the one match opened from
+    Portfolio Build. No competition or fixture selectors; a way back to the list it
+    came from; an empty state when there is nothing valid to show."""
+    snap = data.snapshot()
+    return html.Div(
+        [
+            dcc.Link(
+                ["← ", "Back to Portfolio Build"],
+                href="/",
+                className="ch-lab-link lab-back",
+                id="lab-back",
+            ),  # fmt: skip
+            page_header(
+                "Match Lab",
+                f"Times in {data.tz_label} · statistics calculated "
+                f"{data.local(snap.cache_calculated_at)}",
+            ),
+            # the market analysed (an analysis control, not a fixture selector): opening a
+            # match from the research list carries that list's market across
+            html.Div(
+                [
+                    html.Label("Market", htmlFor="lab-market"),
+                    dcc.RadioItems(
+                        id="lab-market",
+                        options=[{"label": lbl, "value": v} for v, lbl in MARKETS],
+                        value="1X2",
+                        className="segmented lab-market",
+                    ),
+                ],
+                className="filter lab-market-filter",
+            ),
+            html.Div(id="ch-strip"),
+            # model analysis and Your View (detail), then the Weekly Challenge selection
+            # cards (challenge context only), then the bookmaker market reference
             html.Div(id="detail", className="detail-holder"),
             html.Div(id="lab-challenge"),
             html.Div(id="detail-reference", className="detail-holder"),
-            html.Footer(
-                "Diski 9 is an educational football analytics tool. Probabilities are "
-                f"statistical estimates from Goal Model {gm.GOAL_MODEL_VERSION}, not guarantees. "
-                "Bookmaker odds are "
-                "reference values, not offers, and are never used by the model. No betting "
-                "or staking advice is provided.",
-                className="footer muted small",
-            ),
+            html.Footer(footer_text(), className="footer muted small"),
         ],
-        className="page",
+        className="page lab-page",
     )
 
 
@@ -719,9 +742,8 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         prevent_initial_call=True,
     )
     def remember_threshold(value, direction):
-        """The last threshold chosen for a probability ranking (kept while kickoff
-        ordering is shown, restored afterwards)."""
-        if direction in THRESHOLD_DISABLED or value is None:
+        """The participant's Minimum Market Probability, kept across ranking changes."""
+        if value is None:
             raise PreventUpdate
         return value
 
@@ -819,40 +841,42 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Output("detail", "children"),
         Output("detail-reference", "children"),
         Output("lab-store", "data", allow_duplicate=True),
-        Input("selected", "data"),
-        Input("market", "value"),
+        Output("lab-target", "data"),
+        Output("lab-active", "data"),
+        Input("lab-request", "data"),
+        Input("lab-market", "value"),
         Input("url", "pathname"),
-        Input("universe", "value"),
+        State("lab-target", "data"),
         State("lab-store", "data"),
-        State("ch-prefs", "data"),
         prevent_initial_call="initial_duplicate",
     )
-    def update_detail(fid, market, path, universe, lab, prefs=None):
-        """The Match Lab is unmounted while another page shows (its large tree inside
-        the hidden Screener slowed every Weekly Challenge tap) and rebuilt from the
-        selection and the Match Lab store on return, so nothing is lost. The context
-        (frozen Weekly Challenge snapshot or latest data) decides the baseline and
-        which Your View is shown; a signed-in participant's saved Your View for that
-        context is loaded from the account (Phase 6C.3)."""
-        here = norm_path(path)
-        # the Match Lab, or (until CP3A-3 moves the detail to /lab only) beneath the
-        # research list in Portfolio Build
-        if not (here == LAB or (here == PORTFOLIO and research_list_shown(service, prefs))):
+    def update_detail(request, market, path, target, lab):
+        """The Match Lab (Phase 8 CP3A-3): the match the address asks for, or - when the
+        tab is opened directly - the last valid match, analysed in the context it was
+        opened from (frozen Weekly Challenge snapshot or latest data). Nothing valid:
+        an empty state or a safe explanation, never an arbitrary match and never latest
+        data in place of an unavailable frozen context. A signed-in participant's saved
+        Your View for that context is loaded from the account (Phase 6C.3)."""
+        if norm_path(path) != LAB:
             if ctx.triggered_id == "url":
-                return None, None, no_update
-            return no_update, no_update, no_update
-        lc = lab_context.resolve(service, data, fid, universe) if fid else None
+                return None, None, no_update, no_update, None
+            raise PreventUpdate
+        want = request or target
+        lc, problem = lab_context.resolve_target(service, data, want)
+        if lc is None:
+            return lab_message(problem), None, no_update, no_update, None
+        fid = want["fixture"]
         new_lab = no_update
-        if lc is not None and lc.r is not None:
+        if lc.r is not None:
             hydrated = lab_persist.load(service, lab, lc)
             if hydrated is not None:
                 lab, new_lab = hydrated, hydrated
-        r = lc.r if lc else None
-        _, ov, official = data.detail(fid) if fid else (None, None, {})
-        adj = stored_adjustment(lab, lc.key, r) if lc else None
-        notice = adjustment_notice(lab, lc.key, r) if lc else None
+        r = lc.r
+        _, ov, official = data.detail(fid)
+        adj = stored_adjustment(lab, lc.key, r)
+        notice = adjustment_notice(lab, lc.key, r)
         body, ref = split_detail(render_detail(r, ov, official, market, data, adj, notice))
-        return body, ref, new_lab
+        return body, ref, new_lab, (no_update if want == target else want), want
 
     @app.callback(
         Output("lab-store", "data"),
@@ -884,9 +908,8 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Input({"type": "cat-slider", "cat": ALL, "side": ALL}, "value"),
         Input("ctx-home-slider", "value"),
         Input("ctx-away-slider", "value"),
-        State("selected", "data"),
-        State("market", "value"),
-        State("universe", "value"),
+        State("lab-active", "data"),
+        State("lab-market", "value"),
         State("lab-store", "data"),
         prevent_initial_call=True,
     )
@@ -895,12 +918,12 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         (frozen Weekly Challenge snapshot or latest data) and recalculate all seven
         probabilities. The model baseline is never modified. A signed-in
         participant's numbers are saved to that context only (Phase 6C.3)."""
-        fid, market, universe, lab = args[-4:]
-        if not fid or not ctx.triggered:
+        active, market, lab = args[-3:]
+        if not active or not ctx.triggered:
             raise PreventUpdate
-        lc = lab_context.resolve(service, data, fid, universe)
+        lc, _ = lab_context.resolve_target(service, data, active)
         r = lc.r if lc else None
-        _, ov, _ = data.detail(fid)
+        _, ov, _ = data.detail(active["fixture"])
         if r is None or starting_point(r) is None:
             raise PreventUpdate
         trig = ctx.triggered_id
@@ -942,16 +965,37 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
             slider_value(state["context"]["away"], CONTEXT_MAX),
         )
 
-    app.clientside_callback(
-        """function(fid) {
-            if (fid && window.innerWidth < 720) {
-                const el = document.getElementById('detail');
-                if (el) { setTimeout(() => el.scrollIntoView({behavior: 'smooth'}), 150); }
-            }
-            return window.dash_clientside.no_update;
-        }""",
-        Output("detail", "className"),
-        Input("selected", "data"),
+
+LAB_MESSAGES = {
+    lab_context.NO_TARGET: (
+        "No match selected",
+        "Choose a match in Portfolio Build to analyse it here.",
+    ),
+    lab_context.INVALID: ("This match link is not valid", "Choose a match in Portfolio Build."),
+    lab_context.MISSING: (
+        "This match is not available",
+        "Its analysis data is not available at the moment. Choose another match in Portfolio "
+        "Build.",
+    ),
+    lab_context.CHALLENGE_GONE: (
+        "This Weekly Challenge match is no longer available",
+        "It is not in the published challenge snapshot it was opened from, so it cannot be "
+        "analysed with that snapshot's frozen data. Choose a match in Portfolio Build.",
+    ),
+}
+
+
+def lab_message(problem: str | None) -> html.Div:
+    """The Match Lab empty state, or a safe explanation (Phase 8 CP3A-3)."""
+    title, text = LAB_MESSAGES.get(problem, LAB_MESSAGES[lab_context.NO_TARGET])
+    return html.Div(
+        [
+            html.H2(title, className="ch-h2"),
+            html.P(text, className="muted"),
+            dcc.Link("Go to Portfolio Build", href="/", className="ch-btn primary"),
+        ],
+        className="lab-empty",
+        id="lab-empty",
     )
 
 
@@ -989,8 +1033,9 @@ def header_sort(market: str, key: str, current: str | None) -> str:
 
 
 def _threshold_value(market: str, direction: str, value: float | None) -> float | None:
-    """A disabled threshold never filters, whatever value the slider holds."""
-    if value is None or direction in THRESHOLD_DISABLED:
+    """The Minimum Market Probability as a fraction; 0 (or none) means no minimum. The
+    ranking never changes its meaning (Phase 8 CP3A-3)."""
+    if value is None:
         return None
     return None if value <= 0 else value / 100
 
@@ -1069,7 +1114,8 @@ def results_payload(
         )
     elif not results:
         empty = html.Div(
-            "No fixtures match these filters. Try a wider date range or a lower threshold.",
+            "No fixtures match these filters. Try a wider date range or a lower Minimum "
+            "Market Probability.",
             className="empty",
         )
     else:

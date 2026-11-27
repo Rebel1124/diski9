@@ -92,7 +92,7 @@ def test_portfolio_home_for_guest_and_member(engine, store):
     for headers in ({}, {"Cookie": f"d9_session={cookie(member)}"}):
         with server.test_request_context("/", headers=headers):
             server.preprocess_request()
-            pb, content, _, _ = route("/", None, None, None)
+            pb, content, *_ = route("/", None, None, None)  # five outputs since CP3A-3
         text = str(pb)
         assert "Domestic Weekly Challenge" in text and "Research only" in text
         assert "European" not in text

@@ -26,7 +26,7 @@ from diski9.app.app import (
     results_payload,
     threshold_config,
 )
-from diski9.app.data import DIRECTIONS, MARKET_KEYS, MARKET_OF, PAGE_SIZE
+from diski9.app.data import DIRECTIONS, MARKET_OF, PAGE_SIZE
 from diski9.app.lab import lab_outputs, model_comparison, new_state, user_estimates, value_check
 from diski9.db.schema import forecast_snapshots
 from diski9.odds.collect import OddsPage, reconcile_pages
@@ -176,8 +176,11 @@ def test_best_edge_and_best_ev_are_chosen_independently():
     evs = {o.key: o.ev for o in mv.outcomes}
     assert mv.best_edge().key == max(edges, key=edges.get) == "home"  # +8.0 pp
     assert mv.best_ev().key == max(evs, key=evs.get) == "away"  # +29.9% EV
-    # the threshold restricts which outcomes are considered (minimum model probability)
+    # Phase 8 CP3A-3: the Minimum Market Probability restricts which outcomes are
+    # considered, by their margin-adjusted market probability (home ~52%, draw ~37%)
     assert mv.best_ev(0.5).key == "home" and mv.best_edge(0.7) is None
+    assert mv.best_ev(0.3).key == "home"  # away (~11% market) is excluded at 30%
+    assert {o.key for o in mv.considered(0.3)} == {"home", "draw"}
 
 
 def test_no_positive_edge_or_ev_is_none():
@@ -256,9 +259,10 @@ def expected_order(d, market, direction, thr=None):
     pos, nopos, nodata = [], [], []
     for r in snap.results["overall"].values():
         probs = (r.get("goal_model") or {}).get("probabilities") or {}
-        if thr is not None and not any(probs.get(k, 0) >= thr for k, _ in MARKET_KEYS[market]):
-            continue
         dm = snap.odds[r["fixture"]["id"]].markets[MARKET_OF[market]]
+        adj = dm.implied.margin_adjusted if (dm.status == "fresh" and dm.implied) else None
+        if thr is not None and not (adj and any(float(p) >= thr for p in adj.values())):
+            continue  # Minimum Market Probability (CP3A-3): actual consensus only
         mv = compare(MARKET_OF[market], probs, dm.consensus) if dm.status == "fresh" else None
         key = (r["fixture"]["kickoff"], r["fixture"]["id"])
         if mv is None:
@@ -339,24 +343,27 @@ def test_value_rankings_keep_fixtures_without_odds_last(valued):
     assert "No odds" in _text(psl[0])  # PSL has no collected odds: shown honestly
 
 
-def test_threshold_keeps_minimum_model_probability_semantics(valued):
+def test_threshold_is_the_minimum_market_probability_for_edge_and_ev(valued):
+    """Phase 8 CP3A-3 (OD-4): fixtures need an outcome whose fresh market probability
+    meets the minimum, and edge/EV only consider such outcomes."""
     c = threshold_config("1X2", "edge", 40)
-    assert c["label"] == "Minimum model probability" and c["hint"] is None
-    assert "minimum model probability still applies" in THRESHOLD_VALUE_HINT
+    assert c["label"] == "Minimum Market Probability"
+    assert "market probability meets it" in THRESHOLD_VALUE_HINT
     assert not c["disabled"] and c["value"] == 40
     thr = 0.45
     want = expected_order(valued, "1X2", "ev", thr)
-    got = page_ids(run(valued, "1X2", "ev", thr=45)) + page_ids(
-        run(valued, "1X2", "ev", thr=45, page=2)
-    )
-    assert got == want
+    first = run(valued, "1X2", "ev", thr=45)
+    total = int(first[2].split(" of ")[1].split()[0])
+    got = page_ids(first) + (
+        page_ids(run(valued, "1X2", "ev", thr=45, page=2)) if total > PAGE_SIZE else []
+    )  # a second page only when there is one (page 2 of 1 shows page 1 again)
+    assert got == want and total == len(want)
     snap = valued.snapshot()
     for fid in got:
         r = snap.results["overall"][fid]
-        probs = r["goal_model"]["probabilities"]
-        assert max(probs[k] for k in ("home", "draw", "away")) >= thr
+        assert valued.meets_market("1X2", r, thr)
         _, pick = valued.value_pick("1X2", r, "ev", thr)
-        assert pick is None or pick.probability >= thr
+        assert pick is None or pick.market_probability >= thr
 
 
 def test_dynamic_final_column_and_existing_probability_columns(valued):
@@ -466,7 +473,7 @@ const { chromium, devices } = require('playwright');
   for (const [name, opts] of views) {
     const ctx = await b.newContext(opts);
     const p = await ctx.newPage();
-    await p.goto(BASE + 'lab');
+    await p.goto(BASE);  // CP3A-3: the research list (Portfolio Build)
     await p.waitForSelector('#direction', { timeout: 20000 });
     await p.waitForTimeout(800);
     const r = {};

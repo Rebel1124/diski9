@@ -175,10 +175,12 @@ def test_per_fixture_isolation_and_market_persistence(data):
     st = _ctx(_r(data), home="0.35")
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = f(EPL_FIX, market, "/lab", "all", lab)[0]  # route argument (CP3A-1: /lab)
+        d = f({"fixture": EPL_FIX, "ctx": "research"}, market, "/lab", None, lab)[
+            0
+        ]  # CP3A-3: a research target, /lab, last valid target, store
         box = _find(d, lambda c: getattr(c, "id", None) == "ctx-home")[0]
         assert box.value == "+0.35"
-    other = f(PSL_FIX, "1X2", "/lab", "all", lab)[0]
+    other = f({"fixture": PSL_FIX, "ctx": "research"}, "1X2", "/lab", None, lab)[0]
     assert _find(other, lambda c: getattr(c, "id", None) == "ctx-home")[0].value == "0.00"
     layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
     assert '"storage_type":"memory"' in layout
@@ -308,12 +310,12 @@ const { chromium, devices } = require('playwright');
     // arrived before the next step: on a starved browser the rebuild was dispatched
     // seconds after the market callbacks, in a gap with nothing in flight.
     const newMarket = async (value, action) => {
-      const rebuilt = p.waitForResponse(x => carries(x.request(), 'market.value', v => v === value) &&
+      const rebuilt = p.waitForResponse(x => carries(x.request(), 'lab-market.value', v => v === value) &&
         String(JSON.parse(x.request().postData()).output).includes('detail.children'), { timeout: 30000 });
       const restored = p.waitForResponse(x => carries(x.request(), 'lab-reset.n_clicks', () => true), { timeout: 30000 });
       await action(); await rebuilt; await restored; await settled();
     };
-    await p.goto(BASE + 'lab');
+    await p.goto(BASE);  // CP3A-3: the research list (Portfolio Build)
     const sel = name === 'phone' ? '.fx-card' : 'tr.row';
     await p.waitForSelector(sel, { timeout: 20000, state: 'visible' });
     await p.locator(sel, { hasText: 'Team 1' }).first().click();
@@ -328,12 +330,10 @@ const { chromium, devices } = require('playwright');
     r.delta = Math.round((parseFloat(await p.locator('#lab-home-input').inputValue()) - base) * 100) / 100;
     r.layout = {};
     for (const [label, key] of [['Both Teams', 'btts'], ['Over/Under', 'ou25'], ['Match Result', '1x2']]) {
-      await p.evaluate(() => window.scrollTo(0, 0));  // the menu opens beside the control
-      await p.locator('#market').click(); await p.waitForSelector('[role=option]:visible');
-      await p.waitForTimeout(300);  // let the menu finish opening
+      // CP3A-3: the Match Lab's own market control (the list's selector is in Portfolio Build)
       const value = { btts: 'BTTS', ou25: 'OU25', '1x2': '1X2' }[key];  // each step changes it
-      await newMarket(value, () => p.locator('[role=option]', { hasText: label }).dispatchEvent('click'));
-      await p.waitForFunction((l) => document.querySelector('#market').innerText.includes(l), label);
+      await newMarket(value, () => p.locator('#lab-market label', { hasText: label }).click());
+      await p.waitForFunction((v) => document.querySelector('#lab-market input:checked').value === v, value);
       const m = await p.locator('.market-main').boundingBox();
       const s = await p.locator('.market-side').boundingBox();
       r.layout[key] = { side: s.x > m.x + m.width - 1, kept: await p.locator('#ctx-home').inputValue() };

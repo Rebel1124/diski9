@@ -341,10 +341,28 @@ class ScreenerData:
                 return (start is None or d >= start) and (end is None or d <= end)
 
             results = [r for r in results if in_range(r)]
+        if threshold is not None:  # Minimum Market Probability, before any ranking
+            results = [r for r in results if self.meets_market(market, r, threshold)]
         direction = valid_direction(market, direction)
         if direction in VALUE_DIRECTIONS:
             return self.rank_value(market, results, direction, threshold)
-        return rank(results, direction, threshold)
+        return rank(results, direction)  # model ranks only order; model-absent last
+
+    def meets_market(self, market: str, r: dict, minimum: float) -> bool:
+        """Phase 8 CP3A-3 (OD-4): at least one outcome of the selected market has a
+        fresh margin-adjusted consensus probability of at least ``minimum``
+        (inclusive). Fixtures without fresh consensus do not qualify; model or
+        market-implied estimates are never substituted."""
+        ov = self.snapshot().odds.get(r["fixture"]["id"])
+        if ov is None:
+            return False
+        dm = ov.markets[MARKET_OF[market]]
+        adj = dm.implied.margin_adjusted if (dm.status == "fresh" and dm.implied) else None
+        if not adj:
+            return False
+        return any(
+            o in adj and float(adj[o]) >= minimum - 1e-12 for o in MARKET_OUTCOME_ORDER[market]
+        )
 
     # --------------------------------------------------- model vs market value
     def market_value(self, market: str, r: dict, fresh_only: bool = True) -> MarketValue | None:
@@ -365,7 +383,8 @@ class ScreenerData:
         self, market: str, r: dict, direction: str, threshold: float | None
     ) -> tuple[MarketValue | None, OutcomeValue | None]:
         """(market comparison, highlighted outcome). Edge and EV are chosen
-        independently over every outcome the model rates at least ``threshold``."""
+        independently over the outcomes whose market probability meets the Minimum
+        Market Probability ``threshold`` (all outcomes without one)."""
         mv = self.market_value(market, r)
         if mv is None:
             return None, None
@@ -375,17 +394,9 @@ class ScreenerData:
         self, market: str, results: list[dict], direction: str, threshold: float | None
     ) -> list[dict]:
         """Edge / EV ranking over the full filtered set (before pagination). The
-        threshold keeps its meaning - a minimum *model* probability: fixtures with no
-        outcome that likely are removed, and only such outcomes are considered."""
-        if threshold is not None:
-            keys = [k for k, _ in MARKET_KEYS[market]]
-
-            def qualifies(r: dict) -> bool:
-                gm = r.get("goal_model") or {}
-                probs = gm.get("probabilities") or {}
-                return bool(gm.get("available")) and any(probs.get(k, 0) >= threshold for k in keys)
-
-            results = [r for r in results if qualifies(r)]
+        Minimum Market Probability has already filtered the fixtures; here it limits
+        which outcomes are considered. Without an independent model no edge or EV
+        exists (CP2B.1), so such fixtures go last."""
 
         def value_of(r: dict) -> tuple[bool, float | None]:
             mv, pick = self.value_pick(market, r, direction, threshold)

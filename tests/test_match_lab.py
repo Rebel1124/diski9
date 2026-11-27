@@ -167,7 +167,9 @@ def test_market_switch_keeps_adjustment(data):
     st, _ = lab_update(r, "lab-home-input", 2.5, st)
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = func(EPL_FIX, market, "/lab", "all", lab)[0]  # route argument (CP3A-1: /lab)
+        d = func({"fixture": EPL_FIX, "ctx": "research"}, market, "/lab", None, lab)[
+            0
+        ]  # CP3A-3: a research target, /lab, last valid target, store
         sliders = _find(d, lambda c: getattr(c, "id", None) == "lab-home-slider")
         assert sliders[0].value == 2.5
         cat = _find(
@@ -180,7 +182,7 @@ def test_market_switch_keeps_adjustment(data):
         assert box[0].value == "2.50"  # two decimals, not 2.5
         assert "Adjusted by you" in _text(d)
     # another fixture has its own (empty) state
-    d = func(PSL_FIX, "1X2", "/lab", "all", lab)[0]
+    d = func({"fixture": PSL_FIX, "ctx": "research"}, "1X2", "/lab", None, lab)[0]
     assert "Adjusted by you" not in _text(d)
 
 
@@ -526,7 +528,7 @@ def _call(func, data, lab, value):
     ]
     ctxv["triggered_inputs"][0]["value"] = value
     args = (None, None, None, None, 0, [], [], None, None, None, 0, [], None, None)
-    return func(*args, EPL_FIX, "BTTS", "all", lab)
+    return func(*args, {"fixture": EPL_FIX, "ctx": "research"}, "BTTS", lab)  # CP3A-3 target
 
 
 def test_section_c_structure_and_education(data):
@@ -642,7 +644,7 @@ const { chromium, devices } = require('playwright');
   for (const [name, opts] of views) {
     const p = await (await b.newContext(opts)).newPage();
     const errors = []; p.on('pageerror', e => errors.push(String(e)));
-    await p.goto(BASE + 'lab');
+    await p.goto(BASE);  // CP3A-3: the research list (Portfolio Build)
     const sel = name === 'phone' ? '.fx-card' : 'tr.row';
     await p.waitForSelector(sel, { timeout: 20000, state: 'visible' });
     const r = {};
@@ -672,8 +674,7 @@ const { chromium, devices } = require('playwright');
     await p.locator('#lab-home-input').press('Enter');
     await p.waitForFunction(() => document.querySelectorAll('.breakdown tr')[4].innerText.includes('-0.25'), null, { timeout: 10000 }).catch(() => {});
     r.manualRow = (await p.locator('.breakdown tr').nth(4).innerText()).includes('-0.25');
-    await p.locator('#market').click();
-    await p.locator('[role=option]', { hasText: 'Over/Under' }).click();
+    await p.locator('#lab-market label', { hasText: 'Over/Under' }).click();  // CP3A-3: the Match Lab's own market control
     await p.waitForFunction(() => document.querySelector('#lab-output') && document.querySelector('#lab-output').innerText.includes('Over 2.5'));
     r.persisted = Math.round((parseFloat(await p.locator('#lab-home-input').inputValue()) - base) * 100) / 100;
     r.cards = await p.locator('.prices .price-cell').count();

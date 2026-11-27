@@ -10,7 +10,7 @@
 - **CP2A is formally accepted by the owner (27 Nov 2026)** (§13, §13.1, closure refinement §13.2). Goal Model 1.1 is the accepted **application** model baseline. It is an application implementation only: nothing is deployed to a hosted environment.
 - **CP2A and its closure refinement are fully accepted and closed (27 Nov 2026;** `87849bb`, CI run 172: 2,378 passed, 0 failed, 0 skipped).
 - **CP2B is split (owner, 27 Nov 2026):** **CP2B.1**, the market-implied model on domestic data, is **formally accepted and closed by the owner (27 Nov 2026;** `7c7cf22`, CI run 173: 2,416 passed, 0 failed, 0 skipped; §14, §15.1). **CP2B.2**, European Match Analysis (analysis only), is **not authorised**: it follows the 7 Dec verification and a separate owner decision.
-- **Revised MVP scope and final navigation decisions approved (27 Nov 2026, §15).** They supersede the Challenge Mode toggle (OD-4), the Match Lab fixture picker (Appendix C) and any European participation in the Weekly Challenge. **The CP3A plan is approved with refinements (27 Nov 2026, §15.8;** `phase8_cp3a_plan.md`). **CP3A-1 (routes and navigation) is formally accepted (27 Nov 2026;** `e7c2aae`, `951a33a`; §15.9). **CP3A-2 is implemented and awaiting review.** CP3A-3 onwards each need explicit owner authorisation.
+- **Revised MVP scope and final navigation decisions approved (27 Nov 2026, §15).** They supersede the Challenge Mode toggle (OD-4), the Match Lab fixture picker (Appendix C) and any European participation in the Weekly Challenge. **The CP3A plan is approved with refinements (27 Nov 2026, §15.8;** `phase8_cp3a_plan.md`). **CP3A-1 (routes and navigation) is formally accepted (27 Nov 2026;** `e7c2aae`, `951a33a`; §15.9). **CP3A-2 is formally accepted (27 Nov 2026;** `2bd1e4f`, `5d63f7a`; §15.11). **CP3A-3 is implemented and awaiting review.** CP3A-4 onwards each need explicit owner authorisation.
 - Phase 6 stays paused.
 
 **How to read this record:**
@@ -1180,6 +1180,24 @@ The owner approved the CP3A plan ([`phase8_cp3a_plan.md`](phase8_cp3a_plan.md)) 
     - The methodology changelog's historical 1.0 entry and the stored data are unchanged.
   - **C. Championship stream:** the card now reuses `championships.stream_of_round` (the round's own `development`, `beta` or `official` stream). With no round, it uses the weekend schedule's series. An official stream that has not started is simply not shown. Official challenges are not enabled.
   - **D. Schedule failure:** an unreadable schedule now gives "Challenge information is temporarily unavailable. You can still research upcoming matches." (Research only ON). "No Weekly Challenge available this week" appears only when the schedule was read and its publication time passed without a published round.
+
+### 15.11 CP3A-2 acceptance and CP3A-3 (owner, 27 Nov 2026)
+
+- **CP3A-2 formally accepted:**
+  - implementation `2bd1e4f` and closure refinements `5d63f7a`;
+  - accepted items: the final homepage design and wording, the full-width domestic card, the Research only defaults and session preference, the button wording, status and snapshot messaging, How to play collapsed, and the Goal Model wording, championship stream and schedule-failure corrections;
+  - the final regression results (534 passed, 0 failed, 10 Auth-related skips) are accepted as proportionate evidence;
+  - ChatGPT reviewed the commits and screenshots but did not run the tests;
+  - full local testing and CI remain deferred to CP3A-4B;
+  - the domestic homepage is final for the MVP: no further cosmetic redesign unless a functional or responsive issue requires it.
+- **CP3A-3 authorised and implemented** (plan §10.4):
+  - Portfolio Build as the single selection entry point, the simplified Match Lab, originating context, direct links and restoration;
+  - the **Minimum Market Probability filter**, carried forward with owner approval and confirmed within the approved OD-4 decision;
+  - read-only locked and settling access;
+  - the footer model wording.
+- **Estimates:**
+  - the filter restores work counted in the original CP3A estimate but omitted from the rebuilt step list;
+  - CP3A-3 5–7 h, CP3A 21–29 h, Phase 8 planning baseline 50–71 h, before deducting completed work. Planning estimates, not commitments.
 
 ## Appendix B. CP1-7 Step B: controlled provider verification plan (**timing and request table superseded by §15.6**, 27 Nov 2026; safeguards still apply)
 

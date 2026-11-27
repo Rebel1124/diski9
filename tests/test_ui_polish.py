@@ -52,17 +52,13 @@ def test_league_summary_labels_and_css():
 # ----------------------------------------------------------------- threshold
 @pytest.mark.parametrize("market", ["1X2", "BTTS", "OU25"])
 def test_threshold_whole_percentages_and_labels(market):
-    for d in PROB_DIRECTIONS[market]:
+    """Phase 8 CP3A-3: the Minimum Market Probability, for every ranking."""
+    for d in (*PROB_DIRECTIONS[market], "kickoff_earliest", "kickoff_latest"):
         c = threshold_config(market, d, 30)
         assert (c["min"], c["max"], c["step"], c["value"]) == (0, 100, 1, 30)
         assert c["marks"] == THRESHOLD_MARKS == {0: "Any", 50: "50%", 100: "100%"}
         assert c["tooltip"]["always_visible"] and c["tooltip"]["transform"] == "thresholdLabel"
-        assert c["label"].startswith("Minimum ") and c["label"].endswith(" probability")
-        assert not c["disabled"]
-    for d in ("kickoff_earliest", "kickoff_latest"):
-        c = threshold_config(market, d, 30)
-        assert c["disabled"] and c["value"] == 0 and c["tooltip"] is None
-        assert c["hint"] == "Available when ranking by a probability"
+        assert c["label"] == "Minimum Market Probability" and not c["disabled"]
     assert threshold_config(market, PROB_DIRECTIONS[market][0], 140)["value"] == 100  # clamped
 
 
@@ -74,36 +70,36 @@ def test_threshold_label_function():
 
 @pytest.mark.parametrize("market", ["1X2", "BTTS", "OU25"])
 def test_threshold_filters_exactly_at_shown_value(data, market):
-    key = {
-        "home_win": "home",
-        "draw": "draw",
-        "away_win": "away",
-        "btts_yes": "btts_yes",
-        "btts_no": "btts_no",
-        "over": "over",
-        "under": "under",
-    }
+    """Inclusive at the shown whole percentage, on actual market consensus, and the
+    same set of matches whatever the ranking (Phase 8 CP3A-3)."""
+    from diski9.app.data import MARKET_OF, MARKET_OUTCOME_ORDER
+
     snap = data.snapshot()
-    for d in PROB_DIRECTIONS[market]:
+
+    def best_market(fid):
+        dm = snap.odds[fid].markets[MARKET_OF[market]]
+        adj = dm.implied.margin_adjusted if (dm.status == "fresh" and dm.implied) else None
+        return max(float(adj[o]) for o in MARKET_OUTCOME_ORDER[MARKET_OF[market]]) if adj else None
+
+    def total(p):
+        return int(p[2].split(" of ")[1].split()[0]) if p[2] else 0
+
+    for d in (*PROB_DIRECTIONS[market], "kickoff_earliest"):
         counts = []
         for t in (0, 30, 50, 100):
             p = results_payload(data, market, [39, 288], None, "2026-12-31", "overall", d, t, 1)
-            total = int(p[2].split(" of ")[1].split()[0]) if p[2] else 0
-            counts.append(total)
+            counts.append(total(p))
             for fid in page_ids(p):
-                prob = snap.results["overall"][fid]["goal_model"].get("probabilities") or {}
                 if t > 0:
-                    assert prob[key[d]] >= t / 100 - 1e-12, (market, d, t)
+                    assert best_market(fid) is not None and best_market(fid) >= t / 100 - 1e-12
         assert counts == sorted(counts, reverse=True)  # higher threshold, fewer fixtures
-        assert counts[-1] == 0  # nothing reaches 100%
-    # kickoff ordering never filters, whatever the slider held before
-    a = results_payload(
-        data, market, [39, 288], None, "2026-12-31", "overall", "kickoff_earliest", 75, 1
-    )
-    b = results_payload(
-        data, market, [39, 288], None, "2026-12-31", "overall", "kickoff_earliest", 0, 1
-    )
-    assert a[2] == b[2] and page_ids(a) == page_ids(b)
+        assert counts[-1] == 0  # no market outcome reaches 100%
+    # independent of the ranking: the same number of matches qualifies for every one
+    for t in (30, 50):
+        totals = {total(results_payload(data, market, [39, 288], None, "2026-12-31", "overall",
+                                        d, t, 1)) for d in (*PROB_DIRECTIONS[market],
+                                                            "kickoff_earliest", "kickoff_latest")}  # fmt: skip
+        assert len(totals) == 1, (market, t, totals)
 
 
 def test_threshold_preference_kept_across_ranking_switches(data):
@@ -116,14 +112,13 @@ def test_threshold_preference_kept_across_ranking_switches(data):
     f, r = controls["callback"].__wrapped__, remember["callback"].__wrapped__
     context_value.set(AttributeDict(triggered_inputs=[{"prop_id": "threshold.value", "value": 30}]))
     assert r(30, "home_win") == 30
-    from dash.exceptions import PreventUpdate
 
-    with pytest.raises(PreventUpdate):  # kickoff ordering does not overwrite it
-        r(0, "kickoff_earliest")
-    off = f("1X2", "kickoff_earliest", 30)
-    assert off[3] == 0 and off[5] is True and off[6] is None  # value, disabled, tooltip
+    assert r(0, "kickoff_earliest") == 0  # the market minimum applies to kickoff ordering too
+    assert r(30, "kickoff_earliest") == 30
+    kick = f("1X2", "kickoff_earliest", 30)
+    assert kick[3] == 30 and kick[5] is False and kick[6] is not None  # value, enabled, tooltip
     back = f("1X2", "away_win", 30)
-    assert back[3] == 30 and back[5] is False and back[7] == "Minimum away win probability"
+    assert back[3] == 30 and back[5] is False and back[7] == "Minimum Market Probability"
     assert f("BTTS", "btts_yes", 30)[3] == 30  # also kept across market switches
 
 
@@ -194,7 +189,7 @@ const { chromium, devices } = require('playwright');
                  ['phone', devices['iPhone 13']]];
   for (const [name, opts] of views) {
     const p = await (await b.newContext(opts)).newPage();
-    await p.goto(BASE + 'lab');
+    await p.goto(BASE);  // CP3A-3: the research list (Portfolio Build)
     await p.waitForSelector('#leagues', { timeout: 20000 });
     await p.waitForTimeout(600);
     const r = {};

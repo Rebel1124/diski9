@@ -27,6 +27,7 @@ from typing import Any
 from dash import dcc, html
 
 from .icons import icon
+from .links import CHALLENGE, RESEARCH, lab_href
 
 GLOSSARY: dict[str, dict[str, str]] = {
     "market_probability": {
@@ -164,7 +165,9 @@ UNDERDOG_TAG = "High risk"
 UNDERDOG_SHORT = "High-risk underdog: market chance at least 10% but below 20%"
 
 
-def underdog_panel(picks: list[tuple[str, int]], where: str) -> html.Div | None:
+def underdog_panel(
+    picks: list[tuple[str, int]], where: str, round_id: str | None = None
+) -> html.Div | None:
     """One warning block for every selected high-risk underdog (never duplicated):
     a one-line reminder, the full text collapsed, and an existing Match Lab link per
     pick. ``picks`` = [(label, fixture_id)]. Nothing for no picks; never blocks."""
@@ -183,7 +186,7 @@ def underdog_panel(picks: list[tuple[str, int]], where: str) -> html.Div | None:
                 " · ",
                 dcc.Link(
                     ["Match Lab ", icon("arrow-right", "ic-sm")],
-                    href=f"/lab?fixture={fid}",
+                    href=lab_href(fid, CHALLENGE if round_id else RESEARCH, round_id),
                     className="ch-lab-link",
                     title="Analyse this match in the Match Lab",
                 ),

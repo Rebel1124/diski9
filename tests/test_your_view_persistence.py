@@ -130,28 +130,31 @@ const row = `[id='${JSON.stringify({ index: FID, type: 'row' })}']`;
   p.on('pageerror', e => out.errors.push(e.message));
   p.on('console', m => { if (m.type() === 'error') out.errors.push(m.text()); });
   const idle = async () => { await p.waitForTimeout(400); await p.waitForLoadState('networkidle'); };
-  const open = async (base) => { await p.waitForSelector(row); await p.locator(row).click();
+  // CP3A-3: the match is chosen once in Portfolio Build; afterwards the Match Lab restores
+  // it from its address (refresh) or from the session (tab, server restart)
+  const open = async (base) => { await p.waitForSelector(row, { state: 'visible' }); await p.locator(row).click();
     await p.waitForSelector('#lab-home-input'); await idle(); };
-  await p.goto(A + '/lab'); await open(A);
+  const restored = async () => { await p.waitForSelector('#lab-home-input'); await idle(); };
+  await p.goto(A + '/'); await open(A);
   out.base = await p.locator('#lab-home-input').inputValue();
   await p.locator('#lab-home-input').fill('3.10'); await p.locator('#lab-home-input').press('Enter'); await idle();
   // navigation away and back
   await p.locator('.nav-link', { hasText: 'Portfolio Build' }).click(); await idle();
-  await p.locator('.nav-link', { hasText: 'Match Lab' }).click(); await open(A);
+  await p.locator('.nav-link', { hasText: 'Match Lab' }).click(); await restored();
   out.afterNav = await p.locator('#lab-home-input').inputValue();
   // refresh
-  await p.reload(); await open(A);
+  await p.reload(); await restored();
   out.afterRefresh = await p.locator('#lab-home-input').inputValue();
   out.pill = (await p.locator('.detail-header').innerText()).includes('Adjusted by you');
   // server restart: same tab, new server (sessionStorage carried across origins)
   const saved = await p.evaluate(() => JSON.stringify(Object.assign({}, sessionStorage)));
   await p.goto(B + '/leaderboards');
   await p.evaluate((s) => { for (const [k, v] of Object.entries(JSON.parse(s))) sessionStorage.setItem(k, v); }, saved);
-  await p.goto(B + '/lab'); await open(B);
+  await p.goto(B + '/lab'); await restored();
   out.afterRestart = await p.locator('#lab-home-input').inputValue();
   // reset to the Diski 9 estimates, then refresh
   await p.locator('#lab-reset').click(); await idle();
-  await p.reload(); await open(B);
+  await p.reload(); await restored();
   out.afterReset = await p.locator('#lab-home-input').inputValue();
   console.log(JSON.stringify(out)); await b.close();
 })().catch(e => { console.error(e); process.exit(1); });

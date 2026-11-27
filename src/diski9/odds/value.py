@@ -98,26 +98,33 @@ class MarketValue:
     outcomes: tuple[OutcomeValue, ...]
     complete: bool  # every outcome priced, so market probabilities and edges exist
 
-    def best_edge(self, min_probability: float | None = None) -> OutcomeValue | None:
+    def best_edge(self, min_market_probability: float | None = None) -> OutcomeValue | None:
         """Outcome with the largest positive edge (None if no positive edge)."""
-        return _best(self.outcomes, "edge", positive_edge, min_probability)
+        return _best(self.outcomes, "edge", positive_edge, min_market_probability)
 
-    def best_ev(self, min_probability: float | None = None) -> OutcomeValue | None:
+    def best_ev(self, min_market_probability: float | None = None) -> OutcomeValue | None:
         """Outcome with the highest positive EV, chosen independently of the edge."""
-        return _best(self.outcomes, "ev", positive_ev, min_probability)
+        return _best(self.outcomes, "ev", positive_ev, min_market_probability)
 
-    def considered(self, min_probability: float | None = None) -> tuple[OutcomeValue, ...]:
-        return tuple(
-            o for o in self.outcomes if min_probability is None or o.probability >= min_probability
-        )
+    def considered(self, min_market_probability: float | None = None) -> tuple[OutcomeValue, ...]:
+        return tuple(o for o in self.outcomes if meets_market(o, min_market_probability))
 
 
-def _best(outcomes, attr, is_positive, min_probability) -> OutcomeValue | None:
+def meets_market(o: OutcomeValue, minimum: float | None) -> bool:
+    """Phase 8 CP3A-3 (OD-4): the Minimum Market Probability applies to the outcome's
+    actual margin-adjusted market probability, inclusively; never to the model's.
+    Without a minimum every outcome qualifies; with one, an outcome without a market
+    probability does not."""
+    if minimum is None:
+        return True
+    return o.market_probability is not None and o.market_probability >= minimum - 1e-12
+
+
+def _best(outcomes, attr, is_positive, min_market_probability) -> OutcomeValue | None:
     candidates = [
         o
         for o in outcomes
-        if (min_probability is None or o.probability >= min_probability)
-        and is_positive(getattr(o, attr))
+        if meets_market(o, min_market_probability) and is_positive(getattr(o, attr))
     ]
     # ties: market order (first outcome listed wins), via max's stability
     return max(candidates, key=lambda o: getattr(o, attr), default=None)

@@ -250,8 +250,10 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
   out.reviewConfirmed = (await txt(sel({ i: 0, t: 'submit' }))).includes('Confirmed');
   await p.locator(sel({ i: 'stepper', t: 'nav', to: 'build' })).click(); await p.waitForSelector('.ch-total'); await idle();
   out.builder = await txt('.ch-total');
-  await p.locator('.nav-link', { hasText: 'Match Lab' }).click(); await idle();
-  out.strip = (await txt('#ch-strip')).includes('9/9');
+  // CP3A-3: the Match Lab shows the challenge strip only for a challenge match; opened
+  // from the tab with nothing selected it shows the empty state and no strip
+  await p.locator('.nav-link', { hasText: 'Match Lab' }).click(); await p.waitForSelector('#lab-empty'); await idle();
+  out.strip = (await p.locator('#ch-strip').innerText()).trim() === '';
   out.fpRewritten = JSON.parse(await p.evaluate(() => sessionStorage.getItem('ch-session'))).fp !== JSON.parse(stored).fp;
   // a later interaction changes only what was clicked
   await p.locator('.nav-link', { hasText: 'Portfolio Build' }).click(); await p.waitForSelector('.ch-total'); await idle();

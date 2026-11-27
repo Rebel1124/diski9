@@ -84,18 +84,22 @@ def test_router_shows_each_page(data):  # noqa: F811
     """Route content (CP3A-2: the first output is the Portfolio Build home section; which
     list is visible is decided by ``layout_mode``, tested in test_phase8_cp3a2)."""
     route = _named(_app(data), "route")
-    home, content, nav, sig = route("/lab", None, None, None)
-    assert home is None and content is None and sig is None
+    # CP3A-3: the Match Lab leaves the page beneath (the builder) mounted and untouched
+    home, content, nav, sig, mounted = route("/lab", None, None, None, "/")
+    assert home is None and content is no_update and sig is no_update and mounted is no_update
     for path in ("/", "/challenge"):  # Portfolio Build, and the legacy alias
-        home, content, nav, sig = route(path, None, None, None)
+        home, content, nav, sig, mounted = route(path, None, None, None, None)
         assert "Domestic Weekly Challenge" in jtext(home)
-        assert "Weekly Challenge" in jtext(content) and sig is not None
+        assert "Weekly Challenge" in jtext(content) and sig is not None and mounted == "/"
         assert [x.href for x in nav if x.className.endswith(" on")] == ["/"]
+    # back from the Match Lab: the builder is kept exactly as it was (not re-rendered)
+    _, content, _, sig, _ = route("/", None, None, None, "/")
+    assert content is no_update and sig is no_update
     for path, words in (("/challenge/me", "My Challenge"), ("/leaderboards", "Leaderboard"),
                         ("/learn", "Training Ground")):  # fmt: skip
-        home, content, _, sig = route(path, None, None, None)
-        assert home is None and words in jtext(content) and sig is None
-    home, content, _, _ = route("/nowhere", None, None, None)
+        home, content, _, sig, mounted = route(path, None, None, None, "/")
+        assert home is None and words in jtext(content) and sig is None and mounted == path
+    home, content, _, _, _ = route("/nowhere", None, None, None, None)
     text = jtext(content)
     assert home is None and "Page not found" in text and "Back to Portfolio Build" in text
 
@@ -126,16 +130,17 @@ def test_layout_component_ids_are_unique(data):  # noqa: F811
 
 def test_match_lab_only_callbacks_follow_the_lab_route(data):  # noqa: F811
     app = _app(data)
-    open_fixture = _named(app, "open_fixture")
-    assert open_fixture("?fixture=7", "/lab") == (7, "challenge")
-    assert open_fixture("?fixture=7", "/") == (no_update, no_update)  # not the Match Lab
-    assert open_fixture("?fixture=x", "/lab") == (no_update, no_update)
-    strip = _named(app, "screener_strip")  # CP3A-2: cleared off the Match Lab, never stale
+    open_lab = _named(app, "open_lab")  # CP3A-3: the address names fixture and context
+    assert open_lab("/lab", "?fixture=7&ctx=research") == {"fixture": 7, "ctx": "research"}
+    assert open_lab("/", "?fixture=7&ctx=research") is no_update  # not the Match Lab
+    assert open_lab("/lab", "?fixture=x") == {"invalid": True}
+    assert open_lab("/lab", "") is None  # the tab itself: restore the last valid match
+    strip = _named(app, "screener_strip")  # challenge matches in the Match Lab only
     assert strip(None, "/") is None and strip(None, "/learn") is None
-    assert strip(None, "/lab") is not no_update
-    context = _named(app, "data_context")  # CP3A-2: also above the research list on /
-    assert context("all", "/learn") is no_update
-    assert context("all", "/lab") is not no_update and context("all", "/") is not no_update
+    assert strip(None, "/lab", {"fixture": 7, "ctx": "research"}) is None
+    context = _named(app, "data_context")  # above the research list only
+    assert context("all", "/learn") is no_update and context("all", "/lab") is no_update
+    assert context("all", "/") is not no_update
     sync = _named(app, "sync_round_views")
     assert sync("/lab", {}, None) is no_update and sync("/leaderboards", {}, None) is no_update
 
@@ -158,8 +163,9 @@ def test_portfolio_round_views_load_on_portfolio_build(data, monkeypatch):  # no
 def test_internal_links_use_the_new_routes():
     sources = "\n".join(p.read_text() for p in SRC.rglob("*.py"))
     assert 'href="/challenge"' not in sources and "next=/challenge" not in sources
-    assert 'href=f"/?fixture=' not in sources
-    assert sources.count('href=f"/lab?fixture=') == 2  # builder card and guidance panel
+    assert 'href=f"/?fixture=' not in sources and 'href=f"/lab?fixture=' not in sources
+    # CP3A-3: every Match Lab link names its context (builder card and guidance panel)
+    assert sources.count("CHALLENGE if round_id else RESEARCH, round_id)") == 2
     # the rendered risk-panel links are checked in test_a3_guidance
 
 
@@ -203,8 +209,8 @@ const fs = require('fs');
     // the Match Lab tab (client-side navigation)
     await p.locator('#site-nav-links .nav-link', { hasText: 'Match Lab' }).click();
     await p.waitForURL(/\/lab$/);
-    const row = w < 720 ? '.fx-card' : 'tr.row';
-    await p.waitForSelector(row, { state: 'visible', timeout: 20000 });
+    // CP3A-3: the Match Lab alone; with nothing chosen yet, its empty state
+    await p.waitForSelector('#lab-empty', { state: 'visible', timeout: 20000 });
     r.labActive = await active();
     r.overflowLab = await overflow();
     await shot('matchlab');
@@ -232,19 +238,16 @@ const fs = require('fs');
     r.legacyUrl = new URL(p.url()).pathname;
     r.legacyActive = await active();
     await p.goto(BASE + '?fixture=' + FID);  // old deep link: redirected to the Match Lab
-    await p.waitForSelector(row, { state: 'visible', timeout: 20000 });
+    // CP3A-3: a full page load now opens the match (latest data: the link names no context)
+    await p.waitForSelector('#lab-home-input', { state: 'visible', timeout: 20000 });
     const u = new URL(p.url()); r.deepLink = u.pathname + u.search;
     r.deepLinkActive = await active();
-    // in-app Match Lab link (what the builder cards render), from Portfolio Build: on
-    // /lab the link's fixture is handed to the Match Lab (open_fixture), which also
-    // switches the list to the Weekly Challenge universe
+    // in-app Match Lab link (what the cards render), from Portfolio Build
     await p.locator('#site-nav-links .nav-link', { hasText: 'Portfolio Build' }).click();
     await p.waitForSelector('.ch-page');
-    await p.evaluate(() => { document.querySelector("#universe input[value='all']").click(); });
-    await p.waitForFunction(() => document.querySelector('#universe input:checked').value === 'all');
-    await p.evaluate((fid) => { window.history.pushState({}, '', '/lab?fixture=' + fid);
+    await p.evaluate((fid) => { window.history.pushState({}, '', '/lab?fixture=' + fid + '&ctx=research');
       window.dispatchEvent(new CustomEvent('_dashprivate_pushstate')); }, FID);
-    await p.waitForFunction(() => document.querySelector('#universe input:checked').value === 'challenge');
+    await p.waitForSelector('#lab-home-input', { state: 'visible', timeout: 20000 });
     r.linkOpened = new URL(p.url()).pathname;
     out.widths[w] = r;
     await ctx.close();

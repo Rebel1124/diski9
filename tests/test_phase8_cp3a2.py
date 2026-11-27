@@ -244,25 +244,28 @@ def test_layout_mode_shows_the_chosen_list(data):  # noqa: F811
     mode = _named(_app(data), "layout_mode")
     shown, hidden = {"display": "block"}, {"display": "none"}
     # research list: the Screener in Portfolio Build with latest data, builder hidden
-    assert mode("/", {"research": True}, "challenge") == (shown, "on-portfolio", hidden, "all")
+    assert mode("/", {"research": True}, "challenge") == (
+        shown, "on-portfolio", hidden, "all", hidden)  # fmt: skip
     assert mode("/", {"research": True}, "all")[3] is no_update  # never resets the filters
     # competitive list: the builder; the Screener is hidden and its universe untouched
-    assert mode("/", {"research": False}, "all") == (hidden, "", shown, no_update)
+    assert mode("/", {"research": False}, "all") == (hidden, "", shown, no_update, hidden)
     # no explicit choice: the status default (the test data has no challenge: ON)
     assert mode("/", {}, "challenge")[1] == "on-portfolio"
-    assert mode("/lab", {"research": True}, "all") == (shown, "", shown, no_update)
+    # CP3A-3: the Match Lab alone; both lists stay mounted but hidden
+    assert mode("/lab", {"research": True}, "all") == (hidden, "", hidden, no_update, shown)
     for path in ("/challenge/me", "/leaderboards", "/learn"):
         assert mode(path, {"research": True}, "all")[0] == hidden
+        assert mode(path, {"research": True}, "all")[4] == hidden
 
 
 def test_no_competitive_functionality_on_the_research_list(data):  # noqa: F811
     app = _app(data)
-    assert _named(app, "match_lab_panel")(EPL_FIX, None, {}, None, "/") is None
-    assert _named(app, "screener_strip")(None, "/") is None
-    detail = _named(app, "update_detail")
-    body = detail(EPL_FIX, "1X2", "/", "all", {}, {"research": True})[0]
-    assert body is not None  # analysis with the latest data, beneath the research list
-    assert "Weekly Challenge snapshot" not in jtext(body)
+    research = {"fixture": EPL_FIX, "ctx": "research"}
+    # CP3A-3: a research match in the Match Lab: analysis with latest data, no panel
+    assert _named(app, "match_lab_panel")(research, None, {}, None, "/lab") is None
+    assert _named(app, "screener_strip")(None, "/lab", research) is None
+    body = _named(app, "update_detail")(research, "1X2", "/lab", None, {})[0]
+    assert body is not None and "Weekly Challenge snapshot" not in jtext(body)
 
 
 def test_universe_control_is_no_longer_visible(data):  # noqa: F811

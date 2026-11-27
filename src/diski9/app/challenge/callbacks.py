@@ -19,6 +19,7 @@ from diski9.challenge import analysis as pa
 from diski9.challenge.config import ConfigError
 from diski9.challenge.structured import SelectionBlock, selection_blocks, validate_portfolio
 
+from ..links import CHALLENGE, CONTEXTS, RESEARCH, lab_href
 from . import adopt_ui, charts, home, integration, lab_persist, pages, persist
 from . import components as c
 from . import state as st
@@ -455,30 +456,39 @@ def register(app, data, service: ChallengeService) -> None:
         Output("ch-root", "children"),
         Output("site-nav-links", "children"),
         Output("ch-rendered", "data"),
+        Output("ch-mounted", "data"),
         Input("url", "pathname"),
         State("ch-session", "data"),
         State("ch-prefs", "data"),
         State("lab-store", "data"),
+        State("ch-mounted", "data"),
     )
-    def route(path, state, explore, lab_store):
-        """Page content per route. Which of the Portfolio Build lists shows (and the
-        Screener on /lab) is decided by ``layout_mode``."""
+    def route(path, state, explore, lab_store, mounted=None):
+        """Page content per route. Which list shows (and the Match Lab on /lab) is
+        decided by ``layout_mode``.
+
+        Phase 8 CP3A-3: going to the Match Lab leaves the Portfolio Build builder
+        mounted (hidden), and coming back to Portfolio Build keeps it as it was, so the
+        competitive list's filters, page, picks and draft are exactly as the
+        participant left them. The builder's own callbacks keep it current meanwhile."""
         path = norm_path(path)
         if path == PORTFOLIO:
-            return (
-                home.portfolio_home(service, local, explore),
-                pages.challenge_shell(service, state, explore, local, your_view(state, lab_store)),
-                nav_links(path),
-                pages.stage_signature(service, state),
-            )
+            if mounted == PORTFOLIO:
+                content, sig = no_update, no_update
+            else:
+                content = pages.challenge_shell(service, state, explore, local,
+                                                your_view(state, lab_store))  # fmt: skip
+                sig = pages.stage_signature(service, state)
+            return home.portfolio_home(service, local, explore), content, nav_links(path), sig, \
+                PORTFOLIO  # fmt: skip
+        if path == LAB:  # the page beneath stays as it is (hidden)
+            return None, no_update, nav_links(path), no_update, no_update
         if path == "/challenge/me":
-            return None, pages.my_challenge(service, state, local), nav_links(path), None
+            return None, pages.my_challenge(service, state, local), nav_links(path), None, path
         if path == "/leaderboards":
-            return None, pages.leaderboards(service), nav_links(path), None
-        if path == LAB:
-            return None, None, nav_links(path), None
+            return None, pages.leaderboards(service), nav_links(path), None, path
         if path == "/learn":
-            return None, pages.learn_page(), nav_links(path), None
+            return None, pages.learn_page(), nav_links(path), None, path
         return (
             None,
             html.Div(
@@ -490,6 +500,7 @@ def register(app, data, service: ChallengeService) -> None:
             ),
             nav_links(path),
             None,
+            path,
         )
 
     @app.callback(
@@ -536,7 +547,7 @@ def register(app, data, service: ChallengeService) -> None:
     def data_context(universe, path):
         """Frozen (Weekly Challenge) versus latest (All Upcoming Fixtures) information,
         with the actual stored times."""
-        if norm_path(path) not in (PORTFOLIO, LAB):  # the Screener shows on both (CP3A-2)
+        if norm_path(path) != PORTFOLIO:  # above the research list only (CP3A-3)
             return no_update
         return integration.data_context(service, data, universe)
 
@@ -639,10 +650,11 @@ def register(app, data, service: ChallengeService) -> None:
         Input(c.T("f-bucket", ALL), "value"),
         Input(c.T("f-search", ALL), "value"),
         Input(c.T("f-avail", ALL), "value"),
+        Input(c.T("f-mmp", ALL), "value"),
         Input("ch-fxpage", "data"),
         State({"t": "fixtures", "i": ALL}, "id"),
     )
-    def refresh_list(state, league, date, market, bucket, search, avail_f, page, ids):
+    def refresh_list(state, league, date, market, bucket, search, avail_f, mmp, page, ids):
         """Re-render the match list only when filters or the page change (or, with
         'Available only', when selections change). A pick or removal updates the
         existing outcome buttons in place (``refresh_buttons``): replacing ~70
@@ -652,7 +664,7 @@ def register(app, data, service: ChallengeService) -> None:
         first = lambda v: v[0] if v else None  # noqa: E731
         if ctx.triggered_id == "ch-session" and not first(avail_f):
             return [no_update] * len(ids), [no_update] * len(ids)
-        filtered = any(first(v) for v in (league, date, market, bucket, search, avail_f))
+        filtered = any(first(v) for v in (league, date, market, bucket, search, avail_f, mmp))
         if not ctx.triggered_id and (page or 1) == 1 and not filtered:
             # the builder has just rendered this exact list: re-rendering it here would
             # replace the outcome buttons and could swallow a tap made meanwhile
@@ -668,6 +680,7 @@ def register(app, data, service: ChallengeService) -> None:
             "bucket": first(bucket),
             "search": first(search),
             "available": bool(first(avail_f)),
+            "mmp": first(mmp) or 0,
         }
         cards, count = pages.fixture_list(
             service, snap, sels, filters, local, pages.locked(avail), page or 1
@@ -731,6 +744,7 @@ def register(app, data, service: ChallengeService) -> None:
         Input(c.T("f-bucket", ALL), "value"),
         Input(c.T("f-search", ALL), "value"),
         Input(c.T("f-avail", ALL), "value"),
+        Input(c.T("f-mmp", ALL), "value"),
         State("ch-fxpage", "data"),
         prevent_initial_call=True,
     )
@@ -773,25 +787,26 @@ def register(app, data, service: ChallengeService) -> None:
         Output("screener-root", "className"),
         Output("ch-root", "style"),
         Output("universe", "value", allow_duplicate=True),
+        Output("lab-root", "style"),
         Input("url", "pathname"),
         Input("ch-prefs", "data"),
         State("universe", "value"),
         prevent_initial_call="initial_duplicate",
     )
     def layout_mode(path, prefs, universe):
-        """Which list shows. /lab: the Screener and Match Lab (unchanged until CP3A-3).
-        Portfolio Build: the challenge builder (Research only OFF) or the Screener as the
-        research list with latest data (ON). Lists stay mounted, so switching never
-        discards selections, drafts, filters, pages or adjustments."""
+        """What shows. /lab: the Match Lab only (CP3A-3). Portfolio Build: the challenge
+        builder (Research only OFF) or the research list with latest data (ON). Every
+        list stays mounted, so moving between them and the Match Lab never discards
+        selections, drafts, filters, pages or adjustments."""
         shown, hidden = {"display": "block"}, {"display": "none"}
         path = norm_path(path)
         if path == LAB:
-            return shown, "", shown, no_update
+            return hidden, "", hidden, no_update, shown
         if path != PORTFOLIO:
-            return hidden, "", shown, no_update
+            return hidden, "", shown, no_update, hidden
         if not research_list_shown(service, prefs):
-            return hidden, "", shown, no_update
-        return shown, "on-portfolio", hidden, (no_update if universe == "all" else "all")
+            return hidden, "", shown, no_update, hidden
+        return shown, "on-portfolio", hidden, (no_update if universe == "all" else "all"), hidden
 
     app.clientside_callback(
         """function(n) {
@@ -894,48 +909,80 @@ def register(app, data, service: ChallengeService) -> None:
         Output("ch-strip", "children"),
         Input("ch-session", "data"),
         Input("url", "pathname"),
+        Input("lab-active", "data"),
     )
-    def screener_strip(state, path):
-        # the Weekly Challenge strip belongs to the Match Lab only; never on the
-        # research list in Portfolio Build (CP3A-2)
-        return integration.progress_strip(service, state) if is_lab(path) else None
+    def screener_strip(state, path, active=None):
+        """The Weekly Challenge strip: in the Match Lab, for a challenge match only."""
+        if not is_lab(path) or (active or {}).get("ctx") != CHALLENGE:
+            return None
+        return integration.progress_strip(service, state)
 
     @app.callback(
         Output("lab-challenge", "children"),
-        Input("selected", "data"),
+        Input("lab-active", "data"),
         Input("ch-session", "data"),
         Input("lab-store", "data"),
         Input("ch-flash", "data"),
         Input("url", "pathname"),
     )
-    def match_lab_panel(fid, state, lab_store, flash, path):
-        """Rendered only while the Screener is showing (re-rendering its pattern-matched
-        cards inside the hidden Screener made every builder tap slower); returning to
-        the Screener re-renders it from the current state."""
-        if not is_lab(path):  # never on the research list in Portfolio Build (CP3A-2)
+    def match_lab_panel(active, state, lab_store, flash, path):
+        """The Weekly Challenge selection panel: in the Match Lab, for a match opened
+        from the published challenge list only. A research match never shows
+        competitive controls (CP3A-3)."""
+        if not is_lab(path) or (active or {}).get("ctx") != CHALLENGE:
             return None
-        return integration.lab_panel(service, data, state, fid, lab_store, flash)
+        return integration.lab_panel(service, data, state, active["fixture"], lab_store, flash)
 
     @app.callback(
-        Output("selected", "data", allow_duplicate=True),
-        Output("universe", "value", allow_duplicate=True),
+        Output("lab-request", "data"),
+        Input("url", "pathname"),
         Input("url", "search"),
-        State("url", "pathname"),
-        prevent_initial_call=True,
     )
-    def open_fixture(search, path):
-        """Builder 'Match Lab' links: /lab?fixture=<id> selects that match in the Match
-        Lab (in-app navigation, as before). Old /?fixture= addresses are redirected to
-        /lab by the server; as before CP3A, a full page load does not preselect the
-        match (the Match Lab's own restore arrives in CP3A-3)."""
+    def open_lab(path, search):
+        """What the Match Lab address asks for (Phase 8 CP3A-3), including on a full page
+        load: ``/lab?fixture=<id>&ctx=challenge|research[&round=<id>]``. No fixture in
+        the address (the tab itself): None, so the last valid match is restored. An
+        address without a context (an old link) opens the latest data, never a frozen
+        snapshot it did not name."""
         from urllib.parse import parse_qs
 
         if not is_lab(path):
-            return no_update, no_update
-        fid = (parse_qs((search or "").lstrip("?")).get("fixture") or [None])[0]
-        if not fid or not fid.isdigit():
-            return no_update, no_update
-        return int(fid), "challenge"
+            return no_update
+        q = parse_qs((search or "").lstrip("?"))
+        raw = (q.get("fixture") or [None])[0]
+        if raw is None:
+            return None
+        context = (q.get("ctx") or [RESEARCH])[0]
+        if not raw.isdigit() or context not in CONTEXTS:
+            return {"invalid": True}
+        target = {"fixture": int(raw), "ctx": context}
+        if context == CHALLENGE:
+            rid = (q.get("round") or [None])[0]
+            snap = service.snapshot("live")
+            target["round"] = rid
+            target["fp"] = snap.fingerprint if snap is not None and snap.round_id == rid else None
+        return target
+
+    @app.callback(
+        Output("url", "pathname"),
+        Output("url", "search"),
+        Output("lab-market", "value"),
+        Input({"type": "row", "index": ALL}, "n_clicks"),
+        Input({"type": "fx", "index": ALL}, "n_clicks"),
+        State("url", "pathname"),
+        State("market", "value"),
+        prevent_initial_call=True,
+    )
+    def open_from_research(_rows, _cards, path, market=None):
+        """Selecting a match in the research list opens it in the Match Lab, with the
+        latest data (Phase 8 CP3A-3); the list itself stays as it was."""
+        trig = ctx.triggered_id
+        if not isinstance(trig, dict) or not any(t["value"] for t in ctx.triggered):
+            raise PreventUpdate  # rows were re-rendered, not clicked
+        if norm_path(path) != PORTFOLIO:
+            raise PreventUpdate
+        query = "?" + lab_href(int(trig["index"]), RESEARCH).split("?", 1)[1]
+        return LAB, query, (market or no_update)
 
     # ------------------------------------------------------------- My Challenge tabs
     @app.callback(

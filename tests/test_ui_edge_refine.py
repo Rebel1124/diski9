@@ -309,7 +309,7 @@ const { chromium } = require('playwright');
   for (const [name, opts] of views) {
     const ctx = await b.newContext(opts);
     const p = await ctx.newPage();
-    await p.goto(BASE + 'lab');
+    await p.goto(BASE);  // CP3A-3: the research list (Portfolio Build)
     await p.waitForSelector('#direction', { timeout: 20000 });
     await p.waitForTimeout(800);
     const r = {};

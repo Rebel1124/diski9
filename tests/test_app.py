@@ -394,35 +394,41 @@ def test_league_and_date_filters(data):
     assert empty[0] is None and "No fixtures match" in _text(empty[4]) and empty[2] == ""
 
 
-def test_threshold_enabled_only_where_meaningful():
-    for d in ("kickoff_earliest", "kickoff_latest"):
-        c = threshold_config("1X2", d)
-        assert c["disabled"] is True and c["hint"] == "Available when ranking by a probability"
-        assert c["value"] == 0 and c["tooltip"] is None  # never filters, no floating value
-    for d in ("home_win", "draw", "away_win"):
-        assert threshold_config("1X2", d)["disabled"] is False
-    assert threshold_config("1X2", "home_win")["label"] == "Minimum home win probability"
-    assert threshold_config("BTTS", "btts_no")["label"] == "Minimum BTTS No probability"
-    assert threshold_config("OU25", "over")["label"] == "Minimum Over 2.5 probability"
-    assert threshold_config("BTTS", "kickoff_earliest")["disabled"] is True
+def _meets_market(data, fid, market, minimum):
+    """Independent check of the Minimum Market Probability: an outcome of the market
+    with a fresh margin-adjusted consensus probability >= minimum."""
+    from diski9.app.data import MARKET_OF, MARKET_OUTCOME_ORDER
 
-
-def test_disabled_threshold_has_no_effect(data):
-    for d in ("kickoff_earliest", "kickoff_latest"):
-        assert page_ids(payload(data, direction=d, threshold=60)) == page_ids(
-            payload(data, direction=d, threshold=0)
-        )
-    assert page_ids(payload(data, direction="home_win", threshold=60)) != page_ids(
-        payload(data, direction="home_win", threshold=0)
+    dm = data.snapshot().odds[fid].markets[MARKET_OF[market]]
+    adj = dm.implied.margin_adjusted if (dm.status == "fresh" and dm.implied) else None
+    return bool(adj) and any(
+        float(adj[o]) >= minimum - 1e-12 for o in MARKET_OUTCOME_ORDER[MARKET_OF[market]]
     )
+
+
+def test_market_threshold_is_the_same_for_every_ranking():
+    """Phase 8 CP3A-3 (OD-4): one Minimum Market Probability, never disabled and with
+    the same label whatever the ranking (kickoff, probability, edge, EV)."""
+    for d in ("kickoff_earliest", "kickoff_latest", "home_win", "draw", "away_win", "edge", "ev"):
+        c = threshold_config("1X2", d, 35)
+        assert c["disabled"] is False and c["label"] == "Minimum Market Probability"
+        assert c["value"] == 35 and c["tooltip"] is not None
+        assert "market consensus" in c["hint"]
+    assert threshold_config("BTTS", "kickoff_earliest")["value"] == 0  # default: no minimum
+
+
+def test_market_threshold_applies_to_kickoff_ranking_too(data):
+    for d in ("kickoff_earliest", "home_win"):
+        for fid in page_ids(payload(data, direction=d, threshold=40)):
+            assert _meets_market(data, fid, "1X2", 0.40), (d, fid)
+    # 0 keeps every match, including those without odds or without a model
+    assert payload(data, direction="kickoff_earliest", threshold=0)[2] == payload(
+        data, direction="kickoff_earliest", threshold=None)[2]  # fmt: skip
 
 
 def test_threshold_filters(data):
     ids = page_ids(payload(data, direction="home_win", threshold=50))
-    snap = data.snapshot()
-    assert ids and all(
-        snap.results["overall"][i]["goal_model"]["probabilities"]["home"] >= 0.5 for i in ids
-    )
+    assert ids and all(_meets_market(data, i, "1X2", 0.5) for i in ids)
 
 
 # ---------------------------------------------------------- table & cards
@@ -649,7 +655,7 @@ def test_phone_viewport_cards_tooltip_and_pager(data):
           const b = await chromium.launch();
           const ctx = await b.newContext({{ ...devices['iPhone 13'] }});
           const p = await ctx.newPage();
-          await p.goto('http://127.0.0.1:{port}/lab');
+          await p.goto('http://127.0.0.1:{port}/');  // CP3A-3: the research list (Portfolio Build)
           await p.waitForSelector('.fx-card', {{ timeout: 20000 }});
           const out = {{}};
           out.cards = await p.locator('.fx-card').count();
@@ -797,21 +803,29 @@ def test_browser_selection_highlight(data):
         (async () => {{
           const b = await chromium.launch();
           const p = await b.newPage({{ viewport: {{ width: 1400, height: 1000 }} }});
-          await p.goto('http://127.0.0.1:{port}/lab');
-          await p.waitForSelector('tr.row', {{ timeout: 20000 }});
+          // CP3A-3: the research list lives in Portfolio Build; selecting a match opens
+          // it in the Match Lab, and the list keeps the selection when you come back
+          await p.goto('http://127.0.0.1:{port}/');
+          await p.waitForSelector('tr.row', {{ timeout: 20000, state: 'visible' }});
           const out = {{}};
           const rows = await ids(p);
           out.initial = await sel(p);
           await p.locator('tr.row').nth(2).click();
+          await p.waitForURL(/\/lab\?/);
+          await p.waitForSelector('.detail-header h2', {{ state: 'visible' }});
+          const thirdTitle = await p.locator('.detail-header h2').innerText();
+          await p.locator('#lab-back').click();
+          await p.waitForSelector('tr.row', {{ state: 'visible' }});
           await p.waitForFunction(() => document.querySelectorAll('tr.row.selected').length === 1);
           out.afterThird = await sel(p); out.third = rows[2];
-          await p.waitForSelector('.detail-header h2');
-          const thirdTitle = await p.locator('.detail-header h2').innerText();
           await p.locator('tr.row').nth(4).click();
+          await p.waitForURL(/\/lab\?/);
+          await p.waitForFunction((t) => document.querySelector('.detail-header h2') && document.querySelector('.detail-header h2').innerText !== t, thirdTitle);
+          out.detail = await p.locator('.detail-header h2').innerText();
+          await p.locator('#lab-back').click();
+          await p.waitForSelector('tr.row', {{ state: 'visible' }});
           await p.waitForFunction((id) => document.querySelector('tr.row.selected') && JSON.parse(document.querySelector('tr.row.selected').id).index === id, rows[4]);
           out.afterFifth = await sel(p); out.fifth = rows[4];
-          await p.waitForFunction((t) => document.querySelector('.detail-header h2').innerText !== t, thirdTitle);
-          out.detail = await p.locator('.detail-header h2').innerText();
           await p.locator('#next').click();
           await p.waitForFunction(() => document.querySelector('#summary').innerText.startsWith('Showing 11'));
           out.page2 = await sel(p);

@@ -238,7 +238,11 @@ def test_missing_frozen_market_is_explicit_not_filled_from_live(data):
     p = run(data, direction="home_win", challenge=ch)
     assert page_ids(p) == [EPL_FIX, EXTRA[0]]  # unavailable listed last
     assert "Not in snapshot" in _text(p[0]) and "Not in the round snapshot" in str(p[0])
-    assert page_ids(run(data, direction="home_win", challenge=ch, thr=10)) == [EPL_FIX]
+    # Phase 8 CP3A-3: the minimum applies to the frozen *market* probability of any
+    # outcome in the snapshot; EXTRA[0]'s frozen home outcome (60%) qualifies, and the
+    # incomplete model still ranks it last (never filled in from live data)
+    assert page_ids(run(data, direction="home_win", challenge=ch, thr=10)) == [EPL_FIX, EXTRA[0]]
+    assert page_ids(run(data, direction="home_win", challenge=ch, thr=61)) == []
     # BTTS is not in this snapshot at all: no fixture is ranked with live values
     btts = run(data, market="BTTS", direction="btts_yes", challenge=ch, thr=10)
     assert page_ids(btts) == []

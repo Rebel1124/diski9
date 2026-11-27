@@ -258,18 +258,24 @@ def frozen_universe(data, challenge: dict, market: str, leagues, start, end) -> 
 
 
 def frozen_order(challenge: dict, results: list, market: str, direction: str, threshold) -> list:
-    """Filter and rank the frozen universe with the same rules as the live Screener:
+    """Filter and rank the frozen universe with the same rules as the live Screener
+    (Phase 8 CP3A-3): the Minimum Market Probability keeps a fixture when an outcome's
+    **frozen** market probability meets it (inclusive; no live freshness test), then
     kickoff order, model-probability order (fixtures without that frozen probability
-    last, or removed when a minimum probability is set), or edge / EV."""
+    last, never removed), or edge / EV over the qualifying outcomes."""
     from diski9.screener.rank import VALUE_DIRECTIONS, rank
 
+    if threshold is not None:
+        keys = [k for k, _ in MARKET_KEYS[market]]
+
+        def meets(r: dict) -> bool:
+            mkt = (challenge["frozen"].get(r["fixture"]["id"]) or {}).get("market", {})
+            return any(k in mkt and mkt[k] >= threshold - 1e-12 for k in keys)
+
+        results = [r for r in results if meets(r)]
     if direction in VALUE_DIRECTIONS:
-        if threshold is not None:
-            keys = [k for k, _ in MARKET_KEYS[market]]
-            results = [r for r in results if r["goal_model"]["available"] and any(
-                r["goal_model"]["probabilities"][k] >= threshold for k in keys)]  # fmt: skip
         return challenge_rank(challenge, results, direction, threshold)
-    return rank(results, direction, threshold)
+    return rank(results, direction)
 
 
 def frozen_row(challenge: dict, market: str, row: dict, r: dict) -> dict:
@@ -396,6 +402,15 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
         return None
     state = pages.sync(service, state)
     mode, snap, avail, sels = pages.current(service, state)
+    if pages.locked(avail):  # Phase 8 CP3A-3: read-only after the deadline
+        return html.Div(
+            [
+                html.Strong("Weekly Challenge: "),
+                "entries are closed. You can analyse this match, but predictions can no "
+                "longer be added or changed.",
+            ],
+            className="ch-labpanel muted small",
+        )
     if snap is None or not avail.playable:
         return html.Div(
             [

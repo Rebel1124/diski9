@@ -14,6 +14,7 @@ from diski9.challenge.structured import PortfolioEvaluation, SelectionBlock
 
 from .. import education
 from ..icons import icon
+from ..links import CHALLENGE, RESEARCH, lab_href
 from .service import key_str
 
 BUCKET_CLASS = {"A": "found", "B": "bal", "C": "chal", "NINE": "nine"}
@@ -505,7 +506,16 @@ def outcome_button(
 
 
 def fixture_card(
-    fx, outs, assess, blocks, local, locked, personal=None, *, config: ChallengeConfig
+    fx,
+    outs,
+    assess,
+    blocks,
+    local,
+    locked,
+    personal=None,
+    *,
+    config: ChallengeConfig,
+    round_id: str | None = None,
 ) -> html.Div:
     personal = personal or {}
     adjusted = any(o.key in personal for o in outs)  # Your View shown where it differs
@@ -553,7 +563,7 @@ def fixture_card(
                     html.Div(f"{fx.home} v {fx.away}", className="ch-fx-teams"),
                     dcc.Link(
                         ["Match Lab ", icon("arrow-right", "ic-sm")],
-                        href=f"/lab?fixture={fx.fixture_id}",
+                        href=lab_href(fx.fixture_id, CHALLENGE if round_id else RESEARCH, round_id),
                         className="ch-lab-link",
                         title="Analyse this match in the Match Lab",
                     ),

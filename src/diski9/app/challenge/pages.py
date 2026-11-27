@@ -336,10 +336,31 @@ def unavailable(service, state, mode, snap, avail, local) -> html.Div:
     demo_mode = mode == "demo" or (snap is not None and snap.is_demo)
     if avail.status is RoundStatus.LOCKED and not demo_mode:
         # Phase 8 CP3A-2 closure: the research workflow replaces the demonstration
-        # invitation here (the demonstration round itself is unchanged)
+        # invitation here (the demonstration round itself is unchanged). CP3A-3: the
+        # published fixtures stay viewable, read-only (picks disabled; the reducer and
+        # the services refuse any change after the deadline), each with its Match Lab
+        # link in the frozen challenge context
+        published = None
+        if snap is not None and not snap.is_demo:
+            _, _, _, sels = current(service, state)
+            cards, count = fixture_list(service, snap, sels, {}, local, True, 1)
+            published = html.Div(
+                [
+                    html.Div(
+                        [
+                            html.H2("Published fixtures", className="ch-h2"),
+                            html.Span(count, id=c.T("fx-count"), className="muted small"),
+                        ],
+                        className="ch-row-between",
+                    ),
+                    html.Div(cards, id=c.T("fixtures"), className="ch-fixtures"),
+                ],
+                className="ch-locked-fixtures",
+            )
         return html.Div(
             [
                 html.Div(LOCKED_NOTICE, className="ch-ribbon ch-locked-notice"),
+                published,
                 _rules_or_notice(service, snap),
             ]
         )
@@ -456,6 +477,20 @@ def builder(service, snap, sels, avail, prefs, local, personal=None, state=None)
                     debounce=True,
                     className="ch-input",
                 ),
+            ),
+            _filter(
+                "Minimum Market Probability",
+                dcc.Slider(
+                    id=c.T("f-mmp"),
+                    min=0,
+                    max=100,
+                    step=1,
+                    value=0,
+                    marks={0: "0%", 50: "50%", 100: "100%"},
+                    tooltip={"placement": "bottom", "transform": "thresholdLabel"},
+                    className="slider",
+                ),
+                "filter ch-mmp",
             ),
             html.Div(
                 dcc.Checklist(
@@ -588,6 +623,9 @@ def fixture_list(
     market = filters.get("market")
     bucket = filters.get("bucket")
     avail_only = bool(filters.get("available"))
+    # Phase 8 CP3A-3: Minimum Market Probability on the frozen consensus (inclusive);
+    # a display filter only - picks, eligibility and buckets are never changed
+    mmp = (filters.get("mmp") or 0) / 100
     q = (filters.get("search") or "").strip().lower()
     by_fx: dict = {}
     for o in snap.outcomes:
@@ -606,6 +644,7 @@ def fixture_list(
             if (not market or str(o.market) == market)
             and (not bucket or (assess[o.key].eligible and assess[o.key].bucket == bucket))
             and (not avail_only or blocks.get(o.key) in (None, SelectionBlock.SELECTED))
+            and (mmp <= 0 or o.market_probability >= mmp - 1e-12)
         ]
         if outs:
             matches.append((fx, outs))
@@ -620,7 +659,17 @@ def fixture_list(
     start = (page - 1) * FIXTURES_PER_PAGE
     shown = matches[start : start + FIXTURES_PER_PAGE]
     cards = [
-        c.fixture_card(fx, outs, assess, blocks, local, is_locked, personal, config=cfg)
+        c.fixture_card(
+            fx,
+            outs,
+            assess,
+            blocks,
+            local,
+            is_locked,
+            personal,
+            config=cfg,
+            round_id=None if snap.is_demo else snap.round_id,
+        )
         for fx, outs in shown
     ]
     pager = html.Div(
@@ -754,7 +803,7 @@ def risk_panel(snap, chosen, cfg, where: str):
     for o in high_risk_selections(chosen, snap.snapshot_at, cfg):
         fx = snap.fixture(o.fixture_id)
         picks.append((f"{fx.home} v {fx.away}: {c.outcome_text(o)}", o.fixture_id))
-    return education.underdog_panel(picks, where)
+    return education.underdog_panel(picks, where, None if snap.is_demo else snap.round_id)
 
 
 # --------------------------------------------------------------- analysis

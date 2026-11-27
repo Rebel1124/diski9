@@ -194,9 +194,9 @@ const { chromium, devices } = require('playwright');
                               ['phone', devices['iPhone 13']]]) {
     const ctx = await b.newContext(opts);
     const p = await ctx.newPage();
-    await p.goto(BASE + 'lab');
+    await p.goto(BASE);  // CP3A-3: the research list (Portfolio Build)
     await p.waitForSelector('tr.row, .fx-card', { timeout: 20000, state: 'attached' });
-    await p.locator('#market').click(); await p.locator('[role=option]', { hasText: 'Both Teams' }).click();
+    await p.locator('#market').click(); await p.locator('.dash-dropdown-option', { hasText: 'Both Teams' }).click();
     await p.waitForTimeout(800);
     if (name === 'desktop') await p.locator('tr.row').first().click();
     else await p.locator('.fx-card').first().tap();

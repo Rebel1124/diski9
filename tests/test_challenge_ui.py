@@ -504,14 +504,12 @@ def test_routes_and_existing_screener(data):  # noqa: F811
     assert '"storage_type":"session"' in layout.replace(" ", "")
     route = _callback(app, "ch-root.children")
     # Phase 8 CP3A-1/2: the Match Lab at /lab; the Screener's visibility is ``layout_mode``
-    _, content, nav, _ = route("/lab", None, None, None)
-    assert content is None
     mode = _callback(app, "screener-root.style")
-    assert mode("/lab", {}, "all")[0] == {"display": "block"}
+    assert mode("/lab", {}, "all")[4] == {"display": "block"}  # CP3A-3: the Match Lab page
     for path, words in (("/", "Weekly Challenge"), ("/challenge", "Weekly Challenge"),
                         ("/challenge/me", "My Challenge"), ("/leaderboards", "Leaderboard"),
                         ("/learn", "Training Ground")):  # fmt: skip
-        _, content, nav, _ = route(path, None, None, None)
+        _, content, nav, _, _ = route(path, None, None, None, None)
         assert mode(path, {"research": False}, "all")[0] == {"display": "none"}
         assert words in jtext(content)
         assert any("on" in link.className for link in nav)

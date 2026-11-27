@@ -714,11 +714,16 @@ def test_browser_match_lab_states_and_adjustments(data):  # noqa: F811
       const p = await (await b.newContext({{ viewport: {{ width: 1280, height: 900 }} }})).newPage();
       p.on('pageerror', e => out.errors.push(e.message));
       const pick = async (fid, expect) => {{
-        await p.locator(`[id='${{JSON.stringify({{index: fid, type: 'row'}})}}']`).click();
+        // CP3A-3: matches are chosen in Portfolio Build's research list; back to it first
+        const row = p.locator(`[id='${{JSON.stringify({{index: fid, type: 'row'}})}}']`);
+        if (!(await row.isVisible())) {{
+          await p.locator('#lab-back').click(); await row.waitFor({{ state: 'visible' }});
+        }}
+        await row.click();
         await p.waitForFunction((t) => document.querySelector('.detail h2') &&
           document.querySelector('.detail h2').innerText.includes(t), expect, {{ timeout: 30000 }});
       }};
-      await p.goto('http://127.0.0.1:{port}/lab'); await p.waitForSelector('tr.row');
+      await p.goto('http://127.0.0.1:{port}/'); await p.waitForSelector('tr.row', {{ state: 'visible' }});
       // State B
       await pick({STATE_B}, 'Team 400 v');
       await p.waitForSelector('.lab-source.market', {{ timeout: 30000 }});
