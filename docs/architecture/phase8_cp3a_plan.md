@@ -6,7 +6,7 @@
   - **CP3A-1** (routes and navigation) is **formally accepted** (27 Nov 2026; `e7c2aae`, `951a33a`; §10.1);
   - **CP3A-2** is **formally accepted** (27 Nov 2026; `2bd1e4f`, `5d63f7a`; §10.3);
   - **CP3A-3** is **formally accepted** (27 Nov 2026; `4e08e71`, closure `1648381`; §10.4, §10.5);
-  - **CP3A-4** (frozen/latest analytical context and isolation) is implemented, awaiting review (§10.6);
+  - **CP3A-4** (frozen/latest analytical context and isolation) is implemented with closure refinements, awaiting review (§10.6, §10.7);
   - **CP3A-4B onwards are not authorised.**
 
 Decisions this plan implements: [`phase8_implementation.md`](phase8_implementation.md) §15 (governs), with §11 OD-4 where not superseded.
@@ -337,6 +337,21 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
   - the page header no longer shows a statistics calculation time; "All Upcoming Fixtures" removed from the Match Lab components.
 - **Published pair (display):** the research list's frozen line (`data_context`) reads one `published_pair()`.
 - **Decision for review:** the bookmaker reference card in the frozen context still shows the latest collected prices, with its existing note ("not the round's frozen odds"); the frozen odds stay in the selection panel. Unchanged in CP3A-4.
+
+### 10.7 CP3A-4 closure refinements (owner, 27 Nov 2026)
+
+- **Bookmaker reference follows the context:**
+  - frozen: built only from the validated snapshot (`lab_context.frozen_odds`): per market, the frozen consensus reference odds, the frozen margin-adjusted market probabilities, the number of independent bookmaker groups and the last observation before the freeze. The card is titled "Frozen Bookmaker Market Reference" with the snapshot's own times. Individual bookmaker prices are not stored with the snapshot, so none are shown; a market the snapshot does not hold is shown as unavailable. Nothing is derived from probabilities and no latest price is substituted. The model-vs-market comparison and Your View's value check use the same frozen reference;
+  - latest-data and research-origin analysis keep the latest reference and observation times unchanged;
+  - no snapshot schema change, migration, provider request or new data collection.
+- **Supplementary statistics:** form, head-to-head and league positions stay latest data in both contexts; in the frozen context Section B states that they are supplementary latest data and never change the frozen estimates, probabilities or odds (they never did: the frozen payload and its model context come from the snapshot).
+- **Source information:** left-aligned in both contexts (already so at `57d6bc9`; the centred image was a pre-fix capture), checked in the browser at three widths.
+- **Stale-event investigation (findings; plan of record for review):**
+  - the inconsistent mobile image (toggle on, frozen labels) was captured before the toggle's response: the browser flips the checkbox at once, the server's response sets the toggle and the analysis together. It was taken by an earlier version of the test whose wait matched text present in both contexts; every committed screenshot waits for the context-specific marker;
+  - a Match Lab selection made while the toggle's response is pending is made on the frozen panel the participant can see, with `lab-active` still frozen: a legitimate frozen action, validated by the existing services (ownership, snapshot, eligibility, deadline). Once the response arrives, `lab-active` is latest and the reducer refuses any such action, even if the panel's removal is still pending;
+  - **confirmed minor defect (not corrected; proposal awaits approval):** a market change sent while the toggle's response is still in flight carries the pre-toggle `lab-target`; `lab_want` takes the mode from that stored target, so the response renders the frozen view and turns the toggle off. The end state is consistent (off and frozen) but the participant's switch is lost. Proposed correction: outside a new opening, take the mode from the toggle's current value (an input of the same callback) rather than the stored target;
+  - **second intermittent browser test (carried to CP3A-4B):** `test_phase8_cp2b1.py::test_browser_match_lab_states_and_adjustments` timed out once in the closure regression run (research-only path, waiting for a restored adjustment after switching matches) and passed in three isolated reruns and in every earlier run; it shares the timing exposure of ML-01 and is to be verified explicitly at CP3A-4B;
+  - Your View: frozen and latest adjustments cannot move between contexts (separate keys and rows; `adjust` writes the context named by the `lab-active` value it was sent with, and `update_detail` sets the analysis and `lab-active` in one response). The toggle is one more trigger of the existing ML-01 stale-store race (an in-flight rebuild can restore an earlier adjustment within one context); recommended for the CP3A-4B ML-01 fix and its regression test.
 
 ## 11. Testing and browser acceptance (proportionate)
 

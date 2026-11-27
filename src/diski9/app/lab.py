@@ -83,6 +83,11 @@ CONTEXT_NOTE = (
     "information may already be reflected in the model. Avoid counting the same information "
     "twice."
 )
+FROZEN_CONTEXT_NOTE = (
+    "Supplementary latest data: form, head-to-head and league positions use the latest "
+    "available results, not the snapshot. They never change the frozen estimated goals, "
+    "probabilities or odds."
+)
 ADJUST_NOTE = (
     "Changing estimated goals changes the probability of different scorelines. Increasing a "
     "team's estimated goals will generally increase its chance of winning, but the effect on "
@@ -990,6 +995,9 @@ def context_section(r: dict, market: str, official: dict, state: dict | None = N
                 className="label-row",
             ),
             html.P(CONTEXT_NOTE, className="muted small context-note"),
+            html.P(FROZEN_CONTEXT_NOTE, className="muted small context-note frozen-context-note")
+            if (r.get("_context") or {}).get("kind") == "round"
+            else None,
             html.Div(parts, className="acc-group"),
         ],
         className="lab-section context",
@@ -1723,7 +1731,9 @@ def bookmaker_card(
     league: str,
     state: dict | None,
 ) -> html.Section:
-    card = _market_card(ov, MARKET_OF[market], data, league)
+    c = r.get("_context") or {}
+    frozen_at = c.get("frozen_at") if c.get("kind") == "round" else None
+    card = _market_card(ov, MARKET_OF[market], data, league, frozen_at=frozen_at)
     head = card.children[0]
     head.children.append(html.Div(role_tag("Market", "market"), className="card-tag"))
     g = r["goal_model"]
@@ -1860,17 +1870,6 @@ def render_detail(
             ),
             lab,
             bookmaker_card(r, ov, market, data, league, state if available else None),
-            *(
-                [
-                    html.P(
-                        "Bookmaker prices above are the latest collected, not the round's "
-                        "frozen odds.",
-                        className="muted small",
-                    )
-                ]
-                if (r.get("_context") or {}).get("kind") == "round"
-                else []
-            ),
             html.P(statistics_note(r, data), className="muted small"),
         ],
         className="detail",

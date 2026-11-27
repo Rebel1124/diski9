@@ -917,6 +917,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
                 lab, new_lab = hydrated, hydrated
         r = lc.r
         _, ov, official = data.detail(fid)
+        ov = lc.odds if lc.odds is not None else ov  # frozen: the snapshot's odds only
         adj = stored_adjustment(lab, lc.key, r)
         notice = adjustment_notice(lab, lc.key, r)
         body, ref = split_detail(render_detail(r, ov, official, market, data, adj, notice))
@@ -968,6 +969,8 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         lc, _ = lab_context.resolve_target(service, data, active)
         r = lc.r if lc else None
         _, ov, _ = data.detail(active["fixture"])
+        if lc is not None and lc.odds is not None:  # frozen: the snapshot's odds only
+            ov = lc.odds
         if r is None or starting_point(r) is None:
             raise PreventUpdate
         trig = ctx.triggered_id

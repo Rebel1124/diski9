@@ -549,12 +549,24 @@ def market_card(
     return card
 
 
+FROZEN_MARKET_NOTE = (
+    "The bookmaker consensus frozen with the Weekly Challenge snapshot: the reference odds "
+    "and market probabilities every participant plays with. Individual bookmaker prices are "
+    "not stored with the snapshot."
+)
+
+
 def _market_card(
-    ov: OddsView | None, market: Market, data: ScreenerData, league: str
+    ov: OddsView | None, market: Market, data: ScreenerData, league: str, frozen_at=None
 ) -> html.Section:
     """The selected market only: status, times, market-implied probabilities, consensus
-    odds with their raw implied probabilities, sources and the margin removed."""
-    head = card_head("Bookmaker Market Reference", MARKET_NOTE)
+    odds with their raw implied probabilities, sources and the margin removed.
+    ``frozen_at`` (CP3A-4 closure): ``ov`` is the snapshot's frozen reference, shown with
+    the snapshot's own times instead of a freshness status."""
+    frozen = frozen_at is not None
+    head = card_head("Frozen Bookmaker Market Reference" if frozen
+                     else "Bookmaker Market Reference",
+                     FROZEN_MARKET_NOTE if frozen else MARKET_NOTE)  # fmt: skip
     if ov is None or not ov.league_has_odds:
         return html.Section(
             [
@@ -609,16 +621,35 @@ def _market_card(
     facts = [f"{mc.sources} independent bookmaker group{'s' if mc.sources != 1 else ''}"]
     if ip is not None and ip.overround is not None:
         facts.append(f"combined margin removed {float(ip.overround) * 100:.1f}%")
+    if frozen:
+        seen = mc.latest_observation
+        status = html.Div(
+            [
+                html.Span("Weekly Challenge snapshot", className="ctx-tag frozen"),
+                html.Span(
+                    f"Frozen: {data.local(frozen_at)} {data.tz_label}"
+                    + (
+                        f" · prices last observed {data.local(seen)} {data.tz_label}"
+                        if seen
+                        else ""
+                    ),
+                    className="muted small",
+                ),  # fmt: skip
+            ],
+            className="label-row status-row",
+        )
+    else:
+        status = html.Div(
+            [
+                status_badge(dm.status),
+                html.Span(freshness_text(dm, data), className="muted small"),
+            ],
+            className="label-row status-row",
+        )
     return html.Section(
         [
             head,
-            html.Div(
-                [
-                    status_badge(dm.status),
-                    html.Span(freshness_text(dm, data), className="muted small"),
-                ],
-                className="label-row status-row",
-            ),
+            status,
             html.Div(
                 [
                     html.Div(
@@ -659,7 +690,7 @@ def _market_card(
                 className="market-grid",
             ),
         ],
-        className=f"card market {dm.status}",
+        className=f"card market {'frozen' if frozen else dm.status}",
     )
 
 

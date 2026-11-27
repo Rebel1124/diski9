@@ -281,6 +281,133 @@ def test_research_match_outside_the_snapshot_stays_research(data, fid):  # noqa:
         None, lab_context.CHALLENGE_GONE)  # fmt: skip
 
 
+# ------------------------------------------- CP3A-4 closure: the context's bookmaker reference
+FROZEN_1X2 = {"HOME": "1.60", "DRAW": "3.60", "AWAY": "5.20"}  # differ from the latest prices
+FROZEN_GOALS = (1.40, 1.10)  # differ from the latest estimate (1.97 - 0.51)
+
+
+def _distinct(snap, drop_btts=False):
+    """The prototype snapshot with this match frozen at other prices and estimates, so the
+    two contexts can be told apart (optionally without its BTTS market)."""
+    from decimal import Decimal
+
+    inv = {k: 1 / float(v) for k, v in FROZEN_1X2.items()}
+    total = sum(inv.values())
+    outcomes = []
+    for o in snap.outcomes:
+        if o.fixture_id == EPL_FIX and str(o.market) == "1X2":
+            k = o.outcome.name
+            o = dataclasses.replace(o, reference_odds=Decimal(FROZEN_1X2[k]),
+                                    market_probability=inv[k] / total)  # fmt: skip
+        elif o.fixture_id == EPL_FIX and drop_btts and str(o.market) == "BTTS":
+            continue
+        outcomes.append(o)
+    fixtures = tuple(dataclasses.replace(f, estimated_goals=FROZEN_GOALS)
+                     if f.fixture_id == EPL_FIX else f for f in snap.fixtures)  # fmt: skip
+    return dataclasses.replace(snap, outcomes=tuple(outcomes), fixtures=fixtures)
+
+
+def _texts(component, cls):
+    """Texts of the nodes with this class (e.g. the reference card's price cells)."""
+    found = []
+
+    def text(node):
+        if isinstance(node, dict):
+            kids = node.get("props", {}).get("children")
+            return text(kids)
+        if isinstance(node, list):
+            return "".join(text(n) for n in node)
+        return "" if node is None else str(node)
+
+    def walk(node):
+        if isinstance(node, dict):
+            props = node.get("props", {})
+            if cls in (props.get("className") or "").split():
+                found.append(text(node))
+            for v in props.values():
+                walk(v)
+        elif isinstance(node, list):
+            for n in node:
+                walk(n)
+
+    walk(json.loads(jtext(component)))
+    return found
+
+
+def _frozen_app(data, monkeypatch, **kw):  # noqa: F811
+    app = _app(data)
+    svc = _service(app)
+    snap = _distinct(svc.snapshot("live"), **kw)
+    monkeypatch.setattr(svc, "live", lambda: snap)
+    return app, snap
+
+
+def test_frozen_reference_card_shows_only_snapshot_prices(data, monkeypatch):  # noqa: F811
+    app, snap = _frozen_app(data, monkeypatch)
+    body, ref, *_ = _detail(app)(challenge(snap), "1X2", "/lab", [], None, {})
+    text = jtext(ref)
+    assert "Frozen Bookmaker Market Reference" in text and "Weekly Challenge snapshot" in text
+    assert _texts(ref, "price") == ["1.60", "3.60", "5.20"]  # never the latest 1.45/3.40/3.80
+    assert "Individual bookmaker prices" not in text.split("not stored")[-1]  # no ranges
+    assert "latest collected" not in text and "3 independent bookmaker groups" in text
+    # Your View's value check uses the frozen prices too (no latest substitution)
+    assert "1.45" not in jtext(body) and "1.60" in jtext(body)
+    # the frozen estimate is the snapshot's
+    assert "1.40" in jtext(body) and "1.10" in jtext(body)
+
+
+def test_missing_frozen_market_is_unavailable_never_latest(data, monkeypatch):  # noqa: F811
+    app, snap = _frozen_app(data, monkeypatch, drop_btts=True)
+    _, ref, *_ = _detail(app)(challenge(snap), "BTTS", "/lab", [], None, {})
+    text = jtext(ref)
+    assert lab_context.FROZEN_MARKET_MISSING in text
+    assert _texts(ref, "price") == [] and "1.80" not in text and "2.00" not in text
+
+
+def test_latest_and_research_keep_the_latest_reference(data, monkeypatch):  # noqa: F811
+    app, snap = _frozen_app(data, monkeypatch)
+    update = _detail(app)
+    latest = {**challenge(snap), "latest": True}
+    for t in (latest, {"fixture": EPL_FIX, "ctx": "research"}):
+        body, ref, *_ = update(t, "1X2", "/lab", [], t, {})
+        text = jtext(ref)
+        assert (
+            "Frozen Bookmaker Market Reference" not in text and "Bookmaker Market Reference" in text
+        )
+        assert _texts(ref, "price") == ["1.45", "3.40", "3.80"], t  # the latest consensus
+        assert "1.97" in jtext(body)  # the latest estimate, not the frozen 1.40
+
+
+def test_frozen_odds_view_holds_only_snapshot_values(data):  # noqa: F811
+    _, snap = _live(data)
+    snap = _distinct(snap, drop_btts=True)
+    ov = lab_context.frozen_odds(snap, EPL_FIX)
+    from diski9.api_football.markets import Market
+
+    dm = ov.markets[Market.MATCH_RESULT]
+    assert {k.name: str(v.consensus_odds) for k, v in dm.consensus.outcomes.items()} == FROZEN_1X2
+    assert all(v.min_odds is None and v.max_odds is None for v in dm.consensus.outcomes.values())
+    assert abs(sum(float(x) for x in dm.implied.margin_adjusted.values()) - 1) < 1e-9
+    assert (
+        ov.markets[Market.BTTS].status == "unavailable"
+        and ov.markets[Market.BTTS].consensus is None
+    )
+
+
+def test_supplementary_statistics_note_and_frozen_integrity(data, monkeypatch):  # noqa: F811
+    app, snap = _frozen_app(data, monkeypatch)
+    update = _detail(app)
+    frozen_body = jtext(update(challenge(snap), "1X2", "/lab", [], None, {})[0])
+    assert lab.FROZEN_CONTEXT_NOTE in frozen_body
+    latest = {**challenge(snap), "latest": True}
+    for t in (latest, {"fixture": EPL_FIX, "ctx": "research"}):
+        assert lab.FROZEN_CONTEXT_NOTE not in jtext(update(t, "1X2", "/lab", [], t, {})[0])
+    lc, _ = lab_context.resolve_target(_service(app), data, challenge(snap))
+    g = lc.r["goal_model"]["estimated_goals"]
+    assert (g["home"], g["away"]) == FROZEN_GOALS  # the latest statistics change nothing
+    assert lc.r["_model_context"].endswith("|1.40|1.10")
+
+
 # ------------------------------------------------------------------------- browser
 BROWSER = r"""
 const { chromium } = require('playwright');
@@ -303,12 +430,29 @@ const { chromium } = require('playwright');
       return p.locator('#ctx-home').inputValue();
     };
     const toggle = p.locator('#lab-latest input');
+    const prices = () => p.evaluate(() => [...document.querySelectorAll('#detail-reference .card.market .price')].map(e => e.innerText.trim()));
+    const goals = () => p.evaluate(() => [...document.querySelectorAll('#detail .lab-baseline .num, #detail .lab-baseline .big')].map(e => e.innerText.trim()).join(' '));
+    const leftAligned = () => p.evaluate(() => {
+      const h = document.querySelector('.detail-header h2').getBoundingClientRect().left;
+      return [...document.querySelectorAll('.lab-context .lab-context-line > *, .lab-context-note')]
+        .every(e => Math.abs(e.getBoundingClientRect().left - h) < 2 || e.previousElementSibling);
+    });
+    const scrollShot = async (sel, n) => { await p.locator(sel).first().scrollIntoViewIfNeeded(); await p.evaluate(() => window.scrollBy(0, -80)); await shot(n); };
     // a challenge-origin match: frozen by default, the toggle shown and off
     await p.goto(BASE + `lab?fixture=${FID}&ctx=challenge&round=${ROUND}`);
     await until('frozen:');
     r.toggleShown = await p.locator('#lab-latest-wrap').isVisible();
     r.offAtStart = !(await toggle.isChecked());
     r.overflowFrozen = await overflow(); await shot('frozen');
+    // the frozen context's own reference, estimate and disclosure
+    await p.waitForFunction(() => document.querySelectorAll('#detail-reference .card.market .price').length > 0);
+    r.frozenPrices = await prices();
+    r.frozenCard = (await p.locator('#detail-reference .card.market').innerText()).toLowerCase().includes('frozen bookmaker market reference');
+    r.frozenGoals = (await p.locator('#detail .lab-baseline').innerText()).includes('1.40');
+    r.note = (await detail()).includes('supplementary latest data');
+    r.frozenLeft = await leftAligned();
+    await scrollShot('#detail-reference .card.market', 'frozen_reference');
+    await scrollShot('.frozen-context-note', 'frozen_context_note');
     await ctxHome(); await p.locator('#ctx-home').fill('0.25'); await p.locator('#ctx-home').press('Tab');
     await p.waitForFunction(() => document.querySelector('#ctx-home').value === '+0.25');
     // latest data: research only, its own (empty) Your View, no selection panel
@@ -322,6 +466,13 @@ const { chromium } = require('playwright');
     r.latestStrip = (await p.locator('#ch-strip').innerText()).trim();
     await p.evaluate(() => window.scrollTo(0, 0));
     r.overflowLatest = await overflow(); await shot('latest');
+    await p.waitForFunction(() => !document.querySelector('#detail-reference').innerText.toLowerCase().includes('frozen bookmaker'));
+    r.latestPrices = await prices();
+    r.latestGoals = (await p.locator('#detail .lab-baseline').innerText()).includes('1.97');
+    r.latestNote = (await detail()).includes('supplementary latest data');
+    r.latestLeft = await leftAligned();
+    await scrollShot('#detail-reference .card.market', 'latest_reference');
+    await p.evaluate(() => window.scrollTo(0, 0));
     // the market is independent of the context
     await p.locator('#lab-market label', { hasText: 'Both Teams' }).click();
     await p.waitForFunction(() => document.querySelector('#lab-market input:checked').value === 'BTTS');
@@ -336,6 +487,7 @@ const { chromium } = require('playwright');
     await p.locator(w < 720 ? '#screener-root .fx-card' : '#screener-root tr.row').first().click();
     await p.waitForURL(/ctx=research/); await until('model calculated');
     r.researchToggle = await p.locator('#lab-latest-wrap').isVisible();
+    r.researchLeft = await leftAligned();
     r.overflowResearch = await overflow(); await shot('research_origin');
     out.widths[w] = r;
     await ctx.close();
@@ -346,7 +498,7 @@ const { chromium } = require('playwright');
 """
 
 
-def test_browser_frozen_latest_and_research_origin_at_three_widths(data):  # noqa: F811
+def test_browser_frozen_latest_and_research_origin_at_three_widths(data, monkeypatch):  # noqa: F811
     import os
     import shutil
     import subprocess
@@ -361,9 +513,9 @@ def test_browser_frozen_latest_and_research_origin_at_three_widths(data):  # noq
 
     from .test_app import _free_port
 
-    _, snap = _live(data)
+    app, snap = _frozen_app(data, monkeypatch)  # frozen values differ from the latest ones
     port = _free_port()
-    server = make_server("127.0.0.1", port, _app(data).server, threaded=True)
+    server = make_server("127.0.0.1", port, app.server, threaded=True)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     head = (f"const BASE = 'http://127.0.0.1:{port}/'; const FID = {EPL_FIX}; "
             f"const ROUND = {json.dumps(snap.round_id)}; "
@@ -382,4 +534,9 @@ def test_browser_frozen_latest_and_research_origin_at_three_widths(data):  # noq
         assert r["latestPanel"] == "" and r["latestStrip"] == "", (w, r)
         assert r["stillLatest"] and r["frozenHome"] == "+0.25" and r["marketKept"] == "BTTS", w
         assert not r["researchToggle"], w
+        assert r["frozenCard"] and r["frozenPrices"] == ["1.60", "3.60", "5.20"], (w, r)
+        assert r["latestPrices"] == ["1.45", "3.40", "3.80"], (w, r)
+        assert r["frozenGoals"] and r["latestGoals"], (w, r)  # the switch is visible
+        assert r["note"] and not r["latestNote"], (w, r)
+        assert r["frozenLeft"] and r["latestLeft"] and r["researchLeft"], (w, r)
         assert r["overflowFrozen"] == r["overflowLatest"] == r["overflowResearch"] == 0, (w, r)

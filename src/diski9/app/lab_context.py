@@ -39,6 +39,54 @@ class LabContext:
     round_code: str | None = None
     round_id: object = None  # UUID of the published round (persistent mode)
     frozen_at: object = None  # snapshot time (frozen context)
+    # the bookmaker reference of this context (CP3A-4 closure): frozen - built from the
+    # snapshot only (``frozen_odds``); live - None, i.e. the latest odds view
+    odds: object = None
+
+
+FROZEN_MARKET_MISSING = "This market is not part of the Weekly Challenge snapshot for this match."
+
+
+def frozen_odds(snap, fid):
+    """The match's bookmaker reference as frozen in the published snapshot (CP3A-4
+    closure), shaped like the latest odds view so the Match Lab renders it unchanged:
+    per market, the frozen consensus reference odds, the frozen margin-adjusted market
+    probabilities, the number of independent bookmaker groups and the last observation
+    before the freeze. Individual bookmaker prices are not stored with the snapshot, so
+    none are shown; nothing is derived from probabilities, and a market the snapshot does
+    not hold is unavailable - never filled from the latest prices."""
+    from decimal import Decimal
+
+    from diski9.api_football.markets import MARKET_OUTCOMES, Market
+    from diski9.odds.consensus import MarketConsensus, OutcomeConsensus
+    from diski9.odds.display import DisplayedMarket
+    from diski9.odds.implied import ImpliedProbabilities
+
+    from .data import OddsView
+
+    rows = [o for o in snap.outcomes if o.fixture_id == fid]
+    markets = {}
+    for market in Market:
+        mine = {o.outcome: o for o in rows if o.market == market}
+        if not mine or set(mine) != set(MARKET_OUTCOMES[market]):
+            markets[market] = DisplayedMarket(market, "unavailable", None, None, None, None,
+                                              FROZEN_MARKET_MISSING)  # fmt: skip
+            continue
+        groups = min(o.bookmaker_groups for o in mine.values())
+        seen = [o.latest_observation_at for o in mine.values() if o.latest_observation_at]
+        outcomes = {
+            k: OutcomeConsensus(k, o.reference_odds, None, o.bookmaker_groups, (), None, None)
+            for k, o in mine.items()
+        }
+        raw = {k: Decimal(1) / o.reference_odds for k, o in mine.items()}
+        implied = ImpliedProbabilities(
+            raw, {k: Decimal(str(o.market_probability)) for k, o in mine.items()},
+            sum(raw.values()) - 1)  # fmt: skip
+        consensus = MarketConsensus(int(fid), market, snap.snapshot_at, outcomes, groups, 1, {},
+                                    max(seen) if seen else None)  # fmt: skip
+        markets[market] = DisplayedMarket(market, "fresh", consensus, implied,
+                                          max(seen) if seen else None, None)  # fmt: skip
+    return OddsView(markets, True)
 
 
 def frozen_key(round_code: str, fixture_id) -> str:
@@ -135,6 +183,7 @@ def resolve(service, data, fixture_id, universe: str | None, published=None) -> 
                 snap.round_id,
                 rv.id if rv else None,
                 snap.snapshot_at,
+                frozen_odds(snap, fid),
             )
     live = with_live_starting_point(r, ov)
     live = live if live is not r else dict(r)
