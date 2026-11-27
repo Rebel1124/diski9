@@ -232,7 +232,8 @@ Screener and The Match Lab); margin removal is `normalise` in
 
 **Definitions**
 
-* **Model probability:** the Goal Model 1.0 probability.
+* **Model probability:** the Goal Model probability (Goal Model 1.1 for current
+  forecasts; historical rounds keep the version they were frozen with).
 * **Market probability:** `(1 / odds_i) / Σ(1 / odds)` over the complete outcome
   set: Home/Draw/Away, BTTS Yes/No, Over/Under 2.5. A simple proportional margin
   removal, not a perfect estimate of the market's true beliefs (it ignores, for
@@ -314,5 +315,52 @@ Screener and The Match Lab); margin removal is `normalise` in
 
 ## 10. Model version and changelog
 
-**Current: Goal Model 1.0 (Engine 3.0).** See
+**Current: Goal Model 1.1 (Engine 3.1).** See
 [`model_changelog.md`](model_changelog.md).
+
+## 11. Market-implied starting point (Phase 8 CP2B.1)
+
+When the Goal Model has **no independent prediction** for a match (for example early in
+the season), the Match Lab can start from a **Market-implied Model** instead (State B).
+It is never shown beside the Goal Model and never replaces an available Goal Model
+prediction (State A). Without reliable inputs there is no quantitative starting point
+at all (State C): the fixture information, statistics and bookmaker prices stay
+available, and nothing is estimated.
+
+* **What it is:** the home and away estimated goals that best reproduce the
+  bookmakers' margin-adjusted consensus probabilities under the same independent
+  Poisson calculation as the Goal Model (§4). They are **estimates derived from
+  bookmaker probabilities**: not shot-based xG and not an independent Diski 9 forecast.
+* **Method (accepted in Phase 8 CP1, reused unchanged):** the fit minimises the sum,
+  over the markets used, of the Kullback-Leibler divergence between the market
+  distribution and the model distribution (each market counts once), with a
+  deterministic multi-start bounded L-BFGS-B search over 0.05-6.0 goals per team and an
+  identifiability check. Code: `research/market_implied_xg.fit`, called from
+  `screener/market_fit.py`.
+* **Inputs:** a Match Result (1X2) consensus plus at least one goals market (BTTS or
+  Over/Under 2.5), each priced by **at least three independent bookmaker groups** and
+  **fresh** (quotes no more than 24 hours old). Live research uses the latest fresh
+  consensus. A Weekly Challenge match uses **only its frozen snapshot**: the frozen
+  probabilities had to be fresh when the snapshot was taken; they are never replaced
+  by later odds and never re-judged by their age today.
+* **Fit quality:** the largest absolute difference between a fitted and a market
+  probability. **Good:** 2 percentage points or less. **Approximate:** 4 points or
+  less (shown with a caution). Above 4 points, a non-converged search, a rate at its
+  bound, an unidentified fit or invalid inputs: **rejected** (State C). A good fit
+  only shows that the estimated goals represent the bookmaker prices; it does not
+  show that they predict results better than the bookmakers.
+* **Display:** the actual bookmaker consensus and the fitted probabilities are shown as
+  separate rows. **No edge or EV** is shown for a market-implied starting point (or for
+  Your View adjustments made from it): the two come from the same prices, so a
+  difference is not an independent advantage.
+* **Your View:** adjustments start from the market-implied estimated goals. Each saved
+  adjustment records its starting point (source, method version and an identity of
+  the exact input probabilities). If that changes, the earlier adjustment is not
+  applied and the Match Lab says why.
+* **Weekly Challenge "Your View" source (OD-3):** per selection, a valid adjustment,
+  otherwise the Diski 9 probability, otherwise the frozen market-implied probability,
+  otherwise the actual frozen consensus. The Market and Diski 9 sources never use
+  fitted values, and eligibility never depends on a fit.
+* **On demand:** fits run only when a match is opened in the Match Lab or a selected
+  pick needs one; results for identical inputs are reused from a small in-memory
+  store. Nothing is fitted across the fixture lists or the Weekly Challenge pool.

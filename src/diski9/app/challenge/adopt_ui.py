@@ -88,11 +88,14 @@ def _label(snap, data, fid) -> str:
 
 
 def _live_stamp(data):
-    from diski9.app import lab
+    from diski9.app import lab, lab_context
 
     def stamp(fid: int):
-        r, _, _ = data.detail(fid)
-        if r is None or not (r.get("goal_model") or {}).get("available"):
+        r, ov, _ = data.detail(fid)
+        if r is None:
+            return None
+        r = lab_context.with_live_starting_point(r, ov)  # State B: market-implied stamp
+        if lab.starting_point(r) is None:
             return None
         return lab.model_context(r)
 

@@ -1683,3 +1683,10 @@ details.term-info > .info-pop { white-space: normal; text-align: left; max-width
     white-space: nowrap; }
 }
 @media (max-width: 340px) { .me-tabs .ch-view { flex-wrap: wrap; } }
+
+/* Phase 8 CP2B.1: Match Lab starting point (State A/B) - existing tokens only */
+.lab-source-line { margin: 2px 0 8px; }
+.lab-source.market { color: var(--warn); }
+.fit-note { margin: 6px 0 2px; }
+.fit-note.fit-approximate { color: var(--warn); }
+.adj-reset { margin-top: 8px; }

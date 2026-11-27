@@ -101,6 +101,9 @@ owner approval. Detail and evidence:
   fit (mean draw residual −1.46 pp in CP1).
 * Additional European competitions (the Conference League is excluded from the MVP).
 * Midweek and European Weekly Challenge rounds.
+* Market-implied Estimated Goals in list views (All Upcoming Fixtures, the Weekly
+  Challenge pool): deliberately **not** done in CP2B.1, which fits only on demand in the
+  Match Lab and for selected picks (CP1-5, OD-2).
 
 **Product and education**
 * Edge-based recognition enhancements; user-versus-market analysis; a public track
@@ -116,6 +119,9 @@ owner approval. Detail and evidence:
 **Operations and housekeeping**
 * ML-01 Match Lab stale-adjustment race: **required before private Beta** (Phase 6
   register).
+* Hosted validation of the NumPy/SciPy footprint and fit latency (CP2B.1 local
+  measurements in the Phase 8 record §14) at the hosted acceptance checkpoint; no
+  infrastructure change is authorised.
 * A3 housekeeping items carried from Scenario A3.
 * Egress policy reassessment after Phase 9 (API-Football block decision).
 * Account deletion and privacy gates before launch.

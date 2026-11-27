@@ -8,7 +8,9 @@
 - CP1-7 Step A (quota-free account check) is **complete**. Step B is **authorised for 3–9 Dec 2026 only**, at most 25 counted requests (Appendix B).
 - **Owner decisions OD-1 to OD-6 are approved with refinements (27 Nov 2026, §11).** The CP2–CP4 plan (§9) is reconciled with them.
 - **CP2A is formally accepted by the owner (27 Nov 2026)** (§13, §13.1, closure refinement §13.2). Goal Model 1.1 is the accepted **application** model baseline. It is an application implementation only: nothing is deployed to a hosted environment.
-- **CP2B awaits explicit owner authorisation.** Phase 6 stays paused.
+- **CP2A and its closure refinement are fully accepted and closed (27 Nov 2026;** `87849bb`, CI run 172: 2,378 passed, 0 failed, 0 skipped).
+- **CP2B is split (owner, 27 Nov 2026):** **CP2B.1**, the market-implied model on domestic data, is **authorised and implemented, awaiting independent review and owner acceptance** (§14). **CP2B.2**, Champions League and Europa League market-only integration, is **not authorised**: it depends on the Step B evidence and a separate owner decision.
+- Phase 6 stays paused.
 
 **How to read this record:**
 - §1–§8, §10 and §11 record **accepted decisions**. Where §11 refines an earlier section, §11 governs.
@@ -245,10 +247,17 @@ So **no app-database migration is expected** for CP1-6. Historical frozen rounds
 - **Estimate: 15–20 h** (§9.3). **STOP:** ChatGPT review.
 
 **CP2B: European competitions, market-implied Estimated Goals and source-aware identity**
+
+> **Sequencing refinement (owner, 27 Nov 2026).** CP2B runs as two controlled steps, without expanding the Phase 8 scope:
+> - **CP2B.1 - market-implied model (authorised; implemented, §14):** the dependencies, the production fit, on-demand fitting and reuse, source-aware Your View identity, the complete OD-3 hierarchy and the minimum Match Lab integration for States A/B/C, all on existing domestic data. No provider requests.
+> - **CP2B.2 - European integration (not authorised):** the "European data" items below, conditional on satisfactory Step B evidence (3-9 Dec 2026, ≤ 25 counted attempts) and explicit owner authorisation.
+>
+> The combined CP2B estimate (15-21 h, §9.3) is kept for planning; actual effort is reported separately for CP2B.1 and CP2B.2.
+
 - **Prerequisites:**
   - CP2A accepted;
-  - **CP1-7 Step B results** (European parts are gated on verified coverage);
-  - the dependency change, approved in principle by CP1-5; the `uv` lockfile is updated only at CP2B.
+  - **CP1-7 Step B results** (European parts, CP2B.2, are gated on verified coverage);
+  - the dependency change, approved in principle by CP1-5; the `uv` lockfile is updated at CP2B.1.
 - **Changes:**
   - **Dependencies:** promote `numpy` and `scipy` to runtime with `uv add` (lockfile updated).
   - **Market fit:** move the `research/market_implied_xg.py` fit into `screener/market_fit.py` unchanged:
@@ -338,7 +347,7 @@ So **no app-database migration is expected** for CP1-6. Historical frozen rounds
 | Checkpoint | Implementation | Testing | **Total** | Earlier |
 |---|---|---|---|---|
 | CP2A | 10–13 | 5–7 | **15–20** | 14–18 |
-| CP2B | 9–13 (European 4–6) | 6–8 | **15–21** | 14–20 |
+| CP2B (CP2B.1 + CP2B.2) | 9–13 (European 4–6) | 6–8 | **15–21** | 14–20 |
 | CP3A | 12–16 | 6–8 | **18–24** | 20–26 |
 | CP3B | 11–15 | 5–7 | **16–22** | 16–22 |
 | CP4 | 3–4 (docs, closure) | 5–8 | **8–12** | 8–12 |
@@ -789,7 +798,118 @@ No blocker prevents CP2A once it is authorised.
 - No CMS, resource management, PDF generation or video hosting is introduced.
 - Register: [`../product/future_enhancements.md`](../product/future_enhancements.md).
 
-**Next:** CP2B awaits explicit owner authorisation. The European Step B verification stays bounded to 3–9 Dec 2026 (≤ 25 counted attempts) and is not brought forward.
+**Next (superseded 27 Nov 2026):** CP2A was fully accepted and closed, CP2B was split, and CP2B.1 was authorised (§14). The European Step B verification stays bounded to 3–9 Dec 2026 (≤ 25 counted attempts) and is not brought forward.
+
+## 14. CP2B.1 implementation record: market-implied model (27 Nov 2026; awaiting independent review and owner acceptance)
+
+**Scope (authorised 27 Nov 2026):** the production market-implied model on existing domestic data, the NumPy/SciPy dependencies, on-demand fitting with bounded reuse, source-aware Your View identity, the complete OD-3 Your View hierarchy and the minimum Match Lab integration for States A/B/C. **Not in scope and not done:** CP2B.2 European integration, provider requests, refresh activation, migrations, protected databases, deployment, CP3A/CP3B/CP4.
+
+### 14.1 What was built
+
+- **Dependencies.** `numpy>=2.5.5,<3` and `scipy>=1.18.1,<2` moved from the `dev` group to runtime dependencies. `uv lock` changed only those entries: the locked versions stay **numpy 2.5.5** and **scipy 1.18.1**, and no other package moved. Both are imported **lazily** at the first fit, so application start-up does not load them.
+- **`screener/market_fit.py` (new).** The smallest production adaptation:
+  - calls the accepted prototype's `fit` **unchanged** (`research/market_implied_xg.py`; its docstring now notes the production reuse);
+  - adds the R-3 input rule, rejection of non-converged fits (CP1 report §7), the quality bands and the identity and reuse layer;
+  - displays fitted probabilities through the production Poisson function `goal_model.markets`.
+  - **Live inputs** (`live_fit`): from the display consensus already loaded for the Match Lab, only markets that are `fresh` now, Challenge-eligible and priced by ≥ 3 independent groups.
+  - **Frozen inputs** (`frozen_fit`): only from the round snapshot's outcomes. Each market must be complete, priced by ≥ 3 groups and observed no more than 24 h **before the snapshot time** (never judged against today). No live odds are ever used.
+  - **Statuses:** `good` (≤ 2 pp), `approximate` (≤ 4 pp) or `rejected`, with a reason. The reasons are `no_odds`, `missing_1x2`, `missing_goals_market`, `insufficient_groups`, `stale`, `invalid_input`, `not_converged`, `not_identified`, `at_boundary`, `poor_fit`, `optimisation_failure` and `error`. A raised exception becomes `error` (State C), never a crash.
+  - **Identity:** SHA-256 of a **methodology fingerprint** (fit version, bounds, start points, thresholds, markets, minimum groups and maximum age), the context (live or frozen), the fixture and the exact input probabilities at full float precision.
+  - **Reuse:** an in-process LRU of 512 entries (a few hundred bytes each), thread-safe, holding rejected fits too. No persistence, background job or new infrastructure.
+- **States A/B/C** (`app/lab.py`, `app/lab_context.py`):
+  - **A, independent model available:** always used. No fit is attempted.
+  - **B, a reliable fit:** attached as `r["_starting_point"]`. Model fields are never touched.
+  - **C, neither:** shows the reason.
+  - **Live context:** fits from the latest fresh consensus.
+  - **Frozen context:** every round fixture opened from the Weekly Challenge uses only its snapshot. Frozen estimated goals give State A; otherwise the frozen fit gives State B, or State C. The live model is no longer shown in the frozen context for a fixture frozen without one.
+- **Match Lab (minimum functional integration):**
+  - "Starting point: Diski 9 Goal Model / Market-implied Model" above Estimated Goals;
+  - State B tiles with fitted probabilities labelled as fitted, the good or approximate fit note, and the caveat that a fit shows representation, not predictive accuracy;
+  - a separate **"Bookmaker consensus (actual)" / "Market-implied Model (fitted)"** table;
+  - **no edge or EV**, including Your View's value check, for State B;
+  - State C shows the reason, keeps the research information, and offers no adjustments.
+  - Existing components and styles are reused, with five small CSS rules on existing tokens. No navigation, homepage, slider, icon or Learn work.
+- **Source-aware Your View identity:**
+  - **State A stamp unchanged:** `"<version>|<fixture>|<home>|<away>"`, so existing adjustments stay valid.
+  - **State B stamp:** `"mi1.0:<12-hex input identity>|<fixture>|<home>|<away>"`. It never equals a State A stamp, the other context's stamp, or a stamp from different prices.
+  - **Server side:** `your_view.frozen_context` and `_resolve` compute the frozen market stamp from the stored snapshot. The existing format check already accepts it, and it is stored in the existing `model_context` text, so **no migration**.
+  - **Lazy loading:** `saved_round_fixtures` lets the account load fit only the matches with a saved Your View, never the pool.
+  - **Guest adoption** uses the same live stamp.
+- **Visible explanations (no silent reset).** When stored numbers no longer match, the Match Lab header says why:
+  - the model has no prediction now;
+  - the model now has one;
+  - the bookmaker prices changed;
+  - the Goal Model version changed;
+  - the estimated goals changed;
+  - no starting point exists.
+  - The earlier numbers are never reinterpreted. Adjusting again starts from the current starting point.
+  - Account copies keep the stored stamp under `_was` so that the explanation also appears for signed-in participants.
+- **Complete OD-3 hierarchy** (`challenge/analysis.py`): Your View is valid adjustment → Diski 9 → **frozen market-implied** → actual frozen consensus.
+  - The fitted probabilities travel as an explicit `implied` mapping (`pages.implied_for`), fitted only for **selected** model-absent picks.
+  - The **Market** and **Diski 9** sources never use them, and Diski 9 keeps the CP2A availability rules.
+  - **Source summary:** for example "Your View: 2 your adjustment · 5 Diski 9 · 1 market-implied · 1 market consensus". Unadjusted fallbacks are never shown as "You".
+  - Portfolio mathematics, credits and submission rules are unchanged.
+  - Market-only fixtures still get no edge or EV in the frozen view (`frozen_market_value` returns None).
+  - Eligibility never depends on a fit: pool construction does not call `market_fit`.
+
+### 14.2 Evidence
+
+- **Reconciliation with the accepted CP1 fits** (`docs/research/phase8_cp1/market_fits.csv`, all 131 qualifying snapshots):
+  - rates bit-identical (maximum difference **0**; tolerance 1e-9 goals);
+  - 101 good and 29 approximate, as CP1;
+  - the one CP1 non-converged fit is **rejected** (`not_converged`), as CP1 recommended;
+  - fitted probabilities through `goal_model.markets` differ from the prototype grid by at most **7.4e-13** (tolerance 1e-9: grid truncation below 1e-12 plus floating-point differences between CPUs).
+  - Synthetic round trips recover the generating rates to 1e-4.
+- **Goal Model 1.1 unchanged:** no Goal Model file changed, and the existing reconciliation and version tests pass. The 9,164-fixture reconciliation was not repeated because independent model calculations are unchanged.
+- **Focused tests:**
+  - `tests/test_phase8_cp2b1.py`, 37 tests including one browser test:
+    - reconciliation;
+    - quality bands at 2 and 4 pp;
+    - every gating branch;
+    - exceptions;
+    - live and frozen input rules (groups, freshness, an observation after the snapshot, incomplete markets);
+    - historical snapshots unaffected by present age;
+    - frozen fits unaffected by live odds and snapshots unchanged;
+    - reuse, invalidation (input, context, fixture, methodology) and the cache bound;
+    - no fitting from lists or pools;
+    - eligibility without fits;
+    - States A/B/C;
+    - every adjustment transition;
+    - the complete hierarchy with mixed sources.
+  - `tests/backend/test_backend_phase8_cp2b1.py`, PostgreSQL: the server-side frozen market stamp, Your View save/read, State C refusal and the unchanged stored snapshot.
+- **CP2A tests updated (legitimate behaviour extension):** the interim hierarchy counts now include `implied`, and the tracker and browser source notes assert the exact tier counts. With the demo snapshot, model-absent picks now show "market-implied" where a reliable frozen fit exists. No assertion was weakened.
+- **Browser (desktop 1280 px):**
+  - State B source label, the separate consensus and fitted table, no value check;
+  - an adjustment to 2.50 from the market-implied start kept across B → A → B navigation;
+  - State C reason, with no adjustments.
+  - The CP2A mobile builder journey now checks the mixed-source Your View note.
+  - Condition-based waits only.
+
+### 14.3 Performance and dependencies (local; preliminary, not hosted guarantees)
+
+| Measure | CP2B.1 (local) | CP1 research (§3, CP1-5) |
+|---|---|---|
+| Installed size: numpy, scipy and their bundled libraries | 179 MiB (numpy 34, numpy.libs 23, scipy 92, scipy.libs 30) | about 171 MiB |
+| Application start-up | unchanged: `import diski9.app` loads neither library (about 0.55–0.68 s, 66 MiB peak RSS in both runs) | — |
+| First fit in a process (includes the lazy imports) | 0.4–0.6 s, +51 MiB peak RSS per worker | about +50 MiB per worker |
+| Warm new fit | 200 synthetic fits: median 20.7, p90 30.7, max 40.8 ms (CP1 snapshots: median 20.4, p90 26.3 ms) | about 19 ms |
+| Reused fit (cache hit) | median about 17 µs, p99 78 µs | — |
+| Cache memory | ≤ 512 entries of a few hundred bytes (about 0.5 KiB pickled) | — |
+
+The +51 MiB applies once per worker that actually fits, against the existing VPS assumptions (Phase 6 F3). No infrastructure change, upgrade or spending is implied. Hosted validation stays with the hosted acceptance checkpoint (§9.4).
+
+### 14.4 Limitations and deviations
+
+- **Frozen context change:** a Weekly Challenge fixture frozen **without** independent estimated goals now opens in the frozen context (State B or C) instead of falling back to the live Match Lab. A fixture frozen **with** them now uses the frozen context even when the live model is currently unavailable. Both follow OD-2 (frozen inputs only).
+- **State A stamps** keep their Phase 6C.3 format (version, fixture, rounded estimated goals). A Goal Model parameter change is always a new version (maintenance policy), and a version change already invalidates the stamp.
+- **Fits are per process:** each worker has its own LRU, so a cold worker fits again on first use. That is deterministic and cheap.
+- **List views** show no market-implied estimated goals, by design. This is recorded in the deferred register.
+- The in-app methodology text and the broader Match Lab education stay for CP3B.
+
+### 14.5 Effort
+
+- **CP2B.1 actual:** about 1.5 h of active implementation and testing in this session, against the combined CP2B estimate of 15–21 h. The estimate is retained for planning.
+- **CP2B.2 remaining estimate:** about 4–6 h of European work plus its tests, as planned, once authorised after Step B.
 
 ## Appendix B. CP1-7 Step B: controlled provider verification plan (**authorised for 3–9 Dec 2026 only**, OD-5)
 

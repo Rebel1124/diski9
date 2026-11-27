@@ -58,6 +58,15 @@ def load(service, lab: dict | None, lc) -> dict | None:
     ver[lc.key] = view.version
     lab = labmod.store_adjustment(lab, lc.key, lc.r, view.state if view.status == yv.ACTIVE
                                   else None)  # fmt: skip
+    was = dict(lab.get(labmod.WAS_KEY) or {})  # saved numbers for another starting point
+    if view.status == yv.INCOMPATIBLE and view.stored_context:
+        was[lc.key] = view.stored_context
+    else:
+        was.pop(lc.key, None)
+    if was:
+        lab[labmod.WAS_KEY] = was
+    else:
+        lab.pop(labmod.WAS_KEY, None)
     lab["_ver"] = ver
     lab["_owner"] = _owner()
     return lab
@@ -120,11 +129,20 @@ def load_round(service, lab: dict | None) -> dict | None:
     if lab.get("_owner") not in (None, _owner()):
         lab = {}
     view, snap = found
-    ctxs = {
-        f.fixture_id: yv.RoundContext(view.id, f.fixture_id)
+    from diski9.screener import market_fit
+
+    # frozen baselines: independent estimated goals, or a reliable frozen market fit -
+    # only for matches with a saved Your View (never a fit across the whole pool)
+    try:
+        saved = yv.saved_round_fixtures(service.backend.engine, p, view.id)
+    except Exception:  # noqa: BLE001
+        return None
+    bases = {
+        f.fixture_id: market_fit.frozen_baseline(snap, f.fixture_id)
         for f in snap.fixtures
-        if f.estimated_goals is not None
+        if f.fixture_id in saved
     }
+    ctxs = {fid: yv.RoundContext(view.id, fid) for fid, base in bases.items() if base is not None}
     try:
         got = yv.get_many(service.backend.engine, p, list(ctxs.values()))
     except Exception:  # noqa: BLE001
@@ -135,11 +153,10 @@ def load_round(service, lab: dict | None) -> dict | None:
         if v is None:
             continue
         key = lab_context.frozen_key(view.code, fid)
-        fx = snap.fixture(fid)
+        h, a = bases[fid][1]
         stamp = yv.frozen_context(snap, fid, view.model_version)
         r = {"_model_context": stamp, "fixture": {"id": fid},
-             "goal_model": {"estimated_goals": {"home": fx.estimated_goals[0],
-                                                "away": fx.estimated_goals[1]}}}  # fmt: skip
+             "goal_model": {"estimated_goals": {"home": h, "away": a}}}  # fmt: skip
         lab = labmod.store_adjustment(lab, key, r, v.state if v.status == yv.ACTIVE else None)
         ver[key] = v.version
     lab["_ver"] = ver

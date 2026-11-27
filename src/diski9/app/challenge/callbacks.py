@@ -259,7 +259,7 @@ def submit(service, s, snap, avail, personal=None):
     except ValueError as e:
         return s, _flash(f"Your portfolio is not valid: {e}", "warn")
     personal = personal or {}
-    evs = pa.evaluate_sources(port, personal)
+    evs = pa.evaluate_sources(port, personal, pages.implied_for(snap, port.selections))
     replacing = s.get("submitted") is not None
     s["submitted"] = {
         "at": service.now().astimezone(UTC).isoformat(),
@@ -754,7 +754,8 @@ def register(app, data, service: ChallengeService) -> None:
         source = (prefs or {}).get("source", "market")
         if port is None or not pa.available(port, source):
             return [no_update], [no_update]
-        prob = pa.probability_for(source, your_view(state, lab_store))
+        implied = pages.implied_for(snap, port.selections) if source == "personal" else None
+        prob = pa.probability_for(source, your_view(state, lab_store), implied)
         cc = pa.correct_count_analysis(port, prob)
         v = (view or ["focus"])[0] or "focus"
         return [pages.k_detail(cc, int(k[0]))], [charts.correct_combined(cc, int(k[0]), v)]

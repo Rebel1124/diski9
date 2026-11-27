@@ -78,59 +78,92 @@ def missing_models(selections) -> int:
     return sum(1 for o in selections if not has_model(o))
 
 
-# Your View source of each selection (OD-3 hierarchy; CP2B adds the market-implied step)
-PERSONAL_SOURCES = ("adjusted", "model", "market")
+# Your View source of each selection (OD-3 hierarchy, complete since Phase 8 CP2B.1):
+# a valid personal adjustment, else the independent Diski 9 probability, else the
+# reliable market-implied probability fitted from the frozen snapshot, else the actual
+# frozen market consensus. ``implied`` maps outcome keys to frozen market-implied
+# probabilities (``screener.market_fit.implied_probabilities``); it is only ever used
+# here, for Your View - never for the Market or Diski 9 sources.
+PERSONAL_SOURCES = ("adjusted", "model", "implied", "market")
 PERSONAL_SOURCE_LABEL = {
     "adjusted": "your adjustment",
     "model": "Diski 9",
+    "implied": "market-implied",
     "market": "market consensus",
 }
 
 
-def personal_source(o: ChallengeOutcome, personal: Mapping[tuple, float] | None) -> str:
+def personal_source(
+    o: ChallengeOutcome,
+    personal: Mapping[tuple, float] | None,
+    implied: Mapping[tuple, float] | None = None,
+) -> str:
     """Which tier of the Your View hierarchy supplies this selection's probability."""
     if personal and personal.get(o.key) is not None:
         return "adjusted"
-    return "model" if has_model(o) else "market"
+    if has_model(o):
+        return "model"
+    if implied and implied.get(o.key) is not None:
+        return "implied"
+    return "market"
 
 
-def personal_sources(selections, personal: Mapping[tuple, float] | None) -> dict[str, int]:
+def personal_sources(
+    selections,
+    personal: Mapping[tuple, float] | None,
+    implied: Mapping[tuple, float] | None = None,
+) -> dict[str, int]:
     """Count of selections per Your View tier (for the compact source summary)."""
     out = dict.fromkeys(PERSONAL_SOURCES, 0)
     for o in selections:
-        out[personal_source(o, personal)] += 1
+        out[personal_source(o, personal, implied)] += 1
     return out
 
 
-def personal_summary(selections, personal: Mapping[tuple, float] | None) -> str:
-    """'Your View: 2 your adjustment · 6 Diski 9 · 1 market consensus' (non-zero tiers)."""
-    counts = personal_sources(selections, personal)
+def personal_summary(
+    selections,
+    personal: Mapping[tuple, float] | None,
+    implied: Mapping[tuple, float] | None = None,
+) -> str:
+    """'Your View: 2 your adjustment · 5 Diski 9 · 1 market-implied · 1 market
+    consensus' (non-zero tiers)."""
+    counts = personal_sources(selections, personal, implied)
     parts = [f"{n} {PERSONAL_SOURCE_LABEL[k]}" for k, n in counts.items() if n]
     return "Your View: " + " · ".join(parts) if parts else ""
 
 
-def personal_probability(personal: Mapping[tuple, float] | None) -> Probability:
+def personal_probability(
+    personal: Mapping[tuple, float] | None, implied: Mapping[tuple, float] | None = None
+) -> Probability:
     """The participant's view per selection: their own valid adjustment, otherwise the
-    Diski 9 probability, otherwise the actual market consensus probability (interim
-    fallback; the market-implied step arrives in CP2B)."""
+    Diski 9 probability, otherwise the reliable market-implied probability, otherwise
+    the actual market consensus probability."""
     personal = personal or {}
+    implied = implied or {}
 
     def prob(o: ChallengeOutcome) -> float:
         p = personal.get(o.key)
         if p is not None:
             return float(p)
-        return o.model_probability if has_model(o) else o.market_probability
+        if has_model(o):
+            return o.model_probability
+        q = implied.get(o.key)
+        return float(q) if q is not None else o.market_probability
 
     return prob
 
 
-def probability_for(source: str, personal: Mapping[tuple, float] | None = None) -> Probability:
+def probability_for(
+    source: str,
+    personal: Mapping[tuple, float] | None = None,
+    implied: Mapping[tuple, float] | None = None,
+) -> Probability:
     if source == "market":
         return market_probability
     if source == "model":
         return model_probability
     if source == "personal":
-        return personal_probability(personal)
+        return personal_probability(personal, implied)
     raise ValueError(f"Unknown probability source {source!r}")
 
 
@@ -233,12 +266,14 @@ def evaluate_with(portfolio: StructuredPortfolio, probability: Probability) -> G
 
 
 def evaluate_sources(
-    portfolio: StructuredPortfolio, personal: Mapping[tuple, float] | None = None
+    portfolio: StructuredPortfolio,
+    personal: Mapping[tuple, float] | None = None,
+    implied: Mapping[tuple, float] | None = None,
 ) -> dict[str, GroupEvaluation | None]:
     """Market, Diski 9 and Your View evaluations of one portfolio (same payouts).
     Diski 9 is None unless all nine selections have an independent prediction."""
     return {
-        s: evaluate_with(portfolio, probability_for(s, personal))
+        s: evaluate_with(portfolio, probability_for(s, personal, implied))
         if available(portfolio, s)
         else None
         for s in SOURCES

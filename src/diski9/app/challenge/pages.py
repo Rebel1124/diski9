@@ -647,11 +647,20 @@ def outcome_states(service, snap, sels, keys, is_locked: bool, personal=None) ->
     return out
 
 
+def implied_for(snap, outcomes) -> dict:
+    """Frozen market-implied probabilities for these selections that have no Diski 9
+    prediction (Your View tier 3); fitted on demand for those fixtures only."""
+    from diski9.screener import market_fit
+
+    return market_fit.implied_probabilities(snap, outcomes) if snap is not None else {}
+
+
 def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None) -> html.Div:
     source = (prefs or {}).get("source", "market")
-    prob = pa.probability_for(source, personal)
     cfg = snap.config
     chosen = service.outcomes_for(snap, sels)
+    implied = implied_for(snap, chosen) if source == "personal" else None
+    prob = pa.probability_for(source, personal, implied)
     progress = portfolio_progress(chosen, snap.snapshot_at, cfg, pool=snap.outcomes)
     stats, nine = pa.bucket_stats(chosen, prob, cfg)
     by_bucket: dict = {}
@@ -671,7 +680,7 @@ def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None
         msg = "Still needed: " + ", ".join(need) if need else ""
     port = service.portfolio(snap, sels)
     ev = pa.evaluate_with(port, prob) if port is not None and pa.available(port, source) else None
-    note = source_note(source, chosen, personal, nine.selected)
+    note = source_note(source, chosen, personal, nine.selected, implied)
 
     def label(o):
         fx = snap.fixture(o.fixture_id)
@@ -693,7 +702,7 @@ def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None
     )
 
 
-def source_note(source: str, chosen, personal, n: int) -> str | None:
+def source_note(source: str, chosen, personal, n: int, implied=None) -> str | None:
     """Compact probability-source transparency (OD-3): missing Diski 9 predictions,
     or where each Your View probability comes from."""
     if not chosen:
@@ -708,7 +717,7 @@ def source_note(source: str, chosen, personal, n: int) -> str | None:
             )
         return None
     if source == "personal":
-        return pa.personal_summary(chosen, personal) or None
+        return pa.personal_summary(chosen, personal, implied) or None
     return None
 
 
@@ -761,7 +770,8 @@ def analysis_panel(service, snap, sels, prefs, personal=None) -> html.Div:
             ],
             className="ch-card ch-empty-analysis",
         )
-    prob = pa.probability_for(source, personal)
+    implied = implied_for(snap, port.selections) if source == "personal" else None
+    prob = pa.probability_for(source, personal, implied)
     ev = pa.evaluate_with(port, prob)
     cc = pa.correct_count_analysis(port, prob)
     bd = pa.calculation_breakdown(port, prob)
@@ -1299,7 +1309,8 @@ def picks_table(rows) -> html.Div:
 
 def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
     port = service.portfolio(snap, sels)
-    evs = pa.evaluate_sources(port, personal or {})
+    implied = implied_for(snap, port.selections)
+    evs = pa.evaluate_sources(port, personal or {}, implied)
     rows = []
     cfg = snap.config
     for code, b in zip(cfg.bucket_codes, port.buckets, strict=True):
@@ -1394,11 +1405,11 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
             else None,
             html.P(
                 (
-                    pa.personal_summary(port.selections, personal)
+                    pa.personal_summary(port.selections, personal, implied)
                     + ". Your View uses your Match Lab adjustments where you made them, Diski 9 "
-                    "where there is no adjustment, and the market consensus where neither "
-                    "exists. "
-                    if personal
+                    "where there is no adjustment, the market-implied estimate where Diski 9 "
+                    "has no prediction, and the market consensus where neither exists. "
+                    if personal or implied
                     else ""
                 )
                 + "Every estimate assumes independent "
@@ -1767,7 +1778,7 @@ def your_view_now(service, snap, sub) -> dict | None:
         return None
     if not personal:
         return {"adjusted": 0}
-    ev = pa.evaluate_sources(port, personal)["personal"]
+    ev = pa.evaluate_sources(port, personal, implied_for(snap, port.selections))["personal"]
     return {
         "adjusted": len({k[0] for k in personal}),
         "estimate": {"p_recover": ev.p_recover, "p_zero": ev.p_zero, "expected": ev.expected_gross},

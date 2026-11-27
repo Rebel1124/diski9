@@ -501,6 +501,14 @@ Record: [`../architecture/phase8_implementation.md`](../architecture/phase8_impl
 model baseline, **not deployed**. Closure refinement: a missing-Screener-payload
 diagnostic (approved). The regression-tool fingerprint change is deferred. The CP3A
 homepage football icon and the future Learn resources (YouTube in Phase 11 and ongoing;
-downloadable resources and reading as future enhancements) are recorded. **CP2B awaits
-explicit owner authorisation.** Record:
+downloadable resources and reading as future enhancements) are recorded. Record:
 [`../architecture/phase8_implementation.md`](../architecture/phase8_implementation.md) §13.2.
+
+*Phase 8 CP2B sequencing (27 Nov 2026):* CP2A and its refinement are fully accepted and
+closed (`87849bb`, CI run 172). CP2B is split: **CP2B.1** (market-implied model on domestic
+data: NumPy/SciPy runtime dependencies, on-demand fitting with bounded reuse, source-aware
+Your View identity, the complete OD-3 Your View hierarchy and the minimum Match Lab
+States A/B/C) is **authorised and implemented, awaiting review**; **CP2B.2** (Champions
+League and Europa League market-only integration) is **not authorised** and depends on
+the Step B evidence (3–9 Dec 2026, ≤ 25 counted attempts). The combined estimate stays
+15–21 h. Record: [`../architecture/phase8_implementation.md`](../architecture/phase8_implementation.md) §14.

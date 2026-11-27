@@ -195,8 +195,39 @@ def new_state() -> dict:
     }
 
 
+MODEL_SOURCE_LABEL = "Diski 9 Goal Model"
+MARKET_SOURCE_LABEL = "Market-implied Model"
+
+
+def starting_point(r: dict | None) -> dict | None:
+    """The fixture's single quantitative starting point (Phase 8 State A/B/C), chosen
+    automatically: the independent Goal Model when it is available (State A),
+    otherwise a reliable market-implied fit attached by ``lab_context`` (State B),
+    otherwise None (State C). Never both, never a selector."""
+    if not r:
+        return None
+    g = r.get("goal_model") or {}
+    if g.get("available"):
+        return {
+            "source": "model",
+            "label": MODEL_SOURCE_LABEL,
+            "estimated_goals": g["estimated_goals"],
+            "probabilities": g["probabilities"],
+        }
+    sp = r.get("_starting_point")
+    if sp and sp.get("estimated_goals"):
+        return sp
+    return None
+
+
+def is_market_implied(r: dict | None) -> bool:
+    sp = starting_point(r)
+    return bool(sp) and sp["source"] == "market"
+
+
 def baseline_rounded(r: dict) -> dict:
-    eg = r["goal_model"]["estimated_goals"]
+    sp = starting_point(r)
+    eg = sp["estimated_goals"] if sp else r["goal_model"]["estimated_goals"]
     return {s: round(eg[s], 2) for s in SIDES}
 
 
@@ -204,11 +235,21 @@ CONTEXT_KEY = "_ctx"  # in the Match Lab store: {fixture id: model context stamp
 
 
 def model_context(r: dict) -> str:
-    """What a fixture's adjustments are relative to: Goal Model version and the
-    rounded baseline estimated goals. Adjustments are deltas from this baseline, so
-    they are only reapplied while it is unchanged."""
+    """What a fixture's adjustments are relative to: the starting point's source and
+    version and the rounded baseline estimated goals. Adjustments are deltas from
+    this baseline, so they are only reapplied while it is unchanged.
+
+    * Goal Model (State A): ``"<version>|<fixture>|<home>|<away>"`` (unchanged
+      since Phase 6C.3, so existing adjustments stay valid);
+    * Market-implied (State B): ``"mi<fit version>:<input identity>|<fixture>|..."``
+      - the input identity covers the methodology, the live or frozen context and
+      the exact market probabilities, so it never matches a Goal Model stamp, the
+      other context, or a fit from different prices."""
     if r.get("_model_context"):  # a frozen Weekly Challenge baseline (lab_context)
         return r["_model_context"]
+    sp = starting_point(r)
+    if sp and sp["source"] == "market":
+        return sp["stamp"]
     b = baseline_rounded(r)
     return f"{gm.GOAL_MODEL_VERSION}|{r['fixture']['id']}|{b['home']:.2f}|{b['away']:.2f}"
 
@@ -219,12 +260,63 @@ def stored_adjustment(lab: dict | None, fid, r: dict | None) -> dict | None:
     if not lab or fid is None:
         return None
     stored = lab.get(str(fid))
-    if stored is None or r is None or not (r.get("goal_model") or {}).get("available"):
+    if stored is None or r is None or starting_point(r) is None:
         return stored
     stamp = (lab.get(CONTEXT_KEY) or {}).get(str(fid))
     if stamp is not None and stamp != model_context(r):
         return None
     return stored
+
+
+WAS_KEY = "_was"  # {key: stamp} of a saved Your View that no longer matches (account)
+
+
+def _stamp_source(stamp: str) -> str:
+    return "market" if stamp.split("|", 1)[0].startswith("mi") else "model"
+
+
+def adjustment_notice(lab: dict | None, fid, r: dict | None) -> str | None:
+    """A visible explanation when this fixture has earlier adjustments that are not
+    applied because its starting point changed (source, methodology, inputs or
+    context). The earlier numbers are never reinterpreted against the new baseline."""
+    if not lab or fid is None or r is None:
+        return None
+    key = str(fid)
+    stored = lab.get(key)
+    was = (lab.get(CONTEXT_KEY) or {}).get(key) if stored else None
+    if was is not None and not has_adjustment(normalise_state(stored)):
+        was = None
+    if was is None:
+        was = (lab.get(WAS_KEY) or {}).get(key)
+    if not was:
+        return None
+    sp = starting_point(r)
+    now = model_context(r) if sp else None
+    if was == now:
+        return None
+    before = _stamp_source(was)
+    if now is None:
+        why = "there is no quantitative starting point for this match now"
+    elif before == "model" and sp["source"] == "market":
+        why = (
+            "the Diski 9 Goal Model has no prediction for this match now, so the starting "
+            "point is the Market-implied Model"
+        )
+    elif before == "market" and sp["source"] == "model":
+        why = (
+            "the Diski 9 Goal Model now has an independent prediction for this match, which "
+            "replaces the market-implied starting point"
+        )
+    elif before == "market":
+        why = "the bookmaker prices behind the market-implied estimate have changed"
+    elif was.split("|", 1)[0] != now.split("|", 1)[0]:
+        why = "the Goal Model version has changed"
+    else:
+        why = "the model's estimated goals for this match have changed"
+    return (
+        f"Your earlier adjustments for this match are not applied because {why}. They were "
+        "made against a different starting point; adjusting again starts from the current one."
+    )
 
 
 def store_adjustment(lab: dict | None, fid, r: dict, state: dict | None) -> dict:
@@ -238,6 +330,12 @@ def store_adjustment(lab: dict | None, fid, r: dict, state: dict | None) -> dict
     else:
         lab[str(fid)] = state
         stamps[str(fid)] = model_context(r)
+        was = dict(lab.get(WAS_KEY) or {})
+        if was.pop(str(fid), None) is not None:
+            if was:
+                lab[WAS_KEY] = was
+            else:
+                lab.pop(WAS_KEY, None)
     if stamps:
         lab[CONTEXT_KEY] = stamps
     else:
@@ -398,22 +496,125 @@ def prob_bars(probs: dict, market: str, cls: str = "") -> html.Div:
     return html.Div(rows, className=f"prob-bars {cls}".strip())
 
 
+MARKET_IMPLIED_HELP = (
+    "Market-implied estimated goals are the goals per team that best reproduce the "
+    "bookmakers' consensus probabilities under the same Poisson calculation. They are "
+    "estimates derived from bookmaker probabilities: not shot-based xG and not an "
+    "independent Diski 9 prediction."
+)
+FIT_NOTE = {
+    "good": "Good fit: these estimated goals reproduce the bookmaker probabilities to within "
+    "2 percentage points.",
+    "approximate": "Approximate fit: these estimated goals reproduce the bookmaker probabilities "
+    "only to within 4 percentage points, so treat them as a rough starting point.",
+}
+FIT_CAVEAT = (
+    "A close fit shows that the estimated goals represent the bookmaker prices; it does not "
+    "show that they predict results better than the bookmakers."
+)
+NO_EDGE_NOTE = (
+    "Edge and EV are not shown for this match: the starting point is derived from the same "
+    "bookmaker prices, so a difference from the market is not an independent advantage."
+)
+
+
+def source_line(r: dict) -> html.Div | None:
+    """'Starting point: Diski 9 Goal Model' / 'Market-implied Model' above the
+    estimated goals (State A/B), or nothing (State C)."""
+    sp = starting_point(r)
+    if sp is None:
+        return None
+    return html.Div(
+        [
+            html.Span("Starting point: ", className="muted small"),
+            html.Strong(sp["label"], className=f"lab-source {sp['source']}"),
+        ],
+        className="lab-source-line",
+    )
+
+
+def unavailable_message(r: dict) -> list:
+    """State C: why no quantitative starting point exists (no estimate is made up)."""
+    g = r.get("goal_model") or {}
+    out = [html.Div(g.get("message"), className="unavailable")]
+    why = r.get("_starting_point_unavailable")
+    if why:
+        out.append(
+            html.P(f"Market-implied estimate unavailable: {why}", className="muted small mi-why")
+        )
+    out.append(
+        html.P(
+            "Estimated goals and adjustments are not available for this match. The fixture "
+            "information, statistics and bookmaker prices below remain available.",
+            className="muted small",
+        )
+    )
+    return out
+
+
+def _market_baseline(r: dict, market: str, head) -> html.Div:
+    sp = starting_point(r)
+    f = r["fixture"]
+    eg = sp["estimated_goals"]
+    frozen = sp.get("context") == "frozen"
+    return html.Div(
+        [
+            head,
+            source_line(r),
+            html.Div(
+                [_eg_tile(f["home"], eg["home"], None), _eg_tile(f["away"], eg["away"], None)],
+                className="tiles",
+            ),
+            html.Div(
+                [
+                    html.Span(MARKET_TITLE[market], className="label"),
+                    html.Span("Market-implied probabilities (fitted)", className="muted small"),
+                ],
+                className="label-row",
+            ),
+            prob_bars(sp["probabilities"], market),
+            html.P(FIT_NOTE[sp["quality"]], className=f"small fit-note fit-{sp['quality']}"),
+            html.P(
+                [
+                    "The Diski 9 Goal Model has no independent prediction for this match (",
+                    ((r.get("goal_model") or {}).get("message") or "unavailable").rstrip("."),
+                    "). ",
+                    MARKET_IMPLIED_HELP,
+                ],
+                className="muted small",
+            ),
+            html.P(FIT_CAVEAT, className="muted small"),
+            html.P(
+                "Fitted from the frozen Weekly Challenge snapshot's bookmaker probabilities; "
+                "later odds never change it.",
+                className="muted small",
+            )
+            if frozen
+            else None,
+        ],
+        className="lab-section lab-baseline",
+    )
+
+
 def baseline_section(r: dict, market: str) -> html.Div:
     g = r["goal_model"]
     f = r["fixture"]
+    market_sp = is_market_implied(r)
     head = html.Div(
         [
             html.Span("A. Statistical baseline", className="lab-step"),
-            role_tag("Model estimate", "model"),
-            info(ESTIMATED_GOALS_HELP, "About estimated goals"),
+            role_tag("Market-implied estimate" if market_sp else "Model estimate", "model"),
+            info(
+                MARKET_IMPLIED_HELP if market_sp else ESTIMATED_GOALS_HELP,
+                "About estimated goals",
+            ),
         ],
         className="label-row",
     )
+    if market_sp:
+        return _market_baseline(r, market, head)
     if not g.get("available"):
-        return html.Div(
-            [head, html.Div(g.get("message"), className="unavailable")],
-            className="lab-section lab-baseline",
-        )
+        return html.Div([head, *unavailable_message(r)], className="lab-section lab-baseline")
     notes = {"home": None, "away": None}
     early = (
         html.P(gm.LIMITED_DATA_WARNING, className="muted small limited-note")
@@ -423,6 +624,7 @@ def baseline_section(r: dict, market: str) -> html.Div:
     return html.Div(
         [
             head,
+            source_line(r),
             html.Div(
                 [
                     _eg_tile(f["home"], g["estimated_goals"]["home"], notes["home"]),
@@ -776,7 +978,7 @@ def context_section(r: dict, market: str, official: dict, state: dict | None = N
             )
         )
     parts += [h2h_section(r), positions_section(r, official)]
-    if state is not None and r.get("goal_model", {}).get("available"):
+    if state is not None and starting_point(r) is not None:
         parts.append(context_adjustment(r, state))
     return html.Div(
         [
@@ -817,7 +1019,7 @@ def _cat_input(key: str, side: str, team: str, value: float) -> html.Div:
 
 def factors_section(r: dict, state: dict) -> html.Div:
     f = r["fixture"]
-    available = bool(r.get("goal_model", {}).get("available"))
+    available = starting_point(r) is not None
     cards = []
     for key, title, items in CATEGORIES:
         c = state["cats"][key]
@@ -1000,8 +1202,9 @@ def lab_outputs(
     r: dict, market: str, ov: OddsView | None, state: dict | None, messages: list | None = None
 ):
     """(Section D results, bookmaker comparison) for a fixture's user state."""
-    g = r["goal_model"]
-    base = g["probabilities"]
+    sp = starting_point(r)
+    market_sp = sp["source"] == "market"
+    base = sp["probabilities"]
     state = state or new_state()
     b = breakdown(baseline_rounded(r), state)
     est = user_estimates(r, state)
@@ -1026,14 +1229,15 @@ def lab_outputs(
                 html.Strong(f"{f['home']} {goals2(est['home'])}"),
                 " – ",
                 html.Strong(f"{f['away']} {goals2(est['away'])}"),
-                f" (model {goals2(b['home']['base'])} – {goals2(b['away']['base'])}).",
+                f" ({'market-implied' if market_sp else 'model'} "
+                f"{goals2(b['home']['base'])} – {goals2(b['away']['base'])}).",
             ],
             className="small",
         )
         if mine
         else html.P(
-            "Showing the model baseline. Add adjustments in Section B or C, or move a slider to "
-            "set your own estimate.",
+            f"Showing the {'market-implied' if market_sp else 'model'} baseline. Add adjustments "
+            "in Section B or C, or move a slider to set your own estimate.",
             className="muted small",
         )
     )
@@ -1069,14 +1273,18 @@ def lab_outputs(
                 [html.Summary("All markets"), comparison_table(base, mine, others)],
                 className="acc all-markets",
             ),
-            value_check(market, ov, base, mine),
+            html.P(NO_EDGE_NOTE, className="muted small no-edge")
+            if market_sp
+            else value_check(market, ov, base, mine),
         ]
     )
+    if market_sp:
+        return out, fitted_comparison(market, sp)
     return out, model_comparison(market, ov, base)
 
 
 def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> html.Div:
-    g = r["goal_model"]
+    sp = starting_point(r)
     head = html.Div(
         [
             html.Span("D. Your adjustments", className="lab-step"),
@@ -1084,11 +1292,12 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> ht
         ],
         className="label-row",
     )
-    if not g.get("available"):
+    if sp is None:
         return html.Div(
             [head, html.P("Adjustments need a model baseline.", className="muted small")],
             className="lab-section adjust",
         )
+    market_sp = sp["source"] == "market"
     f = r["fixture"]
     base_r = baseline_rounded(r)
     b = breakdown(base_r, state)
@@ -1098,7 +1307,14 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> ht
             head,
             html.P(ADJUST_NOTE, className="muted small"),
             html.P(
-                "Your estimate = model baseline + Section B match context + Section C other "
+                "Your adjustments start from the market-implied estimated goals, so your view "
+                "is relative to the bookmakers' prices rather than an independent prediction.",
+                className="muted small",
+            )
+            if market_sp
+            else None,
+            html.P(
+                "Your estimate = starting point + Section B match context + Section C other "
                 "factors + any additional manual adjustment. The sliders and boxes set your final "
                 "estimate directly; the manual adjustment is worked out for you, so nothing is "
                 "counted twice.",
@@ -1109,14 +1325,15 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> ht
             html.Div(
                 [
                     html.Button(
-                        "Reset to model",
+                        "Reset to starting point" if market_sp else "Reset to model",
                         id="lab-reset",
                         n_clicks=0,
                         className="pager-btn reset-btn",
                     ),
                     html.Span(
-                        "Clears every adjustment in Sections B, C and D and restores the model "
-                        "estimates. Nothing leaves this browser tab or changes the model.",
+                        "Clears every adjustment in Sections B, C and D and restores the "
+                        f"{'starting-point' if market_sp else 'model'} estimates. Nothing changes "
+                        "the starting point itself.",
                         className="muted small",
                     ),
                 ],
@@ -1439,6 +1656,65 @@ def value_check(market: str, ov: OddsView | None, base: dict, mine: dict | None)
     )
 
 
+_MARKET_KEYS = {
+    "1X2": (("home", "Home"), ("draw", "Draw"), ("away", "Away")),
+    "BTTS": (("btts_yes", "BTTS Yes"), ("btts_no", "BTTS No")),
+    "OU25": (("over", "Over 2.5"), ("under", "Under 2.5")),
+}
+
+
+def fitted_comparison(market: str, sp: dict) -> html.Div:
+    """State B: the actual bookmaker consensus the fit used, beside the probabilities
+    fitted through the market-implied estimated goals, as separate rows (CP1 §7).
+    No edge or EV: the two come from the same prices."""
+    cons, fit = sp.get("consensus") or {}, sp["probabilities"]
+    keys = _MARKET_KEYS[market]
+    used = all(k in cons for k, _ in keys)
+
+    def row(label, cls, values):
+        return html.Tr(
+            [html.Th(label, scope="row", className=cls)]
+            + [html.Td(pct1(v) if v is not None else "—", className="num") for v in values]
+        )
+
+    table = html.Table(
+        [
+            html.Thead(html.Tr([html.Th("")] + [html.Th(t, className="num") for _, t in keys])),
+            html.Tbody(
+                [
+                    row(
+                        "Bookmaker consensus (actual)",
+                        "actual",
+                        [cons.get(k) if used else None for k, _ in keys],
+                    ),
+                    row(f"{MARKET_SOURCE_LABEL} (fitted)", "fitted", [fit[k] for k, _ in keys]),
+                ]
+            ),
+        ],
+        className="grid compact lab-table fitted-cmp",
+    )
+    frozen = sp.get("context") == "frozen"
+    return html.Div(
+        [
+            html.Div("Bookmaker consensus and fitted probabilities", className="lab-subhead"),
+            table,
+            html.P(
+                ("Frozen Weekly Challenge consensus. " if frozen else "")
+                + (
+                    "The fit did not use this market; the fitted row follows from the other "
+                    "markets."
+                    if not used
+                    else "The two rows differ because one pair of estimated goals cannot match "
+                    "every bookmaker price exactly."
+                ),
+                className="muted small",
+            ),
+            html.P(NO_EDGE_NOTE, className="muted small no-edge"),
+        ],
+        className="fitted-compare",
+    )
+
+
 def bookmaker_card(
     r: dict,
     ov: OddsView | None,
@@ -1451,8 +1727,11 @@ def bookmaker_card(
     head = card.children[0]
     head.children.append(html.Div(role_tag("Market", "market"), className="card-tag"))
     g = r["goal_model"]
+    sp = starting_point(r)
     if g.get("available"):
         compare = model_comparison(market, ov, g["probabilities"])
+    elif sp is not None:
+        compare = fitted_comparison(market, sp)
     else:
         compare = html.P(g.get("message"), className="muted small")
     card.children.append(html.Div(compare, id="lab-compare"))
@@ -1500,14 +1779,15 @@ def render_detail(
     market: str,
     data: ScreenerData,
     adj: dict | None = None,
+    notice: str | None = None,
 ) -> Any:
-    """``adj`` is the fixture's user state from the browser store (or None)."""
+    """``adj`` is the fixture's user state from the browser store (or None);
+    ``notice`` explains earlier adjustments that no longer apply."""
     if r is None:
         return html.Div("Select a fixture to open The Match Lab.", className="empty")
     f = r["fixture"]
     league = LEAGUE_SHORT.get(f["competition_id"], f["competition"])
-    g = r.get("goal_model") or {}
-    available = bool(g.get("available"))
+    available = starting_point(r) is not None
     state = normalise_state(adj, baseline_rounded(r) if available else None)
     if not available:
         state = new_state() | {"cats": state["cats"]}  # notes kept, no adjustments
@@ -1537,6 +1817,9 @@ def render_detail(
                     if available and has_adjustment(state)
                     else None,
                     context_line(r, data),
+                    html.P(notice, className="lab-message adj-reset", role="status")
+                    if notice
+                    else None,
                 ],
                 className="detail-header",
             ),

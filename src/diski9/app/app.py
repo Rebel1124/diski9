@@ -50,6 +50,7 @@ from .lab import (
     CATEGORY_MAX,
     CONTEXT_MAX,
     SIDES,
+    adjustment_notice,
     adjustment_text,
     baseline_rounded,
     breakdown,
@@ -64,6 +65,7 @@ from .lab import (
     signed_text,
     slider_max,
     slider_value,
+    starting_point,
     store_adjustment,
     stored_adjustment,
 )
@@ -823,7 +825,8 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         r = lc.r if lc else None
         _, ov, official = data.detail(fid) if fid else (None, None, {})
         adj = stored_adjustment(lab, lc.key, r) if lc else None
-        body, ref = split_detail(render_detail(r, ov, official, market, data, adj))
+        notice = adjustment_notice(lab, lc.key, r) if lc else None
+        body, ref = split_detail(render_detail(r, ov, official, market, data, adj, notice))
         return body, ref, new_lab
 
     @app.callback(
@@ -873,7 +876,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         lc = lab_context.resolve(service, data, fid, universe)
         r = lc.r if lc else None
         _, ov, _ = data.detail(fid)
-        if r is None or not r["goal_model"].get("available"):
+        if r is None or starting_point(r) is None:
             raise PreventUpdate
         trig = ctx.triggered_id
         value = ctx.triggered[0].get("value")
@@ -890,7 +893,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         ]
         sum_out = [category_summary(state, o["id"]["cat"]) for o in ctx.outputs_list[8]]
         out, compare = lab_outputs(r, market, ov, state, messages)
-        base = r["goal_model"]["estimated_goals"]
+        base = starting_point(r)["estimated_goals"]
         return (
             lab,
             h,

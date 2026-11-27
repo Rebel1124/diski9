@@ -1,6 +1,8 @@
 """Research prototype (Milestone 5.1): market-implied expected goals.
 
-Layer 2 (market-implied information). NOT used by the Screener or the Challenge.
+Layer 2 (market-implied information). Since Phase 8 CP2B.1 its ``fit`` is reused
+unchanged by ``diski9.screener.market_fit`` (the production market-implied starting
+point); a change here changes production, and the methodology fingerprint there.
 Estimates home and away scoring rates (lambda_H, lambda_A) under an independent
 Poisson model such that the model's market probabilities match margin-adjusted
 consensus probabilities as closely as possible. These are *market-implied

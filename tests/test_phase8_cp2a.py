@@ -28,6 +28,7 @@ from diski9.challenge.roundsheet import (
     restrict_competitions,
 )
 from diski9.challenge.structured import evaluate_market_and_model, make_outcome, validate_portfolio
+from diski9.screener import market_fit
 
 from .test_app import data, populated  # noqa: F401  (fixtures)
 from .test_challenge_ui import NOW, _Data, jtext, valid_keys
@@ -153,10 +154,11 @@ def test_your_view_interim_hierarchy_and_summary():
     assert prob(sels[2]) == 0.5 and pa.personal_source(sels[2], personal) == "adjusted"
     assert prob(sels[3]) == sels[3].model_probability  # tier 2: Diski 9
     assert pa.personal_source(sels[3], personal) == "model"
-    assert prob(sels[9]) == sels[9].market_probability  # tier 4 (interim): consensus
+    # without a market-implied probability (CP2B.1 tier 3) the consensus applies (tier 4)
+    assert prob(sels[9]) == sels[9].market_probability
     assert pa.personal_source(sels[9], personal) == "market"
     counts = pa.personal_sources(port.selections, personal)
-    assert counts == {"adjusted": 2, "model": 6, "market": 1}
+    assert counts == {"adjusted": 2, "model": 6, "implied": 0, "market": 1}
     assert pa.personal_summary(port.selections, personal) == (
         "Your View: 2 your adjustment · 6 Diski 9 · 1 market consensus"
     )
@@ -268,7 +270,15 @@ def test_builder_review_and_submission_with_missing_models(base, n_missing):
             assert f"unavailable for {n_missing} of 9" in tv
             assert f"{n_missing} of 9 do not have one" in an
         if source == "personal" and n_missing:
-            assert "market consensus" in tv
+            # CP2B.1: tier 3 (frozen market-implied) where a reliable frozen fit exists,
+            # tier 4 (consensus) otherwise; the summary states which
+            chosen = svc.outcomes_for(stripped, keys)
+            implied = market_fit.implied_probabilities(stripped, chosen)
+            counts = pa.personal_sources(chosen, {}, implied)
+            assert counts["model"] == 9 - n_missing
+            assert counts["implied"] + counts["market"] == n_missing
+            for k, n in counts.items():  # the summary names every non-zero tier
+                assert (f"{n} {pa.PERSONAL_SOURCE_LABEL[k]}" in tv) == bool(n)
     avail = svc.availability("demo")
     rv = jtext(pages.review(svc, stripped, keys, avail, {}, _Data().local, {}))
     assert ("Diski 9 portfolio estimate unavailable" in rv) == bool(n_missing)
@@ -339,6 +349,8 @@ def test_browser_builder_with_missing_models(data, monkeypatch):  # noqa: F811
     keys = valid_keys(base, {f.fixture_id for f in base.fixtures[:10]})
     outs = [base.outcome(tuple(_parse(k))) for k in keys]
     stripped = strip_models(base, [o.fixture_id for o in outs[:4]])
+    outs = [stripped.outcome(o.key) for o in outs]
+    implied = market_fit.implied_probabilities(stripped, outs)
     monkeypatch.setattr(ChallengeService, "demo", lambda self: stripped)
     port = _free_port()
     server = make_server("127.0.0.1", port, create_app(data).server, threaded=True)
@@ -363,7 +375,7 @@ def test_browser_builder_with_missing_models(data, monkeypatch):  # noqa: F811
       out.modelNote = await p.locator('.ch-src-note').innerText();
       out.unavailBuckets = await p.locator('.ch-bstat.ch-unavail').count();
       await p.locator('.ch-source').getByText('Your View', {{ exact: true }}).tap(); await idle();
-      await p.waitForSelector('.ch-src-note:has-text("market consensus")', {{ timeout: 30000 }});
+      await p.waitForSelector('.ch-src-note:has-text("Your View:")', {{ timeout: 30000 }});
       out.viewNote = await p.locator('.ch-src-note').innerText();
       await p.locator(sel({{i: 'tracker', t: 'nav', to: 'review'}})).tap(); await idle();
       // wait for the review stage itself (a fixed pause is too short on slow runners)
@@ -383,7 +395,9 @@ def test_browser_builder_with_missing_models(data, monkeypatch):  # noqa: F811
         assert out["errors"] == [] and out["total"] == "9/9" and out["overflow"] == 0
         assert "unavailable for 4 of 9" in out["modelNote"]
         assert out["unavailBuckets"] >= 2  # at least one bucket plus The Diski 9
-        assert "market consensus" in out["viewNote"]
+        # CP2B.1: the four model-absent picks take the frozen market-implied tier where a
+        # reliable frozen fit exists, otherwise the actual consensus
+        assert out["viewNote"].strip() == pa.personal_summary(outs, {}, implied)
         assert "Diski 9 portfolio estimate unavailable: 4 of 9" in out["review"]
     finally:
         server.shutdown()

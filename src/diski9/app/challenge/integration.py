@@ -28,6 +28,7 @@ from diski9.odds.value import (
     edge_pp,
     expected_value,
 )
+from diski9.screener import market_fit
 
 from .. import lab
 from ..data import MARKET_KEYS
@@ -41,7 +42,9 @@ def personal_probabilities(data, snap, lab_store) -> dict[tuple, float]:
     """{outcome key: Your View probability} for the round's matches you adjusted **in
     the frozen Weekly Challenge context** (approved at the 6C.3 checkpoint): the
     adjustments made on the snapshot's frozen baseline, never live-context ones.
-    Matches without a frozen adjustment are left out (the baseline is used)."""
+    Matches without a frozen adjustment are left out (the baseline is used). A match
+    frozen without independent estimated goals is adjusted from its frozen
+    market-implied fit (Phase 8 CP2B.1)."""
     from diski9.app.lab_context import frozen_key
 
     out: dict[tuple, float] = {}
@@ -49,16 +52,25 @@ def personal_probabilities(data, snap, lab_store) -> dict[tuple, float]:
         return out
     stamps = lab_store.get(lab.CONTEXT_KEY) or {}
     for f in snap.fixtures:
-        if f.estimated_goals is None:
-            continue
         key = frozen_key(snap.round_id, f.fixture_id)
         stored = lab_store.get(key)
         if not stored:
             continue
-        base = {"home": round(f.estimated_goals[0], 2), "away": round(f.estimated_goals[1], 2)}
         stamp = stamps.get(key) or ""
-        if stamp.split("|", 1)[-1] != f"{f.fixture_id}|{base['home']:.2f}|{base['away']:.2f}":
-            continue  # made against another baseline: never applied
+        if f.estimated_goals is not None:
+            base = {
+                "home": round(f.estimated_goals[0], 2),
+                "away": round(f.estimated_goals[1], 2),
+            }
+            if stamp.split("|", 1)[-1] != f"{f.fixture_id}|{base['home']:.2f}|{base['away']:.2f}":
+                continue  # made against another baseline: never applied
+        else:
+            # frozen market-implied starting point (CP2B.1): the whole stamp, including
+            # the fit's input identity, must match; fitted only for adjusted matches
+            mf = market_fit.frozen_fit(snap, f.fixture_id)
+            if not mf.reliable or stamp != mf.stamp():
+                continue
+            base = {"home": round(mf.lambda_home, 2), "away": round(mf.lambda_away, 2)}
         state = lab.normalise_state(stored, base)
         if not lab.has_adjustment(state):
             continue

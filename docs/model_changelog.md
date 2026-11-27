@@ -32,6 +32,26 @@ snapshots keep their 1.0 identity and stay reproducible from its frozen paramete
   with the accepted reporting qualifications in
   [`architecture/phase8_implementation.md`](architecture/phase8_implementation.md) §2.
 
+## Market-implied Model 1.0 (Phase 8 CP2B.1; implemented, awaiting review)
+
+Not a Goal Model version: the **State B** starting point used only when Goal Model 1.1
+has no independent prediction (OD-2, CP1-5). It never changes Goal Model parameters,
+fields, forecasts or snapshots.
+
+* **Method:** the accepted CP1 prototype fit (`research/market_implied_xg.fit`, KL
+  objective, multi-start bounded L-BFGS-B, bounds 0.05-6.0, SVD identifiability),
+  reused unchanged by `screener/market_fit.py` (`FIT_VERSION` "1.0").
+* **Production rules:** R-3 inputs (1X2 plus a goals market, each ≥ 3 independent
+  bookmaker groups, quotes ≤ 24 h; frozen inputs judged at the snapshot time);
+  good ≤ 2 pp, approximate ≤ 4 pp; non-converged, unidentified, boundary, poor and
+  invalid fits rejected.
+* **Reconciliation:** identical rates on all 131 qualifying CP1 snapshots (maximum
+  difference 0), the same 101 good / 29 approximate statuses, and the one non-converged
+  CP1 fit rejected as CP1 recommended.
+* **Methodology fingerprint:** every cached result and every Your View stamp carries a
+  fingerprint of the method's constants; any change is a new identity.
+* **Record:** [`architecture/phase8_implementation.md`](architecture/phase8_implementation.md) §14.
+
 ## Goal Model 1.0
 
 **Method:** a season-to-date independent Poisson model with strength/tempo

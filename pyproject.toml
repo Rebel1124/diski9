@@ -7,9 +7,12 @@ dependencies = [
     "alembic>=1.20.1",
     "dash>=4.5.0",
     "httpx>=0.28.1",
+    # Phase 8 CP2B.1 (CP1-5): the market-implied fit (L-BFGS-B, SVD identifiability).
+    "numpy>=2.5.5,<3",
     "psycopg[binary]>=3.2",
     "pydantic-settings>=2.16.3",
     "pyjwt[crypto]>=2.9",
+    "scipy>=1.18.1,<2",
     "sqlalchemy>=2.1.8",
     "supabase-auth>=2.20",
 ]
@@ -29,10 +32,8 @@ build-backend = "uv_build"
 [dependency-groups]
 dev = [
     "hypothesis>=6.170.15",
-    "numpy>=2.5.5",
     "pytest>=9.2.0",
     "ruff>=0.17.5",
-    "scipy>=1.18.1",
 ]
 
 [tool.pytest.ini_options]

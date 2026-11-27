@@ -94,13 +94,17 @@ def has_adjustment(state: Mapping) -> bool:
 def frozen_context(snapshot: RoundSnapshot, fixture_id: int, model_version: str) -> str | None:
     """The model context of a fixture in a published round (its frozen baseline),
     in the same format as the live Match Lab stamp. ``model_version`` is the
-    round's (``goal-model-1.0`` or ``1.0``)."""
+    round's (``goal-model-1.0`` or ``1.0``). A fixture frozen without independent
+    estimated goals uses its frozen market-implied fit (Phase 8 CP2B.1), whose stamp
+    carries the fit's input identity; None when neither exists (State C)."""
+    from diski9.screener import market_fit
+
     try:
         f = snapshot.fixture(fixture_id)
     except KeyError:
         return None
     if f.estimated_goals is None:
-        return None
+        return market_fit.frozen_fit(snapshot, fixture_id).stamp()
     version = model_version.removeprefix("goal-model-")
     h, a = (round(x, 2) for x in f.estimated_goals)
     return f"{version}|{fixture_id}|{h:.2f}|{a:.2f}"
@@ -231,9 +235,21 @@ def _resolve(conn: Connection, ctx: Context, cache: dict | None = None) -> _Reso
     if f is None:
         raise NotFound("This match is not part of the round's snapshot.")
     if f.estimated_goals_home is None or f.estimated_goals_away is None:
-        raise ValidationFailed(
-            "This match has no frozen baseline to adjust.", [{"reason": "no_baseline"}]
-        )
+        # no frozen independent baseline: the frozen market-implied fit, if reliable
+        from .snapshots import load_snapshot
+
+        skey = ("snapshot", ctx.round_id)
+        snap = cache.get(skey) if cache is not None else None
+        if snap is None:
+            snap = load_snapshot(conn, ctx.round_id)
+            if cache is not None:
+                cache[skey] = snap
+        stamp = frozen_context(snap, fid, head.model_version or "")
+        if stamp is None:
+            raise ValidationFailed(
+                "This match has no frozen baseline to adjust.", [{"reason": "no_baseline"}]
+            )
+        return _Resolved("round", fid, head.id, stamp)
     version = (head.model_version or "").removeprefix("goal-model-")
     stamp = (
         f"{version}|{fid}|{round(f.estimated_goals_home, 2):.2f}|"
@@ -293,6 +309,24 @@ def get_your_view(engine: Engine, principal: Principal, ctx: Context) -> YourVie
     with read_only(engine) as conn:
         r = _resolve(conn, ctx)
         return _view(_row(conn, principal.user_id, r), r)
+
+
+def saved_round_fixtures(engine: Engine, principal: Principal, round_id: UUID) -> set[int]:
+    """Fixtures of a published round for which the participant has a saved frozen
+    Your View row (so callers resolve - and, for market-implied baselines, fit - only
+    those, never the whole pool)."""
+    authorize(principal, Capability.PERSIST_OWN_ANALYSIS)
+    with read_only(engine) as conn:
+        rows = conn.execute(
+            select(your_view_adjustments.c.fixture_id)
+            .join(round_snapshots, round_snapshots.c.id == your_view_adjustments.c.snapshot_id)
+            .where(
+                your_view_adjustments.c.user_id == principal.user_id,
+                your_view_adjustments.c.context_kind == "round",
+                round_snapshots.c.round_id == round_id,
+            )
+        ).all()
+    return {int(r.fixture_id) for r in rows}
 
 
 def get_many(engine: Engine, principal: Principal, contexts) -> dict:
