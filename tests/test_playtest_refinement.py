@@ -302,7 +302,7 @@ def test_navigation_and_page_headings_are_consistent(data):  # noqa: F811
     from diski9.app.challenge.service import ChallengeService
 
     assert [label for _, label in callbacks.NAV] == [
-        "Match Lab", "Weekly Challenge", "My Challenge", "Leaderboards"]  # fmt: skip
+        "Portfolio Build", "Match Lab", "My Challenge", "Training Grounds", "Leaderboards"]  # fmt: skip
     app = create_app(data)
     layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
     assert "Screener & Match Lab" not in layout

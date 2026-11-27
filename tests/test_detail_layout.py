@@ -162,7 +162,7 @@ const state = (p) => p.evaluate(() =>
   for (const [name, opts] of views) {
     const ctx = await b.newContext(opts);
     const p = await ctx.newPage();
-    await p.goto(BASE);
+    await p.goto(BASE + 'lab');
     await p.waitForSelector('tr.row, .fx-card', { timeout: 20000, state: 'attached' });
     if (name === 'desktop') await p.locator('tr.row').first().click();
     else await p.locator('.fx-card').first().tap();

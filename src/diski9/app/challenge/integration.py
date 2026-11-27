@@ -382,7 +382,7 @@ def progress_strip(service, state) -> html.Div | None:
                 className="ch-strip-total",
                 title="Predictions in your portfolio (all nine form The Diski 9)",
             ),
-            dcc.Link("Open builder →", href="/challenge", className="ch-lab-link"),
+            dcc.Link("Open builder →", href="/", className="ch-lab-link"),
         ],
         className="ch-strip",
     )
@@ -508,7 +508,7 @@ def lab_panel(service, data, state, fixture_id, lab_store, flash) -> html.Div | 
                         ["Portfolio ", html.Strong(f"{len(chosen)}/9", className="ch-strip-total")],
                         className="muted small",
                     ),
-                    dcc.Link("Open builder →", href="/challenge", className="ch-lab-link"),
+                    dcc.Link("Open builder →", href="/", className="ch-lab-link"),
                 ],
                 className="ch-row-between",
             ),

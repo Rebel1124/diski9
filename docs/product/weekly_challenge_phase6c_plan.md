@@ -524,7 +524,7 @@ selectors and offers a frozen/latest toggle for challenge fixtures. **Revised Ph
 sequence:** CP3A (Portfolio Build, navigation, context) → CP3B (Match Lab presentation,
 education, Learn) → European verification on Mon 7 Dec (≈ 6 requests, hard maximum 12;
 separately approved) → CP2B.2 (European Match Analysis) → CP4. Remaining estimate:
-**46–65 h** (CP3A 16–22, CP3B 14–20, CP2B.2 8–11, CP4 8–12). **Master Roadmap:** Phase 8
+**48–68 h** (CP3A 19–26 including ML-01 as CP3A-4B, CP3B 14–20, CP2B.2 7–10, CP4 8–12; reassessed 27 Nov 2026, Phase 8 record §15.8). **Master Roadmap:** Phase 8
 → Phase 9 (Lucy, LiveKit) → resume Phase 6 operations → Phase 10 (MVP deployment, initial
 private Beta) → extended private Beta → Phase 11 (public launch, YouTube).
 Commercialisation stays outside the committed roadmap. Record:

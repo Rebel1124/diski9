@@ -718,7 +718,7 @@ def test_browser_match_lab_states_and_adjustments(data):  # noqa: F811
         await p.waitForFunction((t) => document.querySelector('.detail h2') &&
           document.querySelector('.detail h2').innerText.includes(t), expect, {{ timeout: 30000 }});
       }};
-      await p.goto('http://127.0.0.1:{port}/'); await p.waitForSelector('tr.row');
+      await p.goto('http://127.0.0.1:{port}/lab'); await p.waitForSelector('tr.row');
       // State B
       await pick({STATE_B}, 'Team 400 v');
       await p.waitForSelector('.lab-source.market', {{ timeout: 30000 }});

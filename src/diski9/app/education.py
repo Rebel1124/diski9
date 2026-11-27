@@ -183,7 +183,7 @@ def underdog_panel(picks: list[tuple[str, int]], where: str) -> html.Div | None:
                 " · ",
                 dcc.Link(
                     ["Match Lab ", icon("arrow-right", "ic-sm")],
-                    href=f"/?fixture={fid}",
+                    href=f"/lab?fixture={fid}",
                     className="ch-lab-link",
                     title="Analyse this match in the Match Lab",
                 ),

@@ -132,11 +132,11 @@ const row = `[id='${JSON.stringify({ index: FID, type: 'row' })}']`;
   const idle = async () => { await p.waitForTimeout(400); await p.waitForLoadState('networkidle'); };
   const open = async (base) => { await p.waitForSelector(row); await p.locator(row).click();
     await p.waitForSelector('#lab-home-input'); await idle(); };
-  await p.goto(A + '/'); await open(A);
+  await p.goto(A + '/lab'); await open(A);
   out.base = await p.locator('#lab-home-input').inputValue();
   await p.locator('#lab-home-input').fill('3.10'); await p.locator('#lab-home-input').press('Enter'); await idle();
   // navigation away and back
-  await p.locator('.nav-link', { hasText: 'Weekly Challenge' }).click(); await idle();
+  await p.locator('.nav-link', { hasText: 'Portfolio Build' }).click(); await idle();
   await p.locator('.nav-link', { hasText: 'Match Lab' }).click(); await open(A);
   out.afterNav = await p.locator('#lab-home-input').inputValue();
   // refresh
@@ -147,7 +147,7 @@ const row = `[id='${JSON.stringify({ index: FID, type: 'row' })}']`;
   const saved = await p.evaluate(() => JSON.stringify(Object.assign({}, sessionStorage)));
   await p.goto(B + '/leaderboards');
   await p.evaluate((s) => { for (const [k, v] of Object.entries(JSON.parse(s))) sessionStorage.setItem(k, v); }, saved);
-  await p.goto(B + '/'); await open(B);
+  await p.goto(B + '/lab'); await open(B);
   out.afterRestart = await p.locator('#lab-home-input').inputValue();
   // reset to the Diski 9 estimates, then refresh
   await p.locator('#lab-reset').click(); await idle();

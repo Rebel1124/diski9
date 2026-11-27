@@ -240,7 +240,9 @@ def test_tracker_shows_one_warning_and_follows_selection_and_deselection(snaps):
     assert "Includes 2 high-risk underdogs" in text(panels[0])
     assert education.UNDERDOG_P2 in text(panels[0])
     hrefs = [n.href for n in walk(panels[0]) if getattr(n, "href", None)]
-    assert sorted(hrefs) == sorted(f"/?fixture={o.fixture_id}" for o in risky)  # Match Lab
+    assert sorted(hrefs) == sorted(
+        f"/lab?fixture={o.fixture_id}" for o in risky
+    )  # Match Lab (CP3A-1)
     one = [k for k in keys if k != key_str(risky[0].key)]
     t1 = pages.tracker_view(svc, a3, one, False)
     assert "Includes a high-risk underdog" in text(classes(t1, "ch-risk-panel")[0])

@@ -167,7 +167,7 @@ def test_market_switch_keeps_adjustment(data):
     st, _ = lab_update(r, "lab-home-input", 2.5, st)
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = func(EPL_FIX, market, "/", "all", lab)[0]  # 6B.2: route argument
+        d = func(EPL_FIX, market, "/lab", "all", lab)[0]  # route argument (CP3A-1: /lab)
         sliders = _find(d, lambda c: getattr(c, "id", None) == "lab-home-slider")
         assert sliders[0].value == 2.5
         cat = _find(
@@ -180,7 +180,7 @@ def test_market_switch_keeps_adjustment(data):
         assert box[0].value == "2.50"  # two decimals, not 2.5
         assert "Adjusted by you" in _text(d)
     # another fixture has its own (empty) state
-    d = func(PSL_FIX, "1X2", "/", "all", lab)[0]
+    d = func(PSL_FIX, "1X2", "/lab", "all", lab)[0]
     assert "Adjusted by you" not in _text(d)
 
 
@@ -642,7 +642,7 @@ const { chromium, devices } = require('playwright');
   for (const [name, opts] of views) {
     const p = await (await b.newContext(opts)).newPage();
     const errors = []; p.on('pageerror', e => errors.push(String(e)));
-    await p.goto(BASE);
+    await p.goto(BASE + 'lab');
     const sel = name === 'phone' ? '.fx-card' : 'tr.row';
     await p.waitForSelector(sel, { timeout: 20000, state: 'visible' });
     const r = {};

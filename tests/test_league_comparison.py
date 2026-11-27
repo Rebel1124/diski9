@@ -194,7 +194,7 @@ const { chromium, devices } = require('playwright');
                               ['phone', devices['iPhone 13']]]) {
     const ctx = await b.newContext(opts);
     const p = await ctx.newPage();
-    await p.goto(BASE);
+    await p.goto(BASE + 'lab');
     await p.waitForSelector('tr.row, .fx-card', { timeout: 20000, state: 'attached' });
     await p.locator('#market').click(); await p.locator('[role=option]', { hasText: 'Both Teams' }).click();
     await p.waitForTimeout(800);

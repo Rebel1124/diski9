@@ -175,10 +175,10 @@ def test_per_fixture_isolation_and_market_persistence(data):
     st = _ctx(_r(data), home="0.35")
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = f(EPL_FIX, market, "/", "all", lab)[0]  # 6B.2: route argument
+        d = f(EPL_FIX, market, "/lab", "all", lab)[0]  # route argument (CP3A-1: /lab)
         box = _find(d, lambda c: getattr(c, "id", None) == "ctx-home")[0]
         assert box.value == "+0.35"
-    other = f(PSL_FIX, "1X2", "/", "all", lab)[0]
+    other = f(PSL_FIX, "1X2", "/lab", "all", lab)[0]
     assert _find(other, lambda c: getattr(c, "id", None) == "ctx-home")[0].value == "0.00"
     layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
     assert '"storage_type":"memory"' in layout
@@ -313,7 +313,7 @@ const { chromium, devices } = require('playwright');
       const restored = p.waitForResponse(x => carries(x.request(), 'lab-reset.n_clicks', () => true), { timeout: 30000 });
       await action(); await rebuilt; await restored; await settled();
     };
-    await p.goto(BASE);
+    await p.goto(BASE + 'lab');
     const sel = name === 'phone' ? '.fx-card' : 'tr.row';
     await p.waitForSelector(sel, { timeout: 20000, state: 'visible' });
     await p.locator(sel, { hasText: 'Team 1' }).first().click();

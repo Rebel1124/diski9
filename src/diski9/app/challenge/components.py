@@ -114,8 +114,8 @@ def outcome_text(o) -> str:
 
 
 def page_header(title: str, meta=None) -> html.Div:
-    """The one heading used by all four main pages (Match Lab, Weekly Challenge, My
-    Challenge, Leaderboards): same element, size, weight, colour and spacing."""
+    """The one heading used by all main pages (Portfolio Build, Match Lab, My
+    Challenge, Training Grounds, Leaderboards): same element, size, weight, colour and spacing."""
     return html.Div(
         [
             html.H1(title, className="ch-h1"),
@@ -553,7 +553,7 @@ def fixture_card(
                     html.Div(f"{fx.home} v {fx.away}", className="ch-fx-teams"),
                     dcc.Link(
                         ["Match Lab ", icon("arrow-right", "ic-sm")],
-                        href=f"/?fixture={fx.fixture_id}",
+                        href=f"/lab?fixture={fx.fixture_id}",
                         className="ch-lab-link",
                         title="Analyse this match in the Match Lab",
                     ),

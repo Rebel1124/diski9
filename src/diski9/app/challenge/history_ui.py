@@ -116,9 +116,7 @@ def body(service, local, stream: str, scope: str, page_no: int, open_code: str |
             html.Div(
                 [
                     html.P("You have no entries yet in this view.", className="strong"),
-                    dcc.Link(
-                        "Join this week's challenge", href="/challenge", className="ch-btn primary"
-                    ),
+                    dcc.Link("Join this week's challenge", href="/", className="ch-btn primary"),
                 ],
                 className="ch-card me-hist-empty",
             )

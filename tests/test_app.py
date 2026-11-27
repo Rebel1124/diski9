@@ -649,7 +649,7 @@ def test_phone_viewport_cards_tooltip_and_pager(data):
           const b = await chromium.launch();
           const ctx = await b.newContext({{ ...devices['iPhone 13'] }});
           const p = await ctx.newPage();
-          await p.goto('http://127.0.0.1:{port}/');
+          await p.goto('http://127.0.0.1:{port}/lab');
           await p.waitForSelector('.fx-card', {{ timeout: 20000 }});
           const out = {{}};
           out.cards = await p.locator('.fx-card').count();
@@ -797,7 +797,7 @@ def test_browser_selection_highlight(data):
         (async () => {{
           const b = await chromium.launch();
           const p = await b.newPage({{ viewport: {{ width: 1400, height: 1000 }} }});
-          await p.goto('http://127.0.0.1:{port}/');
+          await p.goto('http://127.0.0.1:{port}/lab');
           await p.waitForSelector('tr.row', {{ timeout: 20000 }});
           const out = {{}};
           const rows = await ids(p);

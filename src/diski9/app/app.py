@@ -24,7 +24,7 @@ from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DI
 
 from . import education, lab_context
 from .challenge import lab_persist
-from .challenge.callbacks import nav_links
+from .challenge.callbacks import is_lab, legacy_redirect, nav_links
 from .challenge.callbacks import register as register_challenge
 from .challenge.components import page_header
 from .challenge.integration import (
@@ -237,6 +237,7 @@ def create_app(data: ScreenerData, auth=None) -> Dash:
         from diski9.backend.auth.web import init_auth
 
         init_auth(app.server, auth)
+    app.server.before_request(legacy_redirect)  # after the auth hooks (CP3A-1)
     return app
 
 
@@ -260,8 +261,9 @@ def competition_backend(auth):
 
 
 def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> html.Div:
-    """Site shell: navigation, the Screener page (unchanged, shown at ``/``) and the
-    Weekly Challenge pages (``/challenge``, ``/challenge/me``, ``/leaderboards``).
+    """Site shell: navigation, the Screener and Match Lab page (shown at ``/lab``) and
+    the pages rendered into ``ch-root``: Portfolio Build (``/``, the Weekly Challenge
+    builder), ``/challenge/me``, ``/leaderboards`` and ``/learn`` (Phase 8 CP3A-1).
 
     The Screener stays mounted and is only hidden on other routes, so its filters,
     selection and Match Lab state survive navigation. Weekly Challenge state lives
@@ -285,6 +287,7 @@ def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> 
             html.Div(
                 build_layout(data, "challenge" if service.availability("live").playable else "all"),
                 id="screener-root",
+                style={"display": "none"},  # shown by the router on /lab only
             ),
             html.Div(id="ch-root"),
             dcc.Store(id="ch-session", storage_type="session"),
@@ -812,7 +815,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         (frozen Weekly Challenge snapshot or latest data) decides the baseline and
         which Your View is shown; a signed-in participant's saved Your View for that
         context is loaded from the account (Phase 6C.3)."""
-        if (path or "/").rstrip("/") not in ("", "/"):
+        if not is_lab(path):
             if ctx.triggered_id == "url":
                 return None, None, no_update
             return no_update, no_update, no_update

@@ -127,7 +127,7 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
     p.on('pageerror', e => r.errors.push(e.message));
     const idle = async () => { await p.waitForTimeout(350); await p.waitForLoadState('networkidle'); };
     const press = async (loc) => { if (how === 'touch') await loc.tap(); else await loc.click(); };
-    await p.goto(BASE + 'challenge'); await p.waitForSelector('.ch-page');
+    await p.goto(BASE); await p.waitForSelector('.ch-page');
     await press(p.locator(sel({ m: 'demo', t: 'mode' })));
     await p.waitForSelector('text=Demonstration round.'); await idle();
     await p.locator('.ch-legend').scrollIntoViewIfNeeded();
@@ -218,7 +218,7 @@ LAB = r"""
     const p = await ctx.newPage();
     const r = { errors: [] };
     p.on('pageerror', e => r.errors.push(e.message));
-    await p.goto(BASE); await p.waitForSelector('#direction', { timeout: 20000 });
+    await p.goto(BASE + 'lab'); await p.waitForSelector('#direction', { timeout: 20000 });
     await p.waitForTimeout(800);
     r.rankTerms = await p.locator('label details.term-info').count();
     await shot(p, `${name}-screener-closed`);

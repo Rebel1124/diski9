@@ -24,12 +24,48 @@ from . import components as c
 from . import state as st
 from .service import ChallengeService, key_str, parse_key
 
+# Phase 8 CP3A-1: the five approved tabs. Portfolio Build (the fixture-selection
+# entry point) is the home page; the Match Lab moved to /lab. Old /challenge links
+# are redirected to / by the server (``legacy_redirect``) and aliased here. The
+# learning tab is labelled "Training Grounds" (owner, 27 Nov 2026); its route stays
+# /learn.
+PORTFOLIO = "/"
+LAB = "/lab"
+LEGACY_PORTFOLIO = "/challenge"
 NAV = (
-    ("/", "Match Lab"),
-    ("/challenge", "Weekly Challenge"),
+    (PORTFOLIO, "Portfolio Build"),
+    (LAB, "Match Lab"),
     ("/challenge/me", "My Challenge"),
+    ("/learn", "Training Grounds"),
     ("/leaderboards", "Leaderboards"),
 )
+
+
+def norm_path(path: str | None) -> str:
+    """The route a pathname shows: trailing slashes dropped, the legacy Weekly
+    Challenge address treated as Portfolio Build."""
+    path = (path or "/").rstrip("/") or "/"
+    return PORTFOLIO if path == LEGACY_PORTFOLIO else path
+
+
+def is_lab(path: str | None) -> bool:
+    return norm_path(path) == LAB
+
+
+def legacy_redirect():
+    """Flask ``before_request`` hook for full page loads of pre-CP3A addresses:
+    ``/challenge`` (the old Weekly Challenge builder) goes to Portfolio Build and
+    ``/?fixture=<id>`` (the old Match Lab deep link) goes to ``/lab?fixture=<id>``.
+    Query strings are kept; every other request is untouched."""
+    from flask import redirect, request
+
+    path = request.path.rstrip("/") or "/"
+    query = request.query_string.decode("latin-1")
+    if path == LEGACY_PORTFOLIO and request.method in ("GET", "HEAD"):
+        return redirect(PORTFOLIO + ("?" + query if query else ""), code=302)
+    if path == "/" and request.method in ("GET", "HEAD") and "fixture" in request.args:
+        return redirect(LAB + "?" + query, code=302)
+    return None
 
 
 # Builder and Match Lab buttons share one reducer and the same engine validation.
@@ -51,7 +87,7 @@ SELECTION_ACTIONS = frozenset({"pick", "remove", "clear", "replace"})
 
 
 def nav_links(path: str) -> list:
-    path = path or "/"
+    path = norm_path(path)
     return [
         dcc.Link(label, href=href, className="nav-link" + (" on" if path == href else ""))
         for href, label in NAV
@@ -418,9 +454,9 @@ def register(app, data, service: ChallengeService) -> None:
         State("lab-store", "data"),
     )
     def route(path, state, explore, lab_store):
-        path = (path or "/").rstrip("/") or "/"
-        show = {"display": "block"} if path == "/" else {"display": "none"}
-        if path == "/challenge":
+        path = norm_path(path)
+        show = {"display": "block"} if path == LAB else {"display": "none"}
+        if path == PORTFOLIO:
             return (
                 show,
                 pages.challenge_shell(service, state, explore, local, your_view(state, lab_store)),
@@ -431,14 +467,16 @@ def register(app, data, service: ChallengeService) -> None:
             return show, pages.my_challenge(service, state, local), nav_links(path), None
         if path == "/leaderboards":
             return show, pages.leaderboards(service), nav_links(path), None
-        if path == "/":
+        if path == LAB:
             return show, None, nav_links(path), None
+        if path == "/learn":
+            return show, pages.learn_page(), nav_links(path), None
         return (
             show,
             html.Div(
                 [
                     html.H1("Page not found", className="ch-h1"),
-                    dcc.Link("Back to the Match Lab", href="/"),
+                    dcc.Link("Back to Portfolio Build", href=PORTFOLIO),
                 ],
                 className="ch-page",
             ),
@@ -477,7 +515,7 @@ def register(app, data, service: ChallengeService) -> None:
     def sync_round_views(path, lab, adopt):
         """A participant's saved Your View for the published round's frozen context,
         loaded into the tab when a Weekly Challenge page opens (any device)."""
-        if adopt == "pending" or (path or "/").rstrip("/") not in ("/challenge", "/challenge/me"):
+        if adopt == "pending" or norm_path(path) not in (PORTFOLIO, "/challenge/me"):
             return no_update
         fresh = lab_persist.load_round(service, lab)
         return no_update if fresh is None or fresh == lab else fresh
@@ -490,7 +528,7 @@ def register(app, data, service: ChallengeService) -> None:
     def data_context(universe, path):
         """Frozen (Weekly Challenge) versus latest (All Upcoming Fixtures) information,
         with the actual stored times."""
-        if (path or "/") != "/":
+        if not is_lab(path):
             return no_update
         return integration.data_context(service, data, universe)
 
@@ -788,7 +826,7 @@ def register(app, data, service: ChallengeService) -> None:
         Input("url", "pathname"),
     )
     def screener_strip(state, path):
-        return integration.progress_strip(service, state) if (path or "/") == "/" else no_update
+        return integration.progress_strip(service, state) if is_lab(path) else no_update
 
     @app.callback(
         Output("lab-challenge", "children"),
@@ -802,7 +840,7 @@ def register(app, data, service: ChallengeService) -> None:
         """Rendered only while the Screener is showing (re-rendering its pattern-matched
         cards inside the hidden Screener made every builder tap slower); returning to
         the Screener re-renders it from the current state."""
-        if (path or "/").rstrip("/") not in ("", "/"):
+        if not is_lab(path):
             return None if ctx.triggered_id == "url" else no_update
         return integration.lab_panel(service, data, state, fid, lab_store, flash)
 
@@ -810,12 +848,18 @@ def register(app, data, service: ChallengeService) -> None:
         Output("selected", "data", allow_duplicate=True),
         Output("universe", "value", allow_duplicate=True),
         Input("url", "search"),
+        State("url", "pathname"),
         prevent_initial_call=True,
     )
-    def open_fixture(search):
-        """Builder 'Match Lab' links: /?fixture=<id> selects that match in the Screener."""
+    def open_fixture(search, path):
+        """Builder 'Match Lab' links: /lab?fixture=<id> selects that match in the Match
+        Lab (in-app navigation, as before). Old /?fixture= addresses are redirected to
+        /lab by the server; as before CP3A, a full page load does not preselect the
+        match (the Match Lab's own restore arrives in CP3A-3)."""
         from urllib.parse import parse_qs
 
+        if not is_lab(path):
+            return no_update, no_update
         fid = (parse_qs((search or "").lstrip("?")).get("fixture") or [None])[0]
         if not fid or not fid.isdigit():
             return no_update, no_update

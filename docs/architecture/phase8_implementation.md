@@ -10,7 +10,7 @@
 - **CP2A is formally accepted by the owner (27 Nov 2026)** (§13, §13.1, closure refinement §13.2). Goal Model 1.1 is the accepted **application** model baseline. It is an application implementation only: nothing is deployed to a hosted environment.
 - **CP2A and its closure refinement are fully accepted and closed (27 Nov 2026;** `87849bb`, CI run 172: 2,378 passed, 0 failed, 0 skipped).
 - **CP2B is split (owner, 27 Nov 2026):** **CP2B.1**, the market-implied model on domestic data, is **formally accepted and closed by the owner (27 Nov 2026;** `7c7cf22`, CI run 173: 2,416 passed, 0 failed, 0 skipped; §14, §15.1). **CP2B.2**, European Match Analysis (analysis only), is **not authorised**: it follows the 7 Dec verification and a separate owner decision.
-- **Revised MVP scope and final navigation decisions approved (27 Nov 2026, §15).** They supersede the Challenge Mode toggle (OD-4), the Match Lab fixture picker (Appendix C) and any European participation in the Weekly Challenge. **Next: CP3A planning review** (`phase8_cp3a_plan.md`); CP3A implementation needs explicit owner approval.
+- **Revised MVP scope and final navigation decisions approved (27 Nov 2026, §15).** They supersede the Challenge Mode toggle (OD-4), the Match Lab fixture picker (Appendix C) and any European participation in the Weekly Challenge. **The CP3A plan is approved with refinements (27 Nov 2026, §15.8;** `phase8_cp3a_plan.md`). **CP3A-1 (routes and navigation) is implemented and awaiting review.** CP3A-2 onwards each need explicit owner authorisation.
 - Phase 6 stays paused.
 
 **How to read this record:**
@@ -1014,7 +1014,7 @@ Frozen at publication: market odds, market probabilities, bucket classifications
   - there are no streak badges;
   - preparation resumes automatically for the next week.
 - **Gap (for CP3A):** with no new round, the challenge view can show the previous round's "Round locked" message. CP3A adds explicit messaging for the upcoming, unavailable, open, locked and settling states.
-- **Open detail: domestic research access when no challenge is published.** A recommendation is in the CP3A plan for owner review; it is not implemented.
+- **Domestic research access (decided, §15.8):** a compact **Research only** toggle inside the domestic card replaces the proposed secondary link. Research stays available all week.
 
 ### 15.6 European provider verification: revised protocol (not executed; needs separate approval)
 
@@ -1048,13 +1048,83 @@ Frozen at publication: market odds, market probabilities, bucket classifications
 
 | Checkpoint | Agreed planning estimate | Reassessed against §15 | Why |
 |---|---|---|---|
-| CP3A | 14–20 h | **16–22 h** | The toggle removal saves time, but the frozen/latest toggle, Match Lab tab restore and empty state, two-card homepage, status messaging and research access add some. |
+| CP3A | 14–20 h | **19–26 h** (§15.8) | The toggle removal saves time, but the frozen/latest toggle, Match Lab tab restore and empty state, two-card homepage, status messaging and research access add some (16–22 h); ML-01 as CP3A-4B adds 2–3 h; the Research only toggle adds about 1 h over the link it replaces. |
 | CP3B | 14–20 h | **14–20 h** | The States A/B/C mechanics already exist from CP2B.1. |
-| CP2B.2 | 6–9 h | **8–11 h** | Adds the analysis-only European list in Portfolio Build and activates the gold card. |
+| CP2B.2 | 6–9 h | **7–10 h** (corrected, §15.8) | The 6–9 h already covered the European data work and showing European fixtures in a list and in Match Lab. Only the gold card and separating them into their own analysis-only list (reusing the research list) are new, about +1 h. The earlier +2 h partly double-counted the list. |
 | CP4 | 8–12 h | **8–12 h** | — |
-| **Total remaining** | 42–61 h | **46–65 h** | Planning estimates, not commitments. |
+| **Total remaining** | 42–61 h | **48–68 h** (§15.8) | Planning estimates, not commitments. |
 
 **Master Roadmap (unchanged in sequence):** complete Phase 8 → Phase 9 (Lucy and LiveKit) → resume outstanding Phase 6 infrastructure and operations → Phase 10 (MVP deployment and initial private Beta) → extended private Beta and consolidation → Phase 11 (public launch and YouTube). Infrastructure acceptance gates, security requirements, protected-database restrictions, the personal-Mac migration, the operational backlog and deferred enhancements are all preserved. Commercialisation stays outside the committed roadmap.
+
+### 15.8 CP3A plan approval and refinements (owner, 27 Nov 2026)
+
+The owner approved the CP3A plan ([`phase8_cp3a_plan.md`](phase8_cp3a_plan.md)) and its five decisions, with these refinements.
+
+- **D1: competitive selection controls.**
+  - Hidden whenever Match Lab shows latest data, which is research only.
+  - Switching back to frozen restores them and the valid frozen Your View.
+  - The existing status and deadline restrictions still apply.
+- **D2: domestic research access.**
+  - The secondary text link is **rejected**. A compact **Research only** toggle sits inside the domestic card: the label, switch and information icon are adjacent and grouped on the left, never at the far right.
+  - **OFF:** "Build domestic portfolio", the published challenge list, frozen data and competitive functionality.
+  - **ON:** "Analyse domestic matches", the upcoming domestic research list, latest data and no competitive functionality.
+  - Selections, filters, drafts and valid adjustments are preserved when switching. Research is available all week.
+  - The default when no challenge is available is to be confirmed at CP3A-2. The recommendation is in plan §6.
+  - It is a local control, not the old global Challenge Mode toggle.
+- **D3: status wording.**
+
+  | State | Message |
+  |---|---|
+  | Upcoming | "Next challenge expected to open at the scheduled date and time, subject to fixture availability." |
+  | Unavailable | "No Weekly Challenge available this week. You can still research upcoming matches." |
+  | Open | "Entries close at the displayed deadline." |
+  | Locked | "Entries closed. Awaiting match results." |
+  | Settling | "Results are being settled." |
+
+  - Stored dates and times are used.
+  - A reason is given only when verified.
+  - No message implies that matches are already in progress after entries lock.
+- **D4: ML-01 included** as the separate focused checkpoint **CP3A-4B**:
+  - a regression test first;
+  - the smallest sufficient correction;
+  - historical compatibility preserved;
+  - no broad refactor.
+- **D5: the European card stays fully hidden** until CP2B.2 is accepted:
+  - no "coming soon" and no dead button;
+  - registry presence alone does not expose it;
+  - no feature-flag framework.
+- **Safeguards C1–C4:**
+  - **C1:** the frozen/latest toggle's visibility depends on the valid **originating** snapshot, so it stays visible in latest mode;
+  - **C2:** Match Lab restoration keeps the fixture, list, context, round and snapshot identity, and fails safely otherwise;
+  - **C3:** guest **and** signed-in journeys are tested (browser and account persistence);
+  - **C4:** Match Lab has no selectors, restores the last valid fixture or shows an empty state, and returning keeps the list, filters, page, selections, drafts and adjustments.
+- **Training Grounds (owner, 27 Nov 2026):**
+  - the Learn tab is renamed **Training Grounds** and moved before Leaderboards. The order is now Portfolio Build, Match Lab, My Challenge, Training Grounds, Leaderboards;
+  - it keeps all approved Learn functionality, educational content and future enhancements;
+  - the route `/learn` and internal identifiers are unchanged;
+  - references to "Learn" elsewhere in this record mean this tab.
+- **Checkpoints:** CP3A-1 routes and navigation; CP3A-2 homepage, domestic card, research access and status; CP3A-3 Match Lab navigation and state; CP3A-4 frozen/latest toggle and isolation; CP3A-4B ML-01; CP3A-5 integration, browser, full CI and docs. Each is reviewed and accepted separately.
+- **CI frequency (owner, 27 Nov 2026):**
+  - CP3A-1 to CP3A-4: focused local tests, regressions, lint, formatting and browser checks, committed with `[skip ci]`;
+  - full CI at CP3A-4B and CP3A-5;
+  - intermediate acceptance is not CP3A acceptance;
+  - the workflow and assertions are unchanged.
+- **Estimates (planning, not commitments):**
+
+  | Checkpoint | Estimate | Note |
+  |---|---|---|
+  | CP3A | **19–26 h** | 16–22 h, plus ML-01 2–3 h, plus about 1 h for the Research only toggle over the link it replaces |
+  | CP3B | 14–20 h | |
+  | CP2B.2 | **7–10 h**, corrected from 8–11 h | See below |
+  | CP4 | 8–12 h | |
+  | **Total remaining Phase 8** | **48–68 h** | |
+
+  **Why CP2B.2 is 7–10 h:**
+  - the original 6–9 h (the European share of CP2B) already covered the registry entries, the stage allowlist, the neutral-final rule, ingestion and showing European fixtures in a list and in Match Lab;
+  - §15.4 replaced "European fixtures in the shared list" with a separate analysis-only list and a gold card;
+  - the list reuses the research list built in CP3A-2, filtered to competitions 2 and 3, so the new work is the card and the filtering, about +1 h;
+  - the earlier +2 h partly counted the list twice;
+  - nothing in CP2B.2 is also counted in CP3A or CP3B.
 
 ## Appendix B. CP1-7 Step B: controlled provider verification plan (**timing and request table superseded by §15.6**, 27 Nov 2026; safeguards still apply)
 

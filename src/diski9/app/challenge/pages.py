@@ -1359,7 +1359,7 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
     if kind == "guest":
         submit_button = html.A(
             [c.icon("send", "ic-sm"), " Sign in to confirm"],
-            href="/auth/sign-in?next=/challenge",
+            href="/auth/sign-in?next=/",
             className="ch-btn primary big",
         )
     elif kind == "setup":
@@ -1744,7 +1744,7 @@ def round_card(
                             else "Open the Weekly Challenge ",
                             c.icon("arrow-right", "ic-sm"),
                         ],
-                        href="/challenge",
+                        href="/",
                         className="ch-lab-link",
                     ),  # fmt: skip
                     html.P(note, className="muted small ch-proto-note"),
@@ -2284,6 +2284,24 @@ def illustrative_blocks():
 
 
 # -------------------------------------------------------------- leaderboards
+def learn_page() -> html.Div:
+    """The Training Grounds tab, route ``/learn`` (Phase 8 CP3A-1: route and tab only;
+    its learning content is CP3B)."""
+    return html.Div(
+        [
+            c.page_header("Training Grounds"),
+            html.P(
+                "Guides to the Weekly Challenge, the Match Lab and the ideas behind them "
+                "will be added here. Until then, the information icons next to each term "
+                "in Portfolio Build and the Match Lab explain it where you meet it.",
+                className="muted",
+            ),
+            dcc.Link("Go to Portfolio Build", href="/", className="ch-lab-link"),
+        ],
+        className="ch-page",
+    )
+
+
 def leaderboards(service=None) -> html.Div:
     """Real leaderboards when the competition database is configured (Stage E);
     the Phase 6B demonstration otherwise (prototype mode, labelled as such)."""

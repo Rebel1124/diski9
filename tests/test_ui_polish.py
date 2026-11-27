@@ -194,7 +194,7 @@ const { chromium, devices } = require('playwright');
                  ['phone', devices['iPhone 13']]];
   for (const [name, opts] of views) {
     const p = await (await b.newContext(opts)).newPage();
-    await p.goto(BASE);
+    await p.goto(BASE + 'lab');
     await p.waitForSelector('#leagues', { timeout: 20000 });
     await p.waitForTimeout(600);
     const r = {};

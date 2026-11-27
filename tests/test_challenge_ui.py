@@ -495,17 +495,19 @@ def test_routes_and_existing_screener(data):  # noqa: F811
 
     app = create_app(data)
     client = app.server.test_client()
-    for path in ("/", "/challenge", "/challenge/me", "/leaderboards"):
+    for path in ("/", "/lab", "/challenge/me", "/leaderboards", "/learn"):
         assert client.get(path).status_code == 200
+    assert client.get("/challenge").headers["Location"].endswith("/")  # CP3A-1 redirect
     layout = client.get("/_dash-layout").get_data(as_text=True)
     for cid in ("url", "site-nav-links", "screener-root", "ch-root", "ch-session", "results-table"):
         assert f'"{cid}"' in layout
     assert '"storage_type":"session"' in layout.replace(" ", "")
     route = _callback(app, "ch-root.children")
-    style, content, nav, _ = route("/", None, None, None)
+    style, content, nav, _ = route("/lab", None, None, None)  # Phase 8 CP3A-1: Match Lab
     assert style == {"display": "block"} and content is None
-    for path, words in (("/challenge", "Weekly Challenge"), ("/challenge/me", "My Challenge"),
-                        ("/leaderboards", "Leaderboards")):  # fmt: skip
+    for path, words in (("/", "Weekly Challenge"), ("/challenge", "Weekly Challenge"),
+                        ("/challenge/me", "My Challenge"), ("/leaderboards", "Leaderboards"),
+                        ("/learn", "Training Grounds")):  # fmt: skip
         style, content, nav, _ = route(path, None, None, None)
         assert style == {"display": "none"}
         assert words in jtext(content)
@@ -548,7 +550,7 @@ def test_browser_journey_demo_round(data):  # noqa: F811
       const p = await (await b.newContext({{ ...devices['iPhone 13'] }})).newPage();
       p.on('pageerror', e => out.errors.push(e.message));
       const idle = async () => {{ await p.waitForTimeout(400); await p.waitForLoadState('networkidle'); }};
-      await p.goto('http://127.0.0.1:{port}/challenge'); await p.waitForSelector('.ch-page');
+      await p.goto('http://127.0.0.1:{port}/'); await p.waitForSelector('.ch-page');
       await p.locator(sel({{m: 'demo', t: 'mode'}})).tap();
       await p.waitForSelector('text=Demonstration round.'); await idle();
       await p.waitForSelector(sel({{k: KEYS[0], t: 'pick'}}));

@@ -229,7 +229,7 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
   const idle = async () => { await p.waitForTimeout(400); await p.waitForLoadState('networkidle'); };
   const txt = async (css) => (await p.locator(css).first().innerText()).replace(/\\s+/g, ' ');
   // server A: build and confirm a live portfolio
-  await p.goto(A + '/challenge'); await p.waitForSelector(sel({ k: KEYS[0], t: 'pick' }));
+  await p.goto(A + '/'); await p.waitForSelector(sel({ k: KEYS[0], t: 'pick' }));
   out.taps = [];
   await idle(); await p.waitForTimeout(800);  // builder mounted (see clicked_id)
   for (const k of KEYS) { await p.locator(sel({ k, t: 'pick' })).click(); await idle();
@@ -246,7 +246,7 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
   await p.goto(B + '/challenge/me'); await p.waitForSelector('.ch-page'); await idle();
   out.me = (await txt('.ch-pill'));
   out.meConfirmedCard = (await p.locator('#ch-root').innerText()).includes('Show my nine predictions');
-  await p.goto(B + '/challenge'); await p.waitForSelector('.ch-page'); await idle();
+  await p.goto(B + '/'); await p.waitForSelector('.ch-page'); await idle();
   out.reviewConfirmed = (await txt(sel({ i: 0, t: 'submit' }))).includes('Confirmed');
   await p.locator(sel({ i: 'stepper', t: 'nav', to: 'build' })).click(); await p.waitForSelector('.ch-total'); await idle();
   out.builder = await txt('.ch-total');
@@ -254,7 +254,7 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
   out.strip = (await txt('#ch-strip')).includes('9/9');
   out.fpRewritten = JSON.parse(await p.evaluate(() => sessionStorage.getItem('ch-session'))).fp !== JSON.parse(stored).fp;
   // a later interaction changes only what was clicked
-  await p.locator('.nav-link', { hasText: 'Weekly Challenge' }).click(); await p.waitForSelector('.ch-total'); await idle();
+  await p.locator('.nav-link', { hasText: 'Portfolio Build' }).click(); await p.waitForSelector('.ch-total'); await idle();
   await p.locator(sel({ k: KEYS[0], t: 'pick' })).click(); await idle();
   out.afterClick = await txt('.ch-total');
   await p.reload(); await p.waitForSelector('.ch-total'); await idle();
@@ -271,7 +271,7 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
   await p.reload(); await p.waitForSelector('.ch-pill'); await idle();
   out.withdrawnAfterReload = await txt('.ch-pill');
   out.noSubmission = !(await p.locator('#ch-root').innerText()).includes('Show my nine predictions');
-  await p.goto(B + '/challenge'); await p.waitForSelector(sel({ k: KEYS[3], t: 'pick' })); await idle();
+  await p.goto(B + '/'); await p.waitForSelector(sel({ k: KEYS[3], t: 'pick' })); await idle();
   await p.locator(sel({ k: KEYS[3], t: 'pick' })).click(); await idle();
   out.freshDraft = await txt('.ch-total');
   console.log(JSON.stringify(out)); await b.close();
