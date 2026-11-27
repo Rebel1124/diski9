@@ -758,6 +758,7 @@ No blocker prevents CP2A once it is authorised.
   - the scheduler's readiness verdict line adds `no_payload=<n>`.
 - No automatic refresh, retry, provider call, cache architecture, migration or dependency was added.
 - *Validation note:* the first CI run of this refinement (run 170, `a2852f4`) failed 10 tests: 2,368 passed, 10 failed. In every case a readiness test double in `tests/test_prepare_week.py` lacked the `diagnostics` field that the real `PublicationReadiness` always carries. The double was corrected; production code is unchanged.
+- *Validation note:* the next run (171, `05d3fef`) passed 2,377 and failed 1. The CP2A browser journey (`test_browser_builder_with_missing_models`) read the review notice after a fixed 400 ms pause, before the slower CI runner had rendered it. The test now waits for the expected review and source notices (up to 30 s); it passed 3 of 3 times locally. Test-only change; production code is unchanged.
 
 **Historical quantitative regression tool: compatibility change deferred (not approved).** `tools/phase6c3_quant_regression.py` is unchanged.
 - The accepted Goal Model 1.0 baseline remains reproducible at its original commit (fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`).

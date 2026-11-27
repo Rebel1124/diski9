@@ -359,11 +359,15 @@ def test_browser_builder_with_missing_models(data, monkeypatch):  # noqa: F811
       for (const k of KEYS) {{ await p.locator(sel({{k, t: 'pick'}})).tap(); await idle(); }}
       out.total = await p.locator('.ch-total').innerText();
       await p.locator('.ch-source').getByText('Diski 9', {{ exact: true }}).tap(); await idle();
+      await p.waitForSelector('.ch-src-note:has-text("unavailable for")', {{ timeout: 30000 }});
       out.modelNote = await p.locator('.ch-src-note').innerText();
       out.unavailBuckets = await p.locator('.ch-bstat.ch-unavail').count();
       await p.locator('.ch-source').getByText('Your View', {{ exact: true }}).tap(); await idle();
+      await p.waitForSelector('.ch-src-note:has-text("market consensus")', {{ timeout: 30000 }});
       out.viewNote = await p.locator('.ch-src-note').innerText();
       await p.locator(sel({{i: 'tracker', t: 'nav', to: 'review'}})).tap(); await idle();
+      // wait for the review stage itself (a fixed pause is too short on slow runners)
+      await p.waitForSelector('text=Diski 9 portfolio estimate unavailable', {{ timeout: 30000 }});
       out.review = (await p.locator('.ch-unavail').allInnerTexts()).join(' ');
       out.overflow = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       await p.screenshot({{ path: {json.dumps(str(SHOT))}, fullPage: false }});
