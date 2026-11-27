@@ -10,7 +10,7 @@
 - **CP2A is formally accepted by the owner (27 Nov 2026)** (§13, §13.1, closure refinement §13.2). Goal Model 1.1 is the accepted **application** model baseline. It is an application implementation only: nothing is deployed to a hosted environment.
 - **CP2A and its closure refinement are fully accepted and closed (27 Nov 2026;** `87849bb`, CI run 172: 2,378 passed, 0 failed, 0 skipped).
 - **CP2B is split (owner, 27 Nov 2026):** **CP2B.1**, the market-implied model on domestic data, is **formally accepted and closed by the owner (27 Nov 2026;** `7c7cf22`, CI run 173: 2,416 passed, 0 failed, 0 skipped; §14, §15.1). **CP2B.2**, European Match Analysis (analysis only), is **not authorised**: it follows the 7 Dec verification and a separate owner decision.
-- **Revised MVP scope and final navigation decisions approved (27 Nov 2026, §15).** They supersede the Challenge Mode toggle (OD-4), the Match Lab fixture picker (Appendix C) and any European participation in the Weekly Challenge. **The CP3A plan is approved with refinements (27 Nov 2026, §15.8;** `phase8_cp3a_plan.md`). **CP3A-1 (routes and navigation) is implemented and awaiting review.** CP3A-2 onwards each need explicit owner authorisation.
+- **Revised MVP scope and final navigation decisions approved (27 Nov 2026, §15).** They supersede the Challenge Mode toggle (OD-4), the Match Lab fixture picker (Appendix C) and any European participation in the Weekly Challenge. **The CP3A plan is approved with refinements (27 Nov 2026, §15.8;** `phase8_cp3a_plan.md`). **CP3A-1 (routes and navigation) is formally accepted (27 Nov 2026;** `e7c2aae`, `951a33a`; §15.9). **CP3A-2 is implemented and awaiting review.** CP3A-3 onwards each need explicit owner authorisation.
 - Phase 6 stays paused.
 
 **How to read this record:**
@@ -1125,6 +1125,27 @@ The owner approved the CP3A plan ([`phase8_cp3a_plan.md`](phase8_cp3a_plan.md)) 
   - the list reuses the research list built in CP3A-2, filtered to competitions 2 and 3, so the new work is the card and the filtering, about +1 h;
   - the earlier +2 h partly counted the list twice;
   - nothing in CP2B.2 is also counted in CP3A or CP3B.
+
+### 15.9 CP3A-1 acceptance and Research only defaults (owner, 27 Nov 2026)
+
+- **CP3A-1 formally accepted:**
+  - implementation `e7c2aae` and navigation naming `951a33a`, both independently verified by ChatGPT;
+  - CI run 174 (successful: PostgreSQL, real Supabase Auth, browser tests, migration checks, lint and formatting) validates the **pre-CP3A-1 baseline**, not the new navigation;
+  - the reported local testing and focused re-runs are accepted as proportionate evidence;
+  - full cumulative CI remains deferred to CP3A-4B.
+- **Outstanding items kept:**
+  - direct Match Lab deep-link fixture restoration (CP3A-3);
+  - Training Ground content (CP3B);
+  - legacy acceptance script routes (CP3A-5);
+  - signed-in participant browser acceptance (CP3A-5).
+- **Estimates accepted:** CP3A 19–26 h (including ML-01), CP3B 14–20 h, CP2B.2 7–10 h, CP4 8–12 h; Phase 8 planning baseline 48–68 h before deducting completed work. The CP2B.2 correction is accepted.
+- **Research only initial defaults** (no session choice yet):
+  - OFF for an open, locked or settling challenge;
+  - ON for an upcoming or unavailable one.
+  - These are initial values, not continuous overrides. An explicit change is kept for the browser session, including Match Lab and back. There is no account-level preference or new persistence layer.
+  - An unavailable challenge never exposes invalid competitive functionality to honour a preference.
+  - Locked and settling challenges stay viewable with frozen data; entry restrictions are unchanged.
+- **CP3A-2 authorised** (implemented; plan §10.3).
 
 ## Appendix B. CP1-7 Step B: controlled provider verification plan (**timing and request table superseded by §15.6**, 27 Nov 2026; safeguards still apply)
 

@@ -127,7 +127,8 @@ const sel = (o) => `[id='${JSON.stringify(o)}']`;
     p.on('pageerror', e => r.errors.push(e.message));
     const idle = async () => { await p.waitForTimeout(350); await p.waitForLoadState('networkidle'); };
     const press = async (loc) => { if (how === 'touch') await loc.tap(); else await loc.click(); };
-    await p.goto(BASE); await p.waitForSelector('.ch-page');
+    await p.goto(BASE);  // CP3A-2: open the challenge list (Research only OFF)
+    await p.waitForSelector('#research-only'); if (await p.locator('#research-only input').isChecked()) { await p.locator('.pb-switch-label').click(); } await p.waitForSelector('.ch-page', { state: 'visible' });
     await press(p.locator(sel({ m: 'demo', t: 'mode' })));
     await p.waitForSelector('text=Demonstration round.'); await idle();
     await p.locator('.ch-legend').scrollIntoViewIfNeeded();

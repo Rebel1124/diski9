@@ -365,7 +365,8 @@ def test_browser_builder_with_missing_models(data, monkeypatch):  # noqa: F811
       const p = await (await b.newContext({{ ...devices['iPhone 13'] }})).newPage();
       p.on('pageerror', e => out.errors.push(e.message));
       const idle = async () => {{ await p.waitForTimeout(400); await p.waitForLoadState('networkidle'); }};
-      await p.goto('http://127.0.0.1:{port}/'); await p.waitForSelector('.ch-page');
+      await p.goto('http://127.0.0.1:{port}/');  // CP3A-2: the challenge list (Research only OFF)
+      await p.waitForSelector('#research-only'); if (await p.locator('#research-only input').isChecked()) {{ await p.locator('.pb-switch-label').click(); }} await p.waitForSelector('.ch-page', {{ state: 'visible' }});
       await p.locator(sel({{m: 'demo', t: 'mode'}})).tap();
       await p.waitForSelector('text=Demonstration round.'); await idle();
       for (const k of KEYS) {{ await p.locator(sel({{k, t: 'pick'}})).tap(); await idle(); }}

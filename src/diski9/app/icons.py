@@ -85,6 +85,11 @@ ICONS: dict[str, str] = {
     "mountain": '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/>',
     "goal": '<path d="M12 13V2l8 4-8 4"/><path d="M20.561 10.222a9 9 0 1 1-12.55-5.29"/>'
     '<path d="M8.002 9.997a5 5 0 1 0 8.9 2.02"/>',
+    # a football (Diski 9 drawing in the Lucide style: 24 px grid, 2 px round strokes)
+    "football": '<circle cx="12" cy="12" r="10"/>'
+    '<path d="m12 7.5 4.3 3.1-1.6 5h-5.4l-1.6-5Z"/>'
+    '<path d="M12 7.5V2"/><path d="m16.3 10.6 5.2-1.7"/><path d="m14.7 15.6 3.2 4.4"/>'
+    '<path d="m9.3 15.6-3.2 4.4"/><path d="M7.7 10.6 2.5 8.9"/>',
     "users": '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>'
     '<path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
 }

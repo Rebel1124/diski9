@@ -19,7 +19,7 @@ from diski9.challenge import analysis as pa
 from diski9.challenge.config import ConfigError
 from diski9.challenge.structured import SelectionBlock, selection_blocks, validate_portfolio
 
-from . import adopt_ui, charts, integration, lab_persist, pages, persist
+from . import adopt_ui, charts, home, integration, lab_persist, pages, persist
 from . import components as c
 from . import state as st
 from .service import ChallengeService, key_str, parse_key
@@ -435,6 +435,13 @@ def account_action(service, state, action, arg=None, personal=None):
 
 
 # ------------------------------------------------------------- registration
+def research_list_shown(service, prefs) -> bool:
+    """Research only, as the participant chose it this session or by the status default."""
+    if "research" in (prefs or {}):
+        return bool(prefs["research"])
+    return home.challenge_status(service, lambda dt, *a: "", championship=False).default_research
+
+
 def register(app, data, service: ChallengeService) -> None:
     local = data.local
     adopt_ui.register(app, data, service)
@@ -444,7 +451,7 @@ def register(app, data, service: ChallengeService) -> None:
         return integration.personal_probabilities(data, snap, lab_store)
 
     @app.callback(
-        Output("screener-root", "style"),
+        Output("pb-home", "children"),
         Output("ch-root", "children"),
         Output("site-nav-links", "children"),
         Output("ch-rendered", "data"),
@@ -454,25 +461,26 @@ def register(app, data, service: ChallengeService) -> None:
         State("lab-store", "data"),
     )
     def route(path, state, explore, lab_store):
+        """Page content per route. Which of the Portfolio Build lists shows (and the
+        Screener on /lab) is decided by ``layout_mode``."""
         path = norm_path(path)
-        show = {"display": "block"} if path == LAB else {"display": "none"}
         if path == PORTFOLIO:
             return (
-                show,
+                home.portfolio_home(service, local, explore),
                 pages.challenge_shell(service, state, explore, local, your_view(state, lab_store)),
                 nav_links(path),
                 pages.stage_signature(service, state),
             )
         if path == "/challenge/me":
-            return show, pages.my_challenge(service, state, local), nav_links(path), None
+            return None, pages.my_challenge(service, state, local), nav_links(path), None
         if path == "/leaderboards":
-            return show, pages.leaderboards(service), nav_links(path), None
+            return None, pages.leaderboards(service), nav_links(path), None
         if path == LAB:
-            return show, None, nav_links(path), None
+            return None, None, nav_links(path), None
         if path == "/learn":
-            return show, pages.learn_page(), nav_links(path), None
+            return None, pages.learn_page(), nav_links(path), None
         return (
-            show,
+            None,
             html.Div(
                 [
                     html.H1("Page not found", className="ch-h1"),
@@ -528,7 +536,7 @@ def register(app, data, service: ChallengeService) -> None:
     def data_context(universe, path):
         """Frozen (Weekly Challenge) versus latest (All Upcoming Fixtures) information,
         with the actual stored times."""
-        if not is_lab(path):
+        if norm_path(path) not in (PORTFOLIO, LAB):  # the Screener shows on both (CP3A-2)
             return no_update
         return integration.data_context(service, data, universe)
 
@@ -735,6 +743,67 @@ def register(app, data, service: ChallengeService) -> None:
             return max(1, page + (1 if trig["d"] == "next" else -1))
         return 1  # a filter changed: back to the first page
 
+    # ------------------------------------------------- Portfolio Build (CP3A-2)
+    @app.callback(
+        Output("ch-prefs", "data", allow_duplicate=True),
+        Input("research-only", "value"),
+        State("ch-prefs", "data"),
+        prevent_initial_call=True,
+    )
+    def set_research(value, prefs):
+        """Only an explicit change of the Research only toggle is stored (this browser
+        session); rendering the toggle never writes, so until the participant chooses,
+        the status default applies."""
+        new = dict(prefs or {})
+        new["research"] = home.RESEARCH_VALUE in (value or [])
+        return no_update if new == (prefs or {}) else new
+
+    @app.callback(
+        Output("pb-go", "children"),
+        Output("pb-mode-note", "children"),
+        Input("research-only", "value"),
+    )
+    def research_widgets(value):
+        on = home.RESEARCH_VALUE in (value or [])
+        return (home.ACTION_RESEARCH if on else home.ACTION_BUILD), home.mode_note(on)
+
+    @app.callback(
+        Output("screener-root", "style"),
+        Output("screener-root", "className"),
+        Output("ch-root", "style"),
+        Output("universe", "value", allow_duplicate=True),
+        Input("url", "pathname"),
+        Input("ch-prefs", "data"),
+        State("universe", "value"),
+        prevent_initial_call="initial_duplicate",
+    )
+    def layout_mode(path, prefs, universe):
+        """Which list shows. /lab: the Screener and Match Lab (unchanged until CP3A-3).
+        Portfolio Build: the challenge builder (Research only OFF) or the Screener as the
+        research list with latest data (ON). Lists stay mounted, so switching never
+        discards selections, drafts, filters, pages or adjustments."""
+        shown, hidden = {"display": "block"}, {"display": "none"}
+        path = norm_path(path)
+        if path == LAB:
+            return shown, "", shown, no_update
+        if path != PORTFOLIO:
+            return hidden, "", shown, no_update
+        if not research_list_shown(service, prefs):
+            return hidden, "", shown, no_update
+        return shown, "on-portfolio", hidden, (no_update if universe == "all" else "all")
+
+    app.clientside_callback(
+        """function(n) {
+            if (n) {
+                const el = document.getElementById('pb-list');
+                if (el) { el.scrollIntoView({behavior: 'smooth', block: 'start'}); }
+            }
+            return window.dash_clientside.no_update;
+        }""",
+        Output("pb-list", "className"),
+        Input("pb-go", "n_clicks"),
+    )
+
     @app.callback(
         Output("ch-prefs", "data"),
         Input(c.T("source", ALL), "value"),
@@ -826,7 +895,9 @@ def register(app, data, service: ChallengeService) -> None:
         Input("url", "pathname"),
     )
     def screener_strip(state, path):
-        return integration.progress_strip(service, state) if is_lab(path) else no_update
+        # the Weekly Challenge strip belongs to the Match Lab only; never on the
+        # research list in Portfolio Build (CP3A-2)
+        return integration.progress_strip(service, state) if is_lab(path) else None
 
     @app.callback(
         Output("lab-challenge", "children"),
@@ -840,8 +911,8 @@ def register(app, data, service: ChallengeService) -> None:
         """Rendered only while the Screener is showing (re-rendering its pattern-matched
         cards inside the hidden Screener made every builder tap slower); returning to
         the Screener re-renders it from the current state."""
-        if not is_lab(path):
-            return None if ctx.triggered_id == "url" else no_update
+        if not is_lab(path):  # never on the research list in Portfolio Build (CP3A-2)
+            return None
         return integration.lab_panel(service, data, state, fid, lab_store, flash)
 
     @app.callback(

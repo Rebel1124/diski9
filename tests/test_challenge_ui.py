@@ -503,13 +503,16 @@ def test_routes_and_existing_screener(data):  # noqa: F811
         assert f'"{cid}"' in layout
     assert '"storage_type":"session"' in layout.replace(" ", "")
     route = _callback(app, "ch-root.children")
-    style, content, nav, _ = route("/lab", None, None, None)  # Phase 8 CP3A-1: Match Lab
-    assert style == {"display": "block"} and content is None
+    # Phase 8 CP3A-1/2: the Match Lab at /lab; the Screener's visibility is ``layout_mode``
+    _, content, nav, _ = route("/lab", None, None, None)
+    assert content is None
+    mode = _callback(app, "screener-root.style")
+    assert mode("/lab", {}, "all")[0] == {"display": "block"}
     for path, words in (("/", "Weekly Challenge"), ("/challenge", "Weekly Challenge"),
                         ("/challenge/me", "My Challenge"), ("/leaderboards", "Leaderboard"),
                         ("/learn", "Training Ground")):  # fmt: skip
-        style, content, nav, _ = route(path, None, None, None)
-        assert style == {"display": "none"}
+        _, content, nav, _ = route(path, None, None, None)
+        assert mode(path, {"research": False}, "all")[0] == {"display": "none"}
         assert words in jtext(content)
         assert any("on" in link.className for link in nav)
 
@@ -550,7 +553,8 @@ def test_browser_journey_demo_round(data):  # noqa: F811
       const p = await (await b.newContext({{ ...devices['iPhone 13'] }})).newPage();
       p.on('pageerror', e => out.errors.push(e.message));
       const idle = async () => {{ await p.waitForTimeout(400); await p.waitForLoadState('networkidle'); }};
-      await p.goto('http://127.0.0.1:{port}/'); await p.waitForSelector('.ch-page');
+      await p.goto('http://127.0.0.1:{port}/');  // CP3A-2: the challenge list (Research only OFF)
+      await p.waitForSelector('#research-only'); if (await p.locator('#research-only input').isChecked()) {{ await p.locator('.pb-switch-label').click(); }} await p.waitForSelector('.ch-page', {{ state: 'visible' }});
       await p.locator(sel({{m: 'demo', t: 'mode'}})).tap();
       await p.waitForSelector('text=Demonstration round.'); await idle();
       await p.waitForSelector(sel({{k: KEYS[0], t: 'pick'}}));

@@ -92,7 +92,13 @@ def locked(avail) -> bool:
 
 FROZEN_NOTE = (
     "All participants use the same frozen odds and baseline estimates for this round. "
-    "These may differ from the latest information shown under All Upcoming Fixtures."
+    "Current market prices and model estimates may differ."
+)
+# Phase 8 CP3A-2: the competitive list's snapshot notice, with the stored frozen time
+SNAPSHOT_NOTICE = (
+    "Market odds, probabilities and model estimates were frozen when this challenge was "
+    "published (snapshot {at} SAST), so every participant plays under the same conditions. "
+    "Current market prices and model estimates may differ."
 )
 
 
@@ -310,10 +316,14 @@ def status_strip(snap, avail, local, rv=None) -> html.Div:
     )
 
 
-def frozen_note(snap, rv) -> html.P | None:
+def frozen_note(snap, rv, local=None) -> html.P | None:
+    """The published round's snapshot notice (never for the demonstration round)."""
     if rv is None or snap is None or snap.is_demo:
         return None
-    return html.P(FROZEN_NOTE, className="muted small ch-frozen-note")
+    at = rv.snapshot_at or snap.snapshot_at
+    if local is None or at is None:
+        return html.P(FROZEN_NOTE, className="muted small ch-frozen-note")
+    return html.P(SNAPSHOT_NOTICE.format(at=local(at)), className="muted small ch-frozen-note")
 
 
 def unavailable(service, state, mode, snap, avail, local) -> html.Div:
@@ -485,7 +495,7 @@ def builder(service, snap, sels, avail, prefs, local, personal=None, state=None)
         [
             c.demo_ribbon(snap),
             status_strip(snap, avail, local, service.round_view()),
-            frozen_note(snap, service.round_view()),
+            frozen_note(snap, service.round_view(), local),
             how_to_play(new_user, snap.config),
             notes_box,
             lock_note,

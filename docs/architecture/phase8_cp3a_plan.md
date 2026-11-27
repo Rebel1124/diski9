@@ -3,8 +3,9 @@
 *Plan approved by the owner on 27 Nov 2026, with the refinements below (record [§15.8](phase8_implementation.md)). It is implemented one checkpoint at a time, and each checkpoint is authorised, reviewed and accepted separately.*
 
 - **Status:**
-  - **CP3A-1** (routes and navigation) is implemented, awaiting review (§10.1);
-  - **CP3A-2 onwards are not authorised.**
+  - **CP3A-1** (routes and navigation) is **formally accepted** (27 Nov 2026; `e7c2aae`, `951a33a`; §10.1);
+  - **CP3A-2** (Portfolio Build home, domestic card, Research only, status, notices) is implemented, awaiting review (§10.3);
+  - **CP3A-3 onwards are not authorised.**
 
 Decisions this plan implements: [`phase8_implementation.md`](phase8_implementation.md) §15 (governs), with §11 OD-4 where not superseded.
 
@@ -127,11 +128,21 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
 
 - **Switching** never changes selections, filters, drafts or valid adjustments. Both lists stay mounted and are shown or hidden.
 - **Research is available all week**, whatever the challenge status.
-- **Default when no challenge is available [recommended, for confirmation at CP3A-2]:**
-  - the toggle **starts ON** only when there is no open, locked or settling round, i.e. no challenge information to show;
-  - it is a starting value only (no forced switch, no automatic state change while the user is on the page), and the stored preference wins once the user has set it;
-  - with a locked or settling round it starts OFF, so challenge information stays reachable;
-  - the user's existing portfolio is never discarded.
+- **Initial default [D, owner Part B, 27 Nov 2026], when the session has no choice yet:**
+
+  | Challenge | Research only |
+  |---|---|
+  | Open | OFF |
+  | Locked | OFF |
+  | Settling | OFF |
+  | Upcoming (not yet published) | ON |
+  | Unavailable | ON |
+
+  - it is a starting value only, not a continuous override;
+  - once the participant changes the toggle, the choice is kept for the browser session (`ch-prefs`), including across Match Lab and back and a reload;
+  - no account-level preference and no new persistence layer;
+  - an unavailable challenge never exposes competitive functionality just to honour a preference: with Research only OFF and no playable round, the builder shows its existing unavailable message;
+  - portfolios, drafts, filters and valid adjustments are never discarded.
 - This is a local control within the domestic card, not the old global Challenge Mode toggle. It reuses the existing list components, and adds no tab and no new architecture.
 
 ## 7. Snapshot notices and challenge status messaging [D3]
@@ -203,6 +214,39 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
 - Establish the exact mechanism, then make the smallest sufficient correction: stale callbacks must not apply adjustments to the wrong fixture, baseline or frozen/latest context.
 - Historical adjustment compatibility is preserved. There is no broad callback or persistence refactor.
 
+### 10.3 CP3A-2 as implemented
+
+- **Home (`challenge/home.py`):**
+  - the approved headlines with a teal football icon (added to the bundled icon set in the same 24 px, 2 px-stroke style; no dependency);
+  - the tagline and footnote;
+  - the **Domestic Weekly Challenge** card;
+  - no European card and no placeholder.
+- **Card facts, from stored data only:**
+  - the championship name and progress (`championship_board`, guests included);
+  - the round code, fixture window, entry deadline (open) or expected publication time (upcoming);
+  - the status line in the approved wording (§7).
+- **How the status is derived:**
+  - open: the published round's deadline is ahead;
+  - locked: past the deadline or locked;
+  - settling: the round is settling;
+  - with no round, or a final one: upcoming until the weekend schedule's publication target (Friday 08:00 SAST), then unavailable;
+  - prototype mode: the opening assessment, with its verified reason;
+  - so a final round no longer shows "Round locked" during a break.
+- **Research only:**
+  - a native checkbox styled as a compact switch, with its label, then the `education.info` tooltip, grouped on the left;
+  - `set_research` stores only explicit changes;
+  - `layout_mode` shows either the builder (OFF) or the Screener as the research list with latest data (ON) under the card;
+  - both stay mounted, and the universe is set only when it differs, so filters and pages are not reset;
+  - the global Matches control is hidden (kept as internal state until CP3A-3/4).
+- **Research list safeguards:**
+  - the Weekly Challenge selection panel and progress strip are not rendered there;
+  - the latest-data line shows the model's stored time and that bookmaker prices carry their own collection times;
+  - a research-only note sits above the list.
+- **Competitive list:** the builder's snapshot notice now states that odds, probabilities and model estimates were frozen at publication, with the stored snapshot time, and that current prices may differ.
+- **Dependency on CP3A-3, documented:**
+  - until the Match Lab detail moves to `/lab` only, selecting a match in the research list shows its analysis beneath the list (latest data, no selection controls), as the Screener did before;
+  - the Match Lab tab itself is unchanged.
+
 ## 11. Testing and browser acceptance (proportionate)
 
 - **Route and label tests:** tab order and labels (including Training Ground), the redirects, `/lab`, `/learn`, the active tab and unknown paths (CP3A-1).
@@ -243,4 +287,9 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
   - the re-pointed route callbacks and `allow_duplicate` outputs: covered by route and browser tests;
   - the extra Match Lab toggle could confuse users: mitigated by the frozen default and the explanatory text;
   - the historical acceptance scripts in `tools/e2e_*` still open `/challenge`; they keep working through the redirect.
-- **For confirmation at CP3A-2:** the Research only default when no challenge is available (§6).
+- **Decided (Part B):** the Research only defaults (§6).
+- **Outstanding from CP3A-1:**
+  - direct Match Lab deep-link fixture restoration: CP3A-3;
+  - Training Ground educational content: CP3B;
+  - legacy acceptance script routes: CP3A-5;
+  - signed-in participant browser acceptance: CP3A-5.

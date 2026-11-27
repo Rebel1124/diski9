@@ -329,7 +329,7 @@ const { chromium, devices } = require('playwright');
     r.layout = {};
     for (const [label, key] of [['Both Teams', 'btts'], ['Over/Under', 'ou25'], ['Match Result', '1x2']]) {
       await p.evaluate(() => window.scrollTo(0, 0));  // the menu opens beside the control
-      await p.locator('#market').click(); await p.waitForSelector('[role=option]');
+      await p.locator('#market').click(); await p.waitForSelector('[role=option]:visible');
       await p.waitForTimeout(300);  // let the menu finish opening
       const value = { btts: 'BTTS', ou25: 'OU25', '1x2': '1X2' }[key];  // each step changes it
       await newMarket(value, () => p.locator('[role=option]', { hasText: label }).dispatchEvent('click'));

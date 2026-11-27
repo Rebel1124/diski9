@@ -24,7 +24,14 @@ from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DI
 
 from . import education, lab_context
 from .challenge import lab_persist
-from .challenge.callbacks import is_lab, legacy_redirect, nav_links
+from .challenge.callbacks import (
+    LAB,
+    PORTFOLIO,
+    legacy_redirect,
+    nav_links,
+    norm_path,
+    research_list_shown,
+)
 from .challenge.callbacks import register as register_challenge
 from .challenge.components import page_header
 from .challenge.integration import (
@@ -284,10 +291,12 @@ def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> 
                 className="site-nav",
                 **{"aria-label": "Main"},
             ),
+            # Portfolio Build introduction and Domestic Weekly Challenge card (CP3A-2)
+            html.Div(id="pb-home"),
             html.Div(
                 build_layout(data, "challenge" if service.availability("live").playable else "all"),
                 id="screener-root",
-                style={"display": "none"},  # shown by the router on /lab only
+                style={"display": "none"},  # shown by ``layout_mode`` (/lab; research list)
             ),
             html.Div(id="ch-root"),
             dcc.Store(id="ch-session", storage_type="session"),
@@ -385,6 +394,10 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
             methodology_section(),
             html.Div(
                 [
+                    # The global Challenge Mode control is removed from the page (Phase 8
+                    # CP3A-2): Research only in Portfolio Build and the Match Lab links
+                    # set it. It stays as hidden internal state until CP3A-3/4 replace
+                    # it with the list origin and the frozen/latest toggle.
                     html.Div(
                         [
                             html.Label("Matches"),
@@ -399,6 +412,8 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
                             ),
                         ],
                         className="filter f-matches",
+                        style={"display": "none"},
+                        hidden=True,
                     ),
                     html.Div(
                         [
@@ -806,16 +821,20 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Input("url", "pathname"),
         Input("universe", "value"),
         State("lab-store", "data"),
+        State("ch-prefs", "data"),
         prevent_initial_call="initial_duplicate",
     )
-    def update_detail(fid, market, path, universe, lab):
+    def update_detail(fid, market, path, universe, lab, prefs=None):
         """The Match Lab is unmounted while another page shows (its large tree inside
         the hidden Screener slowed every Weekly Challenge tap) and rebuilt from the
         selection and the Match Lab store on return, so nothing is lost. The context
         (frozen Weekly Challenge snapshot or latest data) decides the baseline and
         which Your View is shown; a signed-in participant's saved Your View for that
         context is loaded from the account (Phase 6C.3)."""
-        if not is_lab(path):
+        here = norm_path(path)
+        # the Match Lab, or (until CP3A-3 moves the detail to /lab only) beneath the
+        # research list in Portfolio Build
+        if not (here == LAB or (here == PORTFOLIO and research_list_shown(service, prefs))):
             if ctx.triggered_id == "url":
                 return None, None, no_update
             return no_update, no_update, no_update

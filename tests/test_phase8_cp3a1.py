@@ -81,21 +81,23 @@ def test_server_redirects_old_addresses(data):  # noqa: F811
 
 
 def test_router_shows_each_page(data):  # noqa: F811
+    """Route content (CP3A-2: the first output is the Portfolio Build home section; which
+    list is visible is decided by ``layout_mode``, tested in test_phase8_cp3a2)."""
     route = _named(_app(data), "route")
-    hidden, shown = {"display": "none"}, {"display": "block"}
-    style, content, nav, sig = route("/lab", None, None, None)
-    assert style == shown and content is None and sig is None
+    home, content, nav, sig = route("/lab", None, None, None)
+    assert home is None and content is None and sig is None
     for path in ("/", "/challenge"):  # Portfolio Build, and the legacy alias
-        style, content, nav, sig = route(path, None, None, None)
-        assert style == hidden and "Weekly Challenge" in jtext(content) and sig is not None
+        home, content, nav, sig = route(path, None, None, None)
+        assert "Domestic Weekly Challenge" in jtext(home)
+        assert "Weekly Challenge" in jtext(content) and sig is not None
         assert [x.href for x in nav if x.className.endswith(" on")] == ["/"]
     for path, words in (("/challenge/me", "My Challenge"), ("/leaderboards", "Leaderboard"),
                         ("/learn", "Training Ground")):  # fmt: skip
-        style, content, _, sig = route(path, None, None, None)
-        assert style == hidden and words in jtext(content) and sig is None
-    style, content, _, _ = route("/nowhere", None, None, None)
+        home, content, _, sig = route(path, None, None, None)
+        assert home is None and words in jtext(content) and sig is None
+    home, content, _, _ = route("/nowhere", None, None, None)
     text = jtext(content)
-    assert style == hidden and "Page not found" in text and "Back to Portfolio Build" in text
+    assert home is None and "Page not found" in text and "Back to Portfolio Build" in text
 
 
 def test_screener_is_hidden_until_the_router_shows_it(data):  # noqa: F811
@@ -128,12 +130,12 @@ def test_match_lab_only_callbacks_follow_the_lab_route(data):  # noqa: F811
     assert open_fixture("?fixture=7", "/lab") == (7, "challenge")
     assert open_fixture("?fixture=7", "/") == (no_update, no_update)  # not the Match Lab
     assert open_fixture("?fixture=x", "/lab") == (no_update, no_update)
-    strip = _named(app, "screener_strip")
-    assert strip(None, "/") is no_update and strip(None, "/learn") is no_update
+    strip = _named(app, "screener_strip")  # CP3A-2: cleared off the Match Lab, never stale
+    assert strip(None, "/") is None and strip(None, "/learn") is None
     assert strip(None, "/lab") is not no_update
-    context = _named(app, "data_context")
-    assert context("all", "/") is no_update
-    assert context("all", "/lab") is not no_update
+    context = _named(app, "data_context")  # CP3A-2: also above the research list on /
+    assert context("all", "/learn") is no_update
+    assert context("all", "/lab") is not no_update and context("all", "/") is not no_update
     sync = _named(app, "sync_round_views")
     assert sync("/lab", {}, None) is no_update and sync("/leaderboards", {}, None) is no_update
 
@@ -184,7 +186,8 @@ const fs = require('fs');
     const active = () => p.locator('.nav-link.on').allInnerTexts();
     const shot = async (name) => { if (SHOTS) await p.screenshot({ path: `${SHOTS}/cp3a1_${name}_${w}.png`, fullPage: false }); };
     // Portfolio Build is the home page; the Match Lab stays hidden there
-    await p.goto(BASE); await p.waitForSelector('.ch-page');
+    await p.goto(BASE);  // CP3A-2: no challenge in the test data, Research only starts ON
+    await p.waitForSelector('#research-only'); if (await p.locator('#research-only input').isChecked()) { await p.locator('.pb-switch-label').click(); } await p.waitForSelector('.ch-page', { state: 'visible' });
     r.homeActive = await active();
     r.labHiddenOnHome = await p.locator('#screener-root').isHidden();
     r.tabs = await p.locator('#site-nav-links .nav-link').allInnerTexts();
