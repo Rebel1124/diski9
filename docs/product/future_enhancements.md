@@ -105,7 +105,10 @@ owner approval. Detail and evidence:
 **Product and education**
 * Edge-based recognition enhancements; user-versus-market analysis; a public track
   record.
-* Educational enhancements beyond the MVP Learn section and Match Lab explanations.
+* Educational enhancements and additional analytical education beyond the MVP Learn
+  section and Match Lab explanations.
+* An independent Diski 9 probability threshold filter (removed from the MVP by OD-4,
+  27 Nov 2026; the MVP has one Minimum Market Probability slider).
 * Personal Performance Analytics (recorded above).
 * Achievement threshold reassessment with Beta data (recorded above).
 * Private mini-leagues (removed from the MVP roadmap; reconsider only with active users).
@@ -116,4 +119,8 @@ owner approval. Detail and evidence:
 * A3 housekeeping items carried from Scenario A3.
 * Egress policy reassessment after Phase 9 (API-Football block decision).
 * Account deletion and privacy gates before launch.
-* The administration move to the personal MacBook before Phase 11 (recorded above).
+* The administration move to the personal MacBook: **mandatory within Phase 10, before
+  wider MVP participation** (owner, 27 Nov 2026; recorded above). The employer-device
+  reassessment happens before participant-dependent testing.
+* API-Football subscription continuity: Pro expires 14 Dec 2026 with no auto-renewal
+  (owner considering a longer term in December).

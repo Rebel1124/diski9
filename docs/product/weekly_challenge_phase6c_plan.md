@@ -478,3 +478,19 @@ The sequence is unchanged otherwise: Phase 6 paused (all gates retained) → 7
 Deployment and complete-MVP private Beta → extended private Beta and consolidation →
 11 Public launch and YouTube. Commercialisation stays off the current roadmap pending
 evidence of MVP success.
+
+*Phase 8 decisions (27 Nov 2026):* owner decisions OD-1 to OD-6 are **approved with
+refinements**:
+* Goal Model 1.1;
+* the frozen market-implied fallback;
+* portfolio source rules;
+* the Challenge Mode toggle, homepage introduction and one Minimum Market Probability slider;
+* Step B provider verification authorised for 3–9 Dec 2026 (≤ 25 requests);
+* the CP2A → CP2B → CP3A → CP3B → CP4 plan, about 72–99 active hours.
+
+CP2A awaits independent review and explicit owner authorisation. Governance is retained:
+* the employer-device reassessment before participant-dependent testing;
+* the **personal-Mac migration is mandatory within Phase 10, before wider MVP participation**;
+* commercialisation stays deferred.
+
+Record: [`../architecture/phase8_implementation.md`](../architecture/phase8_implementation.md) §11–§12.

@@ -62,6 +62,24 @@ The Hostinger subtotal is derived as total minus tax.
 | Supabase | spend cap enabled; billing email recipient configured; quota notifications automatic (provider-documented); **no custom dollar-threshold alert is offered** | **verified with qualification** (owner, Billing page, 23 Nov 2026). Delivery not tested; no custom $65 alert exists. The $65 warning relies on this log |
 | Hostinger | renewal reminder | owner calendar: refund decision 17 Dec 2026 |
 
+## Recurring cost register (owner-confirmed 27 Nov 2026; Phase 8 OD-5)
+
+Infrastructure costs and data-provider costs are recorded separately.
+
+| Category | Provider | Plan | Monthly (USD) | Basis |
+|---|---|---|---|---|
+| Infrastructure | Hostinger VPS | KVM 2 | **12.64** (owner figure, the current invoiced month); **≈ 28.16** forecast from renewal (above) | actual / estimated |
+| Infrastructure | Supabase | Pro | 25.00 | actual |
+| Infrastructure | Backblaze B2 | usage-based, capped | ≈ 0 (subject to usage) | uninvoiced |
+| Data provider | API-Football | Pro (7,500 requests/day) | **16.00** | owner-confirmed. Expires 14 Dec 2026; **no automatic renewal**; reverts to the Free plan on expiry; a manual renewal extends the remaining period; reminder 12 Dec |
+| **Combined recurring** | | | **53.64** at the current Hostinger figure; **≈ 69.16** at the Hostinger renewal forecast | before variable charges and future AI or LiveKit spend |
+
+**Threshold scope (unchanged; clarified, not altered):**
+- The **$65 warning and $75 ceiling (F3-D3)** apply to the **infrastructure** total (Hostinger, Supabase, Backblaze), as approved for this log.
+- **API-Football is tracked separately as data-provider spend.** It is outside those thresholds unless the owner decides otherwise.
+- **Open owner decision:** whether the thresholds should cover the combined total. At the renewal forecast, the combined total (≈ 69.16) would exceed the $65 warning.
+- Any API-Football plan change or longer-term purchase is an owner decision.
+
 ## Log of warnings and approvals
 | Date | Event | Decision |
 |---|---|---|
