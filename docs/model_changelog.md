@@ -9,13 +9,14 @@ review rule in [`methodology.md`](methodology.md#8-maintenance-policy).
 | **Goal Model 1.1** | 3.1.0 | Phase 8 CP2A (implemented 27 Nov 2026; awaiting acceptance) | `k_s` 12, `k_t` 96, team ≥ 2, competition ≥ 20, current season only | [`research/phase8_cp1/`](research/phase8_cp1/report.md) |
 | **Goal Model 1.0** | 3.0.0 | November 2026 | `k_s` 12, `k_t` 96, `m0` 30 | [`goal_distribution_research.md`](goal_distribution_research.md), [`goal_model_crossleague_validation.md`](goal_model_crossleague_validation.md) |
 
-## Goal Model 1.1 (approved Phase 8; not yet implemented)
+## Goal Model 1.1 (Phase 8; implemented in CP2A, awaiting final owner acceptance)
 
 Approved by the owner on 27 Nov 2026 (Phase 8 CP1-1/CP1-2), **out of the annual review
 cycle** by explicit owner decision. **Named Goal Model 1.1** (owner decision OD-1, 27 Nov
-2026). Goal Model 1.0 stays in production until the CP2A implementation is accepted. Its
-historical forecasts, cache rows and round snapshots keep their 1.0 identity and stay
-reproducible.
+2026). **Implemented in CP2A** (commit `270ed77`, CI run 168, 27 Nov 2026) and awaiting
+final owner acceptance. Goal Model 1.0's historical forecasts, cache rows and round
+snapshots keep their 1.0 identity and stay reproducible from its frozen parameters
+(`PARAMS_1_0`, hash `463105f660644ebf`).
 
 * **Method (C1-2-20, "Model A"):** the same strength/tempo Poisson model with `k_s` 12
   and `k_t` 96, using **current-season data only** for both team and competition

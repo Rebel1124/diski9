@@ -488,7 +488,8 @@ refinements**:
 * Step B provider verification authorised for 3–9 Dec 2026 (≤ 25 requests);
 * the CP2A → CP2B → CP3A → CP3B → CP4 plan, about 72–99 active hours.
 
-CP2A awaits independent review and explicit owner authorisation. Governance is retained:
+CP2A was subsequently authorised (27 Nov 2026) and is implemented (`270ed77`, CI run 168),
+awaiting final owner acceptance. Governance is retained:
 * the employer-device reassessment before participant-dependent testing;
 * the **personal-Mac migration is mandatory within Phase 10, before wider MVP participation**;
 * commercialisation stays deferred.

@@ -206,7 +206,7 @@ So **no app-database migration is expected** for CP1-6. Historical frozen rounds
 
 **CP2A: domestic model, Weekly Challenge eligibility and missing-model safety (backend plus the minimal builder fixes)**
 - **Objective:** C1-2-20 in production and CP1-6, shipped together.
-- **Prerequisites:** the plan and the Goal Model 1.1 name are approved (OD-6, OD-1). **Explicit owner authorisation of CP2A is still required.**
+- **Prerequisites:** the plan and the Goal Model 1.1 name are approved (OD-6, OD-1). *CP2A was authorised on 27 Nov 2026 and is implemented (§13), awaiting final owner acceptance.*
 - **Changes:**
   - **Goal Model** (`screener/goal_model.py`):
     - remove the prior and `m0` and every previous-season input;
@@ -561,7 +561,7 @@ Nothing here enters the MVP without explicit owner approval. The register in [`.
 - Commercialisation stays deferred.
 - No accepted research or closed Phase 6 and Phase 7 decision is reopened.
 
-## 12. CP2A implementation readiness (assessment; CP2A not authorised)
+## 12. CP2A implementation readiness (pre-authorisation assessment; CP2A since authorised and implemented, §13)
 
 ### 12.1 Scope
 1. **Goal Model 1.1** in `screener/goal_model.py`:
@@ -617,8 +617,8 @@ Nothing here enters the MVP without explicit owner approval. The register in [`.
 
 | # | Item | Status / proposal |
 |---|---|---|
-| 1 | **Resolved 27 Nov 2026: the owner confirms the Hostinger renewal forecast of about USD 28.16 a month.** **Hostinger cost basis.** The owner's USD 12.64/month is the discounted **first-month** invoice. The cost log forecasts about USD 28.16 a month from renewal. The combined recurring figure is then about USD 69.16, not 53.64. | Both recorded in the cost register. **Owner to confirm** the Hostinger term or price. |
-| 2 | **Resolved 27 Nov 2026: the $65 and $75 thresholds stay infrastructure-only (F3-D3). API-Football is tracked separately, with combined spend kept visible.** **Threshold scope.** The $65 warning and $75 ceiling (F3-D3) were approved for the **infrastructure** log (Hostinger, Supabase, Backblaze). Including API-Football would put a renewal-price month above $65. | Scope recorded as **infrastructure only, unchanged**, with API-Football tracked separately as data-provider spend. **Owner decision** if the thresholds should cover both. |
+| 1 | **Hostinger cost basis.** USD 12.64 was the discounted first-month invoice. | **Resolved 27 Nov 2026:** the owner confirmed the renewal forecast of about USD 28.16 a month. That gives forecast infrastructure spend of about USD 53.16 and combined spend of about USD 69.16, recorded in the cost register. |
+| 2 | **Threshold scope.** Do the $65 warning and $75 ceiling (F3-D3) cover infrastructure only, or the combined total? | **Resolved 27 Nov 2026:** infrastructure only, unchanged. API-Football is tracked separately as data-provider spend, with combined spend kept visible. No additional expenditure is authorised. |
 | 3 | **API-Football expiry 14 Dec (no auto-renewal).** The Free plan has a much lower allowance and restricted seasons, which would block CP2B European development data and any manual refresh after 14 Dec. CP2A needs no provider data. | Owner reminder on 12 Dec. Step B finishes by 9 Dec. |
 | 4 | Minimum Market Probability semantics | **Approved 27 Nov 2026 for CP3A, not implemented in CP2A.** Challenge Mode uses the accepted **frozen** consensus probabilities, with no new live freshness test and no refreshed values for a published round. *Original proposal:* All Upcoming shows a fixture when any outcome of the selected market meets the minimum; Challenge Mode filters outcomes, like the bucket filter. At a value above 0, fixtures without fresh consensus are hidden, and the slider says so. |
 | 5 | Challenge Mode default OFF replaces today's default (Weekly Challenge when a round is playable) | Approved change; recorded |
@@ -690,6 +690,51 @@ No blocker prevents CP2A once it is authorised.
 **Not changed:**
 - `tools/phase6c3_quant_regression.py` (a manual regression tool) will now report the new 1.1 parameter hash against its stored baseline. This is expected.
 - The research weekly-pool collector runs from its own `research/weekly-pools` branch and is unaffected.
+
+### 13.1 CP2A independent review: closure evidence (27 Nov 2026)
+
+**Status: CP2A implemented, awaiting final owner acceptance (not yet formally accepted).**
+
+**1. Screener cache prerequisite** (`build_live_snapshot` skips a fixture whose Screener payload is missing, `challenge/roundsheet.py`):
+
+*Coverage*
+- A payload is produced for **every** fixture passed to `screener.cache.refresh`, whether or not the model is available. `compute_fixture` always returns a result, and `fixture_estimate` returns an "unavailable" block with a reason rather than nothing.
+- **Evidence:**
+  - the test-data fixtures `EXTRA` (0 matches) and `PROMOTED_FIX` (1 match) are cached with `available: false` (`test_m53_screener::test_limited_and_missing_history_states`, `test_match_lab::test_early_season_extra_fixtures_flagged`);
+  - on a temporary copy of the local development store (as of 16 Nov), 243 of 243 upcoming fixtures received payloads.
+
+*Normal paths cover the pool universe*
+- **Scheduler:** every sweep, complete or partial, ends with `scheduler.prepare_screener` (`backend/jobs/refresh.py`, `_screener_step` and `run_refresh`). It refreshes `upcoming_fixture_ids(screener_competitions(), now, now + 21 days)`.
+- **CLI:** `refresh-data` (`workflow._screener`) and `screener refresh` (`cli.cmd_screener_refresh`) do the same.
+- `screener_competitions()` and `odds_competitions()` are the same eight leagues. The statuses match (`NS`/`TBD` = `UPCOMING_STATUSES`). The 21-day window covers the round window.
+
+*Residual gap*
+- A fixture can still be excluded for a missing payload alone, but only if the cache was not refreshed after the fixture was ingested. Examples: an operator runs `ingest` without `refresh-data`, or a fixture arrives after the sweep's Screener step.
+- This prerequisite **existed before CP2A** (under Goal Model 1.0 such a fixture was also excluded). It is **not** a model-eligibility rule.
+- It is currently **silent**: the snapshot diagnostics do not count it.
+
+*Tests*
+- CP2A tests distinguish "payload present, model unavailable" (admitted with NULLs).
+- **No test covers "payload missing".**
+
+*Proposed minimal correction (not implemented; awaiting approval)*
+- Count `fixtures_without_screener_payload` in the snapshot diagnostics, surfaced in readiness, and add one test.
+- No change to eligibility, architecture or provider calls.
+- Not required for safety in the normal paths.
+
+**2. Historical quantitative regression** (`tools/phase6c3_quant_regression.py`):
+- The tool keeps no stored baseline: each comparison regenerates the baseline at its commit in a worktree.
+- At the pre-CP2A commit `7a39d31` it reproduces the accepted A3 fingerprint **`88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`** (1,473,435 bytes), so the baseline stays reproducible, and nothing was overwritten.
+- At `270ed77` the output differs in **exactly one line**: `"params"` changes from `463105f660644ebf` (1.0) to `d85a3cea30e6bc9d` (1.1). Every portfolio, probability, payout, scoring and Poisson-grid value is byte-identical, because the tool's Goal Model inputs are only the parameter hash and the pure `markets()` grid.
+- **Proposed compatibility change (not implemented; awaiting approval):** report `gm.params_hash(gm.PARAMS_1_0)` when that attribute exists, falling back to `params_hash()` on older commits. HEAD would then reproduce `88bcd717…` byte for byte, with no change to the accepted baseline.
+
+**3. Regression evidence:**
+- **CI run 168** (full path: PostgreSQL, real Supabase Auth, browser): **2,376 passed, 0 failed, 0 skipped**, in 29 min 48 s. This is the single complete run after the last fix.
+- **Local runs combined several runs:**
+  - non-backend: 1,510 passed and 3 failed in one full run; the 3 were test-expectation fixes, and their three files then passed 184 of 184;
+  - backend (throwaway PostgreSQL), in a sequential run after all backend fixes: 806 passed, 0 failed, 57 skipped (real Supabase Auth only).
+  - Total: 1,513 + 806 + 57 = 2,376, matching CI.
+- **Timing-dependent tests:** two Auth tests failed once while two suites ran concurrently on one machine: `test_backend_auth_web::test_privacy_form_rejects_unknown_modes` and `test_acct_records_lock_snapshot`. They passed in isolation (42 of 42), in the sequential run and in CI.
 
 ## Appendix B. CP1-7 Step B: controlled provider verification plan (**authorised for 3–9 Dec 2026 only**, OD-5)
 
