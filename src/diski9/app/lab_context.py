@@ -92,21 +92,27 @@ def with_live_starting_point(r: dict, ov) -> dict:
     return out
 
 
-def resolve(service, data, fixture_id, universe: str | None) -> LabContext | None:
+def resolve(service, data, fixture_id, universe: str | None, published=None) -> LabContext | None:
+    """The analytical context of a fixture. In the challenge universe, the frozen
+    payload, round code, round id, model version and stamp all come from **one**
+    published ``(round view, snapshot)`` pair: ``published`` when the caller already
+    validated one (``resolve_target``), otherwise a single
+    :meth:`ChallengeService.published_pair` read made here."""
     if not fixture_id:
         return None
     r, ov, _ = data.detail(fixture_id)
     if r is None:
         return None
     fid = int(fixture_id)
-    snap = service.snapshot("live") if universe == "challenge" else None
+    rv, snap = None, None
+    if universe == "challenge":
+        rv, snap = published if published is not None else service.published_pair()
     if snap is not None and not snap.is_demo:
         try:
             fx = snap.fixture(fid)
         except KeyError:
             fx = None
         if fx is not None:
-            rv = service.round_view()
             if fx.estimated_goals is not None:
                 version = rv.model_version if rv else f"goal-model-{gm.GOAL_MODEL_VERSION}"
                 version = (version or "").removeprefix("goal-model-")
@@ -172,7 +178,8 @@ def resolve_target(service, data, target) -> tuple[LabContext | None, str | None
         lc = resolve(service, data, fid, "all")
         return (lc, None) if lc is not None else (None, MISSING)
     assert ctx == CHALLENGE
-    snap = service.snapshot("live")
+    pair = service.published_pair()  # one read: validated and analysed together
+    snap = pair[1]
     if (snap is None or snap.is_demo or snap.round_id != target.get("round")
             or (target.get("fp") and snap.fingerprint != target["fp"])):  # fmt: skip
         return None, CHALLENGE_GONE
@@ -180,9 +187,9 @@ def resolve_target(service, data, target) -> tuple[LabContext | None, str | None
         snap.fixture(fid)
     except KeyError:
         return None, CHALLENGE_GONE
-    lc = resolve(service, data, fid, "challenge")
+    lc = resolve(service, data, fid, "challenge", published=pair)
     if lc is None:  # the snapshot holds it, but the football store has no analysis for it
         return None, MISSING
-    if lc.kind != "round":
+    if lc.kind != "round" or lc.round_code != target.get("round"):  # never another round
         return None, CHALLENGE_GONE
     return lc, None

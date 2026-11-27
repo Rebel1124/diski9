@@ -263,7 +263,7 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
   - selecting a research match (`open_from_research`) or a challenge card's Match Lab link opens `/lab`;
   - nothing is analysed beneath a list any more;
   - the Screener layout is split into the research list (`screener-root`) and the Match Lab page (`lab-root`: back link, heading, challenge strip, detail, selection panel, bookmaker reference, footer). The Match Lab has no competition or fixture selectors, list, filters or Matches control.
-  - **Market control (raised for review):** the Match Lab keeps its own market selector (1X2, BTTS, Over/Under 2.5; `lab-market`), because its analysis is per market and the list's market selector is no longer on the page. Opening a research match carries the list's market across. It is not a fixture or universe selector.
+  - **Market control [D, approved at CP3A-3 closure]:** the Match Lab keeps its own market selector (Match Result (1X2), Both Teams to Score (BTTS), Over/Under 2.5 Goals; `lab-market`), because its analysis is per market and the list's market selector is no longer on the page. Opening a research match carries the list's market across. It is not a fixture or universe selector. Changing market keeps the fixture, context, snapshot and valid Your View adjustments, and never changes portfolio selections.
 - **Links name their context** (`app/links.py`):
   - `/lab?fixture=<id>&ctx=challenge&round=<round>` from the builder and its guidance panel;
   - `ctx=research` from the research list;
@@ -295,6 +295,21 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
 - **Estimate:**
   - the filter was approved for CP3A (OD-4) and counted in the original CP3A estimate (§9.3, "one slider") but omitted from the step list when this plan was rebuilt;
   - restoring it to CP3A-3 corrects that understatement rather than adding scope or double-counting. CP3A-3 5–7 h, CP3A 21–29 h, Phase 8 baseline 50–71 h.
+
+### 10.5 CP3A-3 closure refinements (owner, 27 Nov 2026)
+
+- **One published pair per resolution:**
+  - root cause: one Match Lab resolution read the published round up to three times through the backend's short-lived cache (validation, snapshot, round view). A round change between reads could validate one round and analyse, stamp or store Your View against another;
+  - correction: `ChallengeService.published_pair()` returns the round view and snapshot from one read. `resolve_target` validates that pair and passes it to `resolve(..., published=pair)`; `resolve` called without a pair makes one `published_pair()` read itself. Validation, frozen payload, round code, round id, fingerprint, model version, analysis stamp and Your View identity therefore come from the same round;
+  - `resolve_target` also refuses a resolved context whose round is not the requested one (`CHALLENGE_GONE`);
+  - no locking, cache, schema or framework changes.
+- **Market selector** approved (§10.4).
+- **Visual:** the Minimum Market Probability value clears its hint at all widths; locked fixture cards read normally (read-only, not unavailable), with selection still disabled. The homepage introduction now spans the full content width, aligned with the domestic card (its 760 px limit removed; wording and styling unchanged).
+- **Carried forward to CP3A-4** (not implemented now):
+  - replace outdated references to All Upcoming Fixtures in the Match Lab;
+  - distinguish frozen snapshot times from latest-data calculation and observation times;
+  - keep compact frozen-data source information for locked and settling challenge analysis;
+  - the approved frozen/latest toggle and context-isolation requirements.
 
 ## 11. Testing and browser acceptance (proportionate)
 

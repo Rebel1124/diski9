@@ -161,6 +161,18 @@ class ChallengeService:
             )
         return assess_round(snap, self.now())  # the snapshot's own config
 
+    def published_pair(self):
+        """``(round view, snapshot)`` of the published round from **one** read, so the
+        two always belong to the same round: the backend's cached pair (the snapshot is
+        loaded by the view's id), ``(None, None)`` without a published round, or, in
+        prototype mode (no competition database), ``(None, live snapshot)``. Callers
+        that need both use this rather than :meth:`snapshot` plus :meth:`round_view`,
+        which read separately (Phase 8 CP3A-3 closure)."""
+        if self.backend is None:
+            return None, self.live()
+        found = self.backend.published()
+        return found if found else (None, None)
+
     def round_view(self):
         """The published round's record (status, deadline, frozen time) or None."""
         if self.backend is None:

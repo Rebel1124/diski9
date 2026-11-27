@@ -1198,6 +1198,11 @@ The owner approved the CP3A plan ([`phase8_cp3a_plan.md`](phase8_cp3a_plan.md)) 
 - **Estimates:**
   - the filter restores work counted in the original CP3A estimate but omitted from the rebuilt step list;
   - CP3A-3 5–7 h, CP3A 21–29 h, Phase 8 planning baseline 50–71 h, before deducting completed work. Planning estimates, not commitments.
+- **CP3A-3 closure refinements (owner, 27 Nov 2026; plan §10.5):**
+  - the snapshot-resolution race found in independent review is corrected: each Match Lab resolution uses one published round-view and snapshot pair (`ChallengeService.published_pair()`), with a round-identity check that fails safely;
+  - the Match Lab market selector (1X2, BTTS, Over/Under 2.5) is approved as a product decision;
+  - slider spacing and locked-card readability corrected;
+  - carried to CP3A-4: All Upcoming Fixtures wording in the Match Lab, frozen versus latest timestamps, compact frozen-data source information for locked and settling analysis, and the frozen/latest toggle.
 
 ## Appendix B. CP1-7 Step B: controlled provider verification plan (**timing and request table superseded by §15.6**, 27 Nov 2026; safeguards still apply)
 

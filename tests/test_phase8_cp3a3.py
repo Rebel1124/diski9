@@ -390,3 +390,151 @@ def test_browser_portfolio_build_to_match_lab_at_three_widths(data):  # noqa: F8
         assert r["panel"] == "", w  # research: no competitive controls
         assert r["pageKept"] and r["restored"], w
         assert r["overflowEmpty"] == r["overflowLab"] == r["overflowBack"] == 0, (w, r)
+
+
+# ------------------------------------- CP3A-3 closure: one published pair per resolution
+# The published round is read through the backend's short-lived cache. Before the
+# correction, one resolution read it up to three times (validation, snapshot, round
+# view), so a round change between reads could mix two rounds. A backend whose
+# successive reads return different rounds reproduces that deterministically.
+def _two_rounds(data):  # noqa: F811
+    import dataclasses
+    from types import SimpleNamespace
+
+    a = ChallengeService(data).snapshot("live")  # prototype snapshot holding EPL_FIX
+    b = dataclasses.replace(a, round_id="NEXT-ROUND")  # another round, other fingerprint
+    assert a.fingerprint != b.fingerprint
+    return ((SimpleNamespace(id="uuid-A", model_version="goal-model-1.1"), a),
+            (SimpleNamespace(id="uuid-B", model_version="goal-model-9.9"), b))  # fmt: skip
+
+
+def _changing(data, *reads):  # noqa: F811
+    """A service whose backend returns ``reads`` in turn (then the last), counting reads."""
+    from types import SimpleNamespace
+
+    seq = list(reads)
+    backend = SimpleNamespace(error=False, reads=0)
+
+    def published():
+        backend.reads += 1
+        return seq.pop(0) if len(seq) > 1 else seq[0]
+
+    backend.published = published
+    return ChallengeService(data, backend=backend), backend
+
+
+def _assert_round_a(lc, a):
+    from diski9.backend.services.your_view import RoundContext
+
+    rv, snap = a
+    assert (lc.kind, lc.round_code, lc.round_id) == ("round", snap.round_id, "uuid-A")
+    assert lc.key == f"r:{snap.round_id}:{EPL_FIX}" and lc.r["_context"]["round"] == snap.round_id
+    assert lc.frozen_at == snap.snapshot_at
+    goals = snap.fixture(EPL_FIX).estimated_goals
+    assert goals is not None  # stamp: round A's model version on round A's frozen goals
+    h, g = (round(x, 2) for x in goals)
+    assert lc.r["_model_context"] == f"1.1|{EPL_FIX}|{h:.2f}|{g:.2f}"
+    assert lab_context.service_context(lc) == RoundContext("uuid-A", EPL_FIX)  # Your View
+
+
+def test_round_change_between_validation_and_resolution(data):  # noqa: F811
+    a, b = _two_rounds(data)
+    svc, backend = _changing(data, a, b)  # a later read would see round B
+    lc, problem = lab_context.resolve_target(svc, data, challenge(a[1]))
+    assert problem is None
+    _assert_round_a(lc, a)
+    assert backend.reads == 1  # validated and analysed from the same read
+
+
+def test_round_view_and_snapshot_always_from_the_same_round(data):  # noqa: F811
+    a, b = _two_rounds(data)
+    svc, _ = _changing(data, a, a, b)  # the old third read (round view) would see B
+    lc, problem = lab_context.resolve_target(svc, data, challenge(a[1]))
+    assert problem is None
+    _assert_round_a(lc, a)
+
+
+def test_unavailable_published_context_fails_safely(data):  # noqa: F811
+    a, b = _two_rounds(data)
+    for now in (None, b):  # no published round; another round published
+        svc, _ = _changing(data, now)
+        assert lab_context.resolve_target(svc, data, challenge(a[1])) == (
+            None, lab_context.CHALLENGE_GONE)  # fmt: skip
+
+
+def test_resolved_round_must_be_the_requested_round(data, monkeypatch):  # noqa: F811
+    a, b = _two_rounds(data)
+    svc, _ = _changing(data, a)
+    real = lab_context.resolve
+    monkeypatch.setattr(
+        lab_context,
+        "resolve",
+        lambda *args, **kw: real(svc, data, EPL_FIX, "challenge", published=b),
+    )  # fmt: skip  (a defect elsewhere)
+    assert lab_context.resolve_target(svc, data, challenge(a[1])) == (
+        None, lab_context.CHALLENGE_GONE)  # fmt: skip
+
+
+def test_resolve_without_a_pair_reads_once(data):  # noqa: F811
+    a, b = _two_rounds(data)
+    svc, backend = _changing(data, a, b)
+    _assert_round_a(lab_context.resolve(svc, data, EPL_FIX, "challenge"), a)
+    assert backend.reads == 1
+    svc, backend = _changing(data, a)
+    latest = lab_context.resolve(svc, data, EPL_FIX, "all")  # research: no round read
+    assert latest.kind == "live" and backend.reads == 0
+
+
+def test_prototype_and_research_behaviour_preserved(data):  # noqa: F811
+    svc, snap = _live(data)  # prototype: no competition database
+    assert svc.published_pair() == (None, snap)
+    lc, problem = lab_context.resolve_target(svc, data, challenge(snap))
+    assert problem is None and lc.kind == "round" and lc.round_id is None
+    assert lab_context.service_context(lc) is None  # no account storage in prototype mode
+    lc, _ = lab_context.resolve_target(svc, data, {"fixture": EPL_FIX, "ctx": "research"})
+    assert lc.kind == "live" and lc.key == str(EPL_FIX)
+
+
+# --------------------------------------------- CP3A-3 closure: the Match Lab market control
+def test_market_change_keeps_fixture_context_and_your_view(data):  # noqa: F811
+    from diski9.app import lab
+
+    app = _app(data)
+    update = _named(app, "update_detail")
+    service = app.server.config["DISKI9_CHALLENGE"]
+    _, snap = _live(data)
+    target = challenge(snap)
+    frozen, _ = lab_context.resolve_target(service, data, target)
+    store = lab.store_adjustment({}, frozen.key, frozen.r,
+                                 lab.normalise_state({"manual": {"home": 0.3, "away": -0.1}}))  # fmt: skip
+    seen = []
+    for market in ("1X2", "BTTS", "OU25"):
+        body, _, _, new_target, active = update(None, market, "/lab", target, store)
+        assert new_target is no_update and active == target  # same fixture and context
+        plain = update(None, market, "/lab", target, {})[0]  # no Your View: the baseline
+        seen.append(round(_slider(body, "lab-home-slider") - _slider(plain, "lab-home-slider"), 2))
+    assert seen == [0.3, 0.3, 0.3]  # the frozen context's Your View in every market
+    # the market is not an input of anything that writes picks or the draft
+    writers = [k for k in app.callback_map if "ch-session" in k or "ch-prefs" in k]
+    assert writers and all("lab-market" not in str(app.callback_map[k]["inputs"])
+                           for k in writers)  # fmt: skip
+
+
+def _slider(component, cid):
+    def walk(node):
+        if isinstance(node, dict):
+            props = node.get("props", {})
+            if props.get("id") == cid:
+                return props.get("value")
+            for v in props.values():
+                got = walk(v)
+                if got is not None:
+                    return got
+        elif isinstance(node, list):
+            for n in node:
+                got = walk(n)
+                if got is not None:
+                    return got
+        return None
+
+    return walk(json.loads(jtext(component)))
