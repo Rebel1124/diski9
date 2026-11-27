@@ -242,6 +242,9 @@ def encode(rd, seconds: float, data: str | None = None) -> str:
         f"earliest={_iso(rd.earliest_kickoff)} deadline={_iso(rd.deadline_at)} "
         f"secs={seconds:.1f}" + (f" data={data}" if data else "")
     )
+    missing = (rd.diagnostics or {}).get("fixtures_without_screener_payload") or 0
+    if missing:  # Phase 8 CP2A: fixtures excluded for a missing Screener payload
+        summary += f" no_payload={missing}"
     if rd.ready:
         return f"ready | {summary}"[:500]
     head = f"not_ready[{category(rd)}]: "

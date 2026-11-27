@@ -124,3 +124,26 @@ owner approval. Detail and evidence:
   reassessment happens before participant-dependent testing.
 * API-Football subscription continuity: Pro expires 14 Dec 2026 with no auto-renewal
   (owner considering a longer term in December).
+
+## Learn: future educational resources (recorded 27 Nov 2026; not MVP commitments)
+
+Owner direction at the Phase 8 CP2A closure. Core lightweight Learn content stays in
+Phase 8 CP3B, unchanged. Everything below needs its own later approval; no CMS, resource
+management system, PDF generation or video hosting infrastructure is to be introduced
+for it.
+
+* **Downloadable resources** (future enhancement, timing to be decided): PDF educational
+  guides, worked examples, probability cheat sheets and research summaries.
+* **YouTube integration** (Phase 11 and ongoing, subject to approval): embedded videos
+  and tutorials from the owner's Diski 9 channel, linked to the relevant Learn topics.
+* **Recommended reading** (future enhancement): books, academic papers, websites and
+  other football-analytics resources.
+* **Growth:** content expands over time with user feedback and the YouTube channel.
+
+Intended relationship: **YouTube = discover · Learn = understand · Match Lab = apply ·
+Weekly Challenge = practise.**
+
+Also deferred at the same closure: a version-aware mode for
+`tools/phase6c3_quant_regression.py`, only if a future need arises (the tool stays
+unchanged, and its accepted Goal Model 1.0 baseline remains reproducible at its original
+commit).

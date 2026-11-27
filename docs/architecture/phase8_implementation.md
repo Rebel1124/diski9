@@ -7,7 +7,8 @@
 - All seven CP1 decisions are **approved** (27 Nov 2026).
 - CP1-7 Step A (quota-free account check) is **complete**. Step B is **authorised for 3–9 Dec 2026 only**, at most 25 counted requests (Appendix B).
 - **Owner decisions OD-1 to OD-6 are approved with refinements (27 Nov 2026, §11).** The CP2–CP4 plan (§9) is reconciled with them.
-- CP2A readiness was assessed in §12. **The documentation checkpoint was accepted and CP2A explicitly authorised (27 Nov 2026).** CP2A is implemented (§13) and **awaits independent review and owner acceptance**. CP2B is not authorised. Phase 6 stays paused.
+- **CP2A is formally accepted by the owner (27 Nov 2026)** (§13, §13.1, closure refinement §13.2). Goal Model 1.1 is the accepted **application** model baseline. It is an application implementation only: nothing is deployed to a hosted environment.
+- **CP2B awaits explicit owner authorisation.** Phase 6 stays paused.
 
 **How to read this record:**
 - §1–§8, §10 and §11 record **accepted decisions**. Where §11 refines an earlier section, §11 governs.
@@ -283,7 +284,7 @@ So **no app-database migration is expected** for CP1-6. Historical frozen rounds
 - **Changes:**
   - **Tabs:** five tabs from the existing `NAV`, with routes `/` Portfolio Build, `/lab` Match Lab, `/challenge/me` My Challenge, `/leaderboards`, `/learn`. `/challenge` redirects to `/`, so old links keep working.
   - **Portfolio Build:**
-    - **Introduction:** the compact introduction (§11, OD-4), then a collapsed **How to Play** (the existing `how_to_play` expander, extended with the markets, A3 bands and navigation) immediately above the fixtures.
+    - **Introduction:** the compact introduction (§11, OD-4), with the approved **football icon** to the left of the two headline lines (§13.2), then a collapsed **How to Play** (the existing `how_to_play` expander, extended with the markets, A3 bands and navigation) immediately above the fixtures.
     - **Challenge Mode** toggle (OFF by default).
     - **Shared filter bar:** league, market, team search, date range (a single day allowed), sort/rank, and **Minimum Market Probability** (actual consensus; frozen in Challenge Mode; default 0; kept in session).
     - **Advanced filters** are collapsed.
@@ -628,7 +629,7 @@ Nothing here enters the MVP without explicit owner approval. The register in [`.
 
 No blocker prevents CP2A once it is authorised.
 
-## 13. CP2A implementation record (27 Nov 2026; awaiting review)
+## 13. CP2A implementation record (27 Nov 2026; formally accepted)
 
 **Scope delivered:** §12.1 items 1–4. No market fitting, dependency, lockfile, European integration, navigation, homepage or slider change.
 
@@ -693,7 +694,7 @@ No blocker prevents CP2A once it is authorised.
 
 ### 13.1 CP2A independent review: closure evidence (27 Nov 2026)
 
-**Status: CP2A implemented, awaiting final owner acceptance (not yet formally accepted).**
+**Status (updated): CP2A formally accepted by the owner on 27 Nov 2026.** Implementation `270ed77` (CI run 168: 2,376 passed, 0 failed, 0 skipped); closure documentation `85092d1` (CI run 169, documentation-only path).
 
 **1. Screener cache prerequisite** (`build_live_snapshot` skips a fixture whose Screener payload is missing, `challenge/roundsheet.py`):
 
@@ -726,7 +727,7 @@ No blocker prevents CP2A once it is authorised.
 - The tool keeps no stored baseline: each comparison regenerates the baseline at its commit in a worktree.
 - At the pre-CP2A commit `7a39d31` it reproduces the accepted A3 fingerprint **`88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`** (1,473,435 bytes), so the baseline stays reproducible, and nothing was overwritten.
 - At `270ed77` the output differs in **exactly one line**: `"params"` changes from `463105f660644ebf` (1.0) to `d85a3cea30e6bc9d` (1.1). Every portfolio, probability, payout, scoring and Poisson-grid value is byte-identical, because the tool's Goal Model inputs are only the parameter hash and the pure `markets()` grid.
-- **Proposed compatibility change (not implemented; awaiting approval):** report `gm.params_hash(gm.PARAMS_1_0)` when that attribute exists, falling back to `params_hash()` on older commits. HEAD would then reproduce `88bcd717…` byte for byte, with no change to the accepted baseline.
+- *Proposed compatibility change: **not approved, deferred** (owner, 27 Nov 2026); see §13.2.*
 
 **3. Regression evidence:**
 - **CI run 168** (full path: PostgreSQL, real Supabase Auth, browser): **2,376 passed, 0 failed, 0 skipped**, in 29 min 48 s. This is the single complete run after the last fix.
@@ -735,6 +736,58 @@ No blocker prevents CP2A once it is authorised.
   - backend (throwaway PostgreSQL), in a sequential run after all backend fixes: 806 passed, 0 failed, 57 skipped (real Supabase Auth only).
   - Total: 1,513 + 806 + 57 = 2,376, matching CI.
 - **Timing-dependent tests:** two Auth tests failed once while two suites ran concurrently on one machine: `test_backend_auth_web::test_privacy_form_rejects_unknown_modes` and `test_acct_records_lock_snapshot`. They passed in isolation (42 of 42), in the sequential run and in CI.
+
+### 13.2 CP2A formal acceptance and closure decisions (27 Nov 2026)
+
+**Accepted by the owner:**
+- the CP2A implementation (`270ed77`, CI run 168: 2,376 passed, 0 failed, 0 skipped, 1,787.75 s);
+- the model reconciliation;
+- historical integrity;
+- the eligibility changes;
+- the OD-3 probability sources;
+- the regression evidence.
+
+**Goal Model 1.1 is the accepted application model baseline.** It has **not** been deployed to production or any hosted environment: hosted deployment remains with Phase 6 and Phase 10.
+
+**Closure refinement: missing Screener payload diagnostic (approved; implemented).**
+- `build_live_snapshot` keeps its existing rule: a fixture with no Screener cache payload is excluded, and eligibility and publication are unchanged. It now **counts** such fixtures in the snapshot diagnostics as `fixtures_without_screener_payload`.
+- That count is separate from `fixtures_without_model` (payload present, no independent prediction), and those fixtures stay eligible.
+- **Visible to the operator:**
+  - `round readiness` prints the with/without-model counts and, when the count is above zero, a warning line naming the offline `diski9 screener-refresh` remedy;
+  - the JSON output carries it under `pool_diagnostics`;
+  - the scheduler's readiness verdict line adds `no_payload=<n>`.
+- No automatic refresh, retry, provider call, cache architecture, migration or dependency was added.
+
+**Historical quantitative regression tool: compatibility change deferred (not approved).** `tools/phase6c3_quant_regression.py` is unchanged.
+- The accepted Goal Model 1.0 baseline remains reproducible at its original commit (fingerprint `88bcd717deca6c1c9b6bb7773126ac05ad109ca44291f9e700ac3467d047cec4`).
+- Goal Model 1.1 **deliberately** has a different settings fingerprint (`d85a3cea30e6bc9d` against `463105f660644ebf`).
+- All portfolio, probability, payout, scoring and Poisson-grid values were byte-identical apart from that fingerprint.
+- The tool must **not** silently substitute the historical fingerprint for the active one.
+- No historical baseline is overwritten or regenerated with Goal Model 1.1.
+- A version-aware comparison may be considered separately if ever needed.
+
+**CP3A homepage refinement (approved; record only, implemented in CP3A):**
+- **What:** a single prominent **football-themed decorative icon** to the left of the two headline lines, "Think you know football?" and "Put your skills to the test!".
+- **Look:** clean and modern, consistent with the Diski 9 identity, preferably in the existing teal accent. It should not look like a separate brand logo.
+- **Layout:** responsive sizing and alignment on desktop and mobile.
+- **How:** reuse the existing icon and SVG capabilities, with no animation, design framework or dependency.
+- The owner approved the illustrative concept, not a final asset.
+- All other homepage wording, layout, How to Play behaviour and Portfolio Build functionality is unchanged.
+
+**Learn: future educational resources (recorded; not MVP commitments).**
+- Downloadable PDF guides, worked examples, probability cheat sheets and research summaries.
+- Embedded YouTube videos from the owner's Diski 9 channel, linked to topics.
+- Recommended books, papers, websites and football-analytics resources.
+- Content that grows with user feedback and the channel.
+- **Relationship:** YouTube = discover, Learn = understand, Match Lab = apply, Weekly Challenge = practise.
+- **Placement:**
+  - core lightweight Learn content in CP3B, unchanged;
+  - YouTube integration in Phase 11 and ongoing, subject to approval;
+  - downloadable resources and recommended reading as future enhancements, timing to be decided.
+- No CMS, resource management, PDF generation or video hosting is introduced.
+- Register: [`../product/future_enhancements.md`](../product/future_enhancements.md).
+
+**Next:** CP2B awaits explicit owner authorisation. The European Step B verification stays bounded to 3–9 Dec 2026 (≤ 25 counted attempts) and is not brought forward.
 
 ## Appendix B. CP1-7 Step B: controlled provider verification plan (**authorised for 3–9 Dec 2026 only**, OD-5)
 

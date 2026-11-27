@@ -1,7 +1,7 @@
 # How Diski 9 Calculates Probabilities
 
-*Goal Model 1.1 · Engine 3.1 · Phase 8 (approved 27 Nov 2026; CP2A implementation
-awaiting acceptance). The same content, in short, is in the app under "How Diski 9
+*Goal Model 1.1 · Engine 3.1 · Phase 8 (CP2A accepted 27 Nov 2026; application baseline,
+not yet deployed). The same content, in short, is in the app under "How Diski 9
 Calculates Probabilities". Goal Model 1.0 (Nov 2026) used a previous-season
 league-average prior (`m0` 30); 1.1 removes it. See [`model_changelog.md`](model_changelog.md).*
 

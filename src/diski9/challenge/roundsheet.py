@@ -240,6 +240,9 @@ def build_live_snapshot(
         "fixtures_in_window": 0,
         "fixtures_with_model": 0,
         "fixtures_without_model": 0,
+        # excluded before any market check: no Screener cache payload (teams, model
+        # state) for a not-yet-started fixture - a data-preparation gap, not a model rule
+        "fixtures_without_screener_payload": 0,
         "markets_checked": 0,
         "markets_eligible": 0,
         "exclusions": {},
@@ -264,8 +267,11 @@ def build_live_snapshot(
             diag["fixtures_in_window"] += 1
             payload = payloads.get(row.id)
             kickoff = _aware(row.kickoff_utc)
-            if payload is None or kickoff <= as_of:
-                continue  # no screener payload (teams, model state) or already started
+            if kickoff <= as_of:
+                continue  # already started
+            if payload is None:  # cache not refreshed since the fixture was ingested
+                diag["fixtures_without_screener_payload"] += 1
+                continue
             gm = payload.get("goal_model") or {}
             has_model = bool(gm.get("available"))
             diag["fixtures_with_model" if has_model else "fixtures_without_model"] += 1

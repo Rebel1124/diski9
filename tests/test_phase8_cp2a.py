@@ -383,3 +383,65 @@ def test_browser_builder_with_missing_models(data, monkeypatch):  # noqa: F811
         assert "Diski 9 portfolio estimate unavailable: 4 of 9" in out["review"]
     finally:
         server.shutdown()
+
+
+# ------------------------------------- CP2A closure: missing Screener payload diagnostic
+def _cached_dropping(real, drop_id):
+    def cached(conn, basis):
+        return [r for r in real(conn, basis) if r["fixture"]["id"] != drop_id]
+
+    return cached
+
+
+def test_missing_screener_payload_is_excluded_and_recorded(data, monkeypatch):  # noqa: F811
+    """A fixture with otherwise eligible market consensus but no Screener cache payload
+    is excluded (unchanged rule) and now counted, separately from fixtures that have a
+    payload but no independent model (which stay eligible)."""
+    from diski9.admin_cli import pool_lines
+    from diski9.screener import cache
+    from tests.factories import T0
+
+    window = (T0, T0, T0 + timedelta(days=30), "W", {})
+    ref = build_live_snapshot(data.engine, *window, config=CFG)
+    assert ref.diagnostics["fixtures_without_screener_payload"] == 0
+    dropped = ref.fixtures[0].fixture_id  # has eligible market offers in the reference
+    assert any(o.fixture_id == dropped for o in ref.outcomes)
+    real = cache.cached
+    monkeypatch.setattr(cache, "cached", _cached_dropping(real, dropped))
+    s = build_live_snapshot(data.engine, *window, config=CFG)
+    assert dropped not in {f.fixture_id for f in s.fixtures}
+    assert not any(o.fixture_id == dropped for o in s.outcomes)
+    assert s.diagnostics["fixtures_without_screener_payload"] == 1
+    # every other fixture and offer is unchanged
+    assert [o.key for o in s.outcomes] == [o.key for o in ref.outcomes if o.fixture_id != dropped]
+    # payload present but model unavailable: still eligible, not counted as missing
+    monkeypatch.setattr(cache, "cached", _cached_without_model(real))
+    m = build_live_snapshot(data.engine, *window, config=CFG)
+    assert [o.key for o in m.outcomes] == [o.key for o in ref.outcomes]
+    assert all(o.model_probability is None for o in m.outcomes)
+    assert m.diagnostics["fixtures_without_screener_payload"] == 0
+    assert m.diagnostics["fixtures_without_model"] >= len(m.fixtures) > 0
+    # the operator sees the exclusion in `round readiness`
+    lines = pool_lines(s.diagnostics)
+    assert "without" in lines[0]
+    assert "WARNING: 1 fixture excluded: no Screener cache payload" in lines[1]
+    assert len(pool_lines(m.diagnostics)) == 1  # no warning when nothing is missing
+    # the restriction to eligible competitions keeps the counter
+    assert restrict_competitions(s, set()).diagnostics["fixtures_without_screener_payload"] == 1
+
+
+def test_scheduler_readiness_line_reports_missing_payload():
+    from diski9.backend.jobs.prepare import decode, encode
+
+    def rd(diag):
+        return SimpleNamespace(
+            ready=True, report={"eligible_outcomes_by_bucket": {}}, required_by_bucket={},
+            fixtures=20, earliest_kickoff=None, deadline_at=None, problem=None,
+            diagnostics=diag,
+        )  # fmt: skip
+
+    line = encode(rd({"fixtures_without_screener_payload": 2}), 1.0, "complete@x")
+    assert "no_payload=2" in line
+    assert decode(line, NOW).summary["no_payload"] == "2"
+    assert "no_payload" not in encode(rd({"fixtures_without_screener_payload": 0}), 1.0)
+    assert "no_payload" not in encode(rd({}), 1.0)

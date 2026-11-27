@@ -495,3 +495,12 @@ awaiting final owner acceptance. Governance is retained:
 * commercialisation stays deferred.
 
 Record: [`../architecture/phase8_implementation.md`](../architecture/phase8_implementation.md) §11–§12.
+
+*Phase 8 CP2A (27 Nov 2026):* **formally accepted by the owner** (`270ed77`, CI run 168:
+2,376 passed; closure `85092d1`, CI run 169). Goal Model 1.1 is the accepted application
+model baseline, **not deployed**. Closure refinement: a missing-Screener-payload
+diagnostic (approved). The regression-tool fingerprint change is deferred. The CP3A
+homepage football icon and the future Learn resources (YouTube in Phase 11 and ongoing;
+downloadable resources and reading as future enhancements) are recorded. **CP2B awaits
+explicit owner authorisation.** Record:
+[`../architecture/phase8_implementation.md`](../architecture/phase8_implementation.md) §13.2.

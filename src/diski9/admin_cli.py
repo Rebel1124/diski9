@@ -65,6 +65,28 @@ def readiness_dict(rd) -> dict:
     }
 
 
+def pool_lines(diag: dict) -> list[str]:
+    """The fixture-pool lines of ``round readiness`` (Phase 8 CP2A): fixtures with and
+    without a Goal Model forecast (both can be eligible) and, separately, fixtures
+    excluded because their Screener cache payload is missing."""
+    lines = [
+        "  fixture pool:            "
+        f"{diag.get('fixtures_in_window', '-')} in the window, "
+        f"{diag.get('fixtures_with_model', '-')} with a Goal Model forecast, "
+        f"{diag.get('fixtures_without_model', '-')} without, "
+        f"{diag.get('markets_eligible', '-')} of {diag.get('markets_checked', '-')} "
+        "markets with strict consensus"
+    ]
+    missing = diag.get("fixtures_without_screener_payload") or 0
+    if missing:
+        lines.append(
+            f"  WARNING: {missing} fixture{'s' if missing != 1 else ''} excluded: no Screener "
+            "cache payload (refresh the cache offline with `diski9 screener-refresh`, then "
+            "re-evaluate)"
+        )
+    return lines
+
+
 def print_readiness(rd, *, as_json: bool = False) -> None:
     if as_json:
         print(json.dumps(readiness_dict(rd), indent=2, default=str))
@@ -77,11 +99,8 @@ def print_readiness(rd, *, as_json: bool = False) -> None:
           f"configuration {rd.config_version}")  # fmt: skip
     diag = rd.diagnostics
     if diag:
-        print("  fixture pool:            "
-              f"{diag.get('fixtures_in_window', '-')} in the window, "
-              f"{diag.get('fixtures_with_model', '-')} with a Goal Model forecast, "
-              f"{diag.get('markets_eligible', '-')} of {diag.get('markets_checked', '-')} "
-              "markets with strict consensus")  # fmt: skip
+        for line in pool_lines(diag):
+            print(line)
         excl = diag.get("exclusions") or {}
         if excl:
             print("  market exclusions:       "
