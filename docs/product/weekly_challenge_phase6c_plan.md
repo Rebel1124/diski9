@@ -462,3 +462,19 @@ the owner on 26 Nov 2026** (closure commit `8ac29e4`, CI run 162). The record is
 supersedes the earlier "badges and achievements" roadmap entries above. Next on the roadmap:
 Phase 8 (Champions League & Europa League); discovery and implementation only when
 separately authorised. Phase 6 remains paused with all its gates intact.
+
+*Master Roadmap update (27 Nov 2026):* **Phase 8 — Goal Model Refinement, Match Lab
+Education & European Competitions (provisional name) is in progress.** CP0 discovery,
+the CP0 refinement, CP1 research (`535eff6`, CI run 164) and the supplementary Goal
+Model research (`3730a0d`, `7a39d31`, CI run 165) are formally accepted, and all seven
+CP1 decisions are approved. CP2–CP4 implementation is planned but **not authorised**.
+The record is [`../architecture/phase8_implementation.md`](../architecture/phase8_implementation.md).
+**Extended private Beta (owner decision):** Phase 10 is the MVP completion target.
+After initial Phase 10 acceptance, about **one to three months** of extended private
+Beta with friends and family, feedback gathering and consolidation follow, before
+Phase 11 public launch is authorised. Public launch needs explicit owner approval.
+The sequence is unchanged otherwise: Phase 6 paused (all gates retained) → 7
+(complete) → **8 (in progress)** → 9 Lucy and LiveKit → resume Phase 6 → 10
+Deployment and complete-MVP private Beta → extended private Beta and consolidation →
+11 Public launch and YouTube. Commercialisation stays off the current roadmap pending
+evidence of MVP success.

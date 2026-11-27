@@ -8,6 +8,28 @@ review rule in [`methodology.md`](methodology.md#8-maintenance-policy).
 |---|---|---|---|---|
 | **Goal Model 1.0** | 3.0.0 | November 2026 | `k_s` 12, `k_t` 96, `m0` 30 | [`goal_distribution_research.md`](goal_distribution_research.md), [`goal_model_crossleague_validation.md`](goal_model_crossleague_validation.md) |
 
+## Approved next version (Phase 8; not yet implemented)
+
+Approved by the owner on 27 Nov 2026 (Phase 8 CP1-1/CP1-2), **out of the annual review
+cycle** by explicit owner decision. Goal Model 1.0 stays in production until the CP2
+implementation is accepted. The version label is an open decision (recommended **Goal
+Model 1.1**).
+
+* **Method (C1-2-20, "Model A"):** the same strength/tempo Poisson model with `k_s` 12
+  and `k_t` 96, using **current-season data only** for both team and competition
+  inputs. The league prior (`m0`) and every previous-season input are removed.
+* **Availability:** both teams have **≥ 2** eligible completed matches and the
+  competition has **≥ 20**. Below that, no independent estimate is shown.
+* **Limited-data warning:** shown when the model is available and either team has
+  fewer than 5 eligible completed matches.
+* **Not changed:** no cross-competition strength, Elo, alternative model or added
+  calibration; shrinkage is not user-adjustable; European competitions stay
+  unsupported by the independent model (market-only).
+* **Evidence:** [`research/phase8_cp1/report.md`](research/phase8_cp1/report.md) and
+  [`research/phase8_cp1/simplification_report.md`](research/phase8_cp1/simplification_report.md),
+  with the accepted reporting qualifications in
+  [`architecture/phase8_implementation.md`](architecture/phase8_implementation.md) §2.
+
 ## Goal Model 1.0
 
 **Method:** a season-to-date independent Poisson model with strength/tempo

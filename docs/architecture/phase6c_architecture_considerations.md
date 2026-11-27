@@ -109,7 +109,12 @@ This document supersedes the Phase 6C discussion paper previously at this path.
   Friday 08:00 SAST publication (D-11 revised 19 Nov 2026; originally Thursday), 15-minute deadline buffer (D-06), 48-hour
   cutoff (D-08), 24-hour correction window (R-14), eligible leagues and series
   (beta or official, D-38). Midweek and European schedules are new schedule
-  versions, not code changes.
+  versions, not code changes. *Corrected 27 Nov 2026 (Phase 8): this was not accurate.
+  `round_schedules.eligible_competitions` is seeded but never read by pool
+  construction or publication, and European competitions need registry, stage and
+  ingestion code. European competitions are also **excluded from the Weekly Challenge
+  for the MVP** (CP1-3/CP1-4). See
+  [`phase8_implementation.md`](phase8_implementation.md).*
 * **Publish** builds the snapshot with the existing round-sheet code (copying
   model probabilities, strict consensus and buckets), runs the opening checks,
   and writes the snapshot and the round in one transaction.
@@ -161,7 +166,7 @@ This document supersedes the Phase 6C discussion paper previously at this path.
 | Future phase | Integration boundary prepared in 6C |
 |---|---|
 | **Phase 7 — Lucy** (qualitative research, private workspace, validated tools, LiveKit voice, YouTube presenter mode) | Research framed by Match Lab's factor guidance (D-41): Lucy presents verified findings with sources, explains their relevance and uncertainty, and may suggest estimated-goal adjustments within the existing limits that the user explicitly accepts or rejects (see `docs/product/match_lab_factor_guidance.md`). A future `diski9.lucy` module behind `require_feature('lucy.*')`; its own tables (workspace, notes, tool-call audit) in a separate schema; read-only access to rounds, snapshots and analysis through service-layer query functions ("validated tools"), never direct writes to competition tables; model-provider and LiveKit credentials server-side only; voice and presenter mode as separate entitlements and, if needed, a separate process using the same database and auth |
-| **Phase 8 — Champions League, optional Europa League** | New competitions in the league registry, a midweek round schedule version, and a configuration version if the structure changes; snapshots already store competition IDs |
+| **Phase 8 — Champions League, optional Europa League** | New competitions in the league registry, a midweek round schedule version, and a configuration version if the structure changes; snapshots already store competition IDs. *Superseded 27 Nov 2026: the Champions League and Europa League are market-only research competitions (All Upcoming Fixtures and Match Lab), excluded from the Weekly Challenge for the MVP, with `eligible_competitions` enforcement added in code ([`phase8_implementation.md`](phase8_implementation.md)).* |
 | **Phase 9 — badges and achievements** | `domain_events` written in Phase 6C; achievements derived later from events and history without changing competition tables. *Superseded 26 Nov 2026: now Phase 7, derived from published results without domain events ([`phase7_achievements.md`](phase7_achievements.md)).* |
 | **Premium features** | `entitlement_grants.source = 'subscription'` and validity periods; a future billing integration writes grants only; no payment code in 6C |
 

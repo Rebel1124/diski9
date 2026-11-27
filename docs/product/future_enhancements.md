@@ -84,3 +84,36 @@ statistically significant.
 **Purpose:** education and better analytical understanding of one's own predictions.
 It must not encourage increased risk-taking (no streak pressure, no "chase" prompts,
 no framing of past results as a reason to stake differently).
+
+## Phase 8 deferred register (recorded 27 Nov 2026; not committed, not in the MVP)
+
+Recorded at the Phase 8 CP1 decisions. None of these may enter the MVP without explicit
+owner approval. Detail and evidence:
+[`../architecture/phase8_implementation.md`](../architecture/phase8_implementation.md) §10.
+
+**Modelling and data**
+* Independent European competition modelling (Champions League, Europa League), only if
+  justified by evidence and user demand; re-evaluate the Champions League model after
+  the 2026/27 season.
+* Low-data and alternative modelling investigations (previous-season carry-over,
+  cross-league strength, alternative low-data models), only if subsequently justified.
+* Dixon–Coles (or similar) market fit to reduce the draw residual of the Poisson market
+  fit (mean draw residual −1.46 pp in CP1).
+* Additional European competitions (the Conference League is excluded from the MVP).
+* Midweek and European Weekly Challenge rounds.
+
+**Product and education**
+* Edge-based recognition enhancements; user-versus-market analysis; a public track
+  record.
+* Educational enhancements beyond the MVP Learn section and Match Lab explanations.
+* Personal Performance Analytics (recorded above).
+* Achievement threshold reassessment with Beta data (recorded above).
+* Private mini-leagues (removed from the MVP roadmap; reconsider only with active users).
+
+**Operations and housekeeping**
+* ML-01 Match Lab stale-adjustment race: **required before private Beta** (Phase 6
+  register).
+* A3 housekeeping items carried from Scenario A3.
+* Egress policy reassessment after Phase 9 (API-Football block decision).
+* Account deletion and privacy gates before launch.
+* The administration move to the personal MacBook before Phase 11 (recorded above).

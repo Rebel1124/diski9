@@ -2215,3 +2215,16 @@ extra privilege. This is a separate, reviewed change.
 → CP7 → F4 → F5 → F6 → Stage G → Phase 10. All security, recovery, operational, privacy
 and release acceptance requirements stand.
 
+
+**Pause maintenance log.**
+
+| Date | Event | Outcome |
+|---|---|---|
+| 26 Nov 2026 | Monthly-style pause check over the tunnel (owner-run, Claude assisting) | 9 Ubuntu library security updates installed (including Kerberos, expat, elfutils and libpcap). No reboot required; kernel `6.8.0-151`. The `dbus` restart was **deferred to the next reboot**. Services and private connectivity unchanged. **Accepted by the owner (26 Nov 2026).** Ubuntu 24.04 LTS retained; no distribution upgrade authorised. |
+
+**Carried to the 1 Dec 2026 check:** reassess the deferred D-Bus restart and whether a
+reboot is appropriate; verify automatic security updates and pending packages; verify
+critical services (SSH, WireGuard, `ufw`, Caddy, guest agent) and private connectivity
+(tunnel SSH and HTTPS); monthly cost reconciliation against the $65 warning and $75
+ceiling. Also retained: the Hostinger refund decision (17 Dec 2026) and certificate
+expiry (24 May 2027).
