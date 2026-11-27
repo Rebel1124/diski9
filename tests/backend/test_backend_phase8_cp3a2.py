@@ -97,3 +97,31 @@ def test_portfolio_home_for_guest_and_member(engine, store):
         assert "Domestic Weekly Challenge" in text and "Research only" in text
         assert "European" not in text
         assert content is not None  # the builder is rendered beneath, as before
+
+
+def test_championship_stream_uses_the_existing_resolution(engine, op):
+    """Technical check C: the round's own stream (from its series) via
+    ``championships.stream_of_round``; with no round, the weekend schedule's series."""
+    v, _ = publish_dev(engine, op, deadline_in=timedelta(hours=2), seed=8302)
+    rv = svc.get_round(engine, v.id)
+    backend = SimpleNamespace(engine=engine, show_development=True)
+    assert home.championship_stream(backend, rv) == "development"
+    beta = SimpleNamespace(engine=engine, show_development=False)
+    assert home.championship_stream(beta, None) == "beta"  # the active schedule's series
+    # a development round is never shown when development rounds are hidden
+    assert home._championship(beta, rv) == (None, 0, 0)
+
+
+def test_schedule_failure_is_temporary_unavailability_not_no_challenge():
+    """Technical check D: an unreadable schedule (here: an unreachable database) gives
+    the neutral message, Research only ON, and never 'no challenge this week'."""
+    from sqlalchemy import create_engine, pool
+
+    dead = create_engine("postgresql+psycopg://nobody@127.0.0.1:1/nodb_test",
+                         poolclass=pool.NullPool)  # fmt: skip
+    backend = SimpleNamespace(published=lambda: None, error=False, engine=dead,
+                              show_development=False)  # fmt: skip
+    assert home.schedule_target(backend) is None
+    st = home.challenge_status(SimpleNamespace(backend=backend, now=lambda: None), _local)
+    assert st.state == home.UNAVAILABLE and st.message == home.MSG_DATA_ERROR
+    assert st.default_research and st.championship is None

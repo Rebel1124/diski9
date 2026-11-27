@@ -42,13 +42,21 @@ MSG_SETTLING = "Results are being settled."
 
 HEADLINE_1 = "Think you know football?"
 HEADLINE_2 = "Put your skills to the test!"
-TAGLINE = "9 picks. 100 virtual credits. One challenge."
-FOOTNOTE = "Free to play. No real money. Just football."
+DESCRIPTION = ("Analyse upcoming football matches, compare probabilities and develop your own "
+               "predictions. Put your skills into practice by participating in the Weekly "
+               "Challenge.")  # fmt: skip
+FOOTNOTE = "100 Credits. 9 Picks. 1 Challenge."
 RESEARCH_LABEL = "Research only"
 RESEARCH_TIP = ("Analyse upcoming domestic matches using the latest available data. "
                 "Research-only analysis does not form part of the Weekly Challenge.")  # fmt: skip
 ACTION_BUILD = "Build domestic portfolio"
+ACTION_VIEW = "View domestic challenge"
+ACTION_INFO = "View challenge information"
 ACTION_RESEARCH = "Analyse domestic matches"
+# main action with Research only OFF, by challenge state (owner, CP3A-2 closure); wording
+# only - entry restrictions are the builder's own
+ACTION_OFF = {OPEN: ACTION_BUILD, LOCKED: ACTION_VIEW, SETTLING: ACTION_VIEW,
+              UPCOMING: ACTION_INFO, UNAVAILABLE: ACTION_INFO}  # fmt: skip
 RESEARCH_NOTE = ("Upcoming domestic matches with the latest available data. "
                  "This analysis is not part of the Weekly Challenge, and no picks can be made "
                  "here.")  # fmt: skip
@@ -92,23 +100,40 @@ def schedule_target(backend) -> tuple[datetime, datetime] | None:
             sched = load_schedule(conn)
             week = week_at(now, sched.window_rule, sched.publish_rule, timedelta(0))
         return now, week.target
-    except Exception:  # noqa: BLE001 - the card then says "not available"
+    except Exception:  # noqa: BLE001 - a technical failure: "temporarily unavailable"
+        return None
+
+
+def championship_stream(backend, view) -> str | None:
+    """The championship stream of the challenge the card describes, by the existing
+    resolution: the round's own stream (``development``, ``beta`` or ``official``,
+    from its series); with no round, development in development mode, otherwise the
+    series of the weekend schedule the next round will be created under. None when
+    it cannot be read."""
+    from diski9.backend.db import read_only
+    from diski9.backend.jobs.prepare import load_schedule
+    from diski9.backend.services.championships import stream_of_round
+
+    try:
+        with read_only(backend.engine) as conn:
+            if view is not None:
+                return stream_of_round(conn, view.id)
+            if backend.show_development:
+                return "development"
+            return load_schedule(conn).series
+    except Exception:  # noqa: BLE001 - shown without championship details
         return None
 
 
 def _championship(backend, view) -> tuple[str | None, int, int]:
     from diski9.backend.services import leaderboards as lb
 
-    dev = getattr(view, "is_development", False) if view is not None else backend.show_development
-    if dev and not backend.show_development:
+    stream = championship_stream(backend, view)
+    if stream is None or (stream == "development" and not backend.show_development):
         return None, 0, 0
-    try:
-        cb = lb.championship_board(
-            backend.engine,
-            stream="development" if dev else "beta",
-            page_size=1,
-            include_development=backend.show_development,
-        )
+    try:  # an official stream that has not started yet is simply not shown
+        cb = lb.championship_board(backend.engine, stream=stream, page_size=1,
+                                   include_development=backend.show_development)  # fmt: skip
     except Exception:  # noqa: BLE001 - shown without championship details
         return None, 0, 0
     return cb.name, cb.counted_rounds, cb.rounds_required
@@ -145,7 +170,9 @@ def challenge_status(
     # no round, or the latest one is final: the next week is upcoming until its
     # scheduled publication time, then unavailable if nothing was published
     timing = target_fn(b)
-    if timing is not None and timing[0] < timing[1]:
+    if timing is None:  # the schedule could not be read: never "no challenge this week"
+        return ChallengeStatus(UNAVAILABLE, MSG_DATA_ERROR, **common)
+    if timing[0] < timing[1]:
         return ChallengeStatus(UPCOMING, MSG_UPCOMING.format(at=_at(local, timing[1])),
                                target=timing[1], **common)  # fmt: skip
     return ChallengeStatus(UNAVAILABLE, MSG_UNAVAILABLE, **common)
@@ -198,16 +225,12 @@ def domestic_card(status: ChallengeStatus, local, research: bool) -> html.Div:
         if status.required:
             meta.append(html.Span(f"{status.counted} of {status.required} rounds completed",
                                   className="muted"))  # fmt: skip
-    if status.round_code:
-        meta.append(html.Span(f"Round {status.round_code}", className="muted"))
+    # the technical round code, the deadline and the expected time are not repeated
+    # here: the status sentence carries the deadline or expected time (CP3A-2 closure)
     facts = []
     window = _window_text(local, status.window)
     if window:
         facts.append(("Fixtures", window))
-    if status.state == OPEN and status.deadline is not None:
-        facts.append(("Entry deadline", _at(local, status.deadline)))
-    if status.state == UPCOMING and status.target is not None:
-        facts.append(("Expected", _at(local, status.target)))
     return html.Section(
         [
             html.Div(
@@ -242,11 +265,12 @@ def domestic_card(status: ChallengeStatus, local, research: bool) -> html.Div:
                 className="pb-research",
             ),
             html.Button(
-                ACTION_RESEARCH if research else ACTION_BUILD,
+                action_label(status.state, research),
                 id="pb-go",
                 n_clicks=0,
                 className="ch-btn primary pb-go",
-            ),  # fmt: skip
+            ),
+            dcc.Store(id="pb-state", data=status.state),
         ],
         className="pb-card pb-domestic",
         **{"aria-label": "Domestic Weekly Challenge"},
@@ -273,14 +297,18 @@ def portfolio_home(service, local, prefs) -> html.Div:
                 ],
                 className="pb-hero",
             ),
-            html.P(TAGLINE, className="pb-tagline"),
+            html.P(DESCRIPTION, className="pb-intro"),
             html.Div([domestic_card(status, local, research)], className="pb-cards"),
-            html.P(FOOTNOTE, className="muted small pb-footnote"),
+            html.P(FOOTNOTE, className="pb-footnote"),
             html.Div(mode_note(research), id="pb-mode-note"),
             html.Div(id="pb-list"),  # scroll target for the main action
         ],
         className="pb-home page",
     )
+
+
+def action_label(state: str, research: bool) -> str:
+    return ACTION_RESEARCH if research else ACTION_OFF.get(state, ACTION_INFO)
 
 
 def mode_note(research: bool):

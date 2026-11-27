@@ -41,7 +41,7 @@ GLOSSARY: dict[str, dict[str, str]] = {
         "title": "Goal Model Probability (D9)",
         "short": "Diski 9’s estimated chance of an outcome occurring, based on its statistical "
         "football model. This is an estimate, not a guarantee.",
-        "long": "Model probability: the probability estimated by Goal Model 1.0.",
+        "long": "Model probability: the probability estimated by the Diski 9 Goal Model.",
     },
     "edge": {
         "title": "Edge",

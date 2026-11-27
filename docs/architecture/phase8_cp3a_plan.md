@@ -242,6 +242,14 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
   - the Weekly Challenge selection panel and progress strip are not rendered there;
   - the latest-data line shows the model's stored time and that bookmaker prices carry their own collection times;
   - a research-only note sits above the list.
+- **Closure refinements (record §15.10):**
+  - homepage order and wording;
+  - a full-width card without the round code or deadline field;
+  - state-dependent button wording;
+  - the locked notice without the demonstration invitation;
+  - How to play collapsed;
+  - Goal Model wording, championship stream resolution and the schedule-failure message;
+  - the Minimum Market Probability filter is reported for a decision (proposed for CP3A-3).
 - **Competitive list:** the builder's snapshot notice now states that odds, probabilities and model estimates were frozen at publication, with the stored snapshot time, and that current prices may differ.
 - **Dependency on CP3A-3, documented:**
   - until the Match Lab detail moves to `/lab` only, selecting a match in the research list shows its analysis beneath the list (latest data, no selection controls), as the Screener did before;

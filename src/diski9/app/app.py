@@ -20,6 +20,7 @@ from pathlib import Path
 from dash import ALL, Dash, Input, Output, State, ctx, dcc, html, no_update
 from dash.exceptions import PreventUpdate
 
+from diski9.screener import goal_model as gm
 from diski9.screener.rank import DEFAULT_DIRECTION, KICKOFF_DIRECTIONS, VALUE_DIRECTIONS
 
 from . import education, lab_context
@@ -152,7 +153,7 @@ def columns_for(market: str, direction: str | None = None) -> list[dict]:
             "label": "Est. goals",
             "align": "right",
             "sort": None,
-            "title": "Estimated goals (home – away) from Goal Model 1.0",
+            "title": f"Estimated goals (home – away) from Goal Model {gm.GOAL_MODEL_VERSION}",
         },
     ]
     for i, (key, label) in enumerate(MARKET_KEYS[market]):
@@ -535,7 +536,8 @@ def build_layout(data: ScreenerData, universe: str = "all") -> html.Div:
             html.Div(id="detail-reference", className="detail-holder"),
             html.Footer(
                 "Diski 9 is an educational football analytics tool. Probabilities are "
-                "statistical estimates from Goal Model 1.0, not guarantees. Bookmaker odds are "
+                f"statistical estimates from Goal Model {gm.GOAL_MODEL_VERSION}, not guarantees. "
+                "Bookmaker odds are "
                 "reference values, not offers, and are never used by the model. No betting "
                 "or staking advice is provided.",
                 className="footer muted small",
@@ -691,8 +693,9 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
     def update_controls(market, direction, preferred):
         c = threshold_config(market, valid_direction(market, direction), preferred)
         legend = html.Span(
-            "Probabilities and estimated goals come from Goal Model 1.0 (this season's goals, "
-            "Poisson distribution). Bookmaker odds are shown separately for comparison."
+            f"Probabilities and estimated goals come from Goal Model {gm.GOAL_MODEL_VERSION} "
+            "(this season's goals, Poisson distribution). Bookmaker odds are shown separately "
+            "for comparison."
             + (VALUE_LEGEND + THRESHOLD_VALUE_HINT if direction in VALUE_DIRECTIONS else ""),
             className="muted small",
         )

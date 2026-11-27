@@ -1147,6 +1147,40 @@ The owner approved the CP3A plan ([`phase8_cp3a_plan.md`](phase8_cp3a_plan.md)) 
   - Locked and settling challenges stay viewable with frozen data; entry restrictions are unchanged.
 - **CP3A-2 authorised** (implemented; plan §10.3).
 
+### 15.10 CP3A-2 closure refinements (owner, 27 Nov 2026)
+
+- **Homepage, in this order:**
+  1. "Think you know football?"
+  2. "Put your skills to the test!"
+  3. "Analyse upcoming football matches, compare probabilities and develop your own predictions. Put your skills into practice by participating in the Weekly Challenge."
+  4. The Domestic Weekly Challenge card.
+  5. "100 Credits. 9 Picks. 1 Challenge."
+  - The old tagline and the "Free to play…" footnote are removed. The builder's "Virtual credits only · no real money" disclosure stays.
+- **Card:**
+  - full content width;
+  - no technical round code and no separate deadline or expected-time fields, since the status sentence carries them;
+  - championship name and progress, fixture window and status are kept.
+  - With CP2B.2, two equal cards side by side on wide screens, stacked on mobile; no space is reserved now.
+- **Main action, Research only OFF:**
+
+  | Challenge | Button |
+  |---|---|
+  | Open | Build domestic portfolio |
+  | Locked, settling | View domestic challenge |
+  | Upcoming, unavailable | View challenge information |
+
+  With Research only ON: "Analyse domestic matches". This is wording only; entry restrictions are unchanged.
+- **Locked builder notice:** "Entries are closed for this Weekly Challenge. You can still view the published fixtures or switch to Research only to analyse upcoming matches." The demonstration invitation and button are removed here only; the demonstration round itself is unchanged.
+- **How to play** is collapsed by default, with its content unchanged.
+- **Technical checks:**
+  - **A. Minimum Market Probability:** the research list's slider is still the pre-OD-4 *minimum model probability* threshold, disabled under kickoff ranking. The approved filter (consensus, independent of ranking, default 0, no model threshold; §11 OD-4, Appendix row 4) was approved for CP3A but never implemented. Replacing it changes the ranking filter (`screener/rank.py`), the edge and EV eligible-outcome rule (`best_edge`/`best_ev`) and the frozen challenge ordering, and the existing threshold semantics are pinned in 14 test files. This is beyond a narrow correction, so it is **reported for owner approval** rather than changed (proposal: CP3A-3, with the filters moving into Portfolio Build, about 2–3 h).
+  - **B. Goal Model wording:** the "Goal Model 1.0" labels were outdated application wording, not historical data.
+    - The research-list legend, column tooltip and footer now read the current version from the code (1.1).
+    - The builder labels, which can describe a round frozen under an earlier version, and the glossary now say "the Diski 9 Goal Model".
+    - The methodology changelog's historical 1.0 entry and the stored data are unchanged.
+  - **C. Championship stream:** the card now reuses `championships.stream_of_round` (the round's own `development`, `beta` or `official` stream). With no round, it uses the weekend schedule's series. An official stream that has not started is simply not shown. Official challenges are not enabled.
+  - **D. Schedule failure:** an unreadable schedule now gives "Challenge information is temporarily unavailable. You can still research upcoming matches." (Research only ON). "No Weekly Challenge available this week" appears only when the schedule was read and its publication time passed without a published round.
+
 ## Appendix B. CP1-7 Step B: controlled provider verification plan (**timing and request table superseded by §15.6**, 27 Nov 2026; safeguards still apply)
 
 **Hard ceiling: 25 chargeable requests.** Every attempt counts toward it: pagination, retries and failed requests. `/status` is quota-free (§7) and is not counted, but is used as an independent check.

@@ -762,10 +762,11 @@ def register(app, data, service: ChallengeService) -> None:
         Output("pb-go", "children"),
         Output("pb-mode-note", "children"),
         Input("research-only", "value"),
+        State("pb-state", "data"),
     )
-    def research_widgets(value):
+    def research_widgets(value, state=None):
         on = home.RESEARCH_VALUE in (value or [])
-        return (home.ACTION_RESEARCH if on else home.ACTION_BUILD), home.mode_note(on)
+        return home.action_label(state, on), home.mode_note(on)
 
     @app.callback(
         Output("screener-root", "style"),

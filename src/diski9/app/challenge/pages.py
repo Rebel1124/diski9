@@ -283,7 +283,7 @@ def how_to_play(open_: bool, config: ChallengeConfig) -> html.Details:
             ),
             c.rules_details(),
         ],
-        open=open_,
+        open=False,  # collapsed by default (owner, CP3A-2 closure); rules unchanged
         className="ch-details ch-howto",
     )
 
@@ -326,9 +326,25 @@ def frozen_note(snap, rv, local=None) -> html.P | None:
     return html.P(SNAPSHOT_NOTICE.format(at=local(at)), className="muted small ch-frozen-note")
 
 
+LOCKED_NOTICE = (
+    "Entries are closed for this Weekly Challenge. You can still view the published "
+    "fixtures or switch to Research only to analyse upcoming matches."
+)
+
+
 def unavailable(service, state, mode, snap, avail, local) -> html.Div:
+    demo_mode = mode == "demo" or (snap is not None and snap.is_demo)
+    if avail.status is RoundStatus.LOCKED and not demo_mode:
+        # Phase 8 CP3A-2 closure: the research workflow replaces the demonstration
+        # invitation here (the demonstration round itself is unchanged)
+        return html.Div(
+            [
+                html.Div(LOCKED_NOTICE, className="ch-ribbon ch-locked-notice"),
+                _rules_or_notice(service, snap),
+            ]
+        )
     actions = []
-    if mode == "demo" or (snap is not None and snap.is_demo):
+    if demo_mode:
         actions.append(
             html.Button(
                 "Leave the demonstration",

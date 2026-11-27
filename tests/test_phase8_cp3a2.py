@@ -14,6 +14,7 @@ import shutil
 import subprocess
 import threading
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -81,7 +82,9 @@ def test_no_current_challenge_is_upcoming_until_the_scheduled_time_then_unavaila
         assert gone.message == ("No Weekly Challenge available this week. You can still "
                                 "research upcoming matches.")  # fmt: skip
         assert gone.reason is None  # no reason is invented
-    assert status(None).state == home.UNAVAILABLE  # the schedule could not be read
+    failed = status(None)  # the schedule could not be read: a technical failure
+    assert failed.state == home.UNAVAILABLE and failed.default_research
+    assert failed.message == home.MSG_DATA_ERROR and "this week" not in failed.message
 
 
 def test_a_final_round_never_shows_stale_locked_messaging():
@@ -119,9 +122,16 @@ def test_home_wording_icon_and_no_european_card(data):  # noqa: F811
     tree = home.portfolio_home(ChallengeService(data), data.local, None)
     text = jtext(tree)
     for words in ("Think you know football?", "Put your skills to the test!",
-                  "9 picks. 100 virtual credits. One challenge.",
-                  "Free to play. No real money. Just football.", "Domestic Weekly Challenge"):  # fmt: skip
+                  "Analyse upcoming football matches, compare probabilities and develop your own "
+                  "predictions. Put your skills into practice by participating in the Weekly "
+                  "Challenge.", "Domestic Weekly Challenge",
+                  "100 Credits. 9 Picks. 1 Challenge."):  # fmt: skip
         assert words in text
+    # CP3A-2 closure: the old tagline and footnote are gone, in this order
+    assert "9 picks. 100 virtual credits" not in text and "Free to play" not in text
+    order = [text.index(w) for w in ("Think you know", "Put your skills to the test",
+             "Analyse upcoming football", "Domestic Weekly Challenge", "100 Credits.")]  # fmt: skip
+    assert order == sorted(order)
     assert "ic-football" in text and "pb-ball" in text
     assert "European" not in text and "Coming soon" not in text.title()
 
@@ -132,10 +142,12 @@ def test_card_facts_research_group_and_action(data):  # noqa: F811
                               championship="Championship Nov-26", counted=3, required=10)  # fmt: skip
     card = home.domestic_card(st, local, research=False)
     text = jtext(card)
-    for words in ("Championship Nov-26", "3 of 10 rounds completed", "Round 2026-W48", "Open",
-                  "Fixtures", "Fri 27 Nov", "Tue 01 Dec", "Entry deadline", "Entries close X.",
+    for words in ("Championship Nov-26", "3 of 10 rounds completed", "Open",
+                  "Fixtures", "Fri 27 Nov", "Tue 01 Dec", "Entries close X.",
                   home.ACTION_BUILD):  # fmt: skip
         assert words in text
+    # CP3A-2 closure: no technical round code, no separate deadline field
+    assert "2026-W48" not in text and "Entry deadline" not in text
     group = next(k for k in card.children if getattr(k, "className", "") == "pb-research")
     switch, tip = group.children  # label + switch (one control), then the info icon
     assert switch.id == "research-only" and switch.value == []
@@ -144,7 +156,50 @@ def test_card_facts_research_group_and_action(data):  # noqa: F811
     on = home.domestic_card(st, local, research=True)
     assert home.ACTION_RESEARCH in jtext(on)
     up = home.ChallengeStatus(home.UPCOMING, "m", target=NOW)
-    assert "Expected" in jtext(home.domestic_card(up, local, True))
+    assert "Expected" not in jtext(home.domestic_card(up, local, True))  # in the sentence
+
+
+def test_main_action_wording_by_state():
+    assert home.action_label(home.OPEN, False) == "Build domestic portfolio"
+    assert home.action_label(home.LOCKED, False) == "View domestic challenge"
+    assert home.action_label(home.SETTLING, False) == "View domestic challenge"
+    assert home.action_label(home.UPCOMING, False) == "View challenge information"
+    assert home.action_label(home.UNAVAILABLE, False) == "View challenge information"
+    for state in home.STATE_LABEL:
+        assert home.action_label(state, True) == "Analyse domestic matches"
+    st = home.ChallengeStatus(home.LOCKED, home.MSG_LOCKED)
+    assert "View domestic challenge" in jtext(home.domestic_card(st, local, research=False))
+
+
+def test_locked_builder_notice_and_collapsed_how_to_play(data):  # noqa: F811
+    from diski9.app.challenge.service import ChallengeService
+    from diski9.challenge.config import DEFAULT_CONFIG
+    from diski9.challenge.roundsheet import RoundAvailability, RoundStatus
+
+    svc = ChallengeService(data)
+    locked = RoundAvailability(RoundStatus.LOCKED, "Round locked", "old message", None)
+    text = jtext(pages.unavailable(svc, None, "live", None, locked, data.local))
+    assert pages.LOCKED_NOTICE in text and "Research only" in pages.LOCKED_NOTICE
+    assert "Try the demonstration round" not in text and '"m": "demo"' not in text
+    assert "learn how the Challenge works with the demonstration" not in text
+    assert "old message" not in text
+    other = RoundAvailability(RoundStatus.INSUFFICIENT, "Not enough", "m", None)
+    assert "Try the demonstration round" in jtext(
+        pages.unavailable(svc, None, "live", None, other, data.local)
+    )  # unchanged
+    assert pages.how_to_play(True, DEFAULT_CONFIG).open is False
+
+
+def test_model_version_wording_follows_the_model():
+    from diski9.app import app as app_module
+    from diski9.app import education
+    from diski9.screener import goal_model as gm
+
+    legend_src = Path(app_module.__file__).read_text()
+    assert "come from Goal Model 1.0" not in legend_src
+    assert "from Goal Model {gm.GOAL_MODEL_VERSION}" in legend_src
+    assert "1.0" not in education.GLOSSARY["model_probability"]["long"]
+    assert gm.GOAL_MODEL_VERSION == "1.1"
 
 
 def test_snapshot_notice_carries_the_stored_time():
@@ -175,10 +230,14 @@ def test_toggle_writes_only_explicit_choices(data):  # noqa: F811
     assert set_research([], {"research": True}) == {"research": False}
     assert set_research([], {"research": False}) is no_update
     widgets = _named(app, "research_widgets")
-    assert widgets(["on"])[0] == home.ACTION_RESEARCH and widgets(["on"])[1] is not None
-    assert widgets([]) == (home.ACTION_BUILD, None)
+    assert widgets(["on"], "open")[0] == home.ACTION_RESEARCH
+    assert widgets(["on"], "open")[1] is not None
+    assert widgets([], "open") == (home.ACTION_BUILD, None)
+    assert widgets([], "locked")[0] == home.ACTION_VIEW
+    assert widgets([], "unavailable")[0] == home.ACTION_INFO
     registered = next(v for k, v in app.callback_map.items() if "pb-go.children" in k)
     assert registered["inputs"] == [{"id": "research-only", "property": "value"}]
+    assert registered["state"] == [{"id": "pb-state", "property": "data"}]
 
 
 def test_layout_mode_shows_the_chosen_list(data):  # noqa: F811
@@ -267,7 +326,7 @@ const { chromium } = require('playwright');
     await shot('unavailable_research_on');
     // switch OFF: the competitive list (builder); the research list is hidden
     await p.locator('.pb-switch-label').click();
-    await p.waitForFunction(() => document.querySelector('#pb-go').innerText === 'Build domestic portfolio');
+    await p.waitForFunction(() => document.querySelector('#pb-go').innerText === 'View challenge information');
     await p.waitForSelector('#ch-root .ch-page', { state: 'visible' });
     r.screenerHiddenOff = await p.locator('#screener-root').isHidden();
     await shot('unavailable_research_off');
@@ -276,6 +335,7 @@ const { chromium } = require('playwright');
     await p.waitForSelector('text=Demonstration round.');
     const picks = p.locator("[id*='\"t\":\"pick\"']");
     await picks.first().waitFor();
+    await p.waitForLoadState('networkidle');  // the demonstration stage has finished rendering
     await picks.nth(0).click();
     await p.waitForFunction(() => (document.querySelector('.ch-total') || {}).innerText === '1/9');
     await p.locator('.pb-switch-label').click();  // ON

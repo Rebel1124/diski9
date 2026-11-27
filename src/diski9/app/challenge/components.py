@@ -425,7 +425,7 @@ def you_line(o, personal, show_you: bool):
     return html.Span(
         f"You {pct(personal, 1)}",
         className="ch-out-you",
-        title="Your View: Goal Model 1.0 with your adjusted expected goals",
+        title="Your View: the Diski 9 Goal Model with your adjusted expected goals",
     )
 
 
@@ -473,7 +473,7 @@ def outcome_button(
                     f"Mkt {pct_in_band(o.market_probability, bucket, config)}",
                     title="Market probability (bookmaker margin removed): sets the bucket",
                 ),
-                html.Span(f"D9 {model}", className="muted", title="Diski 9 (Goal Model 1.0)"),
+                html.Span(f"D9 {model}", className="muted", title="Diski 9 Goal Model probability"),
                 you_line(o, personal, show_you),
             ],
             className="ch-out-nums",
@@ -775,7 +775,7 @@ def source_selector(value: str) -> html.Div:
                                     "chance with their margin removed. It sets the buckets.",
                                 ]
                             ),
-                            html.Li([html.Strong("Diski 9: "), "Goal Model 1.0, unadjusted."]),
+                            html.Li([html.Strong("Diski 9: "), "Diski 9 Goal Model, unadjusted."]),
                             html.Li(
                                 [
                                     html.Strong("Your View: "),
