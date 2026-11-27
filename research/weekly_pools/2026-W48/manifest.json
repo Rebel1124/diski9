@@ -1,0 +1,37 @@
+{
+  "accepted_attempt": "capture-20261127T060451Z",
+  "accepted_status": "complete",
+  "attempts": [
+    {
+      "after_deadline": false,
+      "attempt": "capture-20261127T060451Z",
+      "captured_at": "2026-11-27T06:04:51.721831+00:00",
+      "files": {
+        "fixtures.json.gz": "de9162566d39534def1b74cf4c46fb996098b5303b3ba83d090f52361fdd81a8",
+        "model.json.gz": "ec373c164289153fbb88b75489a9bd3fdb97b303e27a762d035f3537ec07165b",
+        "odds.json.gz": "c7fa472602a4023dce3e10afc30c74205ab7bf3bacafd1c65fc872d9ea7db639",
+        "pool.json": "646ee77505126eb94f1a6015f50f8aad995adf304c40c8e06119c261a89ab058",
+        "requests.json": "ec51ad01cee695d4502afabe9d87772e9f6ee356835777e6669aa3e09d8a8c0a"
+      },
+      "requests": 85,
+      "status": "complete",
+      "timeliness": "on_time"
+    }
+  ],
+  "collector_version": "weekly-pool/1",
+  "config_version": "broad60-432-v1",
+  "deadline": "2026-11-27T13:15:00+00:00",
+  "fingerprint": "b8b857db97d9fb05",
+  "model": {
+    "engine_version": "3.0.0",
+    "goal_model": "1.0"
+  },
+  "round": "2026-W48",
+  "rules_version": "settle/v1",
+  "settle_cutoff": "2026-12-02T20:00:00+00:00",
+  "state": "open",
+  "window": [
+    "2026-11-27T00:00:00+00:00",
+    "2026-12-01T00:00:00+00:00"
+  ]
+}

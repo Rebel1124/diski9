@@ -1,0 +1,36 @@
+{
+  "generated_at": "2026-11-27T06:05:31.927569+00:00",
+  "qualifying_pools": 0,
+  "target": "6 to 8 qualifying pools",
+  "capture_target_reached": false,
+  "open_rounds": [
+    "2026-W48"
+  ],
+  "incomplete_rounds": [],
+  "collection_finished": false,
+  "rounds": [
+    {
+      "round": "2026-W48",
+      "capture_status": "complete",
+      "timeliness": "on_time",
+      "state": "open",
+      "qualifying": false,
+      "opens": true,
+      "eligible_fixtures": 69,
+      "eligible_leagues": 8,
+      "eligible_by_bucket": {
+        "A": 58,
+        "B": 235,
+        "C": 161
+      },
+      "leagues_without_eligible_fixtures": [],
+      "observed_void_codes": {},
+      "pending_fixtures": [],
+      "capture_errors": {},
+      "incomplete_reason": null
+    }
+  ],
+  "missing_weeks": [],
+  "api_requests_recorded": 85,
+  "observed_vs_simulated": "All void counts above are observed provider results. Simulated cancellation scenarios are produced separately by the D-29 validation report and are never mixed into these figures."
+}

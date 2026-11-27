@@ -1,0 +1,943 @@
+{
+  "history_step": "setup",
+  "requests": [
+    {
+      "attempt": 0,
+      "daily_remaining": 7499,
+      "endpoint": "leagues",
+      "params": {
+        "id": 39
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7498,
+      "endpoint": "leagues",
+      "params": {
+        "id": 40
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7497,
+      "endpoint": "leagues",
+      "params": {
+        "id": 288
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7496,
+      "endpoint": "leagues",
+      "params": {
+        "id": 289
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7495,
+      "endpoint": "leagues",
+      "params": {
+        "id": 140
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7494,
+      "endpoint": "leagues",
+      "params": {
+        "id": 61
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7493,
+      "endpoint": "leagues",
+      "params": {
+        "id": 78
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7492,
+      "endpoint": "leagues",
+      "params": {
+        "id": 135
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7491,
+      "endpoint": "odds/bookmakers",
+      "params": {},
+      "results": 33,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7490,
+      "endpoint": "teams",
+      "params": {
+        "league": 39,
+        "season": 2023
+      },
+      "results": 20,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7489,
+      "endpoint": "teams",
+      "params": {
+        "league": 39,
+        "season": 2024
+      },
+      "results": 20,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7488,
+      "endpoint": "teams",
+      "params": {
+        "league": 39,
+        "season": 2025
+      },
+      "results": 20,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7487,
+      "endpoint": "teams",
+      "params": {
+        "league": 39,
+        "season": 2026
+      },
+      "results": 20,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7486,
+      "endpoint": "teams",
+      "params": {
+        "league": 40,
+        "season": 2023
+      },
+      "results": 24,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7485,
+      "endpoint": "teams",
+      "params": {
+        "league": 40,
+        "season": 2024
+      },
+      "results": 24,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7484,
+      "endpoint": "teams",
+      "params": {
+        "league": 40,
+        "season": 2025
+      },
+      "results": 24,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7483,
+      "endpoint": "teams",
+      "params": {
+        "league": 40,
+        "season": 2026
+      },
+      "results": 24,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7482,
+      "endpoint": "teams",
+      "params": {
+        "league": 288,
+        "season": 2023
+      },
+      "results": 18,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7481,
+      "endpoint": "teams",
+      "params": {
+        "league": 288,
+        "season": 2024
+      },
+      "results": 18,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7480,
+      "endpoint": "teams",
+      "params": {
+        "league": 288,
+        "season": 2025
+      },
+      "results": 18,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7479,
+      "endpoint": "teams",
+      "params": {
+        "league": 288,
+        "season": 2026
+      },
+      "results": 16,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7478,
+      "endpoint": "teams",
+      "params": {
+        "league": 289,
+        "season": 2023
+      },
+      "results": 16,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7477,
+      "endpoint": "teams",
+      "params": {
+        "league": 289,
+        "season": 2024
+      },
+      "results": 16,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7476,
+      "endpoint": "teams",
+      "params": {
+        "league": 289,
+        "season": 2025
+      },
+      "results": 16,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7475,
+      "endpoint": "teams",
+      "params": {
+        "league": 289,
+        "season": 2026
+      },
+      "results": 16,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7474,
+      "endpoint": "teams",
+      "params": {
+        "league": 140,
+        "season": 2025
+      },
+      "results": 20,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7473,
+      "endpoint": "teams",
+      "params": {
+        "league": 140,
+        "season": 2026
+      },
+      "results": 20,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7472,
+      "endpoint": "teams",
+      "params": {
+        "league": 61,
+        "season": 2025
+      },
+      "results": 19,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7471,
+      "endpoint": "teams",
+      "params": {
+        "league": 61,
+        "season": 2026
+      },
+      "results": 18,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7470,
+      "endpoint": "teams",
+      "params": {
+        "league": 78,
+        "season": 2025
+      },
+      "results": 19,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7499,
+      "endpoint": "teams",
+      "params": {
+        "league": 78,
+        "season": 2026
+      },
+      "results": 18,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7498,
+      "endpoint": "teams",
+      "params": {
+        "league": 135,
+        "season": 2025
+      },
+      "results": 20,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7497,
+      "endpoint": "teams",
+      "params": {
+        "league": 135,
+        "season": 2026
+      },
+      "results": 20,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7496,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 39,
+        "season": 2023
+      },
+      "results": 380,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7495,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 39,
+        "season": 2024
+      },
+      "results": 380,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7494,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 39,
+        "season": 2025
+      },
+      "results": 380,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7493,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 39,
+        "season": 2026
+      },
+      "results": 380,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7492,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 40,
+        "season": 2023
+      },
+      "results": 557,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7491,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 40,
+        "season": 2024
+      },
+      "results": 557,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7490,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 40,
+        "season": 2025
+      },
+      "results": 558,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7489,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 40,
+        "season": 2026
+      },
+      "results": 552,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7488,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 288,
+        "season": 2023
+      },
+      "results": 246,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7487,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 288,
+        "season": 2024
+      },
+      "results": 246,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7486,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 288,
+        "season": 2025
+      },
+      "results": 246,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7485,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 288,
+        "season": 2026
+      },
+      "results": 240,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7484,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 289,
+        "season": 2023
+      },
+      "results": 240,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7483,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 289,
+        "season": 2024
+      },
+      "results": 240,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7482,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 289,
+        "season": 2025
+      },
+      "results": 240,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7481,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 289,
+        "season": 2026
+      },
+      "results": 240,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7480,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 140,
+        "season": 2025
+      },
+      "results": 380,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7479,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 140,
+        "season": 2026
+      },
+      "results": 380,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7478,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 61,
+        "season": 2025
+      },
+      "results": 308,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7477,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 61,
+        "season": 2026
+      },
+      "results": 306,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7476,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 78,
+        "season": 2025
+      },
+      "results": 308,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7475,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 78,
+        "season": 2026
+      },
+      "results": 306,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7474,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 135,
+        "season": 2025
+      },
+      "results": 380,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7473,
+      "endpoint": "fixtures",
+      "params": {
+        "league": 135,
+        "season": 2026
+      },
+      "results": 380,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7472,
+      "endpoint": "standings",
+      "params": {
+        "league": 39,
+        "season": 2026
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7471,
+      "endpoint": "standings",
+      "params": {
+        "league": 288,
+        "season": 2026
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7470,
+      "endpoint": "standings",
+      "params": {
+        "league": 140,
+        "season": 2026
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7469,
+      "endpoint": "standings",
+      "params": {
+        "league": 61,
+        "season": 2026
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7468,
+      "endpoint": "standings",
+      "params": {
+        "league": 78,
+        "season": 2026
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7467,
+      "endpoint": "standings",
+      "params": {
+        "league": 135,
+        "season": 2026
+      },
+      "results": 1,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7466,
+      "endpoint": "odds",
+      "params": {
+        "league": 39,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7465,
+      "endpoint": "odds",
+      "params": {
+        "league": 39,
+        "page": 2,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7464,
+      "endpoint": "odds",
+      "params": {
+        "league": 39,
+        "page": 3,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7463,
+      "endpoint": "odds",
+      "params": {
+        "league": 40,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7462,
+      "endpoint": "odds",
+      "params": {
+        "league": 40,
+        "page": 2,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7461,
+      "endpoint": "odds",
+      "params": {
+        "league": 40,
+        "page": 3,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7460,
+      "endpoint": "odds",
+      "params": {
+        "league": 40,
+        "page": 4,
+        "season": 2026
+      },
+      "results": 6,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7459,
+      "endpoint": "odds",
+      "params": {
+        "league": 288,
+        "season": 2026
+      },
+      "results": 8,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7458,
+      "endpoint": "odds",
+      "params": {
+        "league": 289,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7457,
+      "endpoint": "odds",
+      "params": {
+        "league": 289,
+        "page": 2,
+        "season": 2026
+      },
+      "results": 0,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7456,
+      "endpoint": "odds",
+      "params": {
+        "league": 140,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7455,
+      "endpoint": "odds",
+      "params": {
+        "league": 140,
+        "page": 2,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7454,
+      "endpoint": "odds",
+      "params": {
+        "league": 140,
+        "page": 3,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7453,
+      "endpoint": "odds",
+      "params": {
+        "league": 61,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7452,
+      "endpoint": "odds",
+      "params": {
+        "league": 61,
+        "page": 2,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7451,
+      "endpoint": "odds",
+      "params": {
+        "league": 61,
+        "page": 3,
+        "season": 2026
+      },
+      "results": 7,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7450,
+      "endpoint": "odds",
+      "params": {
+        "league": 78,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7449,
+      "endpoint": "odds",
+      "params": {
+        "league": 78,
+        "page": 2,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7448,
+      "endpoint": "odds",
+      "params": {
+        "league": 78,
+        "page": 3,
+        "season": 2026
+      },
+      "results": 7,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7447,
+      "endpoint": "odds",
+      "params": {
+        "league": 135,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7446,
+      "endpoint": "odds",
+      "params": {
+        "league": 135,
+        "page": 2,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    },
+    {
+      "attempt": 0,
+      "daily_remaining": 7445,
+      "endpoint": "odds",
+      "params": {
+        "league": 135,
+        "page": 3,
+        "season": 2026
+      },
+      "results": 10,
+      "status": 200
+    }
+  ]
+}

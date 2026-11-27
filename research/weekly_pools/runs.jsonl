@@ -1,0 +1,1 @@
+{"attempt": "capture-20261127T060451Z", "daily_remaining": 7445, "errors": {}, "requests": 85, "round": "2026-W48", "run_at": "2026-11-27T06:04:51.721831+00:00", "status": "complete", "step": "capture", "summary": {"eligible_fixtures": 69, "eligible_leagues": 8, "eligible_outcomes": 454, "errors": {}, "opens": true, "window_fixtures": 74}}
