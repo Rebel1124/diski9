@@ -512,3 +512,21 @@ States A/B/C) is **authorised and implemented, awaiting review**; **CP2B.2** (Ch
 League and Europa League market-only integration) is **not authorised** and depends on
 the Step B evidence (3–9 Dec 2026, ≤ 25 counted attempts). The combined estimate stays
 15–21 h. Record: [`../architecture/phase8_implementation.md`](../architecture/phase8_implementation.md) §14.
+
+*Phase 8 CP2B.1 closure and revised MVP scope (owner, 27 Nov 2026; Master Roadmap
+updated the same day):* CP2B.1 is **formally accepted** (`7c7cf22`, CI run 173: 2,416
+passed). The frozen snapshot architecture and the whole domestic Weekly Challenge design
+are retained, with no dynamic pricing. Champions League and Europa League become
+**analysis only** (no competitive role; European Bonus Challenges are a future
+enhancement). Final navigation: five tabs; Portfolio Build is the single selection entry
+point with a two-card homepage; the Challenge Mode toggle is removed; Match Lab has no
+selectors and offers a frozen/latest toggle for challenge fixtures. **Revised Phase 8
+sequence:** CP3A (Portfolio Build, navigation, context) → CP3B (Match Lab presentation,
+education, Learn) → European verification on Mon 7 Dec (≈ 6 requests, hard maximum 12;
+separately approved) → CP2B.2 (European Match Analysis) → CP4. Remaining estimate:
+**46–65 h** (CP3A 16–22, CP3B 14–20, CP2B.2 8–11, CP4 8–12). **Master Roadmap:** Phase 8
+→ Phase 9 (Lucy, LiveKit) → resume Phase 6 operations → Phase 10 (MVP deployment, initial
+private Beta) → extended private Beta → Phase 11 (public launch, YouTube).
+Commercialisation stays outside the committed roadmap. Record:
+[`../architecture/phase8_implementation.md`](../architecture/phase8_implementation.md) §15;
+CP3A plan: [`../architecture/phase8_cp3a_plan.md`](../architecture/phase8_cp3a_plan.md).

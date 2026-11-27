@@ -5,15 +5,16 @@
 **Status:**
 - CP0 discovery, the CP0 refinement, CP1 research and the supplementary Goal Model research are **formally accepted**.
 - All seven CP1 decisions are **approved** (27 Nov 2026).
-- CP1-7 Step A (quota-free account check) is **complete**. Step B is **authorised for 3–9 Dec 2026 only**, at most 25 counted requests (Appendix B).
+- CP1-7 Step A (quota-free account check) is **complete**. Step B is **revised (27 Nov 2026, §15.6)** to a single technical verification for European Match Analysis on **Monday 7 Dec 2026** (provisionally 08:00 SAST): planning allowance about 6 counted requests, **hard maximum 12**. Execution still needs separate owner approval.
 - **Owner decisions OD-1 to OD-6 are approved with refinements (27 Nov 2026, §11).** The CP2–CP4 plan (§9) is reconciled with them.
 - **CP2A is formally accepted by the owner (27 Nov 2026)** (§13, §13.1, closure refinement §13.2). Goal Model 1.1 is the accepted **application** model baseline. It is an application implementation only: nothing is deployed to a hosted environment.
 - **CP2A and its closure refinement are fully accepted and closed (27 Nov 2026;** `87849bb`, CI run 172: 2,378 passed, 0 failed, 0 skipped).
-- **CP2B is split (owner, 27 Nov 2026):** **CP2B.1**, the market-implied model on domestic data, is **authorised and implemented, awaiting independent review and owner acceptance** (§14). **CP2B.2**, Champions League and Europa League market-only integration, is **not authorised**: it depends on the Step B evidence and a separate owner decision.
+- **CP2B is split (owner, 27 Nov 2026):** **CP2B.1**, the market-implied model on domestic data, is **formally accepted and closed by the owner (27 Nov 2026;** `7c7cf22`, CI run 173: 2,416 passed, 0 failed, 0 skipped; §14, §15.1). **CP2B.2**, European Match Analysis (analysis only), is **not authorised**: it follows the 7 Dec verification and a separate owner decision.
+- **Revised MVP scope and final navigation decisions approved (27 Nov 2026, §15).** They supersede the Challenge Mode toggle (OD-4), the Match Lab fixture picker (Appendix C) and any European participation in the Weekly Challenge. **Next: CP3A planning review** (`phase8_cp3a_plan.md`); CP3A implementation needs explicit owner approval.
 - Phase 6 stays paused.
 
 **How to read this record:**
-- §1–§8, §10 and §11 record **accepted decisions**. Where §11 refines an earlier section, §11 governs.
+- §1–§8, §10, §11 and §15 record **accepted decisions**. Where §11 refines an earlier section, §11 governs; where §15 refines §11 or earlier, **§15 governs**.
 - §9, §12 and the appendices are the **approved plan structure**. Their implementation details remain subject to checkpoint review.
 - Accepted research evidence is not rewritten here. The reporting qualifications and later decisions are recorded alongside it.
 
@@ -800,7 +801,7 @@ No blocker prevents CP2A once it is authorised.
 
 **Next (superseded 27 Nov 2026):** CP2A was fully accepted and closed, CP2B was split, and CP2B.1 was authorised (§14). The European Step B verification stays bounded to 3–9 Dec 2026 (≤ 25 counted attempts) and is not brought forward.
 
-## 14. CP2B.1 implementation record: market-implied model (27 Nov 2026; awaiting independent review and owner acceptance)
+## 14. CP2B.1 implementation record: market-implied model (27 Nov 2026; formally accepted by the owner, §15.1)
 
 **Scope (authorised 27 Nov 2026):** the production market-implied model on existing domestic data, the NumPy/SciPy dependencies, on-demand fitting with bounded reuse, source-aware Your View identity, the complete OD-3 Your View hierarchy and the minimum Match Lab integration for States A/B/C. **Not in scope and not done:** CP2B.2 European integration, provider requests, refresh activation, migrations, protected databases, deployment, CP3A/CP3B/CP4.
 
@@ -911,7 +912,151 @@ The +51 MiB applies once per worker that actually fits, against the existing VPS
 - **CP2B.1 actual:** about 1.5 h of active implementation and testing in this session, against the combined CP2B estimate of 15–21 h. The estimate is retained for planning.
 - **CP2B.2 remaining estimate:** about 4–6 h of European work plus its tests, as planned, once authorised after Step B.
 
-## Appendix B. CP1-7 Step B: controlled provider verification plan (**authorised for 3–9 Dec 2026 only**, OD-5)
+## 15. CP2B.1 acceptance, revised MVP scope and final navigation decisions (owner, 27 Nov 2026)
+
+Agreed by the owner after review with ChatGPT; recorded with the updated Master Roadmap of 27 Nov 2026. **Where this section differs from earlier sections, it governs.**
+
+### 15.1 CP2B.1 formally accepted and closed
+
+- **Accepted:** the implementation, testing and CI evidence (`7c7cf22`, CI run 173: 2,416 passed, 0 failed, 0 skipped, 1,811.52 s). No further production change is authorised for CP2B.1.
+- **Independent Goal Model adjustment identity: kept as it is** (decision on the closure question A1).
+  - The State A stamp stays `"<version>|<fixture>|<home>|<away>"`. No new identity mechanism is introduced, so historical saved adjustments stay valid.
+  - The frozen Weekly Challenge path compares the stamp **without** its version field (`app/challenge/integration.py`, `personal_probabilities`). This behaviour predates CP2B.1 (Phase 6B.1 and 6C.3) and is retained for compatibility. Frozen adjustments are stored under a round-specific key, and a round's frozen estimated goals and model version never change, so a frozen stamp cannot refer to another model version.
+  - The live (All Upcoming) path compares the whole stamp, including the Goal Model version.
+  - **Requirement (recorded in [`../methodology.md`](../methodology.md) §8 and [`../model_changelog.md`](../model_changelog.md)):** any change to Goal Model parameters or methodology must come with a **new Goal Model version**. That version change is what invalidates live adjustments made against the old model.
+  - **The stricter market-implied identity is retained:** it covers the methodology fingerprint, the live or frozen context, the fixture and the exact input probabilities.
+  - **Remaining limitations (transparent):**
+    - a parameter change made **without** a version bump, whose rounded estimated goals do not change, would keep an existing live adjustment. Policy and the per-version hash tests prevent this; the code does not enforce it;
+    - movements below 0.005 goals keep an adjustment by design, because adjustments are deltas on the **rounded** baseline and the result is identical.
+- **Frozen market data completeness (closure question A2): confirmed complete, no defect.**
+  - `build_live_snapshot` freezes every outcome of every Challenge-eligible market, including outcomes outside the A3 bands.
+  - `snapshot_rows` stores all of them (`eligible`/`bucket` flags), and `load_snapshot` rebuilds them exactly.
+  - Evidence: `tests/backend/test_backend_rounds.py` (stored offers equal snapshot outcomes, exact float round trip, ineligible outcomes kept) and the CP2B.1 PostgreSQL test, which fits from the reloaded snapshot.
+  - The frozen fit never reads live data.
+
+### 15.2 Domestic Weekly Challenge design confirmed (frozen snapshot architecture retained)
+
+The owner considered dynamic pricing and submission-time analytical snapshots and **explicitly retained the existing frozen snapshot architecture.** Unchanged:
+- the eight domestic competitions;
+- the Friday–Tuesday half-open window [Fri 00:00 UTC, Tue 00:00 UTC);
+- publication Friday 08:00 SAST;
+- the common deadline 15 minutes before the earliest eligible kickoff;
+- the A3 eligibility and probability bands;
+- nine distinct fixtures (4 Foundation, 3 Balanced, 2 Challenger);
+- 100 virtual credits and the accumulator allocations;
+- submission, replacement, settlement, correction and void rules;
+- the ten-valid-round championship;
+- recovery-gated points and the leaderboard rules;
+- the six badges and three profile levels (Beginner, Semi-Pro, Pro).
+
+Frozen at publication: market odds, market probabilities, bucket classifications and independent model estimates. Weekly Challenge market-implied Estimated Goals come **only** from the frozen snapshot.
+
+**No** dynamic repricing, dynamic bucket classification or submission-time pricing redesign. The seven-day window (Options B and C of the window research) and extended domestic midweek coverage are **closed** for the current scope.
+
+### 15.3 European football: analysis only (replaces any European competitive role)
+
+- **Champions League and Europa League main-stage fixtures are included for analysis only.** This is an intended MVP feature, subject to the technical verification of §15.6, and is delivered by CP2B.2.
+- **European fixtures never take part in:** portfolio construction or submission, Weekly Challenge eligibility, championship points, leaderboards, badges or profile progression, competitive settlement or virtual-credit payouts. No European championship, schedule, rewards system or competitive portfolio architecture is built.
+- **Filtering:** main stage only. Qualifying rounds and the Conference League stay excluded.
+- **Display:** a dedicated, analysis-only European fixture list with the available market odds and probabilities.
+- **Analysis:**
+  - no independent Goal Model estimate;
+  - Match Lab uses the **latest** market data;
+  - market-implied Estimated Goals are calculated on demand where a reliable fit exists (State B), otherwise State C;
+  - Your View is available from a reliable market-implied baseline;
+  - **no** edge or EV from market-implied estimates;
+  - no freezing of European market data.
+- **European Bonus Challenges** are moved to the future enhancements register, with no committed date. They are reconsidered only if participant demand justifies the complexity.
+
+### 15.4 Final navigation and UI decisions (supersede OD-4's Challenge Mode toggle and Appendix C's Match Lab picker)
+
+- **Tabs (unchanged):** Portfolio Build, Match Lab, My Challenge, Leaderboards, Learn.
+- **Portfolio Build** is the single primary entry point for fixture selection. **The Challenge Mode toggle is removed.**
+  - It keeps the agreed homepage wording ("Think you know football? / Put your skills to the test! / 9 picks. 100 virtual credits. One challenge. / Free to play. No real money. Just football."), with one prominent football icon beside the two headline lines, in the existing visual language and without animation or new dependencies.
+  - **Two-card homepage (approved direction):**
+    - **Domestic Weekly Challenge (teal):** the championship, round and challenge status, and a **Build domestic portfolio** action that opens the domestic challenge fixture list (construction plus detailed analysis).
+    - **European Match Analysis (gold):** identifies the Champions League and Europa League, with an **Analyse European matches** action that opens an analysis-only list inside Portfolio Build. It states clearly that European fixtures are not part of the Weekly Challenge.
+    - **No non-functional European feature is exposed before CP2B.2 is accepted.**
+  - Existing fixture-list components and all approved domestic functionality are kept: filters, market selection, probability filtering, bucket selection, tracking, review, submission, replacement, withdrawal and guest adoption.
+- **Match Lab:**
+  - detailed analysis of the fixture selected in Portfolio Build. **No competition or fixture selectors**, and no duplicate selection;
+  - opened from the tab: it restores the last selected fixture if its context is still valid, otherwise shows an empty state pointing to Portfolio Build;
+  - returning to Portfolio Build preserves the originating list, filters, selections, draft and valid adjustments.
+- **Frozen / latest toggle ("Use latest available data")**, only for fixtures opened from a published Weekly Challenge with a valid frozen snapshot. It does not depend on whether an independent model exists.
+  - **Off (default):**
+    - frozen odds and probabilities;
+    - the frozen independent model or a reliable frozen market-implied model;
+    - the actual snapshot publication timestamp and a note that current prices and estimates may differ;
+    - frozen Your View.
+  - **On:**
+    - latest market and analytical data with their timestamps;
+    - clearly marked research only;
+    - never changes the competitive portfolio, accepted odds, buckets or frozen baseline.
+  - Frozen and latest Your View stay separate. Switching back restores the valid frozen adjustments, and nothing is silently transferred between baselines.
+  - European and other non-challenge fixtures use latest data only, with no toggle and no frozen disclaimer.
+  - **Inputs are never mixed:** when latest data is unavailable or stale, the latest view says so, falls back to State C or the stale-data display it already uses, and never substitutes frozen inputs.
+- **Analytical states:**
+  - A/B/C are retained and determined from the applicable frozen or latest context;
+  - the source is shown above Estimated Goals;
+  - all probability-source, Your View, edge and EV rules are unchanged;
+  - European fixtures use States B and C only.
+- **Snapshot transparency:**
+  - unobtrusive frozen-snapshot messaging on the domestic fixture list and in the frozen Match Lab context, using stored timestamps and never hard-coded days. It explains that odds, probabilities and model estimates were fixed at publication for consistent competitive conditions;
+  - latest-data views show their observation or calculation time and never imply real-time bookmaker prices.
+
+### 15.5 International breaks and domestic research access
+
+- **Data-driven opening rules are retained.** There is no international-break calendar, manual championship pause or extra schedule.
+- **Confirmed from the implementation (window research, 27 Nov 2026):**
+  - an insufficient pool cannot be published (publication guard; publication is operator-run);
+  - the draft lapses (reported as `lapsed`) and is never assigned;
+  - championship slots are taken only at publication (CH-02);
+  - there are no streak badges;
+  - preparation resumes automatically for the next week.
+- **Gap (for CP3A):** with no new round, the challenge view can show the previous round's "Round locked" message. CP3A adds explicit messaging for the upcoming, unavailable, open, locked and settling states.
+- **Open detail: domestic research access when no challenge is published.** A recommendation is in the CP3A plan for owner review; it is not implemented.
+
+### 15.6 European provider verification: revised protocol (not executed; needs separate approval)
+
+- **When:** Monday **7 Dec 2026**, provisionally 08:00 SAST (06:00 UTC). It covers Champions League matchday 6 (8–9 Dec) and Europa League matchday 6 (10 Dec).
+- **Scope:** technical verification for **European Match Analysis**. A3 bucket distribution, minimum competition counts and European portfolio feasibility are no longer assessed.
+- **Requests:** planning allowance about **6 counted requests**; **hard maximum 12** counted attempts, including pagination, retries and failures:
+  - `/status` before and after (quota-free);
+  - 2 × `/fixtures` (league 2 and league 3, season 2026: matchday 6 kickoffs, statuses and stage labels; cached identifiers and stage list reused);
+  - `/odds` for each competition, expected 2 pages each;
+  - the rest as an allowance for an extra page or a retry;
+  - use the smallest sufficient number.
+- **Assessed with production code** (`fixture_consensus`, `challenge_eligible`, `screener.market_fit`):
+  - main-stage coverage;
+  - bookmaker and independent-group depth;
+  - completeness across 1X2, BTTS and Over/Under 2.5;
+  - freshness;
+  - reliable-fit quality (good, approximate or rejected, with reasons);
+  - pagination and counted consumption.
+  - The report also gives a recommended future centralised refresh frequency.
+- **Not planned:** a Friday capture, close-to-kickoff captures, a recurring schedule or subscription changes. CP3A and CP3B do not wait for this verification.
+- **Supersedes** the request table and timing in Appendix B. Appendix B's isolation and safeguard rules still apply.
+
+### 15.7 Revised Phase 8 sequence and estimates
+
+1. CP2B.1 formal closure: **accepted** (§15.1).
+2. **CP3A:** Portfolio Build, navigation and context management.
+3. **CP3B:** Match Lab presentation, education and Learn.
+4. European provider verification, 7 Dec (separately approved).
+5. **CP2B.2:** European Match Analysis integration, subject to the verification.
+6. **CP4:** final Phase 8 integration, regression and acceptance.
+
+| Checkpoint | Agreed planning estimate | Reassessed against §15 | Why |
+|---|---|---|---|
+| CP3A | 14–20 h | **16–22 h** | The toggle removal saves time, but the frozen/latest toggle, Match Lab tab restore and empty state, two-card homepage, status messaging and research access add some. |
+| CP3B | 14–20 h | **14–20 h** | The States A/B/C mechanics already exist from CP2B.1. |
+| CP2B.2 | 6–9 h | **8–11 h** | Adds the analysis-only European list in Portfolio Build and activates the gold card. |
+| CP4 | 8–12 h | **8–12 h** | — |
+| **Total remaining** | 42–61 h | **46–65 h** | Planning estimates, not commitments. |
+
+**Master Roadmap (unchanged in sequence):** complete Phase 8 → Phase 9 (Lucy and LiveKit) → resume outstanding Phase 6 infrastructure and operations → Phase 10 (MVP deployment and initial private Beta) → extended private Beta and consolidation → Phase 11 (public launch and YouTube). Infrastructure acceptance gates, security requirements, protected-database restrictions, the personal-Mac migration, the operational backlog and deferred enhancements are all preserved. Commercialisation stays outside the committed roadmap.
+
+## Appendix B. CP1-7 Step B: controlled provider verification plan (**timing and request table superseded by §15.6**, 27 Nov 2026; safeguards still apply)
 
 **Hard ceiling: 25 chargeable requests.** Every attempt counts toward it: pagination, retries and failed requests. `/status` is quota-free (§7) and is not counted, but is used as an independent check.
 

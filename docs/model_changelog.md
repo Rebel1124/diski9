@@ -2,7 +2,10 @@
 
 Each model version has fixed parameters and an evidence report. Parameters are
 never changed in place; a change is a new version, approved only under the annual
-review rule in [`methodology.md`](methodology.md#8-maintenance-policy).
+review rule in [`methodology.md`](methodology.md#8-maintenance-policy). **Any change
+to Goal Model parameters or methodology must come with a new version** (owner,
+27 Nov 2026): saved Your View adjustments rely on the version to avoid carrying over
+to a different model.
 
 | Version | Engine | Released | Parameters | Evidence |
 |---|---|---|---|---|
@@ -32,7 +35,7 @@ snapshots keep their 1.0 identity and stay reproducible from its frozen paramete
   with the accepted reporting qualifications in
   [`architecture/phase8_implementation.md`](architecture/phase8_implementation.md) §2.
 
-## Market-implied Model 1.0 (Phase 8 CP2B.1; implemented, awaiting review)
+## Market-implied Model 1.0 (Phase 8 CP2B.1; formally accepted by the owner 27 Nov 2026, `7c7cf22`, CI run 173)
 
 Not a Goal Model version: the **State B** starting point used only when Goal Model 1.1
 has no independent prediction (OD-2, CP1-5). It never changes Goal Model parameters,

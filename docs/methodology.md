@@ -206,6 +206,11 @@ Not every competition was used to choose the parameters. Full reports:
      report, recorded in [`model_changelog.md`](model_changelog.md).
    * Parameters are never changed in place.
    * There is no automatic retraining.
+   * **Any change to model parameters or methodology must come with a new model
+     version** (owner requirement, Phase 8 CP2B.1 closure, 27 Nov 2026). Saved Your
+     View adjustments are tied to the model version and the rounded estimated goals,
+     so the version change is what keeps an adjustment from carrying over to a
+     different model.
 
 ### Official forecasts
 
