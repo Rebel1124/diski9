@@ -10,7 +10,7 @@
 - **CP2A is formally accepted by the owner (27 Nov 2026)** (§13, §13.1, closure refinement §13.2). Goal Model 1.1 is the accepted **application** model baseline. It is an application implementation only: nothing is deployed to a hosted environment.
 - **CP2A and its closure refinement are fully accepted and closed (27 Nov 2026;** `87849bb`, CI run 172: 2,378 passed, 0 failed, 0 skipped).
 - **CP2B is split (owner, 27 Nov 2026):** **CP2B.1**, the market-implied model on domestic data, is **formally accepted and closed by the owner (27 Nov 2026;** `7c7cf22`, CI run 173: 2,416 passed, 0 failed, 0 skipped; §14, §15.1). **CP2B.2**, European Match Analysis (analysis only), is **not authorised**: it follows the 7 Dec verification and a separate owner decision.
-- **Revised MVP scope and final navigation decisions approved (27 Nov 2026, §15).** They supersede the Challenge Mode toggle (OD-4), the Match Lab fixture picker (Appendix C) and any European participation in the Weekly Challenge. **The CP3A plan is approved with refinements (27 Nov 2026, §15.8;** `phase8_cp3a_plan.md`). **CP3A-1 (routes and navigation) is formally accepted (27 Nov 2026;** `e7c2aae`, `951a33a`; §15.9). **CP3A-2 is formally accepted (27 Nov 2026;** `2bd1e4f`, `5d63f7a`; §15.11). **CP3A-3 is implemented and awaiting review.** CP3A-4 onwards each need explicit owner authorisation.
+- **Revised MVP scope and final navigation decisions approved (27 Nov 2026, §15).** They supersede the Challenge Mode toggle (OD-4), the Match Lab fixture picker (Appendix C) and any European participation in the Weekly Challenge. **The CP3A plan is approved with refinements (27 Nov 2026, §15.8;** `phase8_cp3a_plan.md`). **CP3A-1 (routes and navigation) is formally accepted (27 Nov 2026;** `e7c2aae`, `951a33a`; §15.9). **CP3A-2 is formally accepted (27 Nov 2026;** `2bd1e4f`, `5d63f7a`; §15.11). **CP3A-3 is formally accepted (27 Nov 2026;** `4e08e71`, `1648381`; §15.12). **CP3A-4 is implemented and awaiting review.** CP3A-4B onwards each need explicit owner authorisation.
 - Phase 6 stays paused.
 
 **How to read this record:**
@@ -1354,3 +1354,9 @@ Inventory taken from the code on 27 Nov 2026. "WC" means Challenge Mode ON and "
 - the introduction shrinks to two lines;
 - the filters collapse to "Filters (n) ▾", with the slider kept visible;
 - in Challenge Mode, the tracker becomes a sticky bottom bar.
+
+### 15.12 CP3A-3 acceptance and CP3A-4 (owner, 27 Nov 2026)
+
+- **CP3A-3 formally accepted** after ChatGPT's independent review: implementation `4e08e71`, closure `1648381`.
+- **Intermittent browser test** (`test_ui_edge_refine.py::test_browser_outcome_colours_section_d_and_sliders`): one failure in the closure regression run, three successful isolated reruns; suspected, unconfirmed CPU contention from concurrent screenshot jobs. Carried forward for explicit verification at CP3A-4B; screenshot jobs are not run alongside the regression suite.
+- **CP3A-4 authorised and implemented** (plan §10.6): the "Use latest available data" toggle for challenge-origin matches, context and Your View isolation, competitive mutation protection, per-context source and time information, and the display-only published-pair correction.

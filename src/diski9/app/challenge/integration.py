@@ -325,10 +325,9 @@ def data_context(service, data, universe: str | None) -> html.Div | None:
     from . import pages
 
     if universe == "challenge":
-        snap = service.snapshot("live")
+        rv, snap = service.published_pair()  # one read: time and deadline of one round
         if snap is None:
             return None
-        rv = service.round_view()
         frozen = rv.snapshot_at if rv else snap.snapshot_at
         deadline = rv.deadline_at if rv else snap.deadline
         parts = [

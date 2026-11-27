@@ -93,16 +93,16 @@ def test_open_lab_reads_the_address(data):  # noqa: F811
 def test_match_lab_restores_the_last_valid_match(data):  # noqa: F811
     detail = _named(_app(data), "update_detail")
     target = {"fixture": EPL_FIX, "ctx": "research"}
-    body, ref, _, saved, active = detail(target, "1X2", "/lab", None, {})
+    body, ref, _, saved, active, *_ = detail(target, "1X2", "/lab", [], None, {})
     assert "lab-empty" not in json.dumps(body, default=str) and saved == target == active
     # the tab itself (no fixture in the address): the last valid match again
-    body, _, _, saved, active = detail(None, "1X2", "/lab", target, {})
+    body, _, _, saved, active, *_ = detail(None, "1X2", "/lab", [], target, {})
     assert saved is no_update and active == target and "lab-empty" not in str(body)
     # an invalid link: an explanation; the last valid match is kept for the tab
-    body, _, _, saved, active = detail({"invalid": True}, "1X2", "/lab", target, {})
+    body, _, _, saved, active, *_ = detail({"invalid": True}, "1X2", "/lab", [], target, {})
     assert "This match link is not valid" in jtext(body) and saved is no_update and active is None
     # nothing at all: the empty state, never an arbitrary match
-    body, _, _, saved, active = detail(None, "1X2", "/lab", None, {})
+    body, _, _, saved, active, *_ = detail(None, "1X2", "/lab", [], None, {})
     text = jtext(body)
     assert "No match selected" in text and "Go to Portfolio Build" in text and active is None
 
@@ -509,9 +509,9 @@ def test_market_change_keeps_fixture_context_and_your_view(data):  # noqa: F811
                                  lab.normalise_state({"manual": {"home": 0.3, "away": -0.1}}))  # fmt: skip
     seen = []
     for market in ("1X2", "BTTS", "OU25"):
-        body, _, _, new_target, active = update(None, market, "/lab", target, store)
+        body, _, _, new_target, active, *_ = update(None, market, "/lab", [], target, store)
         assert new_target is no_update and active == target  # same fixture and context
-        plain = update(None, market, "/lab", target, {})[0]  # no Your View: the baseline
+        plain = update(None, market, "/lab", [], target, {})[0]  # no Your View: the baseline
         seen.append(round(_slider(body, "lab-home-slider") - _slider(plain, "lab-home-slider"), 2))
     assert seen == [0.3, 0.3, 0.3]  # the frozen context's Your View in every market
     # the market is not an input of anything that writes picks or the draft

@@ -5,8 +5,9 @@
 - **Status:**
   - **CP3A-1** (routes and navigation) is **formally accepted** (27 Nov 2026; `e7c2aae`, `951a33a`; §10.1);
   - **CP3A-2** is **formally accepted** (27 Nov 2026; `2bd1e4f`, `5d63f7a`; §10.3);
-  - **CP3A-3** (Match Lab separation, navigation and restoration, Minimum Market Probability, locked read-only access) is implemented, awaiting review (§10.4);
-  - **CP3A-4 onwards are not authorised.**
+  - **CP3A-3** is **formally accepted** (27 Nov 2026; `4e08e71`, closure `1648381`; §10.4, §10.5);
+  - **CP3A-4** (frozen/latest analytical context and isolation) is implemented, awaiting review (§10.6);
+  - **CP3A-4B onwards are not authorised.**
 
 Decisions this plan implements: [`phase8_implementation.md`](phase8_implementation.md) §15 (governs), with §11 OD-4 where not superseded.
 
@@ -310,6 +311,32 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
   - distinguish frozen snapshot times from latest-data calculation and observation times;
   - keep compact frozen-data source information for locked and settling challenge analysis;
   - the approved frozen/latest toggle and context-isolation requirements.
+
+### 10.6 CP3A-4 as implemented
+
+- **CP3A-3 accepted** by the owner after ChatGPT's independent review (`4e08e71`, `1648381`).
+- **Intermittent browser test (carried to CP3A-4B):**
+  - `test_ui_edge_refine.py::test_browser_outcome_colours_section_d_and_sliders` failed once in the CP3A-3 closure regression run (breakdown read straight after a slider move) and passed in three isolated reruns;
+  - suspected but unconfirmed cause: CPU contention from screenshot jobs run alongside the suite;
+  - to be verified explicitly at CP3A-4B; screenshot jobs are no longer run alongside regression runs.
+- **Toggle "Use latest available data"** (`lab-latest`):
+  - shown only for a match opened from a valid published challenge snapshot; OFF (frozen) on every new opening; kept across market changes, the address and the tab;
+  - never shown for research matches, even when the match is also in the challenge;
+  - independent of whether an independent Goal Model estimate exists.
+- **Mechanism (existing context machinery):**
+  - the Match Lab target carries `latest: true` for a challenge match viewed with the latest data (`lab_want`);
+  - `resolve_target` validates the challenge target exactly as before, then returns the fixture's live context (store key `"<fixture>"`, `LiveContext`), never the frozen one (`"r:<round>:<fixture>"`, `RoundContext`); no latest data gives `LATEST_MISSING` (no fallback to frozen data);
+  - `adjust` resolves from `lab-active`, so Your View changes land in the context shown; frozen and latest adjustments stay separate in browser and account storage and are restored on switching back (existing model-identity rules apply).
+- **Competitive protection:**
+  - `competitive(active)` (challenge context and not latest) gates the challenge strip and selection panel;
+  - the reducer refuses every Match Lab selection action (`labpick`, `labremove`, `labreplace`, `confirmreplace`) unless `competitive(active)`, so stale controls cannot change a portfolio;
+  - builder actions, drafts and picks are untouched; locked and settling rounds stay read-only in both modes (deadline rules in the reducer and services unchanged).
+- **Source transparency:**
+  - frozen: Weekly Challenge snapshot label, round and stored frozen time, and a note that current prices and estimates may differ; the footnote states the estimates are the frozen values;
+  - latest: Latest available data label, the model calculation time and the selected market's odds observation time (or "No current bookmaker prices"), and a research-only note;
+  - the page header no longer shows a statistics calculation time; "All Upcoming Fixtures" removed from the Match Lab components.
+- **Published pair (display):** the research list's frozen line (`data_context`) reads one `published_pair()`.
+- **Decision for review:** the bookmaker reference card in the frozen context still shows the latest collected prices, with its existing note ("not the round's frozen odds"); the frozen odds stay in the selection panel. Unchanged in CP3A-4.
 
 ## 11. Testing and browser acceptance (proportionate)
 

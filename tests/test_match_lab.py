@@ -167,9 +167,9 @@ def test_market_switch_keeps_adjustment(data):
     st, _ = lab_update(r, "lab-home-input", 2.5, st)
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = func({"fixture": EPL_FIX, "ctx": "research"}, market, "/lab", None, lab)[
+        d = func({"fixture": EPL_FIX, "ctx": "research"}, market, "/lab", [], None, lab)[
             0
-        ]  # CP3A-3: a research target, /lab, last valid target, store
+        ]  # CP3A-3/4: research target, /lab, toggle, last valid target, store
         sliders = _find(d, lambda c: getattr(c, "id", None) == "lab-home-slider")
         assert sliders[0].value == 2.5
         cat = _find(
@@ -182,7 +182,7 @@ def test_market_switch_keeps_adjustment(data):
         assert box[0].value == "2.50"  # two decimals, not 2.5
         assert "Adjusted by you" in _text(d)
     # another fixture has its own (empty) state
-    d = func({"fixture": PSL_FIX, "ctx": "research"}, "1X2", "/lab", None, lab)[0]
+    d = func({"fixture": PSL_FIX, "ctx": "research"}, "1X2", "/lab", [], None, lab)[0]
     assert "Adjusted by you" not in _text(d)
 
 

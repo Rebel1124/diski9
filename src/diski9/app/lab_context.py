@@ -5,7 +5,8 @@ checkpoint), and the matching data, store key and saved Your View.
   "Weekly Challenge") that is on the published round's snapshot: the baseline is
   the snapshot's frozen estimated goals (and the probabilities calculated from
   them by Goal Model 1.0's own ``markets``), never the latest estimate.
-* **Live** - everything else (All Upcoming Fixtures): the latest available data.
+* **Live** - everything else (research, or a challenge match with "Use latest
+  available data" on, Phase 8 CP3A-4): the latest available data.
 
 When the context has no independent Goal Model prediction, its starting point is a
 market-implied fit (Phase 8 State B; ``screener.market_fit``) from that context's
@@ -156,6 +157,14 @@ def service_context(ctx: LabContext):
 
 # ------------------------------------------------- Phase 8 CP3A-3: Match Lab targets
 NO_TARGET, INVALID, MISSING, CHALLENGE_GONE = "none", "invalid", "missing", "challenge_gone"
+LATEST_MISSING = "latest_missing"  # CP3A-4: no latest data for a valid challenge match
+
+
+def wants_latest(target) -> bool:
+    """A challenge target viewed with "Use latest available data" on (CP3A-4)."""
+    from .links import CHALLENGE
+
+    return bool(target and target.get("ctx") == CHALLENGE and target.get("latest"))
 
 
 def resolve_target(service, data, target) -> tuple[LabContext | None, str | None]:
@@ -166,7 +175,12 @@ def resolve_target(service, data, target) -> tuple[LabContext | None, str | None
     **same** published round (``round``) and, when recorded, the same snapshot
     (``fp``), and only to its frozen context. A challenge match whose round or
     snapshot is no longer the published one fails safely: it is never silently
-    analysed with latest data, nor attached to another round."""
+    analysed with latest data, nor attached to another round.
+
+    ``latest`` (CP3A-4, challenge targets only): after the same validation, the
+    fixture's latest-data (live) context - its own store key and Your View, never
+    combined with the frozen one. No latest data gives ``LATEST_MISSING``; the
+    frozen analysis is never substituted."""
     from .links import CHALLENGE, CONTEXTS, RESEARCH
 
     if not target:
@@ -187,6 +201,9 @@ def resolve_target(service, data, target) -> tuple[LabContext | None, str | None
         snap.fixture(fid)
     except KeyError:
         return None, CHALLENGE_GONE
+    if wants_latest(target):
+        lc = resolve(service, data, fid, "all")
+        return (lc, None) if lc is not None else (None, LATEST_MISSING)
     lc = resolve(service, data, fid, "challenge", published=pair)
     if lc is None:  # the snapshot holds it, but the football store has no analysis for it
         return None, MISSING

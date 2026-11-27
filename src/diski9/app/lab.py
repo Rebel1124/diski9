@@ -650,8 +650,8 @@ def baseline_section(r: dict, market: str) -> html.Div:
             html.Div([model_calculation(r)], className="acc-group")
             if (r.get("_context") or {}).get("kind") != "round"
             else html.P(
-                "These estimated goals were frozen with the Weekly Challenge snapshot. The "
-                "latest estimate and its calculation are under All Upcoming Fixtures.",
+                "These estimated goals were frozen with the Weekly Challenge snapshot. Turn on "
+                "Use latest available data to see the latest estimate and its calculation.",
                 className="muted small",
             ),
         ],
@@ -1738,37 +1738,72 @@ def bookmaker_card(
     return card
 
 
-def context_line(r: dict, data) -> html.Div | None:
-    """Which analytical context is shown: the Weekly Challenge snapshot (frozen, with
-    its stored time) or the latest available data (with the model's update time when
-    known). Never called live or real-time."""
+def context_line(r: dict, data, ov=None, market: str | None = None) -> html.Div | None:
+    """Which analytical context is shown, with its own stored times (Phase 8 CP3A-4):
+    the Weekly Challenge snapshot (round and frozen time) or the latest available data
+    (the model's calculation time and, where available, when the market's bookmaker
+    prices were observed). Never called live or real-time."""
     c = r.get("_context") or {}
+    note = lambda text: html.P(text, className="muted small lab-context-note")  # noqa: E731
     if c.get("kind") == "round":
+        parts = [html.Span("Weekly Challenge snapshot", className="ctx-tag frozen")]
+        if c.get("round"):
+            parts.append(html.Span(f"Round {c['round']}", className="muted small"))
+        parts.append(html.Span(f"Frozen: {data.local(c.get('frozen_at'))} {data.tz_label}",
+                               className="muted small"))  # fmt: skip
         return html.Div(
             [
-                html.Span("Weekly Challenge snapshot", className="ctx-tag frozen"),
-                html.Span(
-                    f"Frozen: {data.local(c.get('frozen_at'))} {data.tz_label}",
-                    className="muted small",
-                ),
+                html.Div(parts, className="lab-context-line"),
+                note(
+                    "All participants use these frozen odds and estimates. Current market "
+                    "prices and model estimates may differ from these frozen values."
+                ),  # fmt: skip
             ],
             className="lab-context",
-            title="All participants use the same frozen odds and baseline estimates for this "
-            "round. These may differ from the latest information under All Upcoming Fixtures.",
         )
     if c.get("kind") == "live":
+        parts = [html.Span("Latest available data", className="ctx-tag latest")]
         when = c.get("updated_at")
+        if when:
+            parts.append(html.Span(f"Model calculated: {data.local(when)} {data.tz_label}",
+                                   className="muted small"))  # fmt: skip
+        seen = _observed(ov, market)
+        parts.append(html.Span(
+            f"Odds observed: {data.local(seen)} {data.tz_label}" if seen
+            else "No current bookmaker prices", className="muted small"))  # fmt: skip
         return html.Div(
             [
-                html.Span("Latest available data", className="ctx-tag latest"),
-                html.Span(
-                    f"Model updated: {data.local(when)} {data.tz_label}" if when else "",
-                    className="muted small",
-                ),
+                html.Div(parts, className="lab-context-line"),
+                note(
+                    "Research only: this analysis does not affect the Weekly Challenge or "
+                    "your portfolio."
+                ),  # fmt: skip
             ],
             className="lab-context",
         )
     return None
+
+
+def _observed(ov, market):
+    """When the market's displayed bookmaker prices were retrieved, or None."""
+    try:
+        dm = ov.markets[MARKET_OF[market]]
+    except (AttributeError, KeyError, TypeError):
+        return None
+    return dm.snapshot_at if dm is not None and dm.consensus is not None else None
+
+
+def statistics_note(r: dict, data) -> str:
+    """The footnote's time basis (CP3A-4): in the frozen context the estimates are the
+    snapshot's, not calculated at the latest data's cut-off; the form, head-to-head and
+    league context still use the latest results."""
+    cutoff = f"{data.local(r['cutoff'])} {data.tz_label}"
+    if (r.get("_context") or {}).get("kind") == "round":
+        return (
+            f"Estimated goals and probabilities are the frozen Weekly Challenge values. "
+            f"Form, head-to-head and league positions use results before {cutoff}."
+        )
+    return f"Statistics use only results before {cutoff}. Goal Model {gm.GOAL_MODEL_VERSION}."
 
 
 # ----------------------------------------------------------------- panel
@@ -1816,7 +1851,7 @@ def render_detail(
                     pill("Adjusted by you", "accent")
                     if available and has_adjustment(state)
                     else None,
-                    context_line(r, data),
+                    context_line(r, data, ov, market),
                     html.P(notice, className="lab-message adj-reset", role="status")
                     if notice
                     else None,
@@ -1836,11 +1871,7 @@ def render_detail(
                 if (r.get("_context") or {}).get("kind") == "round"
                 else []
             ),
-            html.P(
-                f"Statistics use only results before {data.local(r['cutoff'])} {data.tz_label}. "
-                f"Goal Model {gm.GOAL_MODEL_VERSION}.",
-                className="muted small",
-            ),
+            html.P(statistics_note(r, data), className="muted small"),
         ],
         className="detail",
     )

@@ -193,7 +193,7 @@ const fs = require('fs');
     const shot = async (name) => { if (SHOTS) await p.screenshot({ path: `${SHOTS}/cp3a1_${name}_${w}.png`, fullPage: false }); };
     // Portfolio Build is the home page; the Match Lab stays hidden there
     await p.goto(BASE);  // CP3A-2: no challenge in the test data, Research only starts ON
-    await p.waitForSelector('#research-only'); if (await p.locator('#research-only input').isChecked()) { await p.locator('.pb-switch-label').click(); } await p.waitForSelector('.ch-page', { state: 'visible' });
+    await p.waitForSelector('#research-only'); if (await p.locator('#research-only input').isChecked()) { await p.locator('#research-only .pb-switch-label').click(); } await p.waitForSelector('.ch-page', { state: 'visible' });
     r.homeActive = await active();
     r.labHiddenOnHome = await p.locator('#screener-root').isHidden();
     r.tabs = await p.locator('#site-nav-links .nav-link').allInnerTexts();

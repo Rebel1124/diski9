@@ -175,12 +175,12 @@ def test_per_fixture_isolation_and_market_persistence(data):
     st = _ctx(_r(data), home="0.35")
     lab = {str(EPL_FIX): st}
     for market in ("1X2", "BTTS", "OU25"):
-        d = f({"fixture": EPL_FIX, "ctx": "research"}, market, "/lab", None, lab)[
+        d = f({"fixture": EPL_FIX, "ctx": "research"}, market, "/lab", [], None, lab)[
             0
-        ]  # CP3A-3: a research target, /lab, last valid target, store
+        ]  # CP3A-3/4: research target, /lab, toggle, last valid target, store
         box = _find(d, lambda c: getattr(c, "id", None) == "ctx-home")[0]
         assert box.value == "+0.35"
-    other = f({"fixture": PSL_FIX, "ctx": "research"}, "1X2", "/lab", None, lab)[0]
+    other = f({"fixture": PSL_FIX, "ctx": "research"}, "1X2", "/lab", [], None, lab)[0]
     assert _find(other, lambda c: getattr(c, "id", None) == "ctx-home")[0].value == "0.00"
     layout = app.server.test_client().get("/_dash-layout").get_data(as_text=True)
     assert '"storage_type":"memory"' in layout

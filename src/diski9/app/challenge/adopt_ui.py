@@ -105,7 +105,7 @@ def _live_stamp(data):
 def _describe(item) -> str:
     if item.kind == "draft":
         return item.label or "Weekly Challenge portfolio"
-    where = "Weekly Challenge" if item.kind == "round" else "All Upcoming Fixtures"
+    where = "Weekly Challenge" if item.kind == "round" else "latest available data"
     return f"Your View: {item.label or 'a match'} ({where})"
 
 

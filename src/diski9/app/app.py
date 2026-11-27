@@ -526,11 +526,20 @@ def footer_text() -> str:
     )
 
 
+LATEST_LABEL = "Use latest available data"
+LATEST_VALUE = "on"
+LATEST_TIP = (
+    "Off: the frozen Weekly Challenge analysis every participant plays with. On: the latest "
+    "available data for the same match, for research only. It never changes your portfolio "
+    "or the Weekly Challenge."
+)
+HIDDEN_STYLE = {"display": "none"}
+
+
 def build_lab(data: ScreenerData) -> html.Div:
     """The Match Lab page (Phase 8 CP3A-3): analysis of the one match opened from
     Portfolio Build. No competition or fixture selectors; a way back to the list it
     came from; an empty state when there is nothing valid to show."""
-    snap = data.snapshot()
     return html.Div(
         [
             dcc.Link(
@@ -539,11 +548,9 @@ def build_lab(data: ScreenerData) -> html.Div:
                 className="ch-lab-link lab-back",
                 id="lab-back",
             ),  # fmt: skip
-            page_header(
-                "Match Lab",
-                f"Times in {data.tz_label} · statistics calculated "
-                f"{data.local(snap.cache_calculated_at)}",
-            ),
+            # no page-level calculation time: a frozen analysis was not calculated
+            # then; each context states its own times beside the analysis (CP3A-4)
+            page_header("Match Lab", f"Times in {data.tz_label}"),
             # the market analysed (an analysis control, not a fixture selector): opening a
             # match from the research list carries that list's market across
             html.Div(
@@ -557,6 +564,26 @@ def build_lab(data: ScreenerData) -> html.Div:
                     ),
                 ],
                 className="filter lab-market-filter",
+            ),
+            # frozen/latest (CP3A-4): only for a match opened from a valid published
+            # Weekly Challenge snapshot; OFF shows the frozen analysis
+            html.Div(
+                [
+                    dcc.Checklist(
+                        id="lab-latest",
+                        options=[{"label": LATEST_LABEL, "value": LATEST_VALUE}],
+                        value=[],
+                        className="pb-switch",
+                        inputClassName="pb-switch-input",
+                        labelClassName="pb-switch-label",
+                    ),
+                    education.info(
+                        html.P(LATEST_TIP), "About latest available data", "lab-latest-info"
+                    ),  # fmt: skip
+                ],
+                id="lab-latest-wrap",
+                className="pb-research lab-latest",
+                style=HIDDEN_STYLE,
             ),
             html.Div(id="ch-strip"),
             # model analysis and Your View (detail), then the Weekly Challenge selection
@@ -843,28 +870,45 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Output("lab-store", "data", allow_duplicate=True),
         Output("lab-target", "data"),
         Output("lab-active", "data"),
+        Output("lab-latest", "value"),
+        Output("lab-latest-wrap", "style"),
         Input("lab-request", "data"),
         Input("lab-market", "value"),
         Input("url", "pathname"),
+        Input("lab-latest", "value"),
         State("lab-target", "data"),
         State("lab-store", "data"),
         prevent_initial_call="initial_duplicate",
     )
-    def update_detail(request, market, path, target, lab):
+    def update_detail(request, market, path, latest, target, lab):
         """The Match Lab (Phase 8 CP3A-3): the match the address asks for, or - when the
         tab is opened directly - the last valid match, analysed in the context it was
         opened from (frozen Weekly Challenge snapshot or latest data). Nothing valid:
         an empty state or a safe explanation, never an arbitrary match and never latest
         data in place of an unavailable frozen context. A signed-in participant's saved
-        Your View for that context is loaded from the account (Phase 6C.3)."""
+        Your View for that context is loaded from the account (Phase 6C.3).
+
+        CP3A-4: a match opened from a valid published challenge snapshot shows the
+        "Use latest available data" toggle (OFF on every new opening). ON analyses the
+        same match with the latest data - its own context, store key and Your View -
+        for research only; the choice is kept in the target across market changes and
+        tab restores, and never applies to research matches."""
+        trigger = _triggered()
         if norm_path(path) != LAB:
-            if ctx.triggered_id == "url":
-                return None, None, no_update, no_update, None
+            if trigger == "url":
+                return None, None, no_update, no_update, None, no_update, no_update
             raise PreventUpdate
-        want = request or target
+        want = lab_want(request, target, latest, trigger)
         lc, problem = lab_context.resolve_target(service, data, want)
+        challenge_ok = lc is not None or problem == lab_context.LATEST_MISSING
+        toggle = [LATEST_VALUE] if lab_context.wants_latest(want) else []
+        show = None if challenge_ok and (want or {}).get("ctx") == "challenge" else HIDDEN_STYLE
+        keep = no_update if want == target else want
         if lc is None:
-            return lab_message(problem), None, no_update, no_update, None
+            # an unavailable latest view keeps its target (and toggle) so the participant
+            # can turn it off; anything else fails safely as before
+            keep = keep if problem == lab_context.LATEST_MISSING else no_update
+            return lab_message(problem), None, no_update, keep, None, toggle, show
         fid = want["fixture"]
         new_lab = no_update
         if lc.r is not None:
@@ -876,7 +920,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         adj = stored_adjustment(lab, lc.key, r)
         notice = adjustment_notice(lab, lc.key, r)
         body, ref = split_detail(render_detail(r, ov, official, market, data, adj, notice))
-        return body, ref, new_lab, (no_update if want == target else want), want
+        return body, ref, new_lab, keep, want, toggle, show
 
     @app.callback(
         Output("lab-store", "data"),
@@ -966,6 +1010,38 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         )
 
 
+def _triggered():
+    try:
+        return ctx.triggered_id
+    except Exception:  # noqa: BLE001 - called outside a request (tests)
+        return None
+
+
+def _identity(target) -> tuple | None:
+    """A target without its view mode: the same match opened from the same place."""
+    if not target:
+        return None
+    return tuple(target.get(k) for k in ("fixture", "ctx", "round", "fp", "invalid"))
+
+
+def lab_want(request, target, latest, trigger):
+    """The Match Lab target to show (CP3A-4). A newly opened match (``lab-request``)
+    starts frozen; otherwise the remembered target - with its view mode - when it is
+    the match the address names (or the address names none); the toggle sets the mode
+    of a challenge target only."""
+    if trigger == "lab-request" and request:
+        want = request
+    elif not request or _identity(request) == _identity(target):
+        want = target or request
+    else:
+        want = request
+    if trigger == "lab-latest" and want and want.get("ctx") == "challenge":
+        want = {k: v for k, v in want.items() if k != "latest"}
+        if LATEST_VALUE in (latest or []):
+            want["latest"] = True
+    return want
+
+
 LAB_MESSAGES = {
     lab_context.NO_TARGET: (
         "No match selected",
@@ -976,6 +1052,11 @@ LAB_MESSAGES = {
         "This match is not available",
         "Its analysis data is not available at the moment. Choose another match in Portfolio "
         "Build.",
+    ),
+    lab_context.LATEST_MISSING: (
+        "Latest data is not available for this match",
+        "The latest available data for this match cannot be shown at the moment. Turn off "
+        "Use latest available data to see the frozen Weekly Challenge analysis.",
     ),
     lab_context.CHALLENGE_GONE: (
         "This Weekly Challenge match is no longer available",

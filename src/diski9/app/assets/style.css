@@ -1751,3 +1751,9 @@ details.term-info > .info-pop { white-space: normal; text-align: left; max-width
 .lab-market-filter { margin: 4px 0 10px; max-width: 640px; }
 .lab-market-filter .segmented { width: 100%; }
 .lab-market-filter .segmented label { flex: 1; justify-content: center; }
+
+/* Phase 8 CP3A-4: frozen/latest toggle and per-context source line */
+.lab-latest { margin: 2px 0 12px; }
+.lab-context { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.lab-context-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.lab-context-note { margin: 2px 0 0; }

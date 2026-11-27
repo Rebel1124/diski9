@@ -264,7 +264,7 @@ def test_no_competitive_functionality_on_the_research_list(data):  # noqa: F811
     # CP3A-3: a research match in the Match Lab: analysis with latest data, no panel
     assert _named(app, "match_lab_panel")(research, None, {}, None, "/lab") is None
     assert _named(app, "screener_strip")(None, "/lab", research) is None
-    body = _named(app, "update_detail")(research, "1X2", "/lab", None, {})[0]
+    body = _named(app, "update_detail")(research, "1X2", "/lab", [], None, {})[0]
     assert body is not None and "Weekly Challenge snapshot" not in jtext(body)
 
 
@@ -313,7 +313,7 @@ const { chromium } = require('playwright');
     // label, switch and information icon grouped together on the left of the card
     r.group = await p.evaluate(() => {
       const card = document.querySelector('.pb-domestic').getBoundingClientRect();
-      const label = document.querySelector('.pb-switch-label').getBoundingClientRect();
+      const label = document.querySelector('#research-only .pb-switch-label').getBoundingClientRect();
       const sw = document.querySelector('.pb-switch-input').getBoundingClientRect();
       const tip = document.querySelector('.pb-research-info summary').getBoundingClientRect();
       return { order: label.right <= sw.left && sw.right <= tip.left,
@@ -328,7 +328,7 @@ const { chromium } = require('playwright');
     r.overflowResearch = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     await shot('unavailable_research_on');
     // switch OFF: the competitive list (builder); the research list is hidden
-    await p.locator('.pb-switch-label').click();
+    await p.locator('#research-only .pb-switch-label').click();
     await p.waitForFunction(() => document.querySelector('#pb-go').innerText === 'View challenge information');
     await p.waitForSelector('#ch-root .ch-page', { state: 'visible' });
     r.screenerHiddenOff = await p.locator('#screener-root').isHidden();
@@ -341,9 +341,9 @@ const { chromium } = require('playwright');
     await p.waitForLoadState('networkidle');  // the demonstration stage has finished rendering
     await picks.nth(0).click();
     await p.waitForFunction(() => (document.querySelector('.ch-total') || {}).innerText === '1/9');
-    await p.locator('.pb-switch-label').click();  // ON
+    await p.locator('#research-only .pb-switch-label').click();  // ON
     await p.waitForSelector('#screener-root', { state: 'visible' });
-    await p.locator('.pb-switch-label').click();  // OFF again
+    await p.locator('#research-only .pb-switch-label').click();  // OFF again
     await p.waitForSelector('#ch-root .ch-page', { state: 'visible' });
     r.totalAfterSwitch = await p.locator('.ch-total').first().innerText();
     // the explicit choice (OFF) is kept across Match Lab and back, and a reload

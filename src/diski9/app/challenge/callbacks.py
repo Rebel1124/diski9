@@ -70,6 +70,21 @@ def legacy_redirect():
 
 
 # Builder and Match Lab buttons share one reducer and the same engine validation.
+# the Match Lab selection panel's actions (CP3A-4: refused unless the match is shown
+# with the frozen challenge data it was opened from)
+LAB_ACTIONS = frozenset({"labpick", "labremove", "labreplace", "confirmreplace"})
+LATEST_REFUSED = (
+    "Selections can only be changed with the Weekly Challenge snapshot analysis. Turn off "
+    "Use latest available data to change your portfolio."
+)
+
+
+def competitive(active) -> bool:
+    """The Match Lab shows a challenge match with its frozen snapshot data (CP3A-4):
+    the only case in which competitive selection controls appear or act."""
+    return bool(active and active.get("ctx") == CHALLENGE and not active.get("latest"))
+
+
 ACTION_OF = {
     "labpick": "pick",
     "labremove": "remove",
@@ -545,7 +560,7 @@ def register(app, data, service: ChallengeService) -> None:
         Input("url", "pathname"),
     )
     def data_context(universe, path):
-        """Frozen (Weekly Challenge) versus latest (All Upcoming Fixtures) information,
+        """Frozen (Weekly Challenge) versus latest-data information above the list,
         with the actual stored times."""
         if norm_path(path) != PORTFOLIO:  # above the research list only (CP3A-3)
             return no_update
@@ -574,13 +589,18 @@ def register(app, data, service: ChallengeService) -> None:
         Input({"t": "retry", "i": ALL}, "n_clicks"),
         State("ch-session", "data"),
         State("lab-store", "data"),
+        State("lab-active", "data"),
         prevent_initial_call=True,
     )
     def reduce(*args):
-        state, lab_store = args[-2], args[-1]
+        state, lab_store, active = args[-3], args[-2], args[-1]
         trig = clicked_id(ctx.triggered)
         if trig is None:
             return no_update, no_update  # components were (re)rendered, not clicked
+        if trig["t"] in LAB_ACTIONS and not competitive(active):
+            # a stale Match Lab selection control (CP3A-4): the match is shown with the
+            # latest data, or not from the challenge - never a competitive change
+            return no_update, {"text": LATEST_REFUSED, "kind": "warn"}
         t = ACTION_OF.get(trig["t"], trig["t"])
         if t == "cancel":
             return no_update, {"text": ""}
@@ -912,8 +932,9 @@ def register(app, data, service: ChallengeService) -> None:
         Input("lab-active", "data"),
     )
     def screener_strip(state, path, active=None):
-        """The Weekly Challenge strip: in the Match Lab, for a challenge match only."""
-        if not is_lab(path) or (active or {}).get("ctx") != CHALLENGE:
+        """The Weekly Challenge strip: in the Match Lab, for a challenge match shown with
+        its frozen data only (not with "Use latest available data", CP3A-4)."""
+        if not is_lab(path) or not competitive(active):
             return None
         return integration.progress_strip(service, state)
 
@@ -928,8 +949,9 @@ def register(app, data, service: ChallengeService) -> None:
     def match_lab_panel(active, state, lab_store, flash, path):
         """The Weekly Challenge selection panel: in the Match Lab, for a match opened
         from the published challenge list only. A research match never shows
-        competitive controls (CP3A-3)."""
-        if not is_lab(path) or (active or {}).get("ctx") != CHALLENGE:
+        competitive controls (CP3A-3); nor does a challenge match shown with the latest
+        data (CP3A-4)."""
+        if not is_lab(path) or not competitive(active):
             return None
         return integration.lab_panel(service, data, state, active["fixture"], lab_store, flash)
 
