@@ -1,7 +1,7 @@
 """Frozen Weekly Challenge round snapshots (Phase 6B).
 
 A :class:`RoundSnapshot` is the complete, immutable input of one round: fixture
-details, every candidate outcome (market probability, Goal Model 1.0 probability,
+details, every candidate outcome (market probability, Goal Model probability or None,
 consensus reference odds, bookmaker-group count, observation time) and the
 snapshot time and configuration version. Everything downstream - classification,
 feasibility, evaluation, submission checks - is assessed **against the snapshot's
@@ -14,9 +14,14 @@ Two sources:
   It applies the existing strict Challenge consensus unchanged
   (``challenge_consensus``: fresh within 24 hours, at least three independent
   bookmaker groups, complete market, pre-kickoff) and the existing margin
-  adjustment (``implied``), plus the Goal Model 1.0 probability from the screener
-  cache. Outcomes failing the strict consensus or lacking a model forecast are
-  left out of the sheet. No API request is made.
+  adjustment (``implied``), plus the Goal Model probability from the screener
+  cache **when the model is available**. Outcomes failing the strict consensus are
+  left out of the sheet. Since Goal Model 1.1 (Phase 8 CP1-6) a fixture without an
+  independent model estimate is **not** excluded: its model probability and
+  estimated goals are frozen as None (NULL), never filled from market values.
+  ``competitions`` (the bound schedule's ``eligible_competitions``) limits the
+  fixtures considered; :func:`restrict_competitions` applies the same limit to a
+  built snapshot. No API request is made.
 * :func:`snapshot_from_research_pool` - a frozen research pool (for example
   ``docs/research/weekly_challenge_risk/pool_weekend.json``), used only for the
   explicitly labelled **demonstration** round.
@@ -27,8 +32,10 @@ never be silently carried across snapshots.
 
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
@@ -57,8 +64,9 @@ class RoundFixture:
     home: str
     away: str
     kickoff: datetime
-    # Goal Model 1.0 expected goals (home, away) frozen with the snapshot, for display
-    # in the Weekly Challenge view; None when the source did not record them
+    # Goal Model expected goals (home, away) frozen with the snapshot, for display in
+    # the Weekly Challenge view; None when the model was unavailable (Goal Model 1.1:
+    # such fixtures can still be eligible) or the source did not record them
     estimated_goals: tuple[float, float] | None = None
 
 
@@ -211,8 +219,11 @@ def build_live_snapshot(
     round_id: str,
     league_names: dict[int, str],
     config: ChallengeConfig = DEFAULT_CONFIG,
+    competitions: Iterable[int] | None = None,
 ) -> RoundSnapshot:
-    """Read-only, point-in-time round snapshot from the local database."""
+    """Read-only, point-in-time round snapshot from the local database.
+    ``competitions``: the bound schedule's eligible competitions (default: every
+    odds-collecting domestic league); fixtures elsewhere are never considered."""
     from sqlalchemy import select
 
     from diski9.api_football.markets import Market
@@ -228,6 +239,7 @@ def build_live_snapshot(
     diag = {
         "fixtures_in_window": 0,
         "fixtures_with_model": 0,
+        "fixtures_without_model": 0,
         "markets_checked": 0,
         "markets_eligible": 0,
         "exclusions": {},
@@ -235,10 +247,13 @@ def build_live_snapshot(
     with engine.connect() as conn:
         books = load_bookmakers(conn)
         payloads = {r["fixture"]["id"]: r for r in cache.cached(conn, "overall")}
+        allowed = set(odds_competitions())
+        if competitions is not None:
+            allowed &= {int(c) for c in competitions}
         rows = conn.execute(
             select(fx_table.c.id, fx_table.c.competition_id, fx_table.c.kickoff_utc)
             .where(
-                fx_table.c.competition_id.in_(odds_competitions()),
+                fx_table.c.competition_id.in_(sorted(allowed)),
                 fx_table.c.status_short.in_(UPCOMING_STATUSES),
                 fx_table.c.kickoff_utc >= start,
                 fx_table.c.kickoff_utc < end,
@@ -248,11 +263,12 @@ def build_live_snapshot(
         for row in rows:
             diag["fixtures_in_window"] += 1
             payload = payloads.get(row.id)
-            gm = (payload or {}).get("goal_model") or {}
             kickoff = _aware(row.kickoff_utc)
-            if not gm.get("available") or kickoff <= as_of:
-                continue
-            diag["fixtures_with_model"] += 1
+            if payload is None or kickoff <= as_of:
+                continue  # no screener payload (teams, model state) or already started
+            gm = payload.get("goal_model") or {}
+            has_model = bool(gm.get("available"))
+            diag["fixtures_with_model" if has_model else "fixtures_without_model"] += 1
             # identical to challenge_consensus (strict, no stale fallback), but keeps the
             # exclusion reasons so the UI can explain an unavailable round
             consensus = fixture_consensus(conn, row.id, as_of, books=books)
@@ -279,7 +295,7 @@ def build_live_snapshot(
                             o,
                             float(adj[o]),
                             oc.consensus_odds,
-                            float(gm["probabilities"][OUTCOME_KEY[o]]),
+                            float(gm["probabilities"][OUTCOME_KEY[o]]) if has_model else None,
                             mc.sources,
                             _aware(mc.latest_observation),
                             row.competition_id,
@@ -287,7 +303,7 @@ def build_live_snapshot(
                     )
             if not chosen:
                 continue
-            eg = gm.get("estimated_goals") or {}
+            eg = (gm.get("estimated_goals") or {}) if has_model else {}
             fixtures.append(
                 RoundFixture(
                     row.id,
@@ -312,6 +328,24 @@ def build_live_snapshot(
         tuple(outcomes),
         "Strict Challenge consensus at the snapshot time; read-only.",
         diag,
+    )
+
+
+def restrict_competitions(snapshot: RoundSnapshot, allowed: Iterable[int]) -> RoundSnapshot:
+    """The snapshot limited to the bound schedule's eligible competitions (Phase 8
+    CP1-6). Unchanged (the same object) when nothing is outside the set."""
+    keep = {int(c) for c in allowed}
+    fixtures = tuple(f for f in snapshot.fixtures if int(f.league_id) in keep)
+    if len(fixtures) == len(snapshot.fixtures):
+        return snapshot
+    ids = {f.fixture_id for f in fixtures}
+    diag = dict(snapshot.diagnostics or {})
+    diag["excluded_competition_fixtures"] = len(snapshot.fixtures) - len(fixtures)
+    return dataclasses.replace(
+        snapshot,
+        fixtures=fixtures,
+        outcomes=tuple(o for o in snapshot.outcomes if o.fixture_id in ids),
+        diagnostics=diag,
     )
 
 

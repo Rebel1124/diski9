@@ -904,9 +904,11 @@ def evaluate_portfolio(
 
 def evaluate_market_and_model(
     portfolio: StructuredPortfolio,
-) -> tuple[PortfolioEvaluation, PortfolioEvaluation]:
-    """Separate market-based and model-based estimates (never averaged)."""
-    return (
-        evaluate_portfolio(portfolio, ProbabilitySource.MARKET),
-        evaluate_portfolio(portfolio, ProbabilitySource.MODEL),
-    )
+) -> tuple[PortfolioEvaluation, PortfolioEvaluation | None]:
+    """Separate market-based and model-based estimates (never averaged). The model
+    estimate is None unless every selection has a Goal Model probability (Phase 8
+    OD-3): nothing is substituted."""
+    market = evaluate_portfolio(portfolio, ProbabilitySource.MARKET)
+    if any(o.model_probability is None for o in portfolio.selections):
+        return market, None
+    return market, evaluate_portfolio(portfolio, ProbabilitySource.MODEL)

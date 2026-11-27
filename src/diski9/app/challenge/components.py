@@ -89,8 +89,20 @@ def T(name: str, i: int | str = 0) -> dict:
     return {"t": name, "i": i}
 
 
-def pct(p: float, digits: int = 1) -> str:
-    return f"{p:.{digits}%}"
+def pct(p: float | None, digits: int = 1) -> str:
+    """Percentage text; "—" for a missing value (for example no Diski 9 probability)."""
+    return "—" if p is None else f"{p:.{digits}%}"
+
+
+def prob_text(prob, o, digits: int = 1) -> str:
+    """One selection's probability under the chosen source, or "—" when the source
+    has none (a Diski 9 figure for a match without an independent prediction)."""
+    from diski9.challenge.analysis import ModelUnavailable
+
+    try:
+        return pct(prob(o), digits)
+    except ModelUnavailable:
+        return "—"
 
 
 def credits(x) -> str:
@@ -556,6 +568,18 @@ def fixture_card(
 
 def bucket_line(stat) -> html.Div:
     """Combined chance and payout for a bucket's selections so far."""
+    if getattr(stat, "unavailable", 0):
+        return html.Div(
+            [
+                html.Span(
+                    f"Diski 9 estimate unavailable: {stat.unavailable} of {stat.selected} "
+                    f"prediction{'s' if stat.selected != 1 else ''} missing",
+                    className="muted",
+                ),
+                html.Span(["pays ", html.Strong(credits(stat.payout))]),
+            ],
+            className="ch-bstat small ch-unavail",
+        )
     if stat.combined_probability is None:
         return html.Div("No picks yet", className="muted small ch-bstat")
     scope = "" if stat.complete else f" (so far: {stat.selected} of {stat.required} picks)"
@@ -581,6 +605,7 @@ def tracker(
     locked,
     review_enabled_label="Review & Submit →",
     risk_panel=None,
+    note=None,
 ) -> html.Div:
     rows = []
     for st in stats:
@@ -592,7 +617,8 @@ def tracker(
                         [
                             html.Span(label(o), className="ch-pick-fx"),
                             html.Span(
-                                f"{outcome_text(o)} · {pct(prob(o), 1)} · {o.reference_odds:.2f}",
+                                f"{outcome_text(o)} · {prob_text(prob, o)} · "
+                                f"{o.reference_odds:.2f}",
                                 className="muted",
                             ),
                         ],
@@ -697,6 +723,7 @@ def tracker(
             ),
             *rows,
             summary,
+            html.Div(note, className="muted small ch-src-note") if note else None,
             html.Div(message, className="ch-trk-msg", role="status", **{"aria-live": "polite"}),
             html.Div(
                 [

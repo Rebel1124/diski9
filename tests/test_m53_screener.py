@@ -38,7 +38,7 @@ F = Fraction
 
 # ------------------------------------------------------------- Model D
 def test_engine_version_bumped_for_current_season_baselines():
-    assert ENGINE_VERSION == "3.0.0"
+    assert ENGINE_VERSION == "3.1.0"  # Phase 8 CP2A: Goal Model 1.1
 
 
 def test_model_d_exact_formula_worked_example():
@@ -385,10 +385,12 @@ def test_limited_and_missing_history_states(data):
     r, ov, official = data.detail(EXTRA[0], "overall")
     lab = _text(render_detail(r, ov, official, "BTTS", data).children[1])
     assert lab.count("No current-season history") == 2
-    # no matches at all: the model uses league averages only, and says so
-    assert lab.count("League average only") == 2
+    # no matches at all: Goal Model 1.1 gives no estimate (each team needs >= 2
+    # current-season matches) and says so; nothing is substituted
+    assert "each team needs at least 2" in lab and "League average only" not in lab
     row = data.row("BTTS", r)
-    assert row["available"] and row["limited"]
+    assert not row["available"] and "each team needs at least 2" in row["unavailable_reason"]
+    assert row["estimated_goals"] == "—"
 
 
 def test_overall_and_venue_records_differ():
@@ -468,11 +470,11 @@ def test_old_engine_rows_never_served_and_banner_until_rebuilt(populated):
                 screener_results.c.superseded_at.is_(None)
             )
         ).all()
-    assert {a[0] for a in active} == {"3.0.0"}
+    assert {a[0] for a in active} == {"3.1.0"}
     snap = d.snapshot(force=True)
     assert snap.outdated_rows == 0 and EPL_FIX in snap.results["overall"]
     assert "earlier method" not in _text(build_layout(d))
     payload = json.loads(json.dumps(snap.results["overall"][EPL_FIX]))
-    assert payload["engine_version"] == "3.0.0"
-    assert payload["goal_model"]["model"]["goal_model_version"] == "1.0"
+    assert payload["engine_version"] == "3.1.0"
+    assert payload["goal_model"]["model"]["goal_model_version"] == "1.1"
     assert payload["match_result"]["method"] == "D8-current-season"

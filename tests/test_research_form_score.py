@@ -26,7 +26,7 @@ F = Fraction
 
 def test_legacy_method_a_unchanged():
     # production moved to Model D in engine 2.1.0; Method A stays as the legacy helper
-    assert ENGINE_VERSION == "3.0.0"
+    assert ENGINE_VERSION == "3.1.0"  # Phase 8 CP2A: Goal Model 1.1
     fs = banded_form_score([(3, 0), (2, 0), (2, 1), (0, 1), (5, 1)])
     assert fs.breakdown()["form_score_display"] == "4.23"
 

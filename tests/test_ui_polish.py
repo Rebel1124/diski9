@@ -145,7 +145,7 @@ def test_goal_values_two_decimals_and_parsing():
 
 
 def test_model_unchanged():
-    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.m0) == (12, 96, 30)
+    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.competition_min) == (12, 96, 20)  # GM 1.1
     p = gm.markets(1.93, 0.96)
     assert [round(p[k] * 100, 1) for k in ("home", "draw", "away", "btts_yes", "over")] == [
         60.0,

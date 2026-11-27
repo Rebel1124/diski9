@@ -104,8 +104,9 @@ def test_c0_reproduces_production_goal_model():
     mk, lh, la, ok = r8.predict(r, r8.C0)
     H = (70 + 30 * 1.5) / (50 + 30)
     A = (55 + 30 * 1.2) / (50 + 30)
-    e = gm.estimate(gm.TeamRecord(*rec[:6]), gm.TeamRecord(*rec[6:]),
-                    gm.LeagueRates(H, A, 0, 0, 0, 0, None, None, "x"))  # fmt: skip
+    # C0 = Goal Model 1.0, reproduced with the frozen 1.0 parameters (Phase 8 CP2A)
+    e = gm.estimate(gm.TeamRecord(*rec[:6]), gm.TeamRecord(*rec[6:]), (H, A),
+                    gm.PARAMS_1_0)  # fmt: skip
     assert ok[0]
     assert lh[0] == pytest.approx(e["lambda_home"], abs=1e-12)
     assert la[0] == pytest.approx(e["lambda_away"], abs=1e-12)

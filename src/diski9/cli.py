@@ -530,8 +530,16 @@ def cmd_round(args) -> int:
         with transaction(engine) as conn:
             now = db_now(conn)
             config = svc.round_config(conn, r.id)  # the round's own schedule, never the default
+            competitions = svc.round_competitions(conn, r.id)  # its eligible competitions
         return build_live_snapshot(
-            football, now, r.window_start_at, r.window_end_at, r.code, LEAGUE_SHORT, config
+            football,
+            now,
+            r.window_start_at,
+            r.window_end_at,
+            r.code,
+            LEAGUE_SHORT,
+            config,
+            competitions,
         )
 
     def call(engine) -> int:

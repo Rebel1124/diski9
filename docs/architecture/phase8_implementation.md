@@ -7,7 +7,7 @@
 - All seven CP1 decisions are **approved** (27 Nov 2026).
 - CP1-7 Step A (quota-free account check) is **complete**. Step B is **authorised for 3–9 Dec 2026 only**, at most 25 counted requests (Appendix B).
 - **Owner decisions OD-1 to OD-6 are approved with refinements (27 Nov 2026, §11).** The CP2–CP4 plan (§9) is reconciled with them.
-- CP2A readiness is assessed in §12. **CP2A is not yet authorised**: it awaits independent review and explicit owner authorisation. Phase 6 stays paused.
+- CP2A readiness was assessed in §12. **The documentation checkpoint was accepted and CP2A explicitly authorised (27 Nov 2026).** CP2A is implemented (§13) and **awaits independent review and owner acceptance**. CP2B is not authorised. Phase 6 stays paused.
 
 **How to read this record:**
 - §1–§8, §10 and §11 record **accepted decisions**. Where §11 refines an earlier section, §11 governs.
@@ -617,16 +617,79 @@ Nothing here enters the MVP without explicit owner approval. The register in [`.
 
 | # | Item | Status / proposal |
 |---|---|---|
-| 1 | **Hostinger cost basis.** The owner's USD 12.64/month is the discounted **first-month** invoice. The cost log forecasts about USD 28.16 a month from renewal. The combined recurring figure is then about USD 69.16, not 53.64. | Both recorded in the cost register. **Owner to confirm** the Hostinger term or price. |
-| 2 | **Threshold scope.** The $65 warning and $75 ceiling (F3-D3) were approved for the **infrastructure** log (Hostinger, Supabase, Backblaze). Including API-Football would put a renewal-price month above $65. | Scope recorded as **infrastructure only, unchanged**, with API-Football tracked separately as data-provider spend. **Owner decision** if the thresholds should cover both. |
+| 1 | **Resolved 27 Nov 2026: the owner confirms the Hostinger renewal forecast of about USD 28.16 a month.** **Hostinger cost basis.** The owner's USD 12.64/month is the discounted **first-month** invoice. The cost log forecasts about USD 28.16 a month from renewal. The combined recurring figure is then about USD 69.16, not 53.64. | Both recorded in the cost register. **Owner to confirm** the Hostinger term or price. |
+| 2 | **Resolved 27 Nov 2026: the $65 and $75 thresholds stay infrastructure-only (F3-D3). API-Football is tracked separately, with combined spend kept visible.** **Threshold scope.** The $65 warning and $75 ceiling (F3-D3) were approved for the **infrastructure** log (Hostinger, Supabase, Backblaze). Including API-Football would put a renewal-price month above $65. | Scope recorded as **infrastructure only, unchanged**, with API-Football tracked separately as data-provider spend. **Owner decision** if the thresholds should cover both. |
 | 3 | **API-Football expiry 14 Dec (no auto-renewal).** The Free plan has a much lower allowance and restricted seasons, which would block CP2B European development data and any manual refresh after 14 Dec. CP2A needs no provider data. | Owner reminder on 12 Dec. Step B finishes by 9 Dec. |
-| 4 | Minimum Market Probability semantics | **Proposed technical detail (adopted unless the owner objects):** All Upcoming shows a fixture when any outcome of the selected market meets the minimum; Challenge Mode filters outcomes, like the bucket filter. At a value above 0, fixtures without fresh consensus are hidden, and the slider says so. |
+| 4 | Minimum Market Probability semantics | **Approved 27 Nov 2026 for CP3A, not implemented in CP2A.** Challenge Mode uses the accepted **frozen** consensus probabilities, with no new live freshness test and no refreshed values for a published round. *Original proposal:* All Upcoming shows a fixture when any outcome of the selected market meets the minimum; Challenge Mode filters outcomes, like the bucket filter. At a value above 0, fixtures without fresh consensus are hidden, and the slider says so. |
 | 5 | Challenge Mode default OFF replaces today's default (Weekly Challenge when a round is playable) | Approved change; recorded |
 | 6 | Removing the existing model threshold slider | Approved removal (OD-4); recorded |
 | 7 | Your View tier 3 for frozen Challenge fixtures needs the CP2B fit | Between CP2A and CP2B, tier 4 (consensus) applies. Nothing is deployed in the interval. |
 | 8 | Homepage text "previously approved": no earlier copy exists in the repository | Recorded verbatim from the OD-4 instruction (§11). The "brief introductory explanation" wording is to be drafted in CP3A and reviewed at its visual STOP. |
 
 No blocker prevents CP2A once it is authorised.
+
+## 13. CP2A implementation record (27 Nov 2026; awaiting review)
+
+**Scope delivered:** §12.1 items 1–4. No market fitting, dependency, lockfile, European integration, navigation, homepage or slider change.
+
+**Goal Model 1.1** (`src/diski9/screener/goal_model.py`):
+- current-season competition rates only (`league_rates`);
+- gate: both teams ≥ 2 (`TEAM_MIN`) and the competition ≥ 20 (`COMPETITION_MIN`), with reasons `team_matches_insufficient` and `competition_matches_insufficient`;
+- the limited-data warning (`LIMITED_DATA_WARNING`) below 5 matches;
+- `GOAL_MODEL_VERSION` "1.1" and its parameter hash `d85a3cea30e6bc9d`;
+- `ENGINE_VERSION` 3.1.0, so `screener_results` recompute and supersede and `forecast_snapshots` record under 1.1.
+
+**Goal Model 1.0 reproducibility:**
+- the frozen parameters are kept as `PARAMS_1_0`, with an unchanged hash of `463105f660644ebf`, together with `league_rates_1_0`;
+- stored 1.0 rows are never rewritten;
+- the rounds keep `goal-model-1.0`.
+- The Match Lab and methodology text no longer describe a previous-season prior.
+
+**Weekly Challenge** (`challenge/roundsheet.py`, `backend/services/rounds.py`, `backend/jobs/prepare.py`, `cli.py`):
+- **model requirement removed:** model-absent fixtures with eligible market offers enter the pool with model probability and Estimated Goals frozen as NULL;
+- **`eligible_competitions` at construction:**
+  - `build_live_snapshot(..., competitions)` from the CLI;
+  - `restrict_competitions` after the scheduler's builder;
+- **`eligible_competitions` at publication:** `_publication_problem` refuses foreign competitions, using the new `round_competitions` helper;
+- no schema migration.
+
+**Missing-model safety and OD-3** (`challenge/analysis.py`, `challenge/structured.py`, `app/challenge/{components,integration,pages,callbacks,persist}.py`):
+- `ModelUnavailable`;
+- per-bucket `unavailable` counts, with no partial or substituted products;
+- `available()`;
+- Diski 9 portfolio and analysis output only with all nine predictions;
+- the Your View interim hierarchy (adjusted → Diski 9 → market consensus), with a compact source summary;
+- the frozen view shows "No model" instead of an edge or EV;
+- the tracker, analysis panel, review, submission and confirmed record are all None-safe;
+- unavailable aggregates are stored as NULL.
+
+**Evidence:**
+- **Real stored data:** production equals the CP1 C1-2-20 reference on **9,164 domestic fixtures**, with a maximum absolute difference of **8.9e-16** and **0** availability mismatches. The script is a scratch reconciliation using temporary copies; no provider and no protected database were touched.
+- **Tests:**
+  - `tests/test_goal_model.py` (32): reconciliation; 1.0 replay; competition 19/20 and team 1/2 gates; warning 4/5; no previous-season input;
+  - `tests/test_phase8_cp2a.py` (17): OD-3 worked example; 0, some and all missing; hierarchy; pool NULLs; competition limits at construction and publication; builder, analysis, review and submit; frozen view; fingerprints;
+  - `tests/backend/test_backend_phase8_cp2a.py` (3, PostgreSQL): NULL storage, NULL submission aggregates, publication refusal.
+
+**Legitimate expected-value changes in existing tests** (each follows from the approved methodology; no assertion was weakened):
+
+| Change | Tests |
+|---|---|
+| **Version and parameter pins:** Goal Model 1.0 → 1.1, engine 3.0.0 → 3.1.0, `m0` → `competition_min` | `test_challenge_ui`, `test_challenge_engine`, `test_challenge_structured`, `test_championship_scoring`, `test_eight_league_odds`, `test_ui_polish`, `test_ui_edge_refine`, `test_market_value`, `test_form_benchmark`, `test_research_form_score`, `test_m53_screener`, `test_match_lab`, `test_detail_layout` |
+| **1.0 tests kept as 1.0 reproducibility tests** (original values still asserted) | `test_goal_model` (research agreement, Villa v Forest worked example), `test_phase8_cp1_research::test_c0_reproduces_production_goal_model` |
+| **Zero- or one-match teams are now unavailable, with a reason**, instead of falling back to league averages | `test_m53_screener::test_limited_and_missing_history_states`, `test_match_lab::test_early_season_extra_fixtures_flagged`, `test_app::test_limited_data_warnings` (now checks 1 match → unavailable and 2 matches → the warning) |
+| **Unavailability reason renamed** (`league_prior_unavailable` → `competition_matches_insufficient`) | `test_screener_engine` |
+| **Fixtures without a model may enter the pool** (model None if and only if Estimated Goals are None) | `test_challenge_ui::test_live_snapshot_reads_database_without_api` |
+| **Test data:** the `EXTRA` fixtures' teams get two current-season matches via a shared `give_history` helper, so the value-ranking and frozen-ranking tests still rank modelled fixtures | `test_market_value` (`valued`), `test_match_universe` (`_conflict`) |
+| **New rounds publish under `goal-model-1.1`**, so new frozen Your View stamps start with "1.1"; stored 1.0 rounds keep "1.0" | `backend/test_backend_your_view`, `backend/test_backend_refinements` |
+| **The publication test double gains `eligible_competitions`** | `backend/test_backend_refinements::_problem` |
+
+**Configuration guard:** `round_competitions` selects through the round's bound schedule join, as `round_config` does, which satisfies `test_config_version_guard`.
+
+**Browser check:** `test_phase8_cp2a::test_browser_builder_with_missing_models` runs the demo builder journey (iPhone 13 viewport, 4 of 9 picks without a model) through the Diski 9 and Your View sources and on to review. It records no page errors and no horizontal overflow, and shows the expected notices.
+
+**Not changed:**
+- `tools/phase6c3_quant_regression.py` (a manual regression tool) will now report the new 1.1 parameter hash against its stored baseline. This is expected.
+- The research weekly-pool collector runs from its own `research/weekly-pools` branch and is unaffected.
 
 ## Appendix B. CP1-7 Step B: controlled provider verification plan (**authorised for 3–9 Dec 2026 only**, OD-5)
 

@@ -360,8 +360,8 @@ def test_cache_refresh_unchanged_superseded_and_point_in_time(db):
     b.upcoming(1, 2)
     b.save()
     t1, t2, t3 = T0, T0 + timedelta(hours=1), T0 + timedelta(hours=2)
-    # Engine 3.0: one (overall) row per fixture. No previous season and only 10
-    # league matches: Goal Model 1.0 is unavailable, so no forecast is recorded
+    # Engine 3.x: one (overall) row per fixture. Only 10 competition matches (< 20):
+    # Goal Model 1.1 is unavailable, so no forecast is recorded
     assert cache.refresh(db, [UPCOMING_ID], t1, t1) == {
         "inserted": 1,
         "unchanged": 0,
@@ -399,7 +399,7 @@ def test_cache_refresh_unchanged_superseded_and_point_in_time(db):
 
 def now_payload_unavailable(db) -> bool:
     gm = cache.cached(db, "overall")[0]["goal_model"]
-    return gm["available"] is False and gm["reason"] == "league_prior_unavailable"
+    return gm["available"] is False and gm["reason"] == "competition_matches_insufficient"
 
 
 def test_ranking_directions():

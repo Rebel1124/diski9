@@ -235,6 +235,18 @@ def current_round(engine: Engine, *, include_development: bool = False) -> Round
         return _view(conn, rid) if rid else None
 
 
+def round_competitions(conn: Connection, round_id: UUID) -> tuple[int, ...]:
+    """The bound schedule's ``eligible_competitions`` for a round (Phase 8 CP1-6)."""
+    r = conn.execute(  # the round's own bound schedule row (joined by its id)
+        select(rounds.c.id, round_schedules.c.eligible_competitions)
+        .select_from(rounds.join(round_schedules, rounds.c.schedule_id == round_schedules.c.id))
+        .where(rounds.c.id == round_id)
+    ).one_or_none()
+    if r is None:
+        raise NotFound("No such round.")
+    return tuple(int(c) for c in r.eligible_competitions)
+
+
 def round_config(conn: Connection, round_id: UUID) -> ChallengeConfig:
     """The configuration a round is bound to: the version recorded at publication,
     or (for a draft) the version of the round's own schedule row. Never the global
@@ -768,6 +780,16 @@ def _publication_problem(r, sched, snap: RoundSnapshot, source, now, max_age):
         return (
             "Some fixtures are outside the round window or have already kicked off.",
             {"fixtures": outside[:20]},
+        )
+    allowed = {int(c) for c in sched.eligible_competitions}
+    foreign = sorted(
+        {int(f.league_id) for f in snap.fixtures} - allowed
+        | {int(o.league_id) for o in snap.outcomes if o.league_id is not None} - allowed
+    )
+    if foreign:
+        return (
+            "The snapshot contains competitions this round's schedule does not allow.",
+            {"competitions": foreign, "eligible_competitions": sorted(allowed)},
         )
     return None, {}
 

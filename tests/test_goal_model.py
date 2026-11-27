@@ -1,10 +1,14 @@
-"""Goal Model 1.0 (Engine 3.0): exact agreement with the validated research
-implementation, market maths, early-season behaviour and availability rules."""
+"""Goal Model 1.1 (Engine 3.1): exact agreement with the accepted Phase 8 research
+reference (C1-2-20), Goal Model 1.0 reproducibility, market maths, the availability
+gate and the limited-data warning."""
 
 from __future__ import annotations
 
+import dataclasses
 import math
+import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -15,7 +19,11 @@ from diski9.research import goal_distribution as gd
 from diski9.screener import goal_model as gm
 from diski9.screener.engine import Match, MatchStore
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+import research_phase8_cp1 as r8  # noqa: E402  (accepted CP1 research reference)
+
 T = datetime(2025, 8, 1, 15, tzinfo=UTC)
+C1_2_20 = r8.Candidate("C1-2-20", None, 2, 20)
 
 
 def m(fid, days, comp, season, h, a, hg, ag, eligible=True):
@@ -60,41 +68,83 @@ def store_of(ms):
 
 # ------------------------------------------------------------ research equivalence
 def test_parameters_frozen_and_versioned():
-    assert gm.GOAL_MODEL_VERSION == "1.0"
-    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.m0) == (12, 96, 30)
+    assert gm.GOAL_MODEL_VERSION == "1.1"
+    p = gm.PARAMS
+    assert (p.k_s, p.k_t, p.team_min, p.competition_min) == (12, 96, 2, 20)
+    assert not hasattr(p, "m0")  # no previous-season prior in 1.1
     with pytest.raises(AttributeError):
         gm.PARAMS.k_s = 8  # frozen dataclass
     assert len(gm.params_hash()) == 16
+    # Goal Model 1.0 identity is preserved exactly (stored forecasts and snapshots)
+    assert (gm.PARAMS_1_0.k_s, gm.PARAMS_1_0.k_t, gm.PARAMS_1_0.m0) == (12, 96, 30)
+    assert gm.params_hash(gm.PARAMS_1_0) == "463105f660644ebf"
+    assert gm.params_hash() != gm.params_hash(gm.PARAMS_1_0)
 
 
-def test_exact_agreement_with_research_model():
+def _reference(store, comp=39, season=2025):
+    """The accepted CP1 research reference with production's cutoff (kickoff, no lag)."""
+    rows = r8.build_rows(store, {}, {comp}, {season}, lag=timedelta(0))
+    mk, lh, la, ok = r8.predict(rows, C1_2_20)
+    return rows, mk, lh, la, ok
+
+
+def _ids(store, rows):
+    by_id = {x.fixture_id: x for x in store.matches}
+    return [by_id[int(f)] for f in rows.fixture]
+
+
+def test_exact_agreement_with_accepted_research_reference():
+    """Goal Model 1.1 = CP1 candidate C1-2-20, fixture by fixture, to 1e-12 (estimates,
+    every market and the availability decision)."""
     store = store_of(synthetic())
-    ds = gd.build_dataset(store, (39,), (2025,))
-    lh, la, av = gd.lambdas(ds, gd.Params("season", 12, gd.INF, 30.0, 96))
-    mk = gd.poisson_markets(lh, la)
-    assert av.all()
-    for i in range(len(ds)):
-        e = gm.fixture_estimate(
-            store, 39, 2025, int(ds.home_id[i]), int(ds.away_id[i]), ds.kickoff[i]
-        )
+    rows, mk, lh, la, ok = _reference(store)
+    assert ok.sum() > 50 and (~ok).sum() > 0  # both available and gated fixtures checked
+    for i, x in enumerate(_ids(store, rows)):
+        e = gm.fixture_estimate(store, 39, 2025, x.home_id, x.away_id, x.kickoff)
+        assert e["available"] == bool(ok[i])
+        if not ok[i]:
+            assert "lambda_home" not in e
+            continue
         assert e["lambda_home"] == pytest.approx(lh[i], abs=1e-12)
         assert e["lambda_away"] == pytest.approx(la[i], abs=1e-12)
         for k in ("home", "draw", "away", "btts_yes", "over"):
             assert e["probabilities"][k] == pytest.approx(mk[k][i], abs=1e-12)
 
 
-def test_worked_example_from_research_report():
-    """Aston Villa v Nottingham Forest, 3 Jan 2026 (docs/goal_distribution_research.md)."""
+def test_goal_model_1_0_reproducible_from_frozen_parameters():
+    """Stored 1.0 forecasts stay reproducible: the frozen 1.0 rule (previous-season
+    prior, m0 30) still equals the validated 1.0 research implementation to 1e-12."""
+    store = store_of(synthetic())
+    ds = gd.build_dataset(store, (39,), (2025,))
+    lh, la, av = gd.lambdas(ds, gd.Params("season", 12, gd.INF, 30.0, 96))
+    assert av.all()
+    for i in range(len(ds)):
+        cut = ds.kickoff[i]
+        rates = gm.league_rates_1_0(
+            store.league_matches(39, 2025, cut), store.league_matches(39, 2024, cut)
+        )
+        recs = [
+            gm.TeamRecord.of(store.team_window(int(t), cut, None, 10_000, 39, 2025))
+            for t in (ds.home_id[i], ds.away_id[i])
+        ]
+        e = gm.estimate(*recs, rates, gm.PARAMS_1_0)
+        assert e["lambda_home"] == pytest.approx(lh[i], abs=1e-12)
+        assert e["lambda_away"] == pytest.approx(la[i], abs=1e-12)
+
+
+def test_worked_example_from_research_report_goal_model_1_0():
+    """Aston Villa v Nottingham Forest, 3 Jan 2026 (docs/goal_distribution_research.md),
+    reproduced with the frozen Goal Model 1.0 rule."""
     cur = [SimpleNamespace(home_goals=g, away_goals=0) for g in [296] + [0] * 189]
     cur[1] = SimpleNamespace(home_goals=0, away_goals=230)
     prev = [SimpleNamespace(home_goals=575, away_goals=540)] + [
         SimpleNamespace(home_goals=0, away_goals=0) for _ in range(379)
     ]
-    league = gm.league_rates(cur, prev)
-    assert round(league.home, 4) == 1.5518 and round(league.away, 4) == 1.2392
+    league = gm.league_rates_1_0(cur, prev)
+    assert round(league[0], 4) == 1.5518 and round(league[1], 4) == 1.2392
     villa = gm.TeamRecord(9, 10, 15, 7, 15, 16)
     forest = gm.TeamRecord(10, 9, 12, 17, 6, 13)
-    e = gm.estimate(villa, forest, league)
+    e = gm.estimate(villa, forest, league, gm.PARAMS_1_0)
     assert round(e["lambda_home"], 3) == 1.933 and round(e["lambda_away"], 3) == 0.962
     p = e["probabilities"]
     assert [round(p[k], 4) for k in ("home", "draw", "away", "btts_yes", "over")] == [
@@ -105,6 +155,9 @@ def test_worked_example_from_research_report():
         0.5529,
     ]
     assert round(e["home_team"]["strength"], 4) == 1.0884
+    # Goal Model 1.1 uses the current season alone: H = 296/190, A = 230/190
+    rates = gm.league_rates(cur)
+    assert rates.home == pytest.approx(296 / 190) and rates.away == pytest.approx(230 / 190)
 
 
 # ----------------------------------------------------------------- markets
@@ -136,20 +189,98 @@ def test_adjustment_example():
     assert adj["draw"] > base["draw"] and adj["over"] < base["over"]
 
 
-# ------------------------------------------------------- early season / priors
-def test_zero_matches_gives_league_rates_and_flags():
-    store = store_of(synthetic())
-    first = min(
-        (x for x in store.matches if x.season == 2025 and x.competition_id == 39),
-        key=lambda x: x.kickoff,
+# ------------------------------------------------------- availability gate
+class _Store:
+    """Minimal store: a competition with ``n`` current-season matches and two teams with
+    given home/away records (the gate reads only counts and goals)."""
+
+    def __init__(self, n_comp, home_rec, away_rec, prev=()):
+        self.cur = [SimpleNamespace(home_goals=1, away_goals=1)] * n_comp
+        self.prev = list(prev)
+        self.recs = {1: home_rec, 2: away_rec}
+
+    def league_matches(self, comp, season, cutoff):
+        return self.cur if season == 2025 else self.prev
+
+    def team_window(self, team, cutoff, n, limit, competition_id=None, season=None):
+        rec = self.recs[team]
+        h = [SimpleNamespace(is_home=True, goals_for=1, goals_against=1)] * rec[0]
+        a = [SimpleNamespace(is_home=False, goals_for=1, goals_against=1)] * rec[1]
+        return h + a
+
+
+def _est(n_comp, home=(3, 3), away=(3, 3), prev=()):
+    return gm.fixture_estimate(_Store(n_comp, home, away, prev), 39, 2025, 1, 2, T)
+
+
+@pytest.mark.parametrize("n,ok", [(0, False), (1, False), (19, False), (20, True), (21, True)])
+def test_competition_gate_boundary(n, ok):
+    e = _est(n)
+    assert e["available"] is ok
+    if not ok:
+        assert e["reason"] == "competition_matches_insufficient" and "lambda_home" not in e
+        assert f"{n} of 20" in e["message"]
+
+
+@pytest.mark.parametrize(
+    "home,away,ok",
+    [
+        ((0, 0), (3, 3), False),
+        ((1, 0), (3, 3), False),
+        ((0, 1), (3, 3), False),
+        ((3, 3), (1, 0), False),
+        ((1, 1), (3, 3), True),  # 2 = minimum, home and away combined
+        ((2, 0), (0, 2), True),
+    ],
+)
+def test_team_gate_boundary(home, away, ok):
+    e = _est(30, home, away)
+    assert e["available"] is ok
+    if not ok:
+        assert e["reason"] == "team_matches_insufficient" and "lambda_home" not in e
+        assert e["team_matches"] == {"home": sum(home), "away": sum(away)}
+
+
+@pytest.mark.parametrize(
+    "home,away,warn",
+    [
+        ((2, 2), (3, 2), True),
+        ((2, 3), (2, 2), True),
+        ((3, 2), (2, 3), False),
+        ((1, 1), (9, 9), True),
+    ],
+)
+def test_limited_data_warning_boundary(home, away, warn):
+    """Warning when either team has fewer than 5 matches: 4 warns, 5 does not."""
+    e = _est(30, home, away)
+    assert e["available"] and e["early_season"] is warn
+    assert "league_average_only" not in e
+
+
+def test_no_previous_season_input():
+    """Changing or deleting every previous-season match leaves 1.1 estimates identical,
+    including the competition baseline."""
+    base = store_of(synthetic())
+    no_prev = store_of([x for x in synthetic() if x.season != 2024])
+    other = synthetic()
+    altered = store_of(
+        [
+            dataclasses.replace(x, home_goals=x.home_goals + 3, away_goals=0)
+            if x.season == 2024
+            else x
+            for x in other
+        ]
     )
-    e = gm.fixture_estimate(store, 39, 2025, first.home_id, first.away_id, first.kickoff)
-    assert e["available"] and e["league"]["current_matches"] == 0
-    assert e["lambda_home"] == pytest.approx(e["league"]["home"])
-    assert e["lambda_away"] == pytest.approx(e["league"]["away"])
-    assert e["league_average_only"] == ["home", "away"] and e["early_season"]
-    # previous season league average only, never previous-season team results
-    assert e["home_team"]["record"]["home_played"] == 0
+    ms = [x for x in base.matches if x.season == 2025 and x.competition_id == 39]
+    checked = 0
+    for x in ms:
+        es = [
+            gm.fixture_estimate(s, 39, 2025, x.home_id, x.away_id, x.kickoff)
+            for s in (base, no_prev, altered)
+        ]
+        assert es[0] == es[1] == es[2]
+        checked += es[0]["available"]
+    assert checked > 50
 
 
 def test_shrinkage_weights():
@@ -157,26 +288,19 @@ def test_shrinkage_weights():
     one_win = gm.TeamRecord(1, 0, 4, 0, 0, 0)  # an opening 4-0 home win
     s, t, _ = gm.strength_tempo(one_win, H, A)
     assert round(s, 3) == 1.107 and round(t, 3) == 1.005
-    e = gm.estimate(one_win, gm.TeamRecord(), gm.LeagueRates(H, A, 0, 0, 0, 0, None, None, "x"))
+    e = gm.estimate(one_win, gm.TeamRecord(), gm.LeagueRates(H, A, 0, 0, 0))
     assert round(e["lambda_home"], 2) == 1.67 and e["lambda_away"] > 0
 
 
-def test_previous_season_prior_and_unavailable_rule():
-    store = store_of(synthetic(prev=False))
-    ms = [x for x in store.matches if x.competition_id == 39]
-    early = ms[10]
-    e = gm.fixture_estimate(store, 39, 2025, early.home_id, early.away_id, early.kickoff)
-    assert not e["available"] and e["reason"] == "league_prior_unavailable"
-    later = ms[40]  # 40 current matches: current season alone
-    e = gm.fixture_estimate(store, 39, 2025, later.home_id, later.away_id, later.kickoff)
-    assert e["available"] and e["league"]["source"] == "current only"
-    with_prev = store_of(synthetic())
-    x = [y for y in with_prev.matches if y.season == 2025 and y.competition_id == 39][20]
-    e = gm.fixture_estimate(with_prev, 39, 2025, x.home_id, x.away_id, x.kickoff)
-    L = e["league"]
-    assert L["home"] == pytest.approx(
-        (L["current_home_goals"] + 30 * L["previous_home_per_match"]) / (L["current_matches"] + 30)
-    )
+def test_league_rates_current_season_only():
+    cur = [SimpleNamespace(home_goals=2, away_goals=1)] * 19
+    assert gm.league_rates(cur) is None and gm.league_frequencies(cur) is None
+    cur = cur + [SimpleNamespace(home_goals=0, away_goals=0)]
+    L = gm.league_rates(cur)
+    assert (L.home, L.away, L.current_matches) == (38 / 20, 19 / 20, 20)
+    f = gm.league_frequencies(cur)
+    assert f["home"] == pytest.approx(19 / 20) and f["draw"] == pytest.approx(1 / 20)
+    assert gm.league_rates([SimpleNamespace(home_goals=0, away_goals=0)] * 25) is None
 
 
 def test_uefa_never_modelled():
@@ -209,7 +333,7 @@ def test_numerical_stability_extremes():
     H, A = 1.5, 1.2
     huge = gm.TeamRecord(19, 19, 80, 0, 70, 0)
     poor = gm.TeamRecord(19, 19, 0, 60, 0, 70)
-    e = gm.estimate(huge, poor, gm.LeagueRates(H, A, 380, 0, 0, 0, None, None, "x"))
+    e = gm.estimate(huge, poor, gm.LeagueRates(H, A, 380, 0, 0))
     p = e["probabilities"]
     assert all(math.isfinite(v) for v in p.values())
     assert p["home"] + p["draw"] + p["away"] == pytest.approx(1)

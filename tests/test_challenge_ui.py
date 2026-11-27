@@ -164,7 +164,12 @@ def test_live_snapshot_reads_database_without_api(data):  # noqa: F811
     assert s.kind is SnapshotKind.LIVE and s.snapshot_at == T0
     assert s.diagnostics["fixtures_in_window"] >= 1
     for o in s.outcomes:  # everything on the sheet passed the strict consensus
-        assert o.bookmaker_groups >= 3 and o.model_probability is not None
+        assert o.bookmaker_groups >= 3
+    # Phase 8 CP1-6: the model is no longer required; where present it is frozen,
+    # where absent it stays None (never filled from the market)
+    eg = {f.fixture_id: f.estimated_goals for f in s.fixtures}
+    for o in s.outcomes:
+        assert (o.model_probability is None) == (eg[o.fixture_id] is None)
     assert assess_round(s, T0).status is not RoundStatus.DEMO
 
 
@@ -573,14 +578,13 @@ def test_browser_journey_demo_round(data):  # noqa: F811
 
 
 def test_goal_model_unchanged():
+    """Goal Model 1.1 (Phase 8 CP2A): strength/tempo shrinkage unchanged, no prior;
+    the 1.0 parameters stay frozen for reproducing stored 1.0 records."""
     from diski9.screener import goal_model as gm
 
-    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.m0, gm.GOAL_MODEL_VERSION) == (
-        12,
-        96,
-        30,
-        "1.0",
-    )
+    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.GOAL_MODEL_VERSION) == (12, 96, "1.1")
+    assert (gm.PARAMS.team_min, gm.PARAMS.competition_min) == (2, 20)
+    assert (gm.PARAMS_1_0.k_s, gm.PARAMS_1_0.k_t, gm.PARAMS_1_0.m0) == (12, 96, 30)
 
 
 __all__ = ["RoundFixture", "RoundSnapshot"]

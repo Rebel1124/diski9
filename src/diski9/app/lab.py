@@ -1,4 +1,4 @@
-"""The Match Lab and the statistical baseline (Engine 3.0, Goal Model 1.0).
+"""The Match Lab and the statistical baseline (Engine 3.1, Goal Model 1.1).
 
 Detail panel for a selected fixture:
 
@@ -414,17 +414,9 @@ def baseline_section(r: dict, market: str) -> html.Div:
             [head, html.Div(g.get("message"), className="unavailable")],
             className="lab-section lab-baseline",
         )
-    only = set(g.get("league_average_only") or [])
-    notes = {
-        side: "League average only: no league matches yet this season" if side in only else None
-        for side in ("home", "away")
-    }
+    notes = {"home": None, "away": None}
     early = (
-        html.P(
-            "Early season: at least one team has played fewer than five league matches, so the "
-            "estimates still lean heavily on league averages.",
-            className="muted small limited-note",
-        )
+        html.P(gm.LIMITED_DATA_WARNING, className="muted small limited-note")
         if g.get("early_season")
         else None
     )
@@ -466,7 +458,7 @@ def baseline_section(r: dict, market: str) -> html.Div:
 
 
 def model_calculation(r: dict) -> html.Details:
-    """The inputs and arithmetic of Goal Model 1.0 for this fixture."""
+    """The inputs and arithmetic of the Goal Model for this fixture."""
     g = r["goal_model"]
     L, f = g["league"], r["fixture"]
     p = g["model"]["parameters"]
@@ -508,13 +500,7 @@ def model_calculation(r: dict) -> html.Details:
             ),
         ]
 
-    prior = (
-        f"{L['current_matches']} league matches this season, plus {p['m0']:g} pseudo-matches at "
-        f"last season's averages ({L['previous_home_per_match']:.2f} home, "
-        f"{L['previous_away_per_match']:.2f} away)"
-        if L["source"] == "current+previous"
-        else f"{L['current_matches']} league matches this season (no earlier season stored)"
-    )
+    prior = f"{L['current_matches']} league matches this season (current season only)"
     dist = []
     for side, lam in (
         ("home", g["estimated_goals"]["home"]),

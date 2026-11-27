@@ -45,7 +45,18 @@ from diski9.screener import goal_model as gm
 from diski9.screener.rank import rank_by_value
 
 from .factories import T0, full_book, odds_item
-from .test_app import DAY, EPL_FIX, EXTRA, PSL_FIX, _free_port, _text, data, page_ids, populated  # noqa: F401
+from .test_app import (  # noqa: F401
+    DAY,
+    EPL_FIX,
+    EXTRA,
+    PSL_FIX,
+    _free_port,
+    _text,
+    data,
+    give_history,
+    page_ids,
+    populated,
+)
 
 D = Decimal
 ONE_X_TWO = {Outcome.HOME, Outcome.DRAW, Outcome.AWAY}
@@ -218,6 +229,7 @@ def valued(populated):
         items.append(
             odds_item(fid, {8: book, 11: book}, kickoff=kickoff, update="2026-11-15T11:00:00+00:00")
         )
+    give_history(populated)  # Goal Model 1.1: the extra fixtures' teams need matches
     with populated.begin() as conn:
         page = OddsPage(T0 - timedelta(minutes=30), items)
         reconcile_pages(conn, 39, 2026, [page], clock=lambda: T0 - timedelta(minutes=30))
@@ -378,7 +390,7 @@ def test_rankings_do_not_mutate_model_or_snapshots(valued):
     assert snap.results == before
     with valued.engine.connect() as conn:
         assert conn.execute(select(func.count()).select_from(forecast_snapshots)).scalar() == n
-    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.m0) == (12, 96, 30)
+    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.competition_min) == (12, 96, 20)  # GM 1.1
 
 
 # ------------------------------------------------------------- the Match Lab

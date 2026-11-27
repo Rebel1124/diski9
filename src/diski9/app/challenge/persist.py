@@ -225,6 +225,8 @@ def submitted_record(service, view, snap, entry) -> dict | None:
     estimates = {}
     if evs is not None:
         for name, ev in zip(("market", "model"), evs, strict=True):
+            if ev is None:  # no Diski 9 estimate unless all nine have a prediction
+                continue
             estimates[name] = {
                 "p_recover": ev.p_recover,
                 "p_zero": ev.p_zero,

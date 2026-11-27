@@ -28,7 +28,17 @@ from diski9.app.challenge.integration import (
 from diski9.challenge.roundsheet import RoundFixture
 from diski9.odds.value import MARKET_ORDER, edge_pp, expected_value
 
-from .test_app import EPL_FIX, EXTRA, PSL_FIX, T0, _text, data, page_ids, populated  # noqa: F401
+from .test_app import (  # noqa: F401
+    EPL_FIX,
+    EXTRA,
+    PSL_FIX,
+    T0,
+    _text,
+    data,
+    give_history,
+    page_ids,
+    populated,
+)
 
 MARKETS = {"1X2": Market.MATCH_RESULT, "BTTS": Market.BTTS, "OU25": Market.OVER_UNDER_25}
 
@@ -178,6 +188,7 @@ def test_universe_switch_resets_page_and_dates(data):
 # ------------------------------------------- Phase 6B.3: frozen probability ranking
 def _conflict(data):
     """Frozen snapshot probabilities chosen to rank opposite to the live cache."""
+    give_history(data.engine, {EXTRA[0], EXTRA[1]})  # Goal Model 1.1: live model needs matches
     live = {fid: data.detail(fid)[0]["goal_model"]["probabilities"]["home"]
             for fid in (EPL_FIX, EXTRA[0], EXTRA[1])}  # fmt: skip
     by_live = sorted(live, key=lambda f: -live[f])

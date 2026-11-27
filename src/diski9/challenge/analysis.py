@@ -20,6 +20,15 @@
 
 Independence between matches is an assumption; every distribution is conditional
 on the supplied probability estimates.
+
+Missing independent predictions (Phase 8 OD-3). Since Goal Model 1.1 a selection may
+have no Diski 9 probability (``model_probability`` None). Diski 9 figures are then
+produced only where every selection involved has one: per selection, per bucket when
+the whole bucket has predictions, and for the portfolio only with all nine. Elsewhere
+the value is ``None`` and the number of missing predictions is reported; a market
+probability is **never** substituted into a Diski 9 figure. Your View uses, per
+selection: the participant's valid adjustment, else the Diski 9 probability, else (an
+interim fallback until CP2B) the actual market consensus probability.
 """
 
 from __future__ import annotations
@@ -49,20 +58,68 @@ def market_probability(o: ChallengeOutcome) -> float:
     return o.market_probability
 
 
+class ModelUnavailable(ValueError):
+    """A Diski 9 figure was requested for a selection without an independent
+    prediction. Callers show the figure as unavailable; nothing is substituted."""
+
+
+def has_model(o: ChallengeOutcome) -> bool:
+    return o.model_probability is not None
+
+
 def model_probability(o: ChallengeOutcome) -> float:
     if o.model_probability is None:
-        raise ValueError(f"{o.key}: no Diski 9 probability")
+        raise ModelUnavailable(f"{o.key}: no Diski 9 probability")
     return o.model_probability
 
 
+def missing_models(selections) -> int:
+    """How many of these selections have no Diski 9 probability."""
+    return sum(1 for o in selections if not has_model(o))
+
+
+# Your View source of each selection (OD-3 hierarchy; CP2B adds the market-implied step)
+PERSONAL_SOURCES = ("adjusted", "model", "market")
+PERSONAL_SOURCE_LABEL = {
+    "adjusted": "your adjustment",
+    "model": "Diski 9",
+    "market": "market consensus",
+}
+
+
+def personal_source(o: ChallengeOutcome, personal: Mapping[tuple, float] | None) -> str:
+    """Which tier of the Your View hierarchy supplies this selection's probability."""
+    if personal and personal.get(o.key) is not None:
+        return "adjusted"
+    return "model" if has_model(o) else "market"
+
+
+def personal_sources(selections, personal: Mapping[tuple, float] | None) -> dict[str, int]:
+    """Count of selections per Your View tier (for the compact source summary)."""
+    out = dict.fromkeys(PERSONAL_SOURCES, 0)
+    for o in selections:
+        out[personal_source(o, personal)] += 1
+    return out
+
+
+def personal_summary(selections, personal: Mapping[tuple, float] | None) -> str:
+    """'Your View: 2 your adjustment · 6 Diski 9 · 1 market consensus' (non-zero tiers)."""
+    counts = personal_sources(selections, personal)
+    parts = [f"{n} {PERSONAL_SOURCE_LABEL[k]}" for k, n in counts.items() if n]
+    return "Your View: " + " · ".join(parts) if parts else ""
+
+
 def personal_probability(personal: Mapping[tuple, float] | None) -> Probability:
-    """The participant's view: their own probability where they adjusted the match,
-    otherwise the unadjusted Diski 9 (Goal Model 1.0) probability."""
+    """The participant's view per selection: their own valid adjustment, otherwise the
+    Diski 9 probability, otherwise the actual market consensus probability (interim
+    fallback; the market-implied step arrives in CP2B)."""
     personal = personal or {}
 
     def prob(o: ChallengeOutcome) -> float:
         p = personal.get(o.key)
-        return model_probability(o) if p is None else float(p)
+        if p is not None:
+            return float(p)
+        return o.model_probability if has_model(o) else o.market_probability
 
     return prob
 
@@ -88,6 +145,9 @@ class BucketStat:
     combined_probability: float | None  # product over the selections so far
     combined_odds: Decimal | None
     payout: Decimal | None  # gross if every selection so far succeeds (D-15 rounding)
+    # selections so far without a probability from the chosen source (Diski 9 only);
+    # when > 0, combined_probability is None (OD-3: never part-substituted)
+    unavailable: int = 0
 
     @property
     def complete(self) -> bool:
@@ -103,7 +163,9 @@ def bucket_stats(
 
     Selections are grouped by their market-probability bucket; outcomes outside
     every band are ignored here (validation reports them separately). Empty
-    buckets have ``None`` values."""
+    buckets have ``None`` values. A bucket (or The Diski 9) with a selection the
+    source cannot price has ``combined_probability`` None and ``unavailable`` > 0;
+    odds and payout still come from the frozen reference odds."""
     groups: dict[str, list[ChallengeOutcome]] = {c: [] for c in config.bucket_codes}
     for o in selections:
         code = config.classify(o.market_probability)
@@ -112,23 +174,45 @@ def bucket_stats(
     out = []
     for b in config.buckets:
         legs = groups[b.code]
+        miss = 0
         if legs:
             odds = math.prod((o.reference_odds for o in legs), start=Decimal(1))
-            prob = math.prod(probability(o) for o in legs)
+            prob, miss = _combined(legs, probability)
             pay = round_credits(b.credits * odds)
         else:
             odds = prob = pay = None
-        out.append(BucketStat(b.code, b.name, len(legs), b.selections, b.credits, prob, odds, pay))
+        out.append(
+            BucketStat(b.code, b.name, len(legs), b.selections, b.credits, prob, odds, pay, miss)
+        )
     legs = [o for c in config.bucket_codes for o in groups[c]]
+    miss9 = 0
     if legs:
         odds9 = math.prod((o.reference_odds for o in legs), start=Decimal(1))
-        p9 = math.prod(probability(o) for o in legs)
+        p9, miss9 = _combined(legs, probability)
         pay9 = round_credits(config.nine_fold_credits * odds9)
     else:
         odds9 = p9 = pay9 = None
     nine = BucketStat("NINE", config.nine_fold_name, len(legs), config.required_selections,
-                      config.nine_fold_credits, p9, odds9, pay9)  # fmt: skip
+                      config.nine_fold_credits, p9, odds9, pay9, miss9)  # fmt: skip
     return tuple(out), nine
+
+
+def _combined(legs, probability: Probability) -> tuple[float | None, int]:
+    """(product of the legs' probabilities, legs the source cannot price). The product
+    is None as soon as one leg is unavailable: never a partial or substituted value."""
+    probs, miss = [], 0
+    for o in legs:
+        try:
+            probs.append(probability(o))
+        except ModelUnavailable:
+            miss += 1
+    return (None, miss) if miss else (math.prod(probs), 0)
+
+
+def available(portfolio: StructuredPortfolio, source: str) -> bool:
+    """Whether a whole-portfolio estimate exists for ``source`` (Diski 9 needs all
+    nine independent predictions; Market and Your View always exist)."""
+    return source != "model" or missing_models(portfolio.selections) == 0
 
 
 # ------------------------------------------------------------- evaluation
@@ -150,9 +234,15 @@ def evaluate_with(portfolio: StructuredPortfolio, probability: Probability) -> G
 
 def evaluate_sources(
     portfolio: StructuredPortfolio, personal: Mapping[tuple, float] | None = None
-) -> dict[str, GroupEvaluation]:
-    """Market, Diski 9 and Your View evaluations of one portfolio (same payouts)."""
-    return {s: evaluate_with(portfolio, probability_for(s, personal)) for s in SOURCES}
+) -> dict[str, GroupEvaluation | None]:
+    """Market, Diski 9 and Your View evaluations of one portfolio (same payouts).
+    Diski 9 is None unless all nine selections have an independent prediction."""
+    return {
+        s: evaluate_with(portfolio, probability_for(s, personal))
+        if available(portfolio, s)
+        else None
+        for s in SOURCES
+    }
 
 
 # ------------------------------------------------------- 512-state analysis

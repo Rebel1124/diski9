@@ -115,6 +115,29 @@ def populated(engine):
     return engine
 
 
+def give_history(engine, fixtures=None) -> None:
+    """Goal Model 1.1 (Phase 8 CP2A) needs >= 2 current-season matches per team. Give
+    the teams of the given EXTRA fixtures two earlier meetings (varied scores) and
+    refresh their cache rows, so tests that rank many *modelled* fixtures keep doing
+    so (under Goal Model 1.0 these teams were modelled through the league prior)."""
+    from diski9.screener import cache
+
+    history = []
+    for i, fid in enumerate(EXTRA):
+        if fixtures is not None and fid not in fixtures:
+            continue
+        h, a = 400 + i, 500 + i
+        for j, (hg, ag) in enumerate(((i % 4, 1), ((i + 1) % 3, (i + 2) % 4))):
+            history.append(
+                fixture_item(80_000 + 2 * i + j, h if j == 0 else a, a if j == 0 else h,
+                             league=39, season=2026,
+                             kickoff=T0 - (60 - 2 * i - j) * DAY, ft=(hg, ag))
+            )  # fmt: skip
+    with engine.begin() as conn:
+        store_fixtures(conn, history, lambda: T0)
+        cache.refresh(conn, [EPL_FIX, PSL_FIX, PROMOTED_FIX, *EXTRA], T0, T0)
+
+
 @pytest.fixture
 def data(populated):
     return ScreenerData(populated, ttl_seconds=0, clock=lambda: T0)
@@ -511,10 +534,24 @@ def test_missing_odds_psl(data):
     assert "No bookmaker odds are available for the PSL" in text
 
 
-def test_limited_data_warnings(data):
+def test_limited_data_warnings(data, populated):
+    """Goal Model 1.1: the promoted team's single match gives no estimate; with a
+    second match the estimate appears with the limited-data warning (below 5)."""
+    from diski9.screener import cache
+    from diski9.screener import goal_model as gm
+
+    r, ov, official = data.detail(PROMOTED_FIX, "overall")
+    assert not r["goal_model"]["available"] and data.row("1X2", r)["available"] is False
+    with populated.begin() as conn:
+        store_fixtures(
+            conn,
+            [fixture_item(7778, 5, 130, kickoff=T0 - 2 * DAY, ft=(1, 1), season=2026)],
+            lambda: T0,
+        )
+        cache.refresh(conn, [PROMOTED_FIX], T0, T0)
     r, ov, official = data.detail(PROMOTED_FIX, "overall")
     text = _text(render_detail(r, ov, official, "1X2", data))
-    assert "Early season" in text and "lean heavily on league averages" in text
+    assert gm.LIMITED_DATA_WARNING in text
     assert data.row("1X2", r)["limited"] is True
 
 

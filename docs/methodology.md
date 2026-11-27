@@ -1,7 +1,9 @@
 # How Diski 9 Calculates Probabilities
 
-*Goal Model 1.0 · Engine 3.0 · November 2026. The same content, in short, is in the
-app under "How Diski 9 Calculates Probabilities".*
+*Goal Model 1.1 · Engine 3.1 · Phase 8 (approved 27 Nov 2026; CP2A implementation
+awaiting acceptance). The same content, in short, is in the app under "How Diski 9
+Calculates Probabilities". Goal Model 1.0 (Nov 2026) used a previous-season
+league-average prior (`m0` 30); 1.1 removes it. See [`model_changelog.md`](model_changelog.md).*
 
 > We calculate the probabilities. You analyse the match. You make the call.
 
@@ -25,11 +27,14 @@ They are **not shot-based xG**.
 
 * **Current season, current competition:** completed regular-season league
   matches played before kickoff.
-* **The previous season's league-wide averages** of home and away goals. This is
-  league level only.
+**Availability (Goal Model 1.1):** an estimate is produced only when both teams have
+played at least **2** such matches and the competition at least **20**. Otherwise no
+estimate is shown and nothing is substituted. When either team has fewer than **5**,
+a limited-data warning is shown.
 
 Never used:
-* a team's results from earlier seasons or other divisions
+* any earlier season: neither team results nor league averages
+* results from other divisions
 * bookmaker odds
 * team news
 
@@ -48,11 +53,11 @@ In plain English:
 * Early in the season, teams have played relatively few matches, so we rely more
   on league averages. One 4–0 win does not make a team world-beaters.
 
-**League averages before kickoff** (H home goals, A away goals per match):
+**League averages before kickoff** (H home goals, A away goals per match), current
+season only:
 
 ```
-H = (current-season home goals + 30 × last season's home goals per match)
-    / (current-season matches + 30)                        (A likewise)
+H = current-season home goals / current-season matches     (A likewise)
 ```
 
 **For each team**, with n_h home and n_a away matches this season:
@@ -111,7 +116,8 @@ home team to 1.55 recalculates every market:
 |---|---|---|
 | Strength smoothing `k_s` | 12 | After 12 matches, half of a team's strength comes from its own results |
 | Goal tempo smoothing `k_t` | 96 | Goal totals vary a lot by chance, so they move towards a team's record slowly |
-| League-average prior `m0` | 30 | Last season's league averages count as 30 matches at the start of a season |
+| Minimum matches per team | 2 | Below this no estimate is shown; below 5 a limited-data warning is shown |
+| Minimum competition matches | 20 | League averages come from the current season alone |
 
 **How they were chosen:**
 * **Strength smoothing (12) and goal tempo smoothing (96)** were chosen by comparing

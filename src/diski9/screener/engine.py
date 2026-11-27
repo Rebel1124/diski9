@@ -66,7 +66,9 @@ from .goal_model import fixture_estimate
 # 2.4.0: Match Result Form Score from the last eight CURRENT-SEASON league matches,
 # normalised by the matches actually played; one overall league average; display-only
 # venue context. The Venue/Overall basis no longer affects Match Result.
-ENGINE_VERSION = "3.0.0"  # Goal Model 1.0 probabilities; Form Score etc. as context
+ENGINE_VERSION = (
+    "3.1.0"  # Goal Model 1.1 probabilities (3.0.0: Goal Model 1.0); Form Score etc. as context
+)
 LEAGUE_BASELINE_MIN = 30  # eligible current-season league matches before a baseline is shown
 FORM_BENCHMARK_MIN_TEAMS = 12  # teams with at least FORM_BENCHMARK_MIN_MATCHES matches
 FORM_BENCHMARK_MIN_SHARE = 0.8  # ... and at least this share of the season's teams

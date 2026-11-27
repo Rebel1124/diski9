@@ -508,9 +508,9 @@ def test_engine_modules_are_pure_and_offline():
 def test_goal_model_unchanged():
     from diski9.screener import goal_model as gm
 
-    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.m0, gm.GOAL_MODEL_VERSION) == (
+    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.competition_min, gm.GOAL_MODEL_VERSION) == (
         12,
         96,
-        30,
-        "1.0",
-    )
+        20,
+        "1.1",
+    )  # Goal Model 1.1 (Phase 8 CP2A)

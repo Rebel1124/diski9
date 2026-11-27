@@ -2,7 +2,7 @@
 
 Plain English first, technical detail in nested expanders. Facts come from
 docs/goal_distribution_research.md and docs/goal_model_crossleague_validation.md;
-the worked example is computed live by Goal Model 1.0.
+the worked example is computed live by the current Goal Model.
 """
 
 from __future__ import annotations
@@ -19,6 +19,13 @@ CHANGELOG = [
         "November 2026",
         "First release with Engine 3.0. Season-to-date Poisson model with strength/tempo "
         "smoothing (k_s 12, k_t 96, m0 30).",
+    ),
+    (
+        "Goal Model 1.1",
+        "Phase 8 (approved 27 Nov 2026)",
+        "Current-season data only: last season's league averages are no longer used. "
+        "Estimates need at least 2 league matches per team and 20 in the competition. "
+        "Strength and tempo smoothing unchanged (k_s 12, k_t 96).",
     ),
 ]
 
@@ -97,9 +104,10 @@ def technical_detail() -> html.Details:
                 [
                     _p("League averages before kickoff (H home, A away goals per match):"),
                     html.Pre(
-                        f"H = (current-season home goals + {k.m0:g} × last season's home goals "
-                        "per match)\n    / (current-season matches + "
-                        f"{k.m0:g})            (A likewise)"
+                        "H = current-season home goals / current-season matches\n"
+                        "A = current-season away goals / current-season matches\n"
+                        f"(available from {k.competition_min} competition matches and "
+                        f"{k.team_min} matches per team)"
                     ),
                     _p("For each team, with n_h home and n_a away matches this season:"),
                     html.Pre(
@@ -124,8 +132,7 @@ def technical_detail() -> html.Details:
                     _p(
                         "Only completed, regular-season league matches of the current season "
                         "and competition, played before kickoff, are used. Earlier seasons and "
-                        "other divisions never enter a team's numbers; last season's league "
-                        "average is the only historical input.",
+                        "other divisions never enter the calculation.",
                         "muted small",
                     ),
                 ],
@@ -154,9 +161,14 @@ def _params_table() -> html.Table:
             "Goal totals vary a lot by chance, so they move towards a team's record slowly.",
         ),
         (
-            "League-average prior",
-            k.m0,
-            "Last season's league averages count as 30 matches at the start of a season.",
+            "Minimum matches per team",
+            k.team_min,
+            "Below this, no estimate is shown; below 5 a limited-data warning is shown.",
+        ),
+        (
+            "Minimum competition matches",
+            k.competition_min,
+            "League averages come from this season only, so they need enough matches.",
         ),
     ]
     return html.Table(
@@ -184,7 +196,7 @@ def market_value_block() -> html.Div:
         "Understanding Market Probabilities and Expected Value",
         _p(
             "This is a comparison layer on top of the model, not part of it. Bookmaker odds "
-            "never change Goal Model 1.0's estimated goals or probabilities, and the model's "
+            "never change the Goal Model's estimated goals or probabilities, and the model's "
             "settings, calibration and validation above are unaffected.",
             "muted small",
         ),
@@ -193,7 +205,7 @@ def market_value_block() -> html.Div:
                 html.Li(
                     [
                         html.Strong("Model probability: "),
-                        "the probability estimated by Goal Model 1.0.",
+                        "the probability estimated by the Goal Model.",
                     ]
                 ),
                 html.Li(

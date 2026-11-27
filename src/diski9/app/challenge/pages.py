@@ -670,7 +670,8 @@ def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None
         need = [f"{cfg.bucket(k).name} {v}" for k, v in progress.remaining.items() if v]
         msg = "Still needed: " + ", ".join(need) if need else ""
     port = service.portfolio(snap, sels)
-    ev = pa.evaluate_with(port, prob) if port is not None else None
+    ev = pa.evaluate_with(port, prob) if port is not None and pa.available(port, source) else None
+    note = source_note(source, chosen, personal, nine.selected)
 
     def label(o):
         fx = snap.fixture(o.fixture_id)
@@ -688,7 +689,27 @@ def tracker_view(service, snap, sels, is_locked: bool, prefs=None, personal=None
         port is not None and not is_locked,
         is_locked,
         risk_panel=risk,
+        note=note,
     )
+
+
+def source_note(source: str, chosen, personal, n: int) -> str | None:
+    """Compact probability-source transparency (OD-3): missing Diski 9 predictions,
+    or where each Your View probability comes from."""
+    if not chosen:
+        return None
+    if source == "model":
+        miss = pa.missing_models(chosen)
+        if miss:
+            return (
+                f"Diski 9 predictions unavailable for {miss} of {n} selection"
+                f"{'s' if n != 1 else ''}: Diski 9 figures are shown only where every "
+                "selection involved has one. Market probabilities are never substituted."
+            )
+        return None
+    if source == "personal":
+        return pa.personal_summary(chosen, personal) or None
+    return None
 
 
 def risk_panel(snap, chosen, cfg, where: str):
@@ -720,6 +741,26 @@ def analysis_panel(service, snap, sels, prefs, personal=None) -> html.Div:
             className="ch-card ch-empty-analysis",
         )
     source = (prefs or {}).get("source", "market")
+    if not pa.available(port, source):
+        miss = pa.missing_models(port.selections)
+        return html.Div(
+            [
+                html.Div(
+                    [
+                        html.H2("Portfolio analysis", className="ch-h2"),
+                        html.Span("Diski 9 estimate", className="ch-pill demo"),
+                    ],
+                    className="ch-row-between",
+                ),
+                html.P(
+                    f"The Diski 9 portfolio estimate needs an independent prediction for all "
+                    f"nine selections; {miss} of 9 do not have one (not enough current-season "
+                    "data). Choose Market or Your View to analyse this portfolio.",
+                    className="muted ch-unavail",
+                ),
+            ],
+            className="ch-card ch-empty-analysis",
+        )
     prob = pa.probability_for(source, personal)
     ev = pa.evaluate_with(port, prob)
     cc = pa.correct_count_analysis(port, prob)
@@ -1327,9 +1368,11 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
     estimates = {
         s: {"p_recover": ev.p_recover, "p_zero": ev.p_zero, "expected": ev.expected_gross}
         for s, ev in evs.items()
+        if ev is not None
     }
     if not personal:
         estimates.pop("personal")
+    missing = pa.missing_models(port.selections)
     return html.Div(
         [
             c.demo_ribbon(snap),
@@ -1342,9 +1385,19 @@ def review(service, snap, sels, avail, state, local, personal=None) -> html.Div:
             ),
             estimate_cards(estimates),
             html.P(
+                f"Diski 9 portfolio estimate unavailable: {missing} of 9 predictions have no "
+                "independent Diski 9 estimate (not enough current-season data). Market "
+                "probabilities are never substituted.",
+                className="muted small ch-unavail",
+            )
+            if missing
+            else None,
+            html.P(
                 (
-                    "Your View uses your Match Lab adjustments where you made them and Diski 9 "
-                    "elsewhere. "
+                    pa.personal_summary(port.selections, personal)
+                    + ". Your View uses your Match Lab adjustments where you made them, Diski 9 "
+                    "where there is no adjustment, and the market consensus where neither "
+                    "exists. "
                     if personal
                     else ""
                 )

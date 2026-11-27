@@ -27,6 +27,7 @@ from diski9.backend.services import rounds as svc
 from diski9.backend.services import your_view as yv
 from diski9.backend.services.common import NotFound, PersistenceFailed, VersionConflict
 from diski9.challenge.config import BROAD60_432_V1  # explicit: v1 behaviour (A3 4A)
+from diski9.screener import goal_model as gm
 
 
 @pytest.fixture(scope="module")
@@ -49,7 +50,7 @@ def live_for(snap, fid):
     """A live context whose baseline equals the frozen one (identical baselines)."""
     f = snap.fixture(fid)
     h, a = (round(x, 2) for x in f.estimated_goals)
-    return yv.LiveContext(fid, f"1.0|{fid}|{h:.2f}|{a:.2f}")
+    return yv.LiveContext(fid, f"{gm.GOAL_MODEL_VERSION}|{fid}|{h:.2f}|{a:.2f}")
 
 
 # ------------------------------------------------------------ contextual Your View
@@ -413,6 +414,7 @@ def _problem(snap, now, limit=timedelta(hours=1)):
 
     class S:
         config_version = snap.config_version
+        eligible_competitions = sorted({f.league_id for f in snap.fixtures})  # Phase 8 CP1-6
 
     return svc._publication_problem(r, S, snap, "development", now, limit)[0]
 

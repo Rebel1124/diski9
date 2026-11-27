@@ -6,6 +6,7 @@ review rule in [`methodology.md`](methodology.md#8-maintenance-policy).
 
 | Version | Engine | Released | Parameters | Evidence |
 |---|---|---|---|---|
+| **Goal Model 1.1** | 3.1.0 | Phase 8 CP2A (implemented 27 Nov 2026; awaiting acceptance) | `k_s` 12, `k_t` 96, team ≥ 2, competition ≥ 20, current season only | [`research/phase8_cp1/`](research/phase8_cp1/report.md) |
 | **Goal Model 1.0** | 3.0.0 | November 2026 | `k_s` 12, `k_t` 96, `m0` 30 | [`goal_distribution_research.md`](goal_distribution_research.md), [`goal_model_crossleague_validation.md`](goal_model_crossleague_validation.md) |
 
 ## Goal Model 1.1 (approved Phase 8; not yet implemented)

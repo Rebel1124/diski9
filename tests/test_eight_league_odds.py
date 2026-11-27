@@ -289,9 +289,9 @@ def test_screener_and_match_lab_use_new_league_odds(liga):
     # PSL: provider has no odds - the fixture stays visible with the existing state
     psl = snap.results["overall"][8001]
     assert d.row("1X2", psl)["odds"] == "No odds"
-    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.m0, gm.GOAL_MODEL_VERSION) == (
+    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.competition_min, gm.GOAL_MODEL_VERSION) == (
         12,
         96,
-        30,
-        "1.0",
-    )
+        20,
+        "1.1",
+    )  # Goal Model 1.1 (Phase 8 CP2A)

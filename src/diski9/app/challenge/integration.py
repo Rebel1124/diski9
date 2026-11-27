@@ -80,12 +80,14 @@ SNAPSHOT_MARKET = {"1X2": Market.MATCH_RESULT, "BTTS": Market.BTTS, "OU25": Mark
 
 def frozen_market_value(outs, market: str) -> MarketValue | None:
     """Model versus market for one fixture and market, from the **frozen round
-    snapshot**: the snapshot's Diski 9 (Goal Model 1.0) probabilities and its
-    margin-adjusted market probabilities and reference odds. The edge and EV use the
-    shared definitions in ``diski9.odds.value``; nothing is refreshed or substituted."""
+    snapshot**: the snapshot's Diski 9 probabilities and its margin-adjusted market
+    probabilities and reference odds. The edge and EV use the shared definitions in
+    ``diski9.odds.value``; nothing is refreshed or substituted. None when the market
+    is not in the snapshot or the fixture has no Diski 9 probability (Goal Model 1.1:
+    model-absent fixtures can be eligible; no edge or EV is ever fabricated)."""
     m = SNAPSHOT_MARKET[market]
     by = {Outcome(str(o.outcome)): o for o in outs if str(o.market) == str(m)}
-    if not by:
+    if not by or any(o.model_probability is None for o in by.values()):
         return None
     rows = []
     for oc in MARKET_ORDER[m]:
@@ -137,8 +139,14 @@ def challenge_cells(service, state, market: str) -> dict | None:
     for fid, outs in by_fx.items():
         frozen[fid] = frozen_probabilities(outs)
         values[fid] = frozen_market_value(outs, market)
-        mv = values[fid]
-        odds[fid] = " · ".join(f"{o.odds:.2f}" for o in mv.outcomes) if mv else "Not in this market"
+        in_market = [o for o in outs if str(o.market) == str(SNAPSHOT_MARKET[market])]
+        order = {oc: i for i, oc in enumerate(MARKET_ORDER[SNAPSHOT_MARKET[market]])}
+        in_market.sort(key=lambda o: order.get(Outcome(str(o.outcome)), 99))
+        odds[fid] = (
+            " · ".join(f"{o.reference_odds:.2f}" for o in in_market)
+            if in_market
+            else "Not in this market"
+        )
         p = next((o for o in outs if key_str(o.key) in chosen), None)
         if p is not None:
             picked[fid] = c.outcome_text(p)
@@ -174,7 +182,12 @@ def challenge_cell(challenge: dict, market: str, fid: int, mode: str, threshold)
         ),
     }
     if mv is None:
-        cell["main"] = "Not in this market"
+        in_market = challenge["odds"].get(fid, "Not in this market") != "Not in this market"
+        frozen_model = ((challenge.get("frozen") or {}).get(fid) or {}).get("model")
+        if in_market and not frozen_model:  # frozen market, no Diski 9 probability
+            fill_value_cell(cell, market, None, None, mode, False)
+        else:
+            cell["main"] = "Not in this market"
     else:
         pick = mv.best_ev(threshold) if mode == "ev" else mv.best_edge(threshold)
         fill_value_cell(cell, market, mv, pick, mode, True)
@@ -184,6 +197,7 @@ def challenge_cell(challenge: dict, market: str, fid: int, mode: str, threshold)
 
 
 FROZEN_MISSING = "Not in the round snapshot for this market"
+FROZEN_NO_MODEL = "No Diski 9 estimate for this match (not enough current-season data)"
 
 
 def frozen_universe(data, challenge: dict, market: str, leagues, start, end) -> list[dict]:
@@ -205,6 +219,9 @@ def frozen_universe(data, challenge: dict, market: str, leagues, start, end) -> 
             continue
         model = (challenge["frozen"].get(fx.fixture_id) or {}).get("model", {})
         complete = all(k in model for k in keys)
+        in_market = challenge["odds"].get(fx.fixture_id, "Not in this market") != (
+            "Not in this market"
+        )
         eg = fx.estimated_goals
         out.append(
             {
@@ -220,7 +237,7 @@ def frozen_universe(data, challenge: dict, market: str, leagues, start, end) -> 
                     "available": complete,
                     "probabilities": dict(model) if complete else {},
                     "estimated_goals": {"home": eg[0], "away": eg[1]} if eg else {},
-                    "message": FROZEN_MISSING,
+                    "message": FROZEN_NO_MODEL if in_market and not model else FROZEN_MISSING,
                     "frozen": True,
                 },
             }

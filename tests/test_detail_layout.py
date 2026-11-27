@@ -101,7 +101,7 @@ def test_calculation_details_preserved(data):
         "Strength (1.00 = league average)",
         "Goal tempo (1.00 = league average)",
         "Poisson distribution",
-        "Goal Model 1.0",
+        "Goal Model 1.1",
     ):
         assert phrase in text, phrase
     b = r["teams"]["home"]["form"]["breakdown"]

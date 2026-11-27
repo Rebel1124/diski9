@@ -31,6 +31,8 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import Engine, func, select, text
 
+from diski9.challenge.roundsheet import restrict_competitions
+
 from ..db import db_now, transaction
 from ..db.schema import job_runs, round_schedules
 from ..db.schema import rounds as rounds_t
@@ -673,13 +675,16 @@ def _readiness_step(run, week: Week):
         with transaction(run.engine) as conn:
             as_of = db_now(conn)
             config = rounds_svc.round_config(conn, rid)  # the draft's own schedule (never default)
+            competitions = rounds_svc.round_competitions(conn, rid)
             data = "refresh-off"
             if run.cfg.prepare_refresh:
                 from . import refresh
 
                 data = refresh.data_label(refresh.latest_closed(conn, week.code))
         builder = run.snapshot_builder or football_snapshot_builder()
-        snap = builder(week.code, week.window_start, week.window_end, as_of, config)
+        snap = restrict_competitions(
+            builder(week.code, week.window_start, week.window_end, as_of, config), competitions
+        )
         rd = rounds_svc.publication_readiness(run.engine, rid, snap, source="football-db")
         seconds = time.monotonic() - started
         run.lock.verify()  # still the owner before recording the verdict

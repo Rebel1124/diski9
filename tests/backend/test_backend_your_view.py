@@ -24,6 +24,7 @@ from diski9.backend.services.common import (
     ValidationFailed,
     VersionConflict,
 )
+from diski9.screener import goal_model as gm
 
 FID = 1_234_567
 CTX = f"1.0|{FID}|1.45|0.98"
@@ -234,7 +235,10 @@ def test_frozen_context_and_no_effect_on_the_competition(engine):
     f = snap.fixtures[0]
     rc = yv.RoundContext(view.id, f.fixture_id)
     h, a = (round(x, 2) for x in f.estimated_goals)
-    assert yv.resolved_context(engine, rc) == f"1.0|{f.fixture_id}|{h:.2f}|{a:.2f}"
+    # new rounds publish under the current Goal Model version (1.1 since Phase 8 CP2A)
+    assert (
+        yv.resolved_context(engine, rc) == f"{gm.GOAL_MODEL_VERSION}|{f.fixture_id}|{h:.2f}|{a:.2f}"
+    )
     assert yv.resolved_context(engine, rc) == yv.frozen_context(
         snap, f.fixture_id, view.model_version
     )

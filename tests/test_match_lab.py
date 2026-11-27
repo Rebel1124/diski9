@@ -60,7 +60,7 @@ def _result(data):
 
 def test_baseline_payload_and_markets_consistent(data):
     g = _result(data)["goal_model"]
-    assert g["available"] and g["model"]["goal_model_version"] == "1.0"
+    assert g["available"] and g["model"]["goal_model_version"] == "1.1"
     assert g["probabilities"] == pytest.approx(
         gm.markets(g["estimated_goals"]["home"], g["estimated_goals"]["away"])
     )
@@ -263,7 +263,7 @@ def test_methodology_section_content():
         "rely more on league averages",
         "Strength smoothing",
         "Goal tempo smoothing",
-        "League-average prior",
+        "Minimum competition matches",
         "Premier League, Championship, South African Premiership and First Division",
         "La Liga, Ligue 1, the Bundesliga and Serie A",
         "Not every competition was used to choose the settings",
@@ -271,11 +271,11 @@ def test_methodology_section_content():
         "Draws have historically been slightly underestimated",
         "not validated for UEFA",
         "at least 0.005",
-        "Goal Model 1.0",
+        "Goal Model 1.1",
         "not shot-based xG",
     ):
         assert phrase in t, phrase
-    assert "12" in t and "96" in t and "30" in t
+    assert "12" in t and "96" in t and "20" in t
 
 
 # --------------------------------------------------------------- snapshots
@@ -296,8 +296,13 @@ def test_live_refresh_records_one_snapshot_with_model_version(populated):
         rows = _snapshots(conn)
     assert len(rows) == 1  # recorded by the fixture's live refresh at T0
     s = rows[0]
-    assert s.goal_model_version == "1.0" and s.engine_version == "3.0.0"
-    assert json.loads(s.params_json) == {"k_s": 12.0, "k_t": 96.0, "m0": 30.0}
+    assert s.goal_model_version == "1.1" and s.engine_version == "3.1.0"
+    assert json.loads(s.params_json) == {
+        "k_s": 12.0,
+        "k_t": 96.0,
+        "team_min": 2,
+        "competition_min": 20,
+    }
     assert s.created_at == T0 < s.kickoff_utc and s.data_cutoff == T0
     assert s.p_home + s.p_draw + s.p_away == pytest.approx(1)
     assert json.loads(s.baseline_json)["home"] > 0
@@ -383,7 +388,7 @@ def test_official_forecast_and_monitoring_without_lookahead(populated):
 
     assert g["log_loss"] == pytest.approx(-math.log(off[0]["p_home"]), abs=1e-4)
     assert g["baseline_log_loss"] is not None and "log_loss_vs_baseline" in g
-    assert g["goal_model_version"] == "1.0"
+    assert g["goal_model_version"] == "1.1"
 
 
 def test_forecasts_after_kickoff_are_never_official(populated):
@@ -438,10 +443,14 @@ def test_model_report_cli(populated, tmp_path, monkeypatch):
 
 
 def test_early_season_extra_fixtures_flagged(data):
+    """Goal Model 1.1: teams without current-season matches get no estimate (the
+    limited-data warning boundaries are tested in test_goal_model.py)."""
     r = data.detail(EXTRA[0])[0]
     g = r["goal_model"]
-    assert g["available"] and g["league_average_only"] == ["home", "away"] and g["early_season"]
-    assert g["estimated_goals"]["home"] == pytest.approx(g["league"]["home"])
+    assert not g["available"] and g["reason"] == "team_matches_insufficient"
+    assert g["team_matches"] == {"home": 0, "away": 0} and "estimated_goals" not in g
+    ok = data.detail(EPL_FIX)[0]["goal_model"]  # 10 matches each: no warning
+    assert ok["available"] and not ok["early_season"]
 
 
 def test_section_c_categories_aggregate_into_section_d(data):

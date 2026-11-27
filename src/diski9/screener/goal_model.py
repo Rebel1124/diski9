@@ -1,18 +1,22 @@
-"""Goal Model 1.0: estimated goals and market probabilities (Engine 3.0).
+"""Goal Model 1.1: estimated goals and market probabilities (Engine 3.1).
 
-The production version of the validated research model
-(``docs/goal_distribution_research.md``, cross-league validation in
-``docs/goal_model_crossleague_validation.md``). The formulas are those of
-``diski9.research.goal_distribution`` (season-to-date window, no venue-specific
-team factors, strength / tempo shrinkage); tests check agreement to 1e-12.
+Goal Model 1.1 is the approved Phase 8 "C1-2-20" model (owner decisions CP1-1/CP1-2
+and OD-1, 27 Nov 2026; evidence ``docs/research/phase8_cp1/``). It keeps the Goal
+Model 1.0 strength / tempo shrinkage (``k_s`` 12, ``k_t`` 96) and removes every
+previous-season input: the competition averages come from the current season alone.
+Tests check agreement with the accepted research reference
+(``scripts/research_phase8_cp1.py``, candidate C1-2-20) to 1e-12.
 
 Inputs: completed, statistically eligible league matches of the current season
-and competition that kicked off before the cutoff, plus the previous season's
-league-level averages. No bookmaker data, no earlier-season team results.
+and competition that kicked off before the cutoff. No bookmaker data, no
+earlier-season team or competition results.
 
-    H, A = league home / away goals per match:
-           (current-season goals + m0 x previous-season goals per match)
-           / (current-season matches + m0)
+Availability: both teams have at least ``TEAM_MIN`` (2) such matches and the
+competition has at least ``COMPETITION_MIN`` (20). Otherwise nothing is estimated
+and nothing is substituted. Below ``EARLY_SEASON_MATCHES`` (5) for either team the
+estimate carries the limited-data warning.
+
+    H, A = current-season competition home / away goals per match
     g    = (H + A) / 2
     E_for = n_h H + n_a A ;  E_ag = n_h A + n_a H         (venue-normalised)
     attack(k)  = (goals scored   + k g) / (E_for + k g)
@@ -35,34 +39,54 @@ from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any
 
-GOAL_MODEL_VERSION = "1.0"
+GOAL_MODEL_VERSION = "1.1"
 UEFA_COMPETITIONS = frozenset({2, 3})  # Champions League, Europa League: never modelled
 UEFA_MESSAGE = "Diski 9 model probabilities are not yet available for European competitions."
-LEAGUE_MIN = 30  # current-season matches needed when no previous season is stored
-EARLY_SEASON_MATCHES = 5  # below this (either team) the estimate is flagged "early season"
+TEAM_MIN = 2  # eligible current-season matches each team needs
+COMPETITION_MIN = 20  # eligible current-season competition matches needed
+EARLY_SEASON_MATCHES = 5  # below this (either team) the limited-data warning is shown
+LIMITED_DATA_WARNING = (
+    "Limited current-season data. These estimates are based on a small number of matches "
+    "and may be more volatile than usual. Consider additional team news and qualitative "
+    "factors when forming your view."
+)
 
 
 @dataclass(frozen=True)
 class GoalModelParams:
-    """Frozen for Goal Model 1.0. Never change these in place: a new parameter set
+    """Frozen for Goal Model 1.1. Never change these in place: a new parameter set
     is a new model version with its own evidence report."""
 
     k_s: float = 12.0  # team strength smoothing (pseudo-matches)
     k_t: float = 96.0  # goal tempo smoothing (pseudo-matches)
+    team_min: int = TEAM_MIN
+    competition_min: int = COMPETITION_MIN
+
+
+@dataclass(frozen=True)
+class GoalModel10Params:
+    """Goal Model 1.0 (Nov 2026 - Phase 8), kept only so that stored 1.0 forecasts,
+    cache rows and round snapshots stay identifiable and reproducible
+    (``params_hash(PARAMS_1_0)`` is the stored 1.0 hash). Not used for new estimates."""
+
+    k_s: float = 12.0
+    k_t: float = 96.0
     m0: float = 30.0  # previous-season league-average prior (pseudo-matches)
 
 
 PARAMS = GoalModelParams()
+PARAMS_1_0 = GoalModel10Params()
+LEAGUE_MIN_1_0 = 30  # Goal Model 1.0: current-season matches needed without a previous season
 MODEL_INFO = {
     "goal_model_version": GOAL_MODEL_VERSION,
     "parameters": asdict(PARAMS),
-    "method": "season-to-date independent Poisson, strength/tempo shrinkage",
+    "method": "current-season independent Poisson, strength/tempo shrinkage",
     "calibrated_on": "EPL, Championship, PSL, PSL 1st Division (2023/24-2025/26)",
-    "validated_on": "La Liga, Ligue 1, Bundesliga, Serie A (2023/24-2026/27, 4,515 fixtures)",
+    "validated_on": "Phase 8 CP1: eight domestic leagues, confirmation 2025/26-2026/27",
 }
 
 
-def params_hash(p: GoalModelParams = PARAMS) -> str:
+def params_hash(p: GoalModelParams | GoalModel10Params = PARAMS) -> str:
     return hashlib.sha256(json.dumps(asdict(p), sort_keys=True).encode()).hexdigest()[:16]
 
 
@@ -161,60 +185,47 @@ class LeagueRates:
     current_matches: int
     current_home_goals: int
     current_away_goals: int
-    previous_matches: int
-    previous_home_per_match: float | None
-    previous_away_per_match: float | None
-    source: str  # "current+previous" | "current only"
 
 
-def league_rates(current: list, previous: list, m0: float = PARAMS.m0) -> LeagueRates | None:
-    """H and A from ``Match`` lists (current season before cutoff; previous season).
-    None when no previous season is stored and fewer than LEAGUE_MIN current matches."""
+def league_rates(current: list, minimum: int = COMPETITION_MIN) -> LeagueRates | None:
+    """Goal Model 1.1 H and A from the current season's ``Match`` list alone. None
+    when the competition has fewer than ``minimum`` matches (or no goals at all)."""
+    n, hg = len(current), sum(m.home_goals for m in current)
+    ag = sum(m.away_goals for m in current)
+    if n < max(minimum, 1) or hg + ag == 0:
+        return None
+    return LeagueRates(hg / n, ag / n, n, hg, ag)
+
+
+def league_frequencies(current: list, minimum: int = COMPETITION_MIN) -> dict | None:
+    """Current-season competition baseline used in monitoring: home win / draw / away
+    win, BTTS and Over 2.5 frequencies. None below ``minimum`` matches."""
+    n = len(current)
+    if n < max(minimum, 1):
+        return None
+    f = [
+        sum(m.home_goals > m.away_goals for m in current) / n,
+        sum(m.home_goals == m.away_goals for m in current) / n,
+        sum(m.home_goals < m.away_goals for m in current) / n,
+        sum(m.home_goals > 0 and m.away_goals > 0 for m in current) / n,
+        sum(m.home_goals + m.away_goals >= 3 for m in current) / n,
+    ]
+    return {"home": f[0], "draw": f[1], "away": f[2], "btts_yes": f[3], "over": f[4]}
+
+
+def league_rates_1_0(current: list, previous: list, m0: float = PARAMS_1_0.m0):
+    """Goal Model 1.0 competition rates (previous-season prior), for reproducing stored
+    1.0 records only. Returns (H, A) or None."""
     n, hg = len(current), sum(m.home_goals for m in current)
     ag = sum(m.away_goals for m in current)
     if previous:
         pn = len(previous)
         ph = sum(m.home_goals for m in previous) / pn
         pa = sum(m.away_goals for m in previous) / pn
-        return LeagueRates(
-            (hg + m0 * ph) / (n + m0),
-            (ag + m0 * pa) / (n + m0),
-            n,
-            hg,
-            ag,
-            pn,
-            ph,
-            pa,
-            "current+previous",
-        )
-    if n >= LEAGUE_MIN:
-        return LeagueRates(hg / n, ag / n, n, hg, ag, 0, None, None, "current only")
+        return (hg + m0 * ph) / (n + m0), (ag + m0 * pa) / (n + m0)
+    if n >= LEAGUE_MIN_1_0:
+        return hg / n, ag / n
     return None
-
-
-def league_frequencies(current: list, previous: list, m0: float = PARAMS.m0) -> dict | None:
-    """League baseline used in monitoring: home win / draw / away win, BTTS and Over
-    2.5 frequencies with the same previous-season pseudo-match blend."""
-
-    def counts(ms):
-        return [
-            sum(m.home_goals > m.away_goals for m in ms),
-            sum(m.home_goals == m.away_goals for m in ms),
-            sum(m.home_goals < m.away_goals for m in ms),
-            sum(m.home_goals > 0 and m.away_goals > 0 for m in ms),
-            sum(m.home_goals + m.away_goals >= 3 for m in ms),
-        ]
-
-    n = len(current)
-    cur = counts(current)
-    if previous:
-        prev = [c / len(previous) for c in counts(previous)]
-        f = [(c + m0 * p) / (n + m0) for c, p in zip(cur, prev, strict=True)]
-    elif n >= LEAGUE_MIN:
-        f = [c / n for c in cur]
-    else:
-        return None
-    return {"home": f[0], "draw": f[1], "away": f[2], "btts_yes": f[3], "over": f[4]}
 
 
 def factors(rec: TeamRecord, H: float, A: float, k: float) -> tuple[float, float]:
@@ -225,17 +236,16 @@ def factors(rec: TeamRecord, H: float, A: float, k: float) -> tuple[float, float
     return (rec.scored + k * g) / (e_for + k * g), (rec.conceded + k * g) / (e_ag + k * g)
 
 
-def strength_tempo(rec: TeamRecord, H: float, A: float, p: GoalModelParams = PARAMS):
+def strength_tempo(rec: TeamRecord, H: float, A: float, p=PARAMS):
     a_s, d_s = factors(rec, H, A, p.k_s)
     a_t, d_t = factors(rec, H, A, p.k_t)
     return math.sqrt(a_s / d_s), math.sqrt(a_t * d_t), (a_s, d_s, a_t, d_t)
 
 
-def estimate(
-    home: TeamRecord, away: TeamRecord, league: LeagueRates, p: GoalModelParams = PARAMS
-) -> dict[str, Any]:
-    """Estimated goals, probabilities and the intermediate values for one fixture."""
-    H, A = league.home, league.away
+def estimate(home: TeamRecord, away: TeamRecord, league, p=PARAMS) -> dict[str, Any]:
+    """Estimated goals, probabilities and the intermediate values for one fixture.
+    ``league`` is a ``LeagueRates`` or an ``(H, A)`` pair (Goal Model 1.0 replay)."""
+    H, A = (league.home, league.away) if isinstance(league, LeagueRates) else league
     s_h, t_h, f_h = strength_tempo(home, H, A, p)
     s_a, t_a, f_a = strength_tempo(away, H, A, p)
     lh = H * (s_h / s_a) * t_h * t_a
@@ -266,10 +276,11 @@ def estimate(
 def fixture_estimate(
     store, competition_id: int, season: int, home_id: int, away_id: int, cutoff: datetime
 ) -> dict[str, Any]:
-    """Goal Model 1.0 block for the Engine 3.0 payload (always JSON-serialisable).
+    """Goal Model 1.1 block for the Engine 3.1 payload (always JSON-serialisable).
 
     ``available`` is False, with a ``reason`` and ``message``, for European
-    competitions and when no league prior exists; nothing is substituted."""
+    competitions, below ``COMPETITION_MIN`` competition matches and below
+    ``TEAM_MIN`` matches for either team; nothing is substituted."""
     base = {"model": MODEL_INFO, "params_hash": params_hash()}
     if competition_id in UEFA_COMPETITIONS:
         return {
@@ -279,15 +290,14 @@ def fixture_estimate(
             "message": UEFA_MESSAGE,
         }
     current = store.league_matches(competition_id, season, cutoff)
-    previous = store.league_matches(competition_id, season - 1, cutoff)
-    league = league_rates(current, previous)
+    league = league_rates(current)
     if league is None:
         return {
             **base,
             "available": False,
-            "reason": "league_prior_unavailable",
-            "message": f"Not enough league data yet: no previous season is stored and only "
-            f"{len(current)} of {LEAGUE_MIN} current-season league matches have been played.",
+            "reason": "competition_matches_insufficient",
+            "message": f"Not enough current-season data yet: {len(current)} of "
+            f"{COMPETITION_MIN} competition matches have been played.",
         }
     recs = {}
     for side, team_id in (("home", home_id), ("away", away_id)):
@@ -295,17 +305,23 @@ def fixture_estimate(
             team_id, cutoff, None, 10_000, competition_id=competition_id, season=season
         )
         recs[side] = TeamRecord.of(w)
-    est = estimate(recs["home"], recs["away"], league)
     played = (recs["home"].played, recs["away"].played)
+    if min(played) < TEAM_MIN:
+        return {
+            **base,
+            "available": False,
+            "reason": "team_matches_insufficient",
+            "message": f"Not enough current-season data yet: each team needs at least "
+            f"{TEAM_MIN} league matches (home {played[0]}, away {played[1]}).",
+            "team_matches": {"home": played[0], "away": played[1]},
+        }
+    est = estimate(recs["home"], recs["away"], league)
     return {
         **base,
         "available": True,
         "league": asdict(league),
-        "league_baseline": league_frequencies(current, previous),
+        "league_baseline": league_frequencies(current),
         **est,
         "estimated_goals": {"home": est["lambda_home"], "away": est["lambda_away"]},
-        "league_average_only": [
-            side for side, n in zip(("home", "away"), played, strict=True) if n == 0
-        ],
         "early_season": min(played) < EARLY_SEASON_MATCHES,
     }

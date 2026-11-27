@@ -287,11 +287,12 @@ def submit(service, s, snap, avail, personal=None):
         "estimates": {
             src: {"p_recover": ev.p_recover, "p_zero": ev.p_zero, "expected": ev.expected_gross}
             for src, ev in evs.items()
+            if ev is not None  # Diski 9 is unavailable unless all nine have a prediction
         },
         "max_gross": str(evs["market"].max_gross),
-        # kept for Phase 6B readers
+        # kept for Phase 6B readers (None when the Diski 9 estimate is unavailable)
         "p_recover_market": evs["market"].p_recover,
-        "p_recover_model": evs["model"].p_recover,
+        "p_recover_model": evs["model"].p_recover if evs["model"] is not None else None,
         "expected_market": evs["market"].expected_gross,
     }
     s["modal"] = s["submitted"]["at"]
@@ -750,11 +751,10 @@ def register(app, data, service: ChallengeService) -> None:
         state = pages.sync(service, state)
         _, snap, _, sels = pages.current(service, state)
         port = service.portfolio(snap, sels) if snap is not None else None
-        if port is None:
+        source = (prefs or {}).get("source", "market")
+        if port is None or not pa.available(port, source):
             return [no_update], [no_update]
-        prob = pa.probability_for(
-            (prefs or {}).get("source", "market"), your_view(state, lab_store)
-        )
+        prob = pa.probability_for(source, your_view(state, lab_store))
         cc = pa.correct_count_analysis(port, prob)
         v = (view or ["focus"])[0] or "focus"
         return [pages.k_detail(cc, int(k[0]))], [charts.correct_combined(cc, int(k[0]), v)]

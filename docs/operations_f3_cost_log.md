@@ -72,12 +72,13 @@ Infrastructure costs and data-provider costs are recorded separately.
 | Infrastructure | Supabase | Pro | 25.00 | actual |
 | Infrastructure | Backblaze B2 | usage-based, capped | ≈ 0 (subject to usage) | uninvoiced |
 | Data provider | API-Football | Pro (7,500 requests/day) | **16.00** | owner-confirmed. Expires 14 Dec 2026; **no automatic renewal**; reverts to the Free plan on expiry; a manual renewal extends the remaining period; reminder 12 Dec |
-| **Combined recurring** | | | **53.64** at the current Hostinger figure; **≈ 69.16** at the Hostinger renewal forecast | before variable charges and future AI or LiveKit spend |
+| **Forecast infrastructure** (owner-confirmed 27 Nov 2026) | | | **≈ 53.16** (Hostinger ≈ 28.16 renewal + Supabase 25.00 + Backblaze ≈ 0) | compared with the $65 / $75 thresholds |
+| **Forecast combined** (infrastructure + data provider) | | | **≈ 69.16** | visibility only; before variable charges and future AI or LiveKit spend |
 
 **Threshold scope (unchanged; clarified, not altered):**
 - The **$65 warning and $75 ceiling (F3-D3)** apply to the **infrastructure** total (Hostinger, Supabase, Backblaze), as approved for this log.
 - **API-Football is tracked separately as data-provider spend.** It is outside those thresholds unless the owner decides otherwise.
-- **Open owner decision:** whether the thresholds should cover the combined total. At the renewal forecast, the combined total (≈ 69.16) would exceed the $65 warning.
+- **Owner decision (27 Nov 2026):** the thresholds stay **infrastructure-only**, as F3-D3 approved. API-Football is tracked separately, and combined project spend is kept visible. No additional expenditure or subscription change is authorised.
 - Any API-Football plan change or longer-term purchase is an owner decision.
 
 ## Log of warnings and approvals

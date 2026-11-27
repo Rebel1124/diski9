@@ -286,7 +286,7 @@ def test_mini_slider_styled_secondary():
 
 
 def test_model_and_value_maths_unchanged(data):
-    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.m0) == (12, 96, 30)
+    assert (gm.PARAMS.k_s, gm.PARAMS.k_t, gm.PARAMS.competition_min) == (12, 96, 20)  # GM 1.1
     r, ov, _ = data.detail(EPL_FIX)
     from diski9.odds.value import compare
 
