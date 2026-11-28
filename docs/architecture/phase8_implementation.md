@@ -1630,3 +1630,186 @@ ChatGPT reviewed `24d7adb` and found R1 satisfactory and within scope. The owner
 - The R4 participant interface (review screen, pause message, draft flags) is not built. Services and data are ready.
 - Hosted request use, Sunday coverage and real build time remain operational validation obligations.
 - Adoption of a rolling-round guest draft re-validates against the current edition instead of matching a fingerprint.
+
+### 15.22 R2 closure: CI resolution, review findings, fixture membership and new refinements (28 Nov 2026)
+
+Owner instruction "R2 CI resolution, independent review findings and product refinements" (28 Nov 2026). R2 stays open pending independent review and explicit owner acceptance. R3 has not started and none of the R4 interface work has been done.
+
+#### 15.22.1 CI run #180: kept as incomplete acceptance evidence
+
+| Item | Value |
+|---|---|
+| Run / job | #180, run id 46157443605, job 141017120208, commit `3d4dc9b` |
+| Passed steps | lint, formatting, migrations from empty, Supabase Auth start-up, browser tooling |
+| Test step | 15:00:30 to 15:39:31 UTC; **cancelled** by `timeout-minutes: 40` with pytest at 97% (35 of 36 progress lines) |
+| Observed failure | one `F` at progress line 31, column 56, so test number 2216 of 2586 (31 × 72 = 2232 tests, 86.3%, matching the `[ 86%]` marker; collection order is deterministic: file path order, no random ordering plugin) |
+| Identification | `tests/test_phase8_cp2b1.py::test_reconciles_with_the_accepted_cp1_fits` (by position; the cancelled run printed no summary) |
+| Comparison | run #179 (`e3d77f9`, accepted baseline): 2514 passed, test step 33.6 min |
+
+**Root cause: reproduced and confirmed locally, not a hypothesis.** The test calls the CP2B.1 production market-implied fit (SciPy L-BFGS-B, `ftol 1e-15`, `gtol 1e-10`) on the 131 accepted CP1 snapshots and compares the results with the CP1 CSV at 1e-12 / 1e-9 tolerances. The result depends on the OpenBLAS kernel the CPU selects:
+
+| OpenBLAS kernel (forced with `OPENBLAS_CORETYPE`) | Result | λ difference | probability / residual difference | Status counts |
+|---|---|---|---|---|
+| SkylakeX (AVX-512; this container's default) | passes | 0 | 7.4e-13 / 0 | 101 good, 29 approximate, 1 rejected |
+| Haswell, Zen, Sandybridge, Nehalem, Prescott | **fails** | 6.8e-8 | 1.8e-8 / 1.8e-8 | **100** good, 29 approximate, **2** rejected |
+
+The rates differ by about 1e-7 goals, far below the 0.005 display rounding. But for CP1 snapshot 53 (λ ≈ 2.10, residual 0.009, a clear good fit), L-BFGS-B's line search stops with `success = False` under the non-AVX-512 kernels. CP1 report §7 rejects every non-converged fit in production (`market_fit._run`), so on such a CPU this fixture would show **no market-implied estimate** (State C) instead of a good one.
+
+- GitHub's `ubuntu-24.04` runners are a mix of AVX-512 Intel and AMD EPYC (Zen kernel) machines, so the test passes or fails depending on which runner a job gets.
+- R2 did not cause it. The test, `market_fit.py` and the optimiser are unchanged since CP2B.1 (`7c7cf22`).
+- It is not harmless. It is a pre-existing CP2B.1 defect: whether one fixture gets a State B estimate depends on the hosting CPU. It fails safe (no estimate; never a wrong one), and it does not affect scoring, settlement or eligibility.
+
+**Proposed correction (needs owner approval; not implemented).** It touches the accepted CP2B.1 methodology rule and its acceptance test:
+1. Decide convergence by the optimiser's own gradient criterion rather than only its `success` flag. A fit whose line search stops at machine precision with projected gradient ≤ 1e-8 counts as converged. CP1's one genuinely non-converged fit must stay rejected; the change is verified on all 131 CP1 snapshots under both kernels.
+2. Set the reconciliation tolerances to a documented cross-CPU bound (rates 1e-6, residuals and probabilities 1e-6; observed 6.8e-8). Keep the **exact** status-count assertion.
+3. Run the test under a non-AVX-512 kernel too (an `OPENBLAS_CORETYPE=Haswell` parametrisation), so CI covers both kernel families whatever runner it gets.
+
+Estimate: 2–4 h with focused tests.
+
+**Reporting changes (owner-approved, no change to coverage or pass/fail):**
+- `timeout-minutes` 40 → 60, with the comment updated.
+- pytest `-q -rs` → `-v -rfEs --durations=25`: every test is named as it finishes, so a failure is identifiable even in a cancelled job; failures, errors and skips are summarised; the slowest tests are listed.
+- A pytest report header (`tests/conftest.py`) records the CPU model and SciPy's runtime OpenBLAS kernel, so each run shows which kernel family it used.
+
+#### 15.22.2 Review finding 2.1: refresh recovery after missed slots
+
+Behaviour of `refresh.plan_competitive` (unchanged code; now tested):
+- It only ever works the **current** slot (the latest due slot since publication). Missed slots are neither replayed nor reconciled. Only the immediately previous slot is reconciled: a part-finished sweep is closed as partial, or a closed sweep without an edition gets its edition step.
+- The current slot's league steps cover only leagues with universe fixtures still to kick off.
+- After an outage of any length, resuming costs exactly **one sweep's requests**, within the unchanged caps: 450 per 24 h, 20 per tick at activation, and the 150 results reserve.
+
+Stale pricing cannot become eligible because an edition was published:
+- Freshness is judged at the actual time from the oldest contributing observation (≤ 6 h) and the provider timestamp (≤ 24 h) stored with each offer.
+- An edition copies evidence timestamps; it never stamps them.
+- The builder also leaves out offers already older than 6 h.
+
+Test `test_missed_competitive_slots_resume_with_the_current_slot_only`:
+- **Setup:** four slots due; a partial first slot; three missed.
+- **Planner:** plans league steps for the current slot only, within the per-tick cap.
+- **Stale evidence:** an edition carrying 7-hour-old evidence pauses the round, and so does a second such edition.
+- **Recovery:** an edition with fresh evidence reopens it.
+
+#### 15.22.3 Review finding 2.2: review fingerprint source identity (corrected)
+
+**Finding confirmed.** The R2 item carried only `src: goal_model`, the model version and the Goal Model probability. The approved §14.4 of `phase8_cp3ar1_refinement.md` requires distinct baseline source and methodology identities, with estimated goals at 2 decimals.
+
+**Correction.** `review.baseline` adds one `base` field to each item:
+
+| Source | When | Identity in the item |
+|---|---|---|
+| `goal_model` | the edition froze an independent Goal Model estimate (outcome model probability or fixture estimated goals) | round `model_version`; estimated goals `["h.hh", "a.aa"]`; model probability (percent, 1 dp) |
+| `market_implied` | no independent estimate, and a **reliable** market-implied fit of the edition's own market probabilities | `MarketFit.stamp_version` (`mi<FIT_VERSION>:<input_id[:12]>`, the existing Your View stamp identity); fitted estimated goals (2 dp); fitted probability of the outcome (percent, 1 dp) |
+| `none` | neither (State C) | the market probability is the reference |
+
+- The fit is the existing `market_fit.frozen_fit`, the same State B computation Match Lab and Your View use. No calculation is duplicated and no methodology is changed. Fits are cached per fixture within a review.
+- A change of source, of methodology version or input identity, or a displayed change in estimated goals at 2 dp now requires re-review. Sub-display changes do not.
+- The format stays `review/v1`. No rolling round exists outside disposable test databases, so no stored fingerprint has to stay comparable.
+- The underlying provenance R3 needs (baseline source, methodology, original and latest baselines) has its columns in `submission_views` (`app_0010`). R3 fills those columns and the item's `view` slot. That is the only remaining R3 part of the fingerprint.
+
+Test `test_review_baseline_identity_distinguishes_goal_model_market_implied_and_none` covers:
+- the three sources with distinct identities;
+- a source switch changing the digest;
+- 2-dp versus sub-2-dp estimated-goals changes;
+- a model version change.
+
+#### 15.22.4 Review finding 2.3: Your View (R2 compatibility arrangement only)
+
+The R2 Your View round context reads edition 1 (`your_view.py`, `ORDER BY id LIMIT 1`). **This is only an R2 compatibility arrangement**, kept so that the existing Your View storage works unchanged with editions. In R3:
+- The participant's **absolute** personal estimated goals and their original analytical provenance (source, methodology identity, baseline at creation or last explicit revision) are preserved as saved.
+- The latest compatible underlying model is shown **separately**, with a notice that it changed.
+- There is no automatic rebasing, no automatic adjustment of saved personal estimates when the model changes, no ±0.20 estimated-goals threshold, and no retrospective change to any submitted portfolio. Submissions copy their values and are immutable.
+- The participant may voluntarily revise or reset their estimates before submission.
+
+#### 15.22.5 Fixture membership (owner decision P8-MEMBER: freeze membership, not eligibility)
+
+**Assessment: R2 did not support it.** `build_live_snapshot` dropped any fixture without an eligible offer (`if not chosen: continue`). A Saturday fixture with two bookmaker groups at Friday publication was therefore outside edition 1. The universe rule (service `restrict_to_universe` and the `app_0010` guard) would then have refused it for the rest of the weekend.
+
+**Correction (smallest safe adjustment; no migration, no new subsystem, no new snapshot architecture):**
+- `build_live_snapshot(..., include_unpriced=False)`: when True, a scheduled upcoming fixture in the window and the competitions that has a Screener payload but no eligible offer is kept **as a fixture with no outcomes**. A new diagnostic, `fixtures_unpriced`, counts such fixtures in every build.
+- Only rolling-entry rounds pass True: publication (`round publish`, through the new `rounds.round_follows_rolling_entry`, which reads the bound schedule's rules) and edition candidates (`editions.build_candidate`). Every other round is built exactly as before, and the offer fingerprint is unchanged.
+
+Implications reviewed:
+
+| Area | Effect |
+|---|---|
+| Edition 1 membership | Unpriced fixtures are `snapshot_fixtures` rows with no `snapshot_offers`. The existing schema and guards already allow this. |
+| `app_0010` and guards | Unchanged. Later-edition offers must belong to an edition-1 fixture, so an unpriced member can be priced later; a non-member still cannot (existing test). |
+| Later editions | `restrict_to_universe` keeps offers of universe fixtures that qualify at build time. A fixture whose offers no longer qualify is left out of that edition (unavailable) and may return. |
+| Selection | Drafts and confirmation already refuse a fixture without an eligible offer on the current edition. Review flags `not_on_sheet` or `ineligible`; the 15-minute cutoff, Sunday close, copied values and A3 rules are unchanged. |
+| Refresh planning | `competitive_leagues` reads edition-1 fixtures, so unpriced members' leagues are swept. |
+| Opening feasibility | Computed from offers, so unpriced fixtures contribute nothing. The opening requirement is unchanged and is not relaxed. |
+| Settlement cutoff | The latest kickoff includes universe members, so a late unpriced fixture moves the cutoff to its kickoff plus 24 h, consistent with "latest fixture kickoff". |
+| Results polling | Requests only fixtures that entries selected (`relevant_fixtures`). Membership adds no provider requests. |
+| Historical rounds | Unchanged (default False), as are the stored snapshots and fingerprints. |
+| Current UI | Fixture lists skip fixtures without offers (no error). The unified research and competition list is R4. |
+
+Tests:
+- `test_universe_fixture_unpriced_at_publication_becomes_selectable_and_can_pause` (PostgreSQL) walks through the full lifecycle:
+  - the fixture is a member of edition 1, and the settlement cutoff and league sweep include it;
+  - a draft refuses it while it is unpriced;
+  - a later edition prices it and the review becomes ready;
+  - two bookmaker groups make it ineligible and confirmation is refused;
+  - it recovers and is confirmed with copied values.
+- `test_unpriced_fixtures_join_the_universe_only_when_asked`: the default build is unchanged; the opt-in adds members only, never market-filled.
+
+#### 15.22.6 New product refinements recorded (owner, 28 Nov 2026)
+
+- **P8-WEEK.** A fixed Monday–Sunday research window: Monday 00:00 SAST to the following Monday 00:00 SAST.
+  - Monday to Thursday is for research and preparation. The challenge opens Friday 08:00 SAST, subject to publication, and closes Sunday 14:00 SAST.
+  - Research continues after the close. The window resets each Monday, and started fixtures leave the upcoming list.
+  - The calendar is fixed; information, prices and estimates are not frozen. There is no Monday snapshot.
+  - One unified upcoming fixture list shows six automatic states: research, open, temporarily unavailable, already submitted, closed, and no challenge. Competitive fixtures become selectable automatically; research-only fixtures, including European ones, are clearly marked. The countdown is retained.
+  - Replaces the rolling seven-day research window. The competitive weekend window (schedule v4, Friday 00:00 to Monday 00:00) is unchanged.
+- **P8-YV-CONT (R3).** Your View research saved before Friday (for example Tuesday, on a Saturday fixture) carries into the competitive period without being redone, under the absolute-estimate and provenance safeguards.
+- **P8-CRP (R4).** A compact circular Credit Recovery Probability indicator in the portfolio sidebar, next to the Foundation, Balanced and Challenger bucket probabilities.
+  - It shows the probability of recovering at least 100 virtual credits, reusing the Portfolio Analyser's existing recovery calculation with market probabilities by default.
+  - It updates live, shows a neutral placeholder until the portfolio is complete and valid, is clearly labelled, and reconciles with the Analyser.
+  - It follows the Diski 9 theme and is responsive. It adds no new model, risk classes, duplicated logic or provider requests.
+
+#### 15.22.7 Checkpoint allocation and estimates
+
+The proposed allocation is appropriate and is adopted, subject to owner confirmation:
+- **R2:** membership and later eligibility (done above).
+- **R3:** absolute Your View, provenance, and research-to-competition continuity.
+- **R4:** the Monday–Sunday window, unified list, automatic states, countdown and recovery tracker.
+- **R5:** end-to-end lifecycle, recovery, calculation reconciliation and regression.
+
+Incremental effort for the refinements:
+
+| Item | Checkpoint | Hours |
+|---|---|---|
+| Your View continuity (fixture-keyed research carried into the round, with provenance) | R3 | +2–3 |
+| Monday–Sunday window, unified list, six states | R4 | +4–6 |
+| Credit Recovery Probability tracker | R4 | +2–3 |
+| Lifecycle and reconciliation scenarios for both | R5 | +1–2 |
+| **Total** | | **+9–14** |
+
+Updated remaining Phase 8 estimates:
+
+| Checkpoint | Hours |
+|---|---|
+| R3 | 14–20 |
+| R4 | 17–25 |
+| R5 | 9–12 |
+| CP3B | 14–20 |
+| CP2B.2 | 6–9 |
+| CP4 | 11–15 |
+| **Total** | **≈ 71–101** |
+
+Separately, the CP2B.1 convergence correction (§15.22.1) is 2–4 h, if approved.
+
+#### 15.22.8 Files changed (R2 closure)
+
+- `.github/workflows/ci.yml` (timeout and reporting)
+- `tests/conftest.py` (report header)
+- `src/diski9/backend/services/review.py` (baseline identity)
+- `src/diski9/backend/services/entries.py` (passes the edition)
+- `src/diski9/challenge/roundsheet.py` (`include_unpriced`, `fixtures_unpriced`)
+- `src/diski9/backend/services/rounds.py` (`round_follows_rolling_entry`)
+- `src/diski9/backend/services/editions.py` and `src/diski9/cli.py` (rolling builds keep members)
+- `tests/backend/rolling_helpers.py` (`transform`)
+- `tests/backend/test_backend_phase8_r2.py` (+4 tests; one assertion added)
+- `tests/test_phase8_r2_membership.py` (new)
+- this record, the decision register and `phase8_cp3ar1_refinement.md`
+
+Focused and affected regressions on a disposable PostgreSQL 16: 333 passed. The files were the R1, R2 and R2-migration tests, membership, CP2A, CP2B.1, CI scope, rounds, refresh, refresh budget, prepare, entries, drafts, scheduler and refinements.

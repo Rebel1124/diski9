@@ -295,8 +295,8 @@ def _check_rolling_review(conn, snap, config, model_version, outcomes, reviewed,
             "once prices refresh, or choose other predictions.",
             stale,
         )
-    current = [review_svc.digest(i) for i in review_svc.items_for(outcomes, config,
-                                                                  model_version or "")]  # fmt: skip
+    items = review_svc.items_for(outcomes, config, model_version or "", snap)
+    current = [review_svc.digest(i) for i in items]
     reviewed = list(reviewed or [])
     changed = review_svc.changed_positions(reviewed, current)
     if changed:

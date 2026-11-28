@@ -174,7 +174,7 @@ def build_candidate(store_engine, engine: Engine, round_id: UUID, as_of: datetim
         comps = [int(c) for c in r.eligible_competitions]
     config = get_config(r.config_version)
     snap = build_live_snapshot(store_engine, as_of, r.window_start_at, r.window_end_at, r.code,
-                               LEAGUE_SHORT, config, comps)  # fmt: skip
+                               LEAGUE_SHORT, config, comps, include_unpriced=True)  # fmt: skip
     return restrict_to_universe(restrict_competitions(snap, comps), universe, as_of)
 
 

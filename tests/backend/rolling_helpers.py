@@ -51,7 +51,8 @@ def rolling_schedule(engine, *, close_at, buffer: int = 15) -> str:
 
 
 def publish_rolling(engine, op, *, close_in=timedelta(days=1),
-                    first_kickoff_in=timedelta(hours=1), seed=2026, fixtures=20):  # fmt: skip
+                    first_kickoff_in=timedelta(hours=1), seed=2026, fixtures=20,
+                    transform=None):  # fmt: skip
     now = now_of(engine)
     close = (now + close_in).replace(microsecond=0)
     code = rolling_schedule(engine, close_at=close)
@@ -62,6 +63,8 @@ def publish_rolling(engine, op, *, close_in=timedelta(days=1),
         ).scalar_one()
     snap = dev_snapshot(rcode, now, now + first_kickoff_in, seed=seed, config=get_config(cfg),
                         fixtures=fixtures)  # fmt: skip
+    if transform is not None:  # e.g. a universe fixture with no eligible offer yet
+        snap = transform(snap)
     v = svc.create_round(engine, op, code=rcode, window_start=snap.window[0],
                          window_end=snap.window[1], schedule_code=code, development=True)  # fmt: skip
     return svc.publish_round(engine, op, v.id, snap, source="development"), snap, close

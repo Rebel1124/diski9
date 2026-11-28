@@ -472,6 +472,7 @@ def test_review_items_use_display_precision_only_for_comparison():
     ia, ib, ic = (review.item(o, cfg, "goal-model-1.1") for o in (a, b, c))
     assert review.digest(ia) == review.digest(ib) != review.digest(ic)
     assert ia["p"] == "61.2" and ia["odds"] == "1.55" and ia["view"] is None
+    assert ia["base"] == {"src": "goal_model", "ver": "goal-model-1.1", "eg": None, "bp": "60.0"}
     assert review.changed_positions(["x", "y"], ["x", "z", "w"]) == [1, 2]
 
 
@@ -877,3 +878,200 @@ def test_edition_step_records_its_job_and_a_refusal_writes_nothing(engine, op, t
             "'scheduler.prepare_edition' AND scope = :c"), {"c": view.code}).one()  # fmt: skip
     assert job.status == "skipped" and job.slot == slot.key(view.code)
     assert [e["edition"] for e in editions.editions(engine, view.id)] == [1]
+
+
+def test_review_baseline_identity_distinguishes_goal_model_market_implied_and_none():
+    """§14.4: the independent Goal Model and a reliable market-implied fit have distinct
+    source and methodology identities in the item, with estimated goals at 2 decimals;
+    a switch of source, or a displayed estimated-goals change, requires re-review."""
+    import dataclasses
+    from datetime import UTC, datetime
+
+    from diski9.backend.devdata import dev_snapshot
+    from diski9.challenge.config import get_config
+    from diski9.screener import market_fit
+
+    cfg = get_config("a3-432-v1")
+    at = datetime(2026, 12, 5, 8, 0, tzinfo=UTC)
+    snap = dev_snapshot(
+        "dev-r2-base", at, at + timedelta(hours=4), seed=4290, config=cfg, fixtures=3
+    )
+    fa, fb, fc = (f.fixture_id for f in snap.fixtures)
+
+    def strip(s, fid, groups=None):  # no independent model (and optionally thin coverage)
+        outs = tuple(dataclasses.replace(o, model_probability=None,
+                                         bookmaker_groups=groups or o.bookmaker_groups)
+                     if o.fixture_id == fid else o for o in s.outcomes)  # fmt: skip
+        fxs = tuple(dataclasses.replace(f, estimated_goals=None) if f.fixture_id == fid else f
+                    for f in s.fixtures)  # fmt: skip
+        return dataclasses.replace(s, outcomes=outs, fixtures=fxs)
+
+    # fixture B's market prices are internally consistent (Poisson 1.60 / 1.10), so a
+    # reliable market-implied fit exists for it (the synthetic dev prices are not)
+    from diski9.screener import goal_model as gm
+
+    mk = gm.markets(1.6, 1.1)
+    names = {"HOME": "home", "DRAW": "draw", "AWAY": "away", "BTTS_YES": "btts_yes",
+             "BTTS_NO": "btts_no", "OVER_2_5": "over", "UNDER_2_5": "under"}  # fmt: skip
+    snap = dataclasses.replace(snap, outcomes=tuple(
+        dataclasses.replace(o, market_probability=mk[names[str(o.outcome)]])
+        if o.fixture_id == fb else o for o in snap.outcomes))  # fmt: skip
+    snap2 = strip(strip(snap, fb), fc, groups=2)
+    home = {f: snap2.outcome((f, "1X2", "HOME")) for f in (fa, fb, fc)}
+    items = {f: review.item(home[f], cfg, "goal-model-1.1", snapshot=snap2) for f in home}
+    eg = snap.fixture(fa).estimated_goals
+    assert items[fa]["base"] == {
+        "src": "goal_model", "ver": "goal-model-1.1",
+        "eg": [f"{eg[0]:.2f}", f"{eg[1]:.2f}"], "bp": review._pct(home[fa].model_probability),
+    }  # fmt: skip
+    mf = market_fit.frozen_fit(snap2, fb)
+    assert mf.reliable
+    b = items[fb]["base"]
+    assert b["src"] == "market_implied" and b["ver"] == mf.stamp_version
+    assert b["ver"].startswith(f"mi{market_fit.FIT_VERSION}:")
+    assert b["eg"] == [f"{mf.lambda_home:.2f}", f"{mf.lambda_away:.2f}"]
+    assert b["bp"] == review._pct(mf.probabilities["home"])
+    assert items[fc]["base"] == {"src": "none", "ver": None, "eg": None, "bp": None}
+    # the same offer under another source is a different reviewed item
+    as_model = review.item(snap.outcome((fb, "1X2", "HOME")), cfg, "goal-model-1.1", snapshot=snap)
+    assert review.digest(as_model) != review.digest(items[fb])
+
+    # estimated goals: a displayed (2-decimal) change requires re-review, a smaller one not
+    def with_eg(goals):
+        s = dataclasses.replace(snap, fixtures=tuple(
+            dataclasses.replace(f, estimated_goals=goals) if f.fixture_id == fa else f
+            for f in snap.fixtures))  # fmt: skip
+        return review.digest(review.item(home[fa], cfg, "goal-model-1.1", snapshot=s))
+
+    base = (round(eg[0], 2), round(eg[1], 2))
+    assert (
+        with_eg(base) == with_eg((base[0] + 0.001, base[1])) != with_eg((base[0] + 0.01, base[1]))
+    )
+    # a methodology version change is a different identity
+    assert review.digest(review.item(home[fa], cfg, "goal-model-1.2", snapshot=snap2)) != \
+        review.digest(items[fa])  # fmt: skip
+
+
+def test_missed_competitive_slots_resume_with_the_current_slot_only(engine, op):
+    """Review 2.1: after three consecutive missed sweeps the planner neither replays nor
+    reconciles them: it works only the current slot (one sweep's requests, within the
+    unchanged caps). Meanwhile prices age past six hours and entry pauses; a new edition
+    carrying the old evidence stays paused; a fresh sweep's edition restores it."""
+    from dataclasses import dataclass
+    from types import SimpleNamespace
+
+    from diski9.backend.jobs import refresh
+    from diski9.backend.jobs.config import SchedulerConfig
+    from diski9.backend.repositories import ops
+
+    view, snap, _ = publish_rolling(engine, op, seed=4291)
+    cfg = SchedulerConfig()
+    with transaction(engine) as conn:
+        row = refresh._round_row(conn, view.code)
+    rr = SimpleNamespace(**dict(row._mapping))
+    # four slots due (06:15, 09:15, 12:15, 15:15 after the window start), none worked
+    rr.window_start_at = rr.published_at - timedelta(hours=15, minutes=15, milliseconds=500)
+    rr.published_at = rr.window_start_at + timedelta(hours=6)
+
+    @dataclass
+    class W:
+        code: str
+
+    week, now = W(view.code), now_of(engine)
+    due = [s for s in refresh.competitive_slots(rr.window_start_at, rr.deadline_at)
+           if s.at <= now]  # fmt: skip
+    assert len(due) == 4
+    with transaction(engine) as conn:
+        # a partial sweep of the first slot, then three missed slots
+        lg0 = refresh.competitive_leagues(conn, view.id, now)[0]
+        rid = ops.start_job(conn, refresh.PREPARE_REFRESH, f"{view.code}:{lg0}",
+                            {"slot": due[0].key(view.code), "at": now.isoformat()})  # fmt: skip
+        ops.finish_job(conn, rid, "succeeded")
+        steps, _ = refresh.plan_competitive(conn, cfg, week, rr, now, now)
+        leagues = refresh.competitive_leagues(conn, view.id, now)
+    assert [s.kind for s in steps] == ["league"] * len(leagues)
+    assert {s.slot.key(view.code) for s in steps} == {due[-1].key(view.code)}  # no replay
+    assert len(steps) <= cfg.max_requests_per_tick  # one sweep, inside the per-tick cap
+    # the prices the round still holds were observed before the outage: paused
+    old = now - timedelta(hours=7)
+    publish_edition(engine, view, snap, observed=old)
+    assert editions.round_availability(engine, view.id).status == "paused"
+    publish_edition(engine, view, snap, observed=old)  # a new edition is not new evidence
+    assert editions.round_availability(engine, view.id).status == "paused"
+    # the current slot's sweep completes and its edition carries fresh evidence: open
+    publish_edition(engine, view, snap)
+    assert editions.round_availability(engine, view.id).status == "open"
+
+
+# ------------------------------------------------------------------ fixture membership
+def _without_offers(fid):
+    import dataclasses
+
+    def t(snap):
+        return dataclasses.replace(snap, outcomes=tuple(o for o in snap.outcomes
+                                                        if o.fixture_id != fid))  # fmt: skip
+
+    return t
+
+
+def test_universe_fixture_unpriced_at_publication_becomes_selectable_and_can_pause(engine, op):
+    """P8-MEMBER (freeze membership, not eligibility): a fixture with no eligible offer
+    at publication still belongs to edition 1; it is unavailable until a later edition
+    prices it with qualifying coverage, may lose eligibility again (two bookmaker
+    groups) and recover. Nothing outside edition 1 is ever admitted."""
+    import dataclasses
+
+    seen = {}
+
+    def unpriced_last(full):  # the latest kickoff ("Saturday") has no eligible offer yet
+        seen["full"] = full
+        seen["late"] = full.fixtures[-1].fixture_id
+        return _without_offers(seen["late"])(full)
+
+    view, snap, close = publish_rolling(engine, op, seed=4292, transform=unpriced_last)
+    full, late = seen["full"], seen["late"]
+    universe = count(engine, "SELECT count(*) FROM app.snapshot_fixtures f JOIN "
+                     "app.round_snapshots s ON s.id = f.snapshot_id WHERE s.round_id = :r "
+                     "AND s.edition = 1 AND f.fixture_id = :f", r=view.id, f=late)  # fmt: skip
+    assert universe == 1 and not [o for o in snap.outcomes if o.fixture_id == late]
+    # the settlement cutoff counts the unpriced fixture's kickoff (it is in the universe)
+    with transaction(engine) as conn:
+        cutoff = conn.execute(sa.text("SELECT settle_cutoff_at FROM app.rounds WHERE id = :r"),
+                              {"r": view.id}).scalar_one()  # fmt: skip
+    assert cutoff == max(full.fixtures[-1].kickoff, close) + timedelta(hours=24)
+    # the planner still sweeps its league
+    from diski9.backend.jobs import refresh
+
+    with transaction(engine) as conn:
+        assert full.fixtures[-1].league_id in refresh.competitive_leagues(
+            conn, view.id, now_of(engine))  # fmt: skip
+    p = principal(engine)
+    # a valid A3 portfolio that includes the late fixture (its offers considered first)
+    first = dataclasses.replace(full, outcomes=tuple(
+        sorted(full.outcomes, key=lambda o: o.fixture_id != late)))  # fmt: skip
+    chosen = keys_excluding(first)
+    assert any(k["fixture_id"] == late for k in chosen)
+    with pytest.raises(ValidationFailed):  # not selectable while it has no offer
+        save(engine, p, view, chosen)
+    # a Saturday sweep reaches three qualifying groups: a later edition offers it
+    priced = full
+    publish_edition(engine, view, priced)
+    d = save(engine, p, view, chosen)
+    r = review.review_portfolio(engine, p, view.id)
+    assert r.ready, r.problems
+    # coverage falls to two groups: unavailable again (the offer stays out of sync)
+    thin = dataclasses.replace(priced, outcomes=tuple(
+        dataclasses.replace(o, bookmaker_groups=2) if o.fixture_id == late else o
+        for o in priced.outcomes))  # fmt: skip
+    publish_edition(engine, view, thin)
+    r = review.review_portfolio(engine, p, view.id)
+    assert {x["reason"] for x in r.problems} == {"ineligible"}
+    with pytest.raises(es.ValidationFailed):
+        confirm(engine, p, view, d)
+    # and recovers; the confirmation copies the current edition's values
+    publish_edition(engine, view, priced)
+    sub = confirm(engine, p, view, d)
+    assert sub is not None
+    assert count(engine, "SELECT count(*) FROM app.submission_selections ss JOIN "
+                 "app.submissions s ON s.id = ss.submission_id WHERE s.round_id = :r "
+                 "AND ss.fixture_id = :f", r=view.id, f=late) == 1  # fmt: skip

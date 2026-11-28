@@ -220,10 +220,20 @@ def build_live_snapshot(
     league_names: dict[int, str],
     config: ChallengeConfig = DEFAULT_CONFIG,
     competitions: Iterable[int] | None = None,
+    *,
+    include_unpriced: bool = False,
 ) -> RoundSnapshot:
     """Read-only, point-in-time round snapshot from the local database.
     ``competitions``: the bound schedule's eligible competitions (default: every
-    odds-collecting domestic league); fixtures elsewhere are never considered."""
+    odds-collecting domestic league); fixtures elsewhere are never considered.
+
+    ``include_unpriced`` (rolling-entry rounds only, Phase 8 R2 owner decision
+    P8-MEMBER: *freeze fixture membership, not fixture eligibility*): a scheduled
+    upcoming fixture in the window and competitions that has no eligible offer yet is
+    kept as a fixture **without outcomes**, so it belongs to the published universe and
+    a later price edition may offer it once its coverage qualifies. It is never
+    selectable while it has no eligible offer. Default False: every other round keeps
+    the original rule (a fixture without an eligible offer is left out)."""
     from sqlalchemy import select
 
     from diski9.api_football.markets import Market
@@ -243,6 +253,7 @@ def build_live_snapshot(
         # excluded before any market check: no Screener cache payload (teams, model
         # state) for a not-yet-started fixture - a data-preparation gap, not a model rule
         "fixtures_without_screener_payload": 0,
+        "fixtures_unpriced": 0,  # no eligible offer at the snapshot time
         "markets_checked": 0,
         "markets_eligible": 0,
         "exclusions": {},
@@ -310,7 +321,9 @@ def build_live_snapshot(
                         )
                     )
             if not chosen:
-                continue
+                diag["fixtures_unpriced"] += 1
+                if not include_unpriced:
+                    continue
             eg = (gm.get("estimated_goals") or {}) if has_model else {}
             fixtures.append(
                 RoundFixture(

@@ -249,6 +249,19 @@ def round_competitions(conn: Connection, round_id: UUID) -> tuple[int, ...]:
     return tuple(int(c) for c in r.eligible_competitions)
 
 
+def round_follows_rolling_entry(conn: Connection, round_id: UUID) -> bool:
+    """True when the round's bound schedule uses the rolling-entry rules (also before
+    publication, when the round's own ``rules_version`` is not yet copied)."""
+    r = conn.execute(
+        select(rounds.c.rules_version, round_schedules.c.rules_version.label("schedule_rules"))
+        .select_from(rounds.join(round_schedules, rounds.c.schedule_id == round_schedules.c.id))
+        .where(rounds.c.id == round_id)
+    ).one_or_none()  # fmt: skip
+    if r is None:
+        raise NotFound("No such round.")
+    return rolling.is_rolling(r.rules_version or r.schedule_rules)
+
+
 def round_config(conn: Connection, round_id: UUID) -> ChallengeConfig:
     """The configuration a round is bound to: the version recorded at publication,
     or (for a draft) the version of the round's own schedule row. Never the global

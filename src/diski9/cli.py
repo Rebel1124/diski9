@@ -531,6 +531,8 @@ def cmd_round(args) -> int:
             now = db_now(conn)
             config = svc.round_config(conn, r.id)  # the round's own schedule, never the default
             competitions = svc.round_competitions(conn, r.id)  # its eligible competitions
+            # rolling entry (P8-MEMBER): fixtures not yet priced still join the universe
+            unpriced = svc.round_follows_rolling_entry(conn, r.id)
         return build_live_snapshot(
             football,
             now,
@@ -540,6 +542,7 @@ def cmd_round(args) -> int:
             LEAGUE_SHORT,
             config,
             competitions,
+            include_unpriced=unpriced,
         )
 
     def call(engine) -> int:

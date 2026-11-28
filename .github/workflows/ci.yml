@@ -27,9 +27,12 @@ concurrency:
 jobs:
   checks:
     runs-on: ubuntu-24.04
-    # 40 (was 30): the browser tests add ~5 min and tooling ~1 min to a ~23 min job
-    # (measured, Phase 6C.6 Stage B); 30 would leave no margin for runner variance.
-    timeout-minutes: 40
+    # 60 (was 40; owner-approved, Phase 8 R2, 28 Nov 2026). History: 30 -> 40 when the
+    # browser tests added ~5 min and tooling ~1 min (Phase 6C.6 Stage B). By R2 the suite
+    # had grown to ~2600 tests: run #179 spent 33.6 min in the test step and run #180
+    # was cancelled at 40 min with pytest at 97%, so 40 left no margin for runner
+    # variance. No test is skipped, removed or shortened to save time.
+    timeout-minutes: 60
     services:
       postgres:
         image: postgres:17
@@ -154,7 +157,11 @@ jobs:
         if: steps.scope.outputs.scope != 'docs'
         env:
           DISKI9_REQUIRE_BROWSER: "1"
-        run: uv run pytest -q -p no:cacheprovider -rs
+        # -v names each test as it finishes (so a failure is identifiable by name even
+        # if the job is cancelled); -rfEs summarises failures, errors and skips;
+        # --durations=25 records the slowest tests. Reporting only: the same tests run
+        # with the same pass/fail outcome.
+        run: uv run pytest -v -p no:cacheprovider -rfEs --durations=25
 
       - name: Stop the Supabase Auth server
         if: always()

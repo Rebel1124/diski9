@@ -110,3 +110,33 @@ def engine(db_url):
 def conn(engine):
     with engine.begin() as c:
         yield c
+
+
+def pytest_report_header(config):  # noqa: ARG001 - reporting only (Phase 8 R2, CI #180)
+    """Record the CPU and the OpenBLAS kernel in the run header: a few numerical
+    reconciliation tests depend on the floating-point kernel (record §15.22)."""
+    model = "unknown"
+    try:
+        for line in Path("/proc/cpuinfo").read_text().splitlines():
+            if line.startswith("model name"):
+                model = line.split(":", 1)[1].strip()
+                break
+    except OSError:
+        pass
+    blas = "unknown"
+    try:  # SciPy's bundled OpenBLAS (used by the optimiser): its runtime kernel
+        import ctypes
+        import glob
+        import os
+
+        import scipy
+
+        libs = os.path.join(os.path.dirname(os.path.dirname(scipy.__file__)), "scipy.libs")
+        found = glob.glob(os.path.join(libs, "libscipy_openblas*.so*"))
+        if found:
+            get = ctypes.CDLL(found[0]).scipy_openblas_get_corename
+            get.restype = ctypes.c_char_p
+            blas = f"scipy OpenBLAS kernel {get().decode()}"
+    except Exception:  # noqa: BLE001 - a header must never fail the run
+        pass
+    return f"cpu: {model} | blas: {blas}"

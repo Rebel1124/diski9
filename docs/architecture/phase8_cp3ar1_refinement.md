@@ -758,6 +758,8 @@ Outputs are in `docs/research/phase8_cp3ar/` (`odds_trial_replay.json`, `sunday_
 
 **Review fingerprint** = SHA-256 over the nine item fingerprints, ordered by position.
 
+> **Implementation status (R2 closure, 28 Nov 2026; register P8-FP-BASE).** The source and baseline-identity rows are implemented as the item's `base` field (`goal_model`, `market_implied` or `none`, with estimated goals at 2 decimals). The Your View and fallback rows follow P8-YV (absolute estimates, not deltas) and are filled in R3 through the item's `view` slot. See `phase8_implementation.md` §15.22.3.
+
 **Comparison at confirmation**
 - The server recomputes the item fingerprints from the current edition and the participant's current Your View state.
 - If the combined value differs, it refuses and **names the positions whose item fingerprint changed** ("Prices or analysis changed for 2 of your picks — please review again").
