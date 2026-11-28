@@ -1,0 +1,3929 @@
+{
+  "alerts": [],
+  "closed": false,
+  "evaluated_at": "2026-11-28T07:16:32.335694+00:00",
+  "fixtures": {
+    "1550207": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1550208": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1550209": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1550210": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1550211": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1550212": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1550213": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1550214": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1550215": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1550216": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        0,
+        0
+      ],
+      "state": "settle"
+    },
+    "1552828": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1552829": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1552830": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        1,
+        0
+      ],
+      "state": "settle"
+    },
+    "1552831": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1552832": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1552833": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1552834": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1552835": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1552836": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1557477": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1557478": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1557479": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1557480": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1557481": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1557482": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1557483": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1557484": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1557485": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        3,
+        2
+      ],
+      "state": "settle"
+    },
+    "1557486": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563287": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563288": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563289": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563290": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563291": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563292": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563293": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563294": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        2,
+        0
+      ],
+      "state": "settle"
+    },
+    "1563295": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563296": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563297": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1563298": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1570463": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1570464": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1570465": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1570466": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1570467": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1570468": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        1,
+        3
+      ],
+      "state": "settle"
+    },
+    "1570469": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1570470": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1570471": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1570472": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1575230": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1575231": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1575232": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1575233": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1575234": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1575235": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1575236": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1575237": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        3,
+        3
+      ],
+      "state": "settle"
+    },
+    "1575238": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1600378": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        1,
+        0
+      ],
+      "state": "settle"
+    },
+    "1600379": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1600380": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1600382": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1600383": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1600384": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": null,
+      "state": "pending"
+    },
+    "1627777": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        1,
+        1
+      ],
+      "state": "settle"
+    },
+    "1627778": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        3,
+        1
+      ],
+      "state": "settle"
+    },
+    "1627779": {
+      "code": null,
+      "on_round_sheet": true,
+      "score": [
+        2,
+        0
+      ],
+      "state": "settle"
+    },
+    "1627780": {
+      "code": null,
+      "on_round_sheet": false,
+      "score": null,
+      "state": "pending"
+    },
+    "1627781": {
+      "code": null,
+      "on_round_sheet": false,
+      "score": null,
+      "state": "pending"
+    },
+    "1627782": {
+      "code": null,
+      "on_round_sheet": false,
+      "score": null,
+      "state": "pending"
+    },
+    "1627783": {
+      "code": null,
+      "on_round_sheet": false,
+      "score": null,
+      "state": "pending"
+    },
+    "1627784": {
+      "code": null,
+      "on_round_sheet": false,
+      "score": null,
+      "state": "pending"
+    }
+  },
+  "observed": "actual provider results (not simulated)",
+  "outcomes": [
+    {
+      "fixture_id": 1627777,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627777,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627777,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627777,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627777,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627777,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627777,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627778,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627778,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627778,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627778,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627778,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627778,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627778,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627779,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627779,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627779,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627779,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627779,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627779,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1627779,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600378,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600378,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600378,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600378,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600378,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600378,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600378,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575237,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575237,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575237,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575237,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575237,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575237,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575237,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550216,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550216,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550216,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550216,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550216,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550216,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550216,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552830,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552830,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552830,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552830,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552830,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552830,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552830,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557485,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557485,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557485,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557485,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557485,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557485,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557485,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563294,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563294,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563294,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563294,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563294,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563294,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563294,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570468,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570468,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570468,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570468,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570468,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570468,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "won",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570468,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "lost",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563288,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563288,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563288,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563288,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563288,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563288,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563288,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563290,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563290,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563290,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563290,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563290,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563290,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563290,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563292,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563292,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563292,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563292,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563292,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563292,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563292,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570463,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570463,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570463,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570463,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570463,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570463,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570463,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600379,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600379,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600379,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600379,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600379,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600379,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600379,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600380,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600380,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600380,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600380,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600380,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600380,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600380,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550210,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550210,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550210,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550210,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550210,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550210,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550210,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575234,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575234,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575234,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575234,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575234,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575234,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575234,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575235,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575235,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575235,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575235,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575235,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575235,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575235,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575236,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575236,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575236,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575236,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575236,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575236,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575236,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575238,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575238,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575238,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575238,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575238,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575238,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575238,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557483,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557483,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557483,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557483,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557483,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557483,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557483,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557484,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557484,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557484,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557484,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557484,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557484,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557484,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563287,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563287,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563287,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563287,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563287,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563287,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563287,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563289,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563289,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563289,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563289,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563289,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563289,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563289,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563291,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563291,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563291,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563291,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563291,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563291,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563291,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563293,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563293,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563293,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563293,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563293,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563293,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563293,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563296,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563296,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563296,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563296,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563296,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563296,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563296,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563297,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563297,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563297,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563297,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563297,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563297,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563297,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563298,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563298,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563298,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563298,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563298,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563298,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563298,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570469,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570469,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570469,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570469,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570469,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570469,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570469,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600382,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600382,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600382,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600382,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600382,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600382,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600382,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552828,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552828,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552828,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552828,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552828,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552828,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552828,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550214,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550214,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550214,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550214,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550214,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550214,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550214,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557482,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557482,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557482,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557482,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557482,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557482,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557482,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570466,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570466,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570466,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570466,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570466,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570466,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570466,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575231,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575231,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575231,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575231,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575231,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575231,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575231,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550211,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550211,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550211,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550211,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550211,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550211,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550211,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552831,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552831,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552831,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552831,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552831,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552831,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552831,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552832,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552832,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552832,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552832,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552832,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552832,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552832,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552834,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552834,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552834,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552834,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552834,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552834,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552834,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552835,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552835,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552835,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552835,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552835,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552835,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552835,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570470,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570470,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570470,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570470,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570470,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570470,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570470,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550215,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550215,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550215,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550215,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550215,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550215,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550215,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557480,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557480,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557480,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557480,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557480,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557480,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557480,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563295,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563295,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563295,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563295,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563295,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563295,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1563295,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570472,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570472,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570472,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570472,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570472,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570472,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570472,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600383,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600383,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600383,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600383,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600383,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600383,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600383,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550213,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550213,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550213,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550213,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550213,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550213,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550213,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552829,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552829,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552829,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552829,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552829,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552829,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552829,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557478,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557478,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557478,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557478,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557478,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557478,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557478,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557479,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557479,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557479,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557479,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557479,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557479,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557479,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557481,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557481,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557481,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557481,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557481,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557481,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557481,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557486,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557486,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557486,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557486,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557486,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557486,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557486,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575233,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575233,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575233,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575233,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575233,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575233,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575233,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570465,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570465,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570465,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570465,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570465,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570465,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570465,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600384,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600384,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600384,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600384,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600384,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600384,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1600384,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552836,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552836,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552836,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552836,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552836,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552836,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552836,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557477,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557477,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557477,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557477,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557477,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557477,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1557477,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575232,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575232,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575232,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575232,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575232,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575232,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575232,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550207,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550207,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550207,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550207,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550207,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550207,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550207,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570464,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570464,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570464,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570464,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570464,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570464,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570464,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575230,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575230,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575230,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575230,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575230,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575230,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1575230,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550209,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550209,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550209,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550209,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550209,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550209,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550209,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552833,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552833,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552833,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552833,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552833,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552833,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1552833,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570471,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570471,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570471,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570471,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570471,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570471,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570471,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550212,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550212,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550212,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550212,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550212,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550212,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550212,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550208,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550208,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550208,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550208,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550208,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550208,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1550208,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570467,
+      "market": "1X2",
+      "outcome": "HOME",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570467,
+      "market": "1X2",
+      "outcome": "DRAW",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570467,
+      "market": "1X2",
+      "outcome": "AWAY",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570467,
+      "market": "BTTS",
+      "outcome": "BTTS_YES",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570467,
+      "market": "BTTS",
+      "outcome": "BTTS_NO",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570467,
+      "market": "OU25",
+      "outcome": "OVER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    },
+    {
+      "fixture_id": 1570467,
+      "market": "OU25",
+      "outcome": "UNDER_2_5",
+      "verdict": "pending",
+      "void_code": null
+    }
+  ],
+  "pending_fixtures": [
+    1550207,
+    1550208,
+    1550209,
+    1550210,
+    1550211,
+    1550212,
+    1550213,
+    1550214,
+    1550215,
+    1552828,
+    1552829,
+    1552831,
+    1552832,
+    1552833,
+    1552834,
+    1552835,
+    1552836,
+    1557477,
+    1557478,
+    1557479,
+    1557480,
+    1557481,
+    1557482,
+    1557483,
+    1557484,
+    1557486,
+    1563287,
+    1563288,
+    1563289,
+    1563290,
+    1563291,
+    1563292,
+    1563293,
+    1563295,
+    1563296,
+    1563297,
+    1563298,
+    1570463,
+    1570464,
+    1570465,
+    1570466,
+    1570467,
+    1570469,
+    1570470,
+    1570471,
+    1570472,
+    1575230,
+    1575231,
+    1575232,
+    1575233,
+    1575234,
+    1575235,
+    1575236,
+    1575238,
+    1600379,
+    1600380,
+    1600382,
+    1600383,
+    1600384
+  ],
+  "round": "2026-W48",
+  "rules_version": "settle/v1",
+  "void_codes": {}
+}
