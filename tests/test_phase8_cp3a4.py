@@ -72,6 +72,54 @@ def test_new_opening_starts_frozen_and_the_toggle_sets_the_mode():
     assert appmod.lab_want(r, r, ON, "lab-latest") == r
 
 
+# ------------------------------------------ CP3A-4 closure: overlapping toggle and market
+# A market change sent while the toggle's response is still in flight carries the
+# pre-toggle lab-target but the switched checkbox (reproduced in the browser with the
+# toggle's response delayed). The mode must follow the checkbox, not the stored target.
+def test_market_change_during_toggle_keeps_the_users_choice(data, monkeypatch):  # noqa: F811
+    app = _app(data)
+    _, snap = _live(data)
+    frozen = challenge(snap)  # lab-target as the market request saw it
+    monkeypatch.setattr(appmod, "_triggered", lambda: "lab-market")
+    body, _, _, _, active, toggle, _ = _detail(app)(frozen, "BTTS", "/lab", ON, frozen, {})
+    assert toggle == ON and active.get("latest"), (toggle, active)
+    assert "Model calculated" in jtext(body)
+
+
+def test_latest_to_frozen_during_a_market_change_also_follows_the_checkbox(data, monkeypatch):  # noqa: F811
+    app = _app(data)
+    _, snap = _live(data)
+    on = {**challenge(snap), "latest": True}  # stored target still latest
+    monkeypatch.setattr(appmod, "_triggered", lambda: "lab-market")
+    body, _, _, _, active, toggle, _ = _detail(app)(challenge(snap), "OU25", "/lab", [], on, {})
+    assert toggle == [] and active == challenge(snap) and "Frozen:" in jtext(body)
+
+
+def test_mode_rules_for_openings_restores_and_switches():
+    t = {"fixture": 1, "ctx": "challenge", "round": "R", "fp": "F"}
+    on = {**t, "latest": True}
+    other = {**t, "fixture": 2}
+    # a new opening is frozen, even with the previous match's toggle still on - whether
+    # Dash reports the address or the request first
+    for trig in ("lab-request", {"url", "lab-request"}):
+        assert appmod.lab_want(other, on, ON, trig) == other
+        assert appmod.lab_want(t, on, ON, trig) == t  # reopening the same match too
+    # another match in the address is never given the old match's mode
+    assert appmod.lab_want(other, on, ON, "lab-market") == other
+    # the initial call after a page load (no event) keeps the remembered mode
+    assert appmod.lab_want(None, on, [], None) == on
+    assert appmod.lab_want(None, on, [], set()) == on
+    # the tab itself (same match, a real event): the checkbox, which shows that match
+    assert appmod.lab_want(None, on, ON, "url") == on
+    assert appmod.lab_want(None, on, [], "url") == t
+    # rapid switching: whatever the checkbox shows when the last request is sent
+    for value, expected in ((ON, on), ([], t), (ON, on)):
+        assert appmod.lab_want(t, t, value, "lab-latest") == expected
+    # research targets never take the flag
+    r = {"fixture": 1, "ctx": "research"}
+    assert appmod.lab_want(r, r, ON, "lab-market") == r
+
+
 # ---------------------------------------------------------------- frozen, latest, back
 def test_challenge_match_defaults_to_frozen_with_the_toggle(data):  # noqa: F811
     app = _app(data)

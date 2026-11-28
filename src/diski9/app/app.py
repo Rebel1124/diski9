@@ -895,7 +895,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         tab restores, and never applies to research matches."""
         trigger = _triggered()
         if norm_path(path) != LAB:
-            if trigger == "url":
+            if "url" in trigger:
                 return None, None, no_update, no_update, None, no_update, no_update
             raise PreventUpdate
         want = lab_want(request, target, latest, trigger)
@@ -1013,11 +1013,15 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         )
 
 
-def _triggered():
+def _triggered() -> frozenset:
+    """The ids of every input that triggered the running callback (a new opening can
+    arrive with the address and the request together; ``triggered_id`` names only one).
+    Empty outside a request (tests) and for the initial call after a page load."""
     try:
-        return ctx.triggered_id
+        ids = ctx.triggered_prop_ids
     except Exception:  # noqa: BLE001 - called outside a request (tests)
-        return None
+        return frozenset()
+    return frozenset(v for v in ids.values() if isinstance(v, str))
 
 
 def _identity(target) -> tuple | None:
@@ -1028,17 +1032,24 @@ def _identity(target) -> tuple | None:
 
 
 def lab_want(request, target, latest, trigger):
-    """The Match Lab target to show (CP3A-4). A newly opened match (``lab-request``)
-    starts frozen; otherwise the remembered target - with its view mode - when it is
-    the match the address names (or the address names none); the toggle sets the mode
-    of a challenge target only."""
-    if trigger == "lab-request" and request:
-        want = request
-    elif not request or _identity(request) == _identity(target):
-        want = target or request
-    else:
-        want = request
-    if trigger == "lab-latest" and want and want.get("ctx") == "challenge":
+    """The Match Lab target to show (CP3A-4). ``trigger``: the triggering input id(s).
+
+    * A newly opened match (``lab-request`` among the triggers) starts frozen, whatever
+      the toggle showed for the previous match.
+    * Otherwise the remembered target when it is the match the address names (or the
+      address names none), else the address's match.
+    * For that same challenge match, any real event takes the mode from the toggle's
+      current value: the checkbox is what the participant last chose, while the stored
+      target can lag behind a response still in flight (a market change sent during a
+      toggle must not reverse it). The initial call after a page load (no event) keeps
+      the remembered mode. Research targets never take the flag."""
+    triggers = {trigger} if isinstance(trigger, str) else set(trigger or ())
+    if "lab-request" in triggers and request:
+        return request
+    same = not request or _identity(request) == _identity(target)
+    want = (target or request) if same else request
+    if (triggers and want and want.get("ctx") == "challenge"
+            and _identity(want) == _identity(target)):  # fmt: skip
         want = {k: v for k, v in want.items() if k != "latest"}
         if LATEST_VALUE in (latest or []):
             want["latest"] = True
