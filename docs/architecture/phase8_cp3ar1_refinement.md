@@ -2,6 +2,8 @@
 
 *28 Nov 2026. Research and documentation only. Nothing is implemented. Supplements the CP3A-R reassessment ([`phase8_cp3ar_reassessment.md`](phase8_cp3ar_reassessment.md)) without repeating it.*
 
+> **Closure (28 Nov 2026):** the owner approved D1, D6 and D7. §14 resolves the final technical clarifications and **governs where it differs** from §3–§12. Revised estimate: 72–99 h for CP3A-R and 103–143 h for remaining Phase 8.
+
 **Evidence markers**
 - **[S]** source code;
 - **[R]** a research run in this checkpoint (§13);
@@ -25,6 +27,7 @@ The product direction is settled (§1). This report answers how to deliver it.
 11. Revised Phase 8 estimates
 12. Outstanding owner decisions
 13. Reproduction and evidence limits
+14. Final technical clarifications (closure)
 
 ---
 
@@ -287,7 +290,7 @@ Replay of the 49 captures with the production collector and strict consensus, ev
 2. Check the round is open and before entry close (`clock_timestamp()`), as today.
 3. For each selection:
    - kickoff > now + 15 min;
-   - recompute the strict consensus now, and require it eligible under §5.3;
+   - *(superseded by §14.2–§14.3: validate against the current edition's stored offers and their stored observation and provider timestamps; confirmation never reads the football store)*;
    - require it in band.
 4. Validate A3: exactly 4-3-2 and nine distinct fixtures.
 5. Recompute the digest from the current values. If it differs from the reviewed digest, refuse with **"Prices changed for N of your picks — please review again"**, naming the picks. Only the participant's own nine selections count, so changes elsewhere never force a re-review.
@@ -506,7 +509,7 @@ Replay of the 49 captures with the production collector and strict consensus, ev
 | **R3 Analytical records and Match Lab** | Your View keyed by round for v4, with carry-forward and notice. `submission_views` written at confirmation. The frozen/latest toggle removed for v4 (the challenge context resolves to the current edition; research stays live). ML-01 gates kept | R2 | `your_view.py`, `lab_context.py`, `lab.py`, `app.py`, `integration.py`, `entries.py` | `submission_views` table (insert-only); Your View context key for v4 | Historical round-context rows and stamps intact; the frozen view for old rounds kept | Adjusted vs fallback recorded correctly. Records match what was reviewed. ML-01 regression tests unchanged. The CP3A-4/4B toggle tests retired for v4 (replaced), kept where they test history | Each submission stores baseline, adjustment and resulting probability; fallback never appears as a prediction | 10–14 |
 | **R4 Experience** | Two-card Home. Home tab. Research only removed. Rolling 7-day research list without the date picker. §8 state matrix and wording | R1–R3 (states) | `home.py`, `callbacks.py`, `app.py`, `pages.py` | none | Locked and historical views unchanged | State matrix unit tests. CP3A-2 Research-only tests replaced. Browser at 390, 768 and 1280 px | Every §8 state renders correctly; no toggles; research is available in every state | 10–14 |
 | **R5 Integration and acceptance** | Update the CP3A-5 integrated test to a simulated weekend (publication, editions on Saturday and Sunday, re-review, stale pause, close, lock, settle, privacy), screenshots, full suite, CI, docs | R1–R4 | tests, docs | — | Historical regression suite unchanged | Full local suite and CI | CI green; owner acceptance | 8–10 |
-| **Total** | | | | | | | | **66–90** |
+| **Total** | | | | | | | | **66–90** (revised to **72–99**, §14.10) |
 
 **Reuse**
 - Builder, consensus, implied probabilities, matching, feasibility, A3 configuration, snapshot storage and fingerprint, lock validity join, settlement and scoring, championships, achievements, results import, the ML-01 gates, draft keys and client `reconcile`, refresh job and budget ledger.
@@ -537,11 +540,11 @@ Nothing was cut to make R look cheaper. L's equivalent of R2 is estimated at 30�
 |---|---|---|
 | CP3A-R reassessment | about 6–7 (done) | `539b4de` |
 | CP3A-R.1 refinement | about 5–6 (done) | this report |
-| **CP3A-R implementation (R1–R5)** | **66–90** | §10 |
+| **CP3A-R implementation (R1–R5)** | **72–99** (was 66–90; §14.10) | §10 |
 | CP3B | 14–20 | Education must explain latest pricing, editions, re-review and rolling entry; the toggle explanations are removed |
 | CP2B.2 | 6–9 | European analysis in the rolling research list and the Learn card |
 | CP4 | 11–15 | Revised lifecycle and edition journeys |
-| **Remaining after CP3A-R.1** | **97–134** | Planning estimates, not commitments |
+| **Remaining after CP3A-R.1** | **103–143** (was 97–134) | Planning estimates, not commitments |
 
 **Automated test time:** about 43 min per full local suite and about 35 min per CI run, with 3–5 runs expected across R2 and R5. It is not included in active hours.
 
@@ -615,3 +618,307 @@ Outputs are in `docs/research/phase8_cp3ar/` (`odds_trial_replay.json`, `sunday_
 - Market evidence covers one EPL week and two PSL captures.
 - There is no Sunday odds evidence.
 - European coverage is schedule only.
+
+---
+
+## 14. Final technical clarifications (CP3A-R.1 closure, 28 Nov 2026)
+
+*Owner approvals: D1 (Architecture R), D6 (Sunday 14:00 SAST) and D7 (rolling 7-day research). D2–D5 and D8–D14 are supported subject to the clarifications below.*
+
+**This section governs where it differs from §3–§12.**
+
+### 14.1 Overnight freshness: refresh throughout the entry window
+
+**Schedule**
+- Competitive refresh sweeps run **every 3 hours for the whole entry window, overnight included.**
+- First slot Friday 06:15 SAST, which is also the existing pre-publication sweep. Last slot Sunday 12:15 SAST.
+- The owner's illustrative slots are adopted:
+
+| Day | Slots (SAST) | Count |
+|---|---|---|
+| Friday | 06:15, 09:15, 12:15, 15:15, 18:15, 21:15 | 6 |
+| Saturday | 00:15, 03:15, 06:15, 09:15, 12:15, 15:15, 18:15, 21:15 | 8 |
+| Sunday | 00:15, 03:15, 06:15, 09:15, 12:15 | 5 |
+
+- **Stop at entry close:** no competitive sweep or edition after Sunday 14:00 SAST (`refresh.plan`: "refresh stops at entry close").
+- Results imports and the research list continue under their own schedules.
+- **Infrastructure:** the existing slot generator (`refresh.slots`) gains the "open round" series at the configured interval. Same job, ledger and pacing.
+- **Overnight value:** EPL provider updates were observed at about 02:30 and 05:30 SAST (00:30 and 03:30 UTC) [R], so overnight sweeps also pick up genuine changes.
+
+**Requests**
+- Using the documented E.1b figure of about 22 requests per full sweep, with Sunday sweeps tapering as leagues finish:
+  - 19 sweeps ≈ **about 380–420 per weekend**;
+  - about **520** in the worst case (+25% retries).
+- **Peak rolling 24 h:** 8 sweeps (about 176) + 25% retries ≈ **220 preparation**, plus results imports (peak about 45) ≈ **265 in total**.
+
+**Fit with existing caps (unchanged, not increased)**
+
+| Cap | Limit | Peak use |
+|---|---|---|
+| Preparation (nonessential) per 24 h | 300 | about 220; about 280 even at the E.1b high-cost factor (×28/22, +25%) |
+| Total per 24 h (preparation + 150 results reserve) | 450 | about 265 |
+| Per tick | 20 | a 22-request sweep spans two ticks, as today |
+| Provider plan | 7,500 a day | about 3.5% |
+
+- The budget ledger (`locking.reserve` / `allowance`) is unchanged.
+- **High-cost caveat:** if a weekend's odds paging exceeds the E.1b high-cost factor, the preparation cap (300) is the binding limit. The ledger defers the excess rather than overspending. Prices then age, and §14.3 decides eligibility. Observed in R5 and the operational validation.
+
+**Failure tolerance**
+- With a 6-hour observation limit and a 3-hour cadence, **one failed sweep is absorbed without effect.**
+- Two consecutive failures make affected outcomes ineligible about 6 hours after their last genuine observation (§14.3). Entry pauses only if a feasible portfolio no longer exists.
+
+**Cost:** no incremental cost within the API-Football Pro plan. Renewal by 14 Dec 2026 remains the dependency.
+
+**Freshness limits are retained:** provider timestamp ≤ 24 h and our observation ≤ 6 h.
+
+### 14.2 Confirmation against one immutable edition (corrects §5.5 step 3)
+
+**Confirmation never reads the SQLite football store.**
+- Editions are the only competitive price source after publication.
+- The builder computes consensus once, when writing an edition. Confirmation validates against **that edition's PostgreSQL rows**.
+
+**Edition writer** (scheduler, after a successful sweep)
+- Builds the snapshot from the football store **outside** any lock. This is the slow part.
+- Then, in one short PostgreSQL transaction:
+  1. lock the round row `FOR NO KEY UPDATE` (the lock `lock_round` already uses);
+  2. check the round is open, before entry close, and is the same round and universe;
+  3. insert `round_snapshots` (next edition number), `snapshot_fixtures` and `snapshot_offers`;
+  4. commit.
+
+**Confirmation** (extends `confirm_entry`, same lock order as today)
+1. Round `FOR SHARE`. This blocks while an edition insert holds `FOR NO KEY UPDATE`, and vice versa.
+2. Entry `FOR UPDATE`.
+3. **Resolve the current edition** inside the transaction: the highest edition number for the round, read **after** the share lock.
+   - Under READ COMMITTED each statement sees committed data. A writer cannot commit a new edition while this transaction holds the share lock.
+   - **The edition is stable for the rest of the transaction.**
+4. Idempotency key lookup and `UNIQUE(round_id, user_id)`, as today.
+5. Validate the nine selections against **that edition's** offers: present, eligible and in band, plus the §14.3 freshness check at the actual time.
+6. Validate A3 (4-3-2, nine distinct fixtures) and compare the review fingerprint (§14.4).
+7. Insert `submissions` (`snapshot_id` = current edition), `submission_selections` (foreign key to that edition's `snapshot_offers`, **unchanged**) and `submission_views` (§14.5). Mark the entry final. Commit.
+
+**Properties**
+- A new edition published mid-confirmation is either:
+  - fully committed before step 1, so the confirmation sees it; or
+  - waiting until the confirmation commits, so the confirmation used the previous edition consistently.
+- The **existing foreign keys** guarantee every accepted value exists in a stored edition.
+- **One final submission:** `UNIQUE(round_id, user_id)` on entries plus the entry lock. For v4, a second confirmation for an entry that already holds a submission is refused (no replace path).
+- **Idempotency:** a retried request with the same key and the same inputs hash returns the existing result.
+  - The inputs hash for v4 is computed over the selections and the review fingerprint, **not** the edition fingerprint.
+  - So a retry across an edition change with unchanged values is still idempotent.
+- **Lock duration:** the edition writer holds the round lock only for the insert (milliseconds to about a second for about 500 rows). Confirmations wait at most that long, within the existing `lock_timeout`.
+
+### 14.3 Genuine freshness
+
+| Time | Source | Use |
+|---|---|---|
+| Edition creation | `round_snapshots.as_of` | Ordering and audit only. **Never used for freshness** |
+| Quote observation | Our retrieval that saw the price: consensus `_observed_at`, from `odds_fixture_observations` / `last_seen_at` | Observation age ≤ 6 h |
+| Provider update | `first/last_provider_updated_at` on the contributing quotes | Provider age ≤ 24 h |
+| Successful retrieval | `odds_fixture_observations.retrieved_at` (per fixture, only when that fixture's data was stored) | Feeds the observation time. A league or fixture not retrieved in a sweep gets **no** new observation |
+
+**Per-offer evidence stored in each edition**
+- **`oldest_observation_at`**: the oldest observation among the quotes that formed the consensus. A new nullable column; historical rows stay null and are never evaluated.
+- **`provider_updated_at`**: the oldest contributing provider timestamp. The column exists but is not populated today [S `snapshots.py:86-100`].
+- The existing `latest_observation_at` is kept for display.
+- Using the **oldest** contributing values means an edition built after a partial sweep cannot make an un-refreshed price look fresh.
+
+**At build:** the builder applies the competitive rules (observation ≤ 6 h, provider ≤ 24 h, at least 3 groups, complete market) at build time. Stale outcomes and incomplete markets are not offered, as today (`challenge_eligible`, `implied`).
+
+**At confirmation, using the actual clock (§14.7):** an offer is usable only if
+- `now − oldest_observation_at ≤ 6 h`, and
+- `now − provider_updated_at ≤ 24 h`.
+
+**As time passes:** outcomes in the current edition **age out individually**, even if no new edition is built.
+
+**Failures**
+
+| Failure | Behaviour |
+|---|---|
+| Failed or partial sweep | Leagues not retrieved get no new observations. A new edition may still be built from what was retrieved; outcomes whose evidence is too old are excluded |
+| Failed edition build | The previous edition remains current. Its offers stay usable only while their own timestamps pass |
+| No feasible portfolio from usable offers | The card shows "Prices are being updated — entries are temporarily unavailable". Drafts are untouched |
+| Throughout | Research continues on the latest displayable data with stale labels |
+
+### 14.4 Review fingerprint
+
+**Item fingerprint** for each of the participant's nine selections: a canonical JSON array with fixed field order and fixed text formats:
+
+| Field | Format |
+|---|---|
+| fixture_id, market, outcome | as stored |
+| accepted odds | 2-decimal string (as stored, `numeric(8,2)`) |
+| market probability | percentage string with 1 decimal, the precision shown in Review |
+| bucket | A, B or C |
+| baseline source | `goal_model`, `market_implied` or `none` |
+| baseline identity | Goal Model: model version and estimated goals as 2-decimal strings (the existing stamp format). Market-implied: fit version, `input_id` and lambdas as 2-decimal strings |
+| Your View | `adjusted` true or false; the stored adjustment deltas exactly as stored; the resulting probability as a 1-decimal percentage string (only when adjusted) |
+| fallback | source and its probability as a 1-decimal percentage string (when not adjusted) |
+
+**Review fingerprint** = SHA-256 over the nine item fingerprints, ordered by position.
+
+**Comparison at confirmation**
+- The server recomputes the item fingerprints from the current edition and the participant's current Your View state.
+- If the combined value differs, it refuses and **names the positions whose item fingerprint changed** ("Prices or analysis changed for 2 of your picks — please review again").
+- Equal strings mean equal displayed information. That is the whole comparison: **no tolerance framework.** A sub-display change that does not move a displayed value or bucket does not trigger re-review.
+- **Not included:** the edition number and data on any other fixture. An edition change alone never triggers re-review.
+- **Drafts are never modified:** re-review only re-presents the same selections with their new values and flags (OK, bucket changed, not available, kicked off).
+
+### 14.5 Your View identity and carry-forward rules (v4 rounds)
+
+**Storage**
+- The stored adjustment (deltas) is keyed by (user, fixture, round).
+- It is **never rewritten automatically.**
+- Carry-forward is a **read-time decision**, so the ML-01 rule (no write to another match, context or earlier value) is unaffected.
+
+| Change since the participant last saved the adjustment | Treatment |
+|---|---|
+| Same source, same model or fit version, estimated goals each within ±0.20 of the saved baseline | **Carry forward** with a "Baseline updated" notice showing old and new baseline |
+| Same source and version, a change > 0.20 in either estimated-goals value | **Needs review:** shown, but not counted in Review until the participant confirms it ("Keep my adjustment") or edits it |
+| Source changed (Goal Model ↔ market-implied) | **Not applied:** "Your earlier view was based on a different model". The stored row is kept; the fallback is shown as not adjusted |
+| Model or methodology version changed | **Not applied** (as today: historical identity rules) |
+| Baseline unavailable | **Not applied;** Your View unavailable; fallback |
+
+**Why 0.20 goals:** a single fixed judgement. Within a weekend the Goal Model baseline barely moves, because the teams in an upcoming fixture have not played since. Larger moves come from market-implied baselines after a real price change.
+
+**At confirmation, `submission_views` records**
+- the exact baseline (source, identity, estimated goals);
+- the adjustment deltas;
+- `adjusted`;
+- the resulting probability (only when adjusted);
+- the fallback source and value when not adjusted.
+
+**Fallback is never stored or shown as a participant prediction.** Historical round-context rows and stamps are unchanged.
+
+### 14.6 The published universe
+
+**Edition 1 (the publication snapshot) is the authoritative universe.** A trigger refuses any later edition fixture that is not in edition 1. No separate subsystem.
+
+| Reads | Consumers |
+|---|---|
+| **Edition 1 (universe)** | Results polling list and timing; synthetic-result and correction fixture-membership guards; operator fixture report; ops monitoring; fixture names and metadata for history |
+| **Current edition** | Builder; Match Lab challenge context; draft flags; adoption validation; Review; confirmation |
+| **The submission's own edition** | Lock-time validity (the existing join on `ss.snapshot_id`); My Challenge and history outcome text and evaluation; `submission_views` baseline; the per-selection kickoff guard |
+| **Copies only (unchanged)** | Settlement, scores, leaderboards, championships, achievements |
+
+- **Code change:** the about 6 "by round_id `scalar_one`" lookups become `universe(round)`, `current_edition(round)` or `load_snapshot(snapshot_id)`. The snapshot cache is keyed by snapshot id.
+- Omitting started or ineligible fixtures from later editions affects nothing above except what new entrants can pick.
+
+### 14.7 Deadline enforcement and time references
+
+**The authoritative submission time is `clock_timestamp()` at the submission row insert.**
+- A v4 trigger sets `submitted_at := clock_timestamp()`. Today it uses `transaction_timestamp()`, the transaction start.
+- Every v4 database check uses that value:
+  - **round:** `submitted_at < rounds.deadline_at` (Sunday 14:00 SAST, set once at publication);
+  - **fixture:** a trigger on each `submission_selections` row requires the fixture's kickoff **in the submission's own edition** to be later than `submitted_at + 15 min`. It reads `submitted_at` from the parent row inserted moments earlier in the same transaction.
+
+**Ordering**
+- All locks are taken **before** the submission insert. After it come only inserts and an update of the already-locked entry, so there are no further lock waits.
+- Lock contention or a slow start therefore **cannot** let a late transaction use an early timestamp: the time is taken at insert, after any waiting.
+- `statement_timeout` and `lock_timeout` (existing session settings) bound the remaining window.
+
+**Service-level validation**
+- Uses `clock_timestamp()` after the locks, as `_check_open` already does, for user-facing messages.
+- The database triggers are the final authority.
+
+**Settlement V3 (v4 rounds)**
+- A leg is void only if the observed actual kickoff is earlier than **that entry's `submitted_at`** (the match had started when the participant entered).
+- A Friday submission on a Friday fixture is valid: its kickoff was more than 15 minutes after its own `submitted_at`. The Sunday 14:00 deadline plays no part in V3.
+- Postponement and rescheduling verdicts stay per outcome, as today.
+
+**Historical rounds:** v1–v3 rounds keep `transaction_timestamp()`, the common deadline and round-level V3. All of this is selected by `rules_version`.
+
+### 14.8 Methodology transition
+
+**Dormant until activated**
+- All v4 behaviour is selected by the round's `rules_version`, which comes from its schedule row.
+- No v4 schedule row will exist in any hosted database until a **separately authorised activation**.
+- So R1–R4 code is inert there: existing rounds and drafts follow v3. Tests create v4 rows only in disposable databases.
+
+**Schema migration (one, in R2)**
+- Additive and backward compatible:
+  - edition number, with existing snapshots as edition 1;
+  - `UNIQUE(round_id, edition)`;
+  - the snapshot guard allows editions while open;
+  - the universe-subset trigger;
+  - `oldest_observation_at`;
+  - the v4 submission and selection triggers, active only for v4 rounds;
+  - `submission_views`.
+- It has a downgrade and changes no historical row.
+- Applying it to any hosted or protected database is a separate authorisation.
+
+**Activation: an immediate data migration, not a future-dated one**
+- It mirrors the A3 `app_0009` pattern: insert schedule v4 (`active_from` = now) and close v3.
+- Run on a Monday–Thursday, before the week's draft is created (78 h before Friday 08:00, i.e. by Tuesday about 02:00 SAST). That week's round is then the first v4 round.
+- Activation requires R5 acceptance and explicit owner authorisation.
+- **No activation or cancellation framework:** if not wanted, simply do not run it.
+
+**Preserved:** all historical rounds keep their deadlines, single snapshot, prices, buckets, submission rules, round-level V3 and published results.
+
+### 14.9 Countdown (R4, optional, included)
+
+**Design**
+- One reusable component: the server supplies `{state, target_utc}`.
+- A **client-side** callback updates the text every 60 seconds (`dcc.Interval` with a clientside callback). There are no recurring server calls and no provider requests.
+- When the target passes, the client triggers **one** card refresh, so the backend's real state replaces the countdown.
+
+| State | Text | Colour (existing theme tokens) |
+|---|---|---|
+| Upcoming | "Scheduled to open in 2d 14h 32m" ("scheduled", because publication is manual) | `--info` #79a8ff |
+| Open | "Time remaining: 1d 08h 24m" | `--accent` #2dd4bf |
+| Closing soon (< 2 h) | "Time remaining: 1h 24m" | `--warn` #f2b84b |
+| Submitted | "Your portfolio is in!" (no countdown) | `--accent` |
+| Closed, too few eligible fixtures, prices unavailable, no challenge | The state message from §8 (no countdown) | neutral |
+
+**Colours**
+- The suggested #3B82F6, #0D9488 and #D97706 reach only about 4.6–5.4:1 on the card surface (#151b23).
+- The existing tokens reach about 6.8–9.7:1 and match the interface. They are recommended, subject to the R4 UI review.
+
+**Effort:** about +1–2 h within R4. No separate checkpoint.
+
+### 14.10 Dependency adjustments and estimates
+
+**Dependency adjustments**
+- **R1 has no schema change.** It delivers v4 lifecycle *services* (deadline, irrevocability, per-fixture check in the service, entry-level V3, privacy filter, schedule v4 handling in tests) against a single snapshot. A single snapshot is simply edition 1, so nothing in R1 is replaced later.
+- **R2 carries the one migration** (§14.8), including the v4 database triggers, and runs the intermediate full CI.
+- **The R2 review fingerprint is built complete** (§14.4), including the Your View fields from the current Your View resolution. R3 then changes only how Your View is keyed and carried forward, and writes `submission_views`. The fingerprint is not replaced.
+- **R3 depends on R2's editions** for baselines. R4 depends on R1–R3 states. R5 is unchanged.
+
+**Acceptance criteria additions**
+
+| Checkpoint | Added criterion |
+|---|---|
+| R1 | A Friday entry with a Friday fixture settles as valid under entry-level V3. v3 rounds unchanged |
+| R2 | An edition written during a confirmation never produces a mixed confirmation (a concurrency test). An edition after a partial sweep does not refresh un-retrieved observations. Offers age out at confirmation using stored evidence. Overnight slots are generated and stop at Sunday 14:00 |
+| R3 | The carry-forward table (§14.5) behaves as specified. Fallback is never recorded as adjusted |
+| R4 | Countdown states and the one-shot refresh at zero (if delivered) |
+| R5 | Weekend simulation includes overnight slots, a failed sweep, a stale pause and recovery |
+
+**Operational validation obligations** (not research checkpoints)
+
+| When | Obligation |
+|---|---|
+| R2 and R5 (dev data) | Edition build time and storage |
+| First supervised hosted weekend, after separate authorisation | Multi-league weekend and Sunday odds coverage, PSL reliability, request use against the caps, actual Sunday feasibility |
+| CP2B.2 | European coverage (7 Dec verification) |
+
+The Goal Model proxy is not treated as verified market feasibility.
+
+**Estimates (material change only)**
+
+| Checkpoint | Change |
+|---|---|
+| R2 | +3–4 h (evidence columns, partial-sweep correctness, overnight slots, universe trigger, the complete fingerprint) |
+| R3 | +2–3 h (carry-forward rules) |
+| R4 | +1–2 h (countdown) |
+| **CP3A-R implementation** | **72–99 h** (was 66–90) |
+| **Remaining Phase 8** | **103–143 h** (was 97–134) |
+
+### 14.11 Remaining owner decisions
+
+| # | Decision | Recommendation |
+|---|---|---|
+| a | The ±0.20 estimated-goals carry-forward threshold (§14.5) | Approve; reviewable after Beta |
+| b | Countdown colours | Use the existing theme tokens, subject to R4 UI review |
+
+- No other open decision.
+- **No blocker to starting R1.** R1 needs no migration, no provider access and no API-Football renewal. The renewal (by 14 Dec) matters only for hosted operation.

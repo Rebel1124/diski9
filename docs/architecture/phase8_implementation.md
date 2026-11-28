@@ -1445,3 +1445,25 @@ Inventory taken from the code on 27 Nov 2026. "WC" means Challenge Mode ON and "
   
   Decision register: refinement §12.
 
+### 15.17 CP3A-R.1 owner decisions and final technical clarifications (owner, 28 Nov 2026)
+
+- **ChatGPT reviewed CP3A-R.1** (`09e403d`). The owner **approved D1 (Architecture R: immutable price editions), D6 (fixed Sunday 14:00 SAST deadline) and D7 (rolling 7-day research window without a date picker).** D2–D5 and D8–D14 are supported subject to the clarifications.
+- **Final technical clarifications** (refinement §14, which governs):
+  - **Refresh:** 3-hourly competitive refresh through the whole entry window, overnight included (Friday 06:15 to Sunday 12:15 SAST, 19 sweeps), stopping at Sunday 14:00. Peak rolling 24 h about 265 requests, within the unchanged caps.
+  - **Confirmation:** validates against one immutable PostgreSQL edition. The writer and confirmation coordinate through the round row lock (`FOR NO KEY UPDATE` against `FOR SHARE`). Existing foreign keys are kept.
+  - **Freshness:** genuine freshness from the oldest contributing observation and provider timestamps stored per offer, checked at the actual time.
+  - **Review fingerprint:** a deterministic fingerprint over the participant's nine selections at display precision, including analytical identity and Your View.
+  - **Your View:** carry-forward rules (±0.20 estimated goals; source or version change not applied); `submission_views` records.
+  - **Universe:** edition 1 is the authoritative universe.
+  - **Time reference:** `clock_timestamp()` at insert is the authoritative submission time, and settlement V3 is entry-level for v4.
+  - **Transition:** dormant v4 code until a separately authorised immediate activation (A3 pattern). One additive migration in R2.
+  - **Countdown:** included in R4 as optional.
+- **Estimates:** CP3A-R implementation 72–99 h (was 66–90); remaining Phase 8 103–143 h (was 97–134).
+- **Operational validation obligations** (not research checkpoints):
+  - edition build time and storage (R2, R5);
+  - multi-league weekend and Sunday odds coverage, PSL reliability, request use and actual Sunday feasibility (first supervised hosted weekend, separately authorised);
+  - European coverage (CP2B.2, 7 Dec verification).
+  
+  The Goal Model proxy is not verified market feasibility.
+- **Status:** awaiting ChatGPT's review and explicit owner authorisation to commence R1. On acceptance, the core Weekly Challenge requirements (register P8-SCOPE) are frozen for MVP. Phase 6 remains paused.
+
