@@ -8,7 +8,7 @@
   - **CP3A-3** is **formally accepted** (27 Nov 2026; `4e08e71`, closure `1648381`; §10.4, §10.5);
   - **CP3A-4** is **formally accepted** (owner, after ChatGPT's review; `57d6bc9`, `8af420f`, `fb1873d`; §10.6, §10.7);
   - **CP3A-4B** (ML-01 correction and cumulative testing) is **formally accepted** (owner, 28 Nov 2026, after ChatGPT's independent review and verification of CI run #175; `1c68238`, docs `d06efac`; §10.8). ML-01 is closed as resolved;
-  - **CP3A-5** (final integration and acceptance) is authorised and implemented, awaiting review (§10.9).
+  - **CP3A-5** (final integration and acceptance) is implemented and verified (local 2514/2514; CI #177 and #178 failed on two test-only issues, corrected in `26428ee` and `e3d77f9`; CI run #179 success, 2514 passed, 0 skipped, no warnings), awaiting review (§10.9; record §15.14).
 
 Decisions this plan implements: [`phase8_implementation.md`](phase8_implementation.md) §15 (governs), with §11 OD-4 where not superseded.
 
@@ -399,7 +399,33 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
 - **Analytical integrity and ML-01:** the permanent CP2B.1, CP3A-3, CP3A-4 and CP3A-4B tests (States A/B/C, independent versus market-implied, frozen snapshot integrity, context-specific reference, edge and EV restrictions, separate frozen/latest Your View, delayed-response coverage including stale rebuilds, rapid slider steps, frozen/latest switching, a market change during a pending toggle, new challenge openings defaulting to frozen and tab restoration) all run in the full suite unchanged.
 - **Legacy acceptance scripts (`tools/e2e_6c3`, `e2e_6c4`, `e2e_6c5`):** `/challenge` → `/`; the nav link `a[href="/challenge"]` → `a[href="/"]`; the navigation check uses Leaderboard and Portfolio Build; `openFixture` opens a challenge match through the builder's own Match Lab link (frozen) instead of `/?fixture=`; the removed universe control is mapped to the Match Lab's "Use latest available data" toggle (`universe()`, `perf.js`). Syntax-checked; not re-run end to end (they need their historical local environment; the integrated test above supersedes them for CP3A).
 - **Warning correction:** `tests/test_app.py` escapes the backslashes of the browser-test regular expression in its (non-raw) Python string; the JavaScript received is unchanged (`/\/lab\?/`), and compiling the file with warnings as errors succeeds.
-- **Visual review (390, 768, 1280 px):** no horizontal overflow, clipped controls or browser errors found; representative screenshots in `docs/screenshots/phase8_cp3a5/` (earlier CP3A screenshots remain representative for their pages). One minor observation, not changed: at 390 px the Your View value box can clip the last digit of a signed value (`+0.30`); pre-existing, proposed for CP3B's Match Lab presentation work.
+- **Visual review (390, 768, 1280 px):** no horizontal overflow, clipped controls or browser errors found; representative screenshots in `docs/screenshots/phase8_cp3a5/` (earlier CP3A screenshots remain representative for their pages). One minor observation, not changed: at 390 px the Your View value box can clip the last digit of a signed value (`+0.30`); presentation only, deferred to CP3B with the owner's approval (§10.9.2).
+
+#### 10.9.1 Legacy acceptance journeys: coverage mapping
+
+Syntax verification (`node --check`) only for the updated scripts; executed browser acceptance comes from the tests named here.
+
+| Legacy journey (script) | Where it is covered now (executed) | Verification of the legacy script |
+|---|---|---|
+| 6C.3 A, returning participant: partial portfolio saved, restored after sign-in (`journey_g.js`) | CP3A-5 integrated test, journeys 2–4 (adoption saved to the account, restored on another device); `test_app_persistence.py` (PostgreSQL) | syntax only |
+| 6C.3 G, frozen versus latest Your View, reset of one context (`journey_g.js`, via the old universe control) | CP3A-5 journeys 3–4 (separate frozen/latest adjustments, restored per context); `test_phase8_cp3a4.py`, `test_phase8_cp3a4b.py`, `test_backend_phase8_cp3a4.py` (separate account rows) | syntax only; universe control mapped to the latest-data toggle |
+| 6C.3 B, cross-device conflict (`journeys.js`) | `test_app_persistence.py::test_stale_device_gets_a_conflict_and_never_silently_takes_the_other_draft`, `test_backend_drafts.py` (stale-tab and other-device conflicts) | syntax only |
+| 6C.3 C, confirm, replace, withdraw, re-enter (`journeys.js`) | CP3A-5 journeys 3–4 (submit, withdraw); `test_backend_entries.py` (`test_replacement_creates_a_new_version_and_keeps_the_old`, `test_withdrawal_and_re_entry`), `test_challenge_state.py` | syntax only |
+| 6C.3 D, guest adoption with and without account work (`journeys.js`) | CP3A-5 journey 2 (adoption without existing account work); `test_backend_refinements.py::test_existing_account_work_is_kept_unless_replacement_is_chosen` and the other adoption tests there | syntax only |
+| 6C.3 F, account isolation in one tab (`journeys.js`) | `test_account_tab_state.py` (browser), `test_backend_your_view.py` | syntax only |
+| 6C.3 E/H, short round, lock, locked entry card (`journey_e.js`, `journey_h.js`) | CP3A-5 journey 5 (locked round read-only); `test_backend_locked_entry.py`, `test_backend_rounds.py` | syntax only |
+| 6C.3 shots/perf (`shots.js`, `perf.js`) | CP3A-5 screenshots and overflow checks; no CP3A performance re-measurement | syntax only |
+| 6C.4 settlement journeys and Current panel (`e2e_6c4/*`) | settlement and My Challenge tests (`test_backend_settlement*.py`, `test_backend_participant_results.py`); unchanged by CP3A | syntax only (route edits) |
+| 6C.5 Leaderboards/History journeys (`e2e_6c5/*`) | leaderboard/history tests (`test_backend_stage_e_*`, `test_backend_weekly_results.py`); CP3A-5 journeys 1 and 3 (Leaderboard tab) | syntax only (route and label edits) |
+
+**Gaps (not material for CP3A):** the legacy scripts themselves were not executed; a cross-device draft *conflict* and adoption *with* existing account work are covered at service and callback level, not in a real-browser CP3A run; no end-to-end performance re-measurement (the 6C.3 `perf.js` timings are historical).
+
+#### 10.9.2 Outstanding UI correction for CP3B (owner-approved deferral)
+
+- **Issue:** at 390 px the Match Lab's Your View numeric box (Section B, `#ctx-home` / `#ctx-away`, and the equivalent Section C/D boxes) can clip the last character of a signed two-decimal value, e.g. `+0.30` shown as `+0.3`.
+- **Reproduction:** viewport 390 × 900; open a challenge match in the Match Lab; open "Your Match Context Adjustment"; enter `0.30` (shown `+0.30`). Screenshot: `docs/screenshots/phase8_cp3a5/cp3a5_lab_frozen_signed_in_390.png` (captured by the CP3A-5 integrated test).
+- **Presentation only:** the input's value is `+0.30` (read back by the integrated test at 390 and 768 px), the saved Your View (browser store and account row) holds 0.30 and is restored as `+0.30` on another device, and the Review's Your View probabilities use the stored value. Nothing is calculated from the rendered width.
+- **Scope:** a CSS width adjustment of those boxes in CP3B's Match Lab presentation work; not implemented in CP3A-5.
 
 ## 11. Testing and browser acceptance (proportionate)
 
