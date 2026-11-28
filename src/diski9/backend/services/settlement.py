@@ -59,6 +59,7 @@ from ..db.schema import (
 )
 from ..repositories import results as results_repo
 from ..repositories import rounds as rounds_repo
+from . import rolling
 from .common import ServiceError
 from .results import actor_id, environment
 from .rounds import System
@@ -239,21 +240,41 @@ def locked_legs(conn: Connection, round_id: UUID) -> dict[UUID, tuple[UUID, list
     return out
 
 
+def submission_times(conn: Connection, round_id: UUID) -> dict[UUID, datetime]:
+    """Rolling entry: each locked entry's authoritative submission time (the V3
+    reference of its legs)."""
+    rows = conn.execute(
+        select(entries.c.id, submissions.c.submitted_at)
+        .join(submissions, submissions.c.id == entries.c.locked_submission_id)
+        .where(entries.c.round_id == round_id, entries.c.locked_submission_id.is_not(None))
+    )
+    return {r.id: r.submitted_at for r in rows}
+
+
 # ------------------------------------------------------------------ compute
-def _legs_json(es: EntrySettlement) -> dict:
+def _legs_json(es: EntrySettlement, entry_rules: dict[int, str] | None = None) -> dict:
+    """The stored legs. ``entry_rules`` (rolling entry only): position -> the rule of a
+    leg whose verdict comes from the entry-level V3 check rather than the round-level
+    verdict, recorded as ``entry_rule`` so the reason can be shown. Historical rounds
+    never have the key, so their stored legs are unchanged."""
+    entry_rules = entry_rules or {}
+
+    def leg_dict(leg: Leg, verdict: str) -> dict:
+        d = {
+            "position": leg.position,
+            "fixture_id": leg.fixture_id,
+            "market": leg.market,
+            "outcome": leg.outcome,
+            "bucket": leg.bucket,
+            "odds": str(leg.odds),
+            "verdict": verdict,
+        }
+        if leg.position in entry_rules:
+            d["entry_rule"] = entry_rules[leg.position]
+        return d
+
     return {
-        "legs": [
-            {
-                "position": leg.position,
-                "fixture_id": leg.fixture_id,
-                "market": leg.market,
-                "outcome": leg.outcome,
-                "bucket": leg.bucket,
-                "odds": str(leg.odds),
-                "verdict": verdict,
-            }
-            for leg, verdict in es.legs
-        ],
+        "legs": [leg_dict(leg, verdict) for leg, verdict in es.legs],
         "accumulators": [
             {
                 "code": a.code,
@@ -312,15 +333,31 @@ def compute(
         by_fixture.setdefault(row.fixture_id, []).append(results_repo.to_observation(row))
     for fid, extra_obs in (extra or {}).items():
         by_fixture.setdefault(fid, []).extend(extra_obs)
-    resolutions = {
-        fid: resolve_fixture(
+    # V3 reference: the round deadline (historical rounds), or - rolling entry - each
+    # entry's own submission time. The round-level verdict of a fixture then uses the
+    # earliest submission time among the entries that selected it; every entry is
+    # re-checked below against its own time (entry-level V3, CP3A-R.1 §14.7).
+    entry_rolling = rolling.is_rolling(r.rules_version)
+    times = submission_times(conn, round_id) if entry_rolling else {}
+    reference: dict[int, datetime] = {}
+    for entry_id, (_, legs, _) in locked.items():
+        ref = times.get(entry_id, r.deadline_at)
+        for leg in legs:
+            cur = reference.get(leg.fixture_id)
+            reference[leg.fixture_id] = ref if cur is None else min(cur, ref)
+
+    def resolve(fid: int, outcomes, ref: datetime) -> Resolution:
+        return resolve_fixture(
             fid,
             by_fixture.get(fid, []),
             sorted(outcomes),
-            deadline_at=r.deadline_at,
+            deadline_at=ref,
             settle_cutoff_at=r.settle_cutoff_at,
             evaluated_at=evaluated_at,
         )
+
+    resolutions = {
+        fid: resolve(fid, outcomes, reference[fid] if entry_rolling else r.deadline_at)
         for fid, outcomes in sorted(selected.items())
     }
     verdicts = {
@@ -329,9 +366,29 @@ def compute(
         for v in res.verdicts
     }
     entry_results = {}
+    entry_rules: dict[UUID, dict[int, str]] = {}
+    extra_alerts: dict[str, Alert] = {}
+    per_reference: dict[tuple[int, datetime], Resolution] = {}
     config = get_config(r.config_version)  # the round's own version; unknown versions fail
     for entry_id, (sub, legs, states) in locked.items():
-        es = settle_entry(legs, verdicts, config)
+        own = verdicts
+        if entry_rolling:
+            ref = times[entry_id]
+            own = dict(verdicts)
+            for leg in legs:
+                if ref == reference[leg.fixture_id]:
+                    continue  # the round-level resolution already used this time
+                key = (leg.fixture_id, ref)
+                if key not in per_reference:
+                    per_reference[key] = resolve(leg.fixture_id, selected[leg.fixture_id], ref)
+                res = per_reference[key]
+                v = res.verdict_for(leg.market, leg.outcome)
+                own[(leg.fixture_id, leg.market, leg.outcome)] = v.verdict
+                if v.verdict != verdicts[(leg.fixture_id, leg.market, leg.outcome)]:
+                    entry_rules.setdefault(entry_id, {})[leg.position] = v.rule
+                for a in res.alerts:
+                    extra_alerts.setdefault(a.fingerprint, a)
+        es = settle_entry(legs, own, config)
         _check_against_states(entry_id, es, states)
         entry_results[entry_id] = (sub, es)
     validity = evaluate_round(
@@ -394,7 +451,7 @@ def compute(
     # entry settlement revisions (every change here is material)
     current_e = _current_entry_settlements(conn, round_id)
     for entry_id, (sub, es) in entry_results.items():
-        legs = _legs_json(es)
+        legs = _legs_json(es, entry_rules.get(entry_id))
         basis = "all_void" if es.all_void and es.complete else "settled"
         old = current_e.get(entry_id)
         if old is not None and (
@@ -461,6 +518,8 @@ def compute(
                 f"predictions played, {validity.ranked} rank-eligible entries",
             }
     plan.alerts = [a for res in resolutions.values() for a in res.alerts]
+    seen = {a.fingerprint for a in plan.alerts}
+    plan.alerts += [a for f, a in sorted(extra_alerts.items()) if f not in seen]
     plan.manifest = {
         str(fid): [i for i in res.evidence_ids if i > 0] for fid, res in resolutions.items()
     }

@@ -28,6 +28,7 @@ from sqlalchemy import Engine, select, text
 from ..auth.permissions import Capability, Principal, can
 from ..db import read_only
 from ..db.schema import entries, rounds
+from . import rolling
 from . import settlement as st
 
 ZERO = Decimal("0.00")
@@ -38,8 +39,16 @@ VOID_REASON = {
     "V1": "Void: the match was postponed or not completed by the settlement cutoff.",
     "V2": "Void: the match was cancelled or awarded without a genuine result.",
     "V3": "Void: the match started (or was moved) before the submission deadline.",
+    # rolling entry: V3 uses the participant's own submission time
+    "V3-entry": "Void: the match started (or was moved) before your portfolio was submitted.",
     "V4": "Void: the match was abandoned or suspended and not completed by the cutoff.",
 }
+
+
+def _void_reason(code: str, rolling_round: bool) -> str | None:
+    if rolling_round and code == "V3":
+        return VOID_REASON["V3-entry"]
+    return VOID_REASON.get(code)
 
 
 @dataclass(frozen=True)
@@ -183,12 +192,16 @@ def my_settlement(
         ).scalar()
         earliest = st.earliest_finalisation(conn, r) if r.status == "settling" else None
     legs_json = s.legs or {}
+    rolling_round = rolling.is_rolling(r.rules_version)
     preds = []
     for leg in legs_json.get("legs", []):
         row = verdicts.get((leg["fixture_id"], leg["market"], leg["outcome"]))
         verdict = leg["verdict"]
         rule = row.rule if row is not None else None
         code = (row.void_code if row is not None else None) or (rule or "")[:2]
+        if leg.get("entry_rule"):  # rolling entry: decided by this entry's own V3 check
+            rule = leg["entry_rule"]
+            code = rule[:2]
         preds.append(
             PredictionResult(
                 position=leg["position"],
@@ -200,7 +213,7 @@ def my_settlement(
                 verdict=verdict,
                 rule=rule,
                 score=((row.evidence or {}).get("score") if row is not None else None),
-                void_reason=VOID_REASON.get(code) if verdict == "void" else None,
+                void_reason=_void_reason(code, rolling_round) if verdict == "void" else None,
             )
         )
     by_bucket: dict[str, list[str]] = {}

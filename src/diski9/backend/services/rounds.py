@@ -39,7 +39,7 @@ from ..db.schema import (
 )
 from ..repositories import ops, portfolios
 from ..repositories import rounds as rounds_repo
-from . import championships, snapshots
+from . import championships, rolling, snapshots
 from .common import LockRefused, NotFound, PublicationRefused, ValidationFailed
 from .schedules import (  # noqa: F401
     ScheduleUnavailable,
@@ -563,7 +563,7 @@ def publish_round(
                 model_version=MODEL_VERSION,
                 job_run_id=run,
             )
-            cutoff = snapshots.latest_kickoff(snapshot) + timedelta(hours=sched.settle_cutoff_hours)
+            cutoff = settle_cutoff(snapshot, sched, deadline)
             rounds_repo.set_status(
                 conn,
                 round_id,
@@ -605,6 +605,17 @@ def publish_round(
     raise _refuse(engine, code, problem, details)
 
 
+def settle_cutoff(snapshot: RoundSnapshot, sched, deadline: datetime) -> datetime:
+    """The fixed settlement cutoff: latest kickoff plus the schedule's settlement hours.
+    For a rolling-entry round the reference is never earlier than the entry close, so
+    the cutoff always follows the deadline (only matters if every fixture kicked off
+    more than ``settle_cutoff_hours`` before the close; historical rounds unchanged)."""
+    ref = snapshots.latest_kickoff(snapshot)
+    if rolling.is_rolling(sched.rules_version):
+        ref = max(ref, deadline)
+    return ref + timedelta(hours=sched.settle_cutoff_hours)
+
+
 @dataclass(frozen=True)
 class _PublicationCheck:
     problem: str | None
@@ -631,7 +642,24 @@ def _evaluate_publication(r, sched, snap: RoundSnapshot, source, now, max_age) -
             config,
             report,
         )
-    deadline = snap.earliest_kickoff - timedelta(minutes=sched.deadline_buffer_minutes)
+    if rolling.is_rolling(sched.rules_version):
+        # rolling entry (R1): one fixed entry close (Sunday 14:00 SAST for schedule v4);
+        # each fixture's own 15-minute cutoff is enforced at confirmation
+        try:
+            deadline = rolling.entry_close(sched.publish_rule, r.window_start_at)
+        except rolling.RollingRuleError as exc:
+            return _PublicationCheck(
+                f"The rolling-entry schedule is misconfigured: {exc}", {}, config, report
+            )
+        if not r.window_start_at < deadline <= r.window_end_at:
+            return _PublicationCheck(
+                "The rolling-entry close falls outside the round window.",
+                {"deadline": deadline.isoformat()},
+                config,
+                report,
+            )
+    else:
+        deadline = snap.earliest_kickoff - timedelta(minutes=sched.deadline_buffer_minutes)
     if deadline <= now:
         return _PublicationCheck(
             "The submission deadline for these fixtures has already passed.",
@@ -712,7 +740,7 @@ def publication_readiness(
             seen.append(o.latest_observation_at)
     latest = snapshots.latest_kickoff(snapshot)
     cutoff = (
-        latest + timedelta(hours=sched.settle_cutoff_hours)
+        settle_cutoff(snapshot, sched, check.deadline)
         if latest is not None and check.problem is None
         else None
     )

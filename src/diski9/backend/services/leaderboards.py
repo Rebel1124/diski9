@@ -38,6 +38,7 @@ from ..auth.accounts import LockedName, leaderboard_names
 from ..auth.permissions import Principal
 from ..db.schema import championship_series, championship_versions, championships, rounds
 from . import championships as championships_svc
+from . import rolling
 from .common import NotFound, ValidationFailed
 from .competition import ALLOCATION, current_designation_row, stream_of
 
@@ -93,6 +94,9 @@ class WeeklyBoard:
     championship_round: int | None = None  # its counted-round number (slot), once counted
     championship_rounds_required: int | None = None
     window: str = ""  # friendly round label: its SAST match window, e.g. "19–23 Nov 2026"
+    # rolling entry (R1): until official results are published the board shows the
+    # viewer only their own provisional row; other participants' performance is private
+    private_until_published: bool = False
 
 
 @contextmanager
@@ -332,7 +336,31 @@ def weekly_board(
             return _empty(
                 common, "locked", page_size, me_status=_not_entered(conn, round_id, me_id)
             )
-        return _provisional_board(conn, common, data, me_id, page, page_size)
+        board = _provisional_board(conn, common, data, me_id, page, page_size)
+        if rolling.is_rolling(r.rules_version):
+            return _private_provisional(board)
+        return board
+
+
+def _private_provisional(board: WeeklyBoard) -> WeeklyBoard:
+    """Rolling entry: the provisional board limited to the viewer's own row (or no
+    row for a guest or non-entrant). Positions, aggregate counts and other
+    participants' rows are withheld until a score set is published."""
+    me = board.me
+    if me is not None:
+        me = replace(me, position=None, shared=False)
+    return replace(
+        board,
+        rows=() if me is None else (me,),
+        total=0 if me is None else 1,
+        page=1,
+        pages=1,
+        me=me,
+        me_page=None if me is None else 1,
+        settled_predictions=None,
+        pending_predictions=None,
+        private_until_published=True,
+    )
 
 
 def _not_entered(conn, round_id, me_id) -> str | None:

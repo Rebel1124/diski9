@@ -66,6 +66,7 @@ def make_settlement_round(
     series: str = "beta",
     extra_outcomes: bool = False,
     config_version: str = "broad60-432-v1",
+    rules_version: str = "settle/v1",
 ):
     """``published_at`` (default: now) may be set in the past, e.g. to test SAST
     month boundaries of championship names. ``correction_window_hours`` (default:
@@ -132,7 +133,7 @@ def make_settlement_round(
         deadline_at=deadline,
         settle_cutoff_at=deadline + cutoff_after,
         config_version=config_version,
-        rules_version="settle/v1",
+        rules_version=rules_version,
         scoring_version="points-150-75-v2",
         model_version="goal-model-1.0",
     )

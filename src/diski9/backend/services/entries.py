@@ -20,6 +20,14 @@ T-09, R-04).
   another transaction can never extend the window; the insert trigger checks it
   again.
 * Your View is never read: private analysis is not an input to entries.
+
+**Rolling entry** (rules ``rolling/v1``, Phase 8 CP3A-R R1; see
+:mod:`~diski9.backend.services.rolling`): the first confirmation is the participant's
+one irrevocable final submission. Replacement, withdrawal and resubmission are
+refused (:class:`SubmissionFinal`); a retried request with the same key still
+returns the stored entry. Each selected fixture must kick off more than the
+schedule's buffer (15 minutes) after ``clock_timestamp()`` read after the locks
+(:class:`FixtureClosed`). Earlier rules versions are unchanged.
 """
 
 from __future__ import annotations
@@ -50,6 +58,7 @@ from ..db.schema import (
     entries,
     entry_events,
     portfolio_drafts,
+    round_schedules,
     rounds,
     submission_selections,
     submissions,
@@ -57,7 +66,7 @@ from ..db.schema import (
 from ..repositories import portfolios as repo
 from ..repositories import rounds as rounds_repo
 from . import drafts as drafts_svc
-from . import snapshots
+from . import rolling, snapshots
 from .common import (
     NotFound,
     RoundClosed,
@@ -77,6 +86,20 @@ class AlreadyEntered(ServiceError):
 
 class IdempotencyMismatch(ServiceError):
     code = "idempotency_mismatch"
+
+
+class SubmissionFinal(ServiceError):
+    """Rolling entry: the participant's final submission already exists, so it cannot
+    be replaced, withdrawn or submitted again."""
+
+    code = "submission_final"
+
+
+class FixtureClosed(ValidationFailed):
+    """Rolling entry: a selected fixture is within its pre-kickoff cutoff (or has
+    started). ``details["fixtures"]`` lists them; nothing was written."""
+
+    code = "fixture_closed"
 
 
 @dataclass(frozen=True)
@@ -199,6 +222,35 @@ def _check_open(conn: Connection, r) -> None:
         raise RoundClosed("The submission deadline has passed; entries can no longer change.")
 
 
+FINAL_MESSAGE = (
+    "Your portfolio has already been submitted. Entries in this round are final and "
+    "cannot be changed, withdrawn or submitted again."
+)
+
+
+def _rolling(r) -> bool:
+    return rolling.is_rolling(getattr(r, "rules_version", None))
+
+
+def _check_fixture_cutoffs(conn: Connection, r, snap, fixture_ids) -> None:
+    """Rolling entry: every selected fixture must kick off more than the schedule's
+    buffer after ``clock_timestamp()``, read while the locks are held."""
+    buffer = conn.execute(
+        select(round_schedules.c.deadline_buffer_minutes).where(
+            round_schedules.c.id == r.schedule_id
+        )
+    ).scalar_one()
+    now = conn.execute(text("SELECT clock_timestamp()")).scalar_one()
+    kickoffs = {int(f.fixture_id): f.kickoff for f in snap.fixtures}
+    closed = rolling.closed_fixtures(kickoffs, fixture_ids, now, buffer)
+    if closed:
+        raise FixtureClosed(
+            f"Some of your matches start within {buffer} minutes or have already started; "
+            "replace them before submitting.",
+            [{"reason": "fixture_closed", "fixture_id": f} for f in closed],
+        )
+
+
 def _lock_or_create_entry(conn: Connection, round_id: UUID, user_id: UUID):
     conn.execute(
         pg_insert(entries)
@@ -263,6 +315,10 @@ def confirm_entry(
                 "This request was already used for a different portfolio. Please try again."
             )
         _check_open(conn, r)
+        is_rolling = _rolling(r)
+        if is_rolling and (replace or e.current_submission_id is not None or e.version > 0):
+            # one final submission: any earlier submission (or a replace request) ends it
+            raise SubmissionFinal(FINAL_MESSAGE, details=_entry_view(conn, round_id, uid))
         if e.version != expected_entry_version:
             raise VersionConflict(
                 "Your entry was changed in another tab or on another device. "
@@ -288,6 +344,8 @@ def confirm_entry(
         config = get_config(cfg_version.config_version)
         parsed = drafts_svc.parse_selections(sels)
         outcomes = drafts_svc.validate_selections(snap, parsed, config)
+        if is_rolling:
+            _check_fixture_cutoffs(conn, r, snap, [o.fixture_id for o in outcomes])
         try:
             portfolio = validate_portfolio(outcomes, snap.snapshot_at, config, pool=snap.outcomes)
         except PortfolioValidationError as exc:
@@ -378,6 +436,8 @@ def withdraw_entry(
         r = _lock_round(conn, round_id)
         e = repo.lock_entry(conn, round_id, uid)
         _check_open(conn, r)  # after every lock is held
+        if _rolling(r):
+            raise SubmissionFinal(FINAL_MESSAGE, details=_entry_view(conn, round_id, uid))
         if e is None or e.state != "confirmed" or e.current_submission_id is None:
             raise ValidationFailed("There is no active entry to withdraw.", [{"reason": "none"}])
         if e.version != expected_entry_version:

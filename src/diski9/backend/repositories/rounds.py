@@ -103,7 +103,13 @@ def set_status(
 
 def lock_round_for_submission(conn: Connection, round_id: UUID) -> Row:
     return conn.execute(
-        select(rounds.c.id, rounds.c.status, rounds.c.deadline_at)
+        select(
+            rounds.c.id,
+            rounds.c.status,
+            rounds.c.deadline_at,
+            rounds.c.rules_version,
+            rounds.c.schedule_id,
+        )
         .where(rounds.c.id == round_id)
         .with_for_update(read=True)
     ).one()

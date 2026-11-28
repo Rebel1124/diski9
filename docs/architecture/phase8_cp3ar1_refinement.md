@@ -3,6 +3,8 @@
 *28 Nov 2026. Research and documentation only. Nothing is implemented. Supplements the CP3A-R reassessment ([`phase8_cp3ar_reassessment.md`](phase8_cp3ar_reassessment.md)) without repeating it.*
 
 > **Closure (28 Nov 2026):** the owner approved D1, D6 and D7. §14 resolves the final technical clarifications and **governs where it differs** from §3–§12. Revised estimate: 72–99 h for CP3A-R and 103–143 h for remaining Phase 8.
+>
+> **Formally accepted and closed (owner, 28 Nov 2026; register P8-CP3AR1-CLOSE).** Later explicit owner decisions govern over §14: the Your View methodology of **P8-YV supersedes the §14.5 carry-forward table and the ±0.20 threshold**; the countdown colours are decided (P8-CD); the core scope is frozen (P8-SCOPE). §14.12 adds the implementation safeguards from the independent review. R1 is authorised (P8-R1).
 
 **Evidence markers**
 - **[S]** source code;
@@ -765,6 +767,8 @@ Outputs are in `docs/research/phase8_cp3ar/` (`odds_trial_replay.json`, `sunday_
 
 ### 14.5 Your View identity and carry-forward rules (v4 rounds)
 
+> **Superseded (owner, 28 Nov 2026; register P8-YV).** The carry-forward table and the ±0.20 threshold below are **not adopted**. Your View is a participant's personal point-in-time opinion: the saved **absolute** estimated goals are preserved and never moved with a changing baseline; the latest model estimates are shown separately with a simple notice; the participant may revise or reset; Your View probabilities come from the preserved estimates; provenance (baseline at creation or last explicit revision, latest baseline at submission, resulting probabilities, source and methodology identity, adjusted or fallback) is frozen at confirmation. A change of source, methodology version or availability never silently reinterprets the saved estimate; an exceptional incompatibility fails safe with an explanation. Implemented in R3 with the minimum storage change; the R2 review fingerprint must cover the preserved estimates rather than deltas. The text below is kept as the historical proposal.
+
 **Storage**
 - The stored adjustment (deltas) is keyed by (user, fixture, round).
 - It is **never rewritten automatically.**
@@ -848,7 +852,7 @@ Outputs are in `docs/research/phase8_cp3ar/` (`odds_trial_replay.json`, `sunday_
 
 **Activation: an immediate data migration, not a future-dated one**
 - It mirrors the A3 `app_0009` pattern: insert schedule v4 (`active_from` = now) and close v3.
-- Run on a Monday–Thursday, before the week's draft is created (78 h before Friday 08:00, i.e. by Tuesday about 02:00 SAST). That week's round is then the first v4 round.
+- Run on a Monday–Thursday, before the week's draft is created (78 h before Friday 08:00, i.e. by Tuesday about 02:00 SAST). That week's round is then the first v4 round. **Safeguard (§14.12):** the requirement is that activation precedes creation of the relevant draft; the time is checked against the draft, not assumed from the weekday.
 - Activation requires R5 acceptance and explicit owner authorisation.
 - **No activation or cancellation framework:** if not wanted, simply do not run it.
 
@@ -889,7 +893,7 @@ Outputs are in `docs/research/phase8_cp3ar/` (`odds_trial_replay.json`, `sunday_
 |---|---|
 | R1 | A Friday entry with a Friday fixture settles as valid under entry-level V3. v3 rounds unchanged |
 | R2 | An edition written during a confirmation never produces a mixed confirmation (a concurrency test). An edition after a partial sweep does not refresh un-retrieved observations. Offers age out at confirmation using stored evidence. Overnight slots are generated and stop at Sunday 14:00 |
-| R3 | The carry-forward table (§14.5) behaves as specified. Fallback is never recorded as adjusted |
+| R3 | ~~The carry-forward table (§14.5) behaves as specified.~~ Superseded by P8-YV: saved absolute estimates are preserved across baseline changes, shown with a notice, revisable and resettable; provenance frozen at confirmation. Fallback is never recorded as adjusted |
 | R4 | Countdown states and the one-shot refresh at zero (if delivered) |
 | R5 | Weekend simulation includes overnight slots, a failed sweep, a stale pause and recovery |
 
@@ -913,12 +917,21 @@ The Goal Model proxy is not treated as verified market feasibility.
 | **CP3A-R implementation** | **72–99 h** (was 66–90) |
 | **Remaining Phase 8** | **103–143 h** (was 97–134) |
 
-### 14.11 Remaining owner decisions
+### 14.11 Remaining owner decisions (resolved)
 
-| # | Decision | Recommendation |
+| # | Decision | Outcome (owner, 28 Nov 2026) |
 |---|---|---|
-| a | The ±0.20 estimated-goals carry-forward threshold (§14.5) | Approve; reviewable after Beta |
-| b | Countdown colours | Use the existing theme tokens, subject to R4 UI review |
+| a | The ±0.20 estimated-goals carry-forward threshold (§14.5) | **Rejected.** Replaced by preservation of absolute personal estimates (P8-YV) |
+| b | Countdown colours | **Approved:** existing theme colours #79A8FF / #2DD4BF / #F2B84B, amber below 2 h; final visual acceptance in R4 (P8-CD) |
 
-- No other open decision.
+- No open decision remains.
 - **No blocker to starting R1.** R1 needs no migration, no provider access and no API-Football renewal. The renewal (by 14 Dec) matters only for hosted operation.
+
+### 14.12 Implementation safeguards (independent review, recorded on acceptance)
+
+| Area | Safeguard | Checkpoint acceptance |
+|---|---|---|
+| Freshness | Never assume one failed sweep has no effect: a price may already be near the 24-hour provider limit or the 6-hour observation limit. The underlying timestamps always decide eligibility; a successful edition build never extends the freshness of earlier observations | R2, R5 |
+| Review fingerprint | Display precision may decide whether re-review is needed, but the accepted analytical values are stored at their full storage precision (never rounded to display precision) and derived on the server from authoritative records, never from client-supplied values | R2, R3 |
+| Database integrity | Foreign keys prove the referenced offer exists, not that every copied value matches it. Tests must show accepted odds, market probabilities, buckets and the other copied values equal the authoritative edition's | R2 (R1 keeps the existing server-side derivation from the single snapshot) |
+| Activation timing | The v4 activation must take effect before the relevant round's draft is created; an arbitrary Monday–Thursday time is not sufficient on its own. Existing immediate, separately authorised migration only; no future-dated activation or cancellation framework; no hosted activation authorised | Activation (after R5) |
