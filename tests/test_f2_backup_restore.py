@@ -278,16 +278,23 @@ def _refuses(res, target, live, match):
 
 def test_restore_refuses_the_live_store_and_every_alias(live, backups, tmp_path):
     res = backup_store(live, backups)
-    make_engine(f"sqlite:///{live}").connect().close()  # create -wal/-shm
-    _refuses(res, live, live, "configured live football store")
-    for side in ("-wal", "-shm", "-journal"):
-        _refuses(res, Path(f"{live}{side}"), live, "-wal, -shm or -journal")
-    link = tmp_path / "alias.sqlite"
-    link.symlink_to(live)
-    _refuses(res, link, live, "configured live football store")
-    hard = tmp_path / "hard.sqlite"
-    os.link(live, hard)
-    _refuses(res, hard, live, "configured live football store")
+    # an open consumer keeps -wal/-shm present for the whole test; an engine left to the
+    # garbage collector would close its last connection at an arbitrary moment, and
+    # SQLite then deletes -wal/-shm between the snapshots (CI run #177)
+    eng = make_engine(f"sqlite:///{live}")
+    try:
+        eng.connect().close()  # create -wal/-shm
+        _refuses(res, live, live, "configured live football store")
+        for side in ("-wal", "-shm", "-journal"):
+            _refuses(res, Path(f"{live}{side}"), live, "-wal, -shm or -journal")
+        link = tmp_path / "alias.sqlite"
+        link.symlink_to(live)
+        _refuses(res, link, live, "configured live football store")
+        hard = tmp_path / "hard.sqlite"
+        os.link(live, hard)
+        _refuses(res, hard, live, "configured live football store")
+    finally:
+        eng.dispose()
     dotted = live.parent / "." / live.name
     _refuses(res, dotted, live, "configured live football store")
 
