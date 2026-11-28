@@ -127,6 +127,8 @@ owner approval. Detail and evidence:
 **Considered and closed for the current scope (owner, 27 Nov 2026; Phase 8 record §15.2)**
 * Dynamic pricing, dynamic bucket classification and submission-time analytical
   snapshots: rejected; the frozen snapshot architecture is retained.
+  *Reopened for investigation in CP3A-R (owner, 28 Nov 2026); the rejection above
+  stays in force until the owner decides otherwise. Not approved for implementation.*
 * The seven-day window (Options B and C of the window research) and extended domestic
   midweek coverage: closed for the current scope.
 
