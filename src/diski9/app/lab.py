@@ -78,6 +78,7 @@ OUTCOME_KEY = {
     Outcome.UNDER_25: "under",
 }
 ALL_MARKETS = ("1X2", "BTTS", "OU25")
+LAB_GATE = {"type": "lab-gate", "k": 0}  # ML-01 (CP3A-4B), see app.adjust
 CONTEXT_NOTE = (
     "Form, league position and head-to-head results provide useful context, but some of this "
     "information may already be reflected in the model. Avoid counting the same information "
@@ -1332,6 +1333,8 @@ def adjust_section(r: dict, market: str, ov: OddsView | None, state: dict) -> ht
             _adjust_row("away", f["away"], base_r["away"], b["away"]["final"]),
             html.Div(
                 [
+                    # ML-01 (CP3A-4B): orders Your View edits; lives with the inputs
+                    dcc.Store(id=LAB_GATE),
                     html.Button(
                         "Reset to starting point" if market_sp else "Reset to model",
                         id="lab-reset",

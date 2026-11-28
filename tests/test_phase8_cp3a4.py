@@ -30,6 +30,17 @@ ON = [appmod.LATEST_VALUE]
 SHOWN = None  # the toggle wrapper's style when shown
 
 
+@pytest.fixture(autouse=True)
+def _no_leftover_trigger():
+    """Direct callback calls must not see a Dash trigger left by another test."""
+    from dash._callback_context import context_value
+    from dash._utils import AttributeDict
+
+    token = context_value.set(AttributeDict(triggered_inputs=[]))
+    yield
+    context_value.reset(token)
+
+
 def _detail(app):
     return _named(app, "update_detail")
 
@@ -81,7 +92,7 @@ def test_market_change_during_toggle_keeps_the_users_choice(data, monkeypatch): 
     _, snap = _live(data)
     frozen = challenge(snap)  # lab-target as the market request saw it
     monkeypatch.setattr(appmod, "_triggered", lambda: "lab-market")
-    body, _, _, _, active, toggle, _ = _detail(app)(frozen, "BTTS", "/lab", ON, frozen, {})
+    body, _, _, _, active, toggle, _, _ = _detail(app)(frozen, "BTTS", "/lab", ON, frozen, {})
     assert toggle == ON and active.get("latest"), (toggle, active)
     assert "Model calculated" in jtext(body)
 
@@ -91,7 +102,7 @@ def test_latest_to_frozen_during_a_market_change_also_follows_the_checkbox(data,
     _, snap = _live(data)
     on = {**challenge(snap), "latest": True}  # stored target still latest
     monkeypatch.setattr(appmod, "_triggered", lambda: "lab-market")
-    body, _, _, _, active, toggle, _ = _detail(app)(challenge(snap), "OU25", "/lab", [], on, {})
+    body, _, _, _, active, toggle, _, _ = _detail(app)(challenge(snap), "OU25", "/lab", [], on, {})
     assert toggle == [] and active == challenge(snap) and "Frozen:" in jtext(body)
 
 
@@ -124,7 +135,7 @@ def test_mode_rules_for_openings_restores_and_switches():
 def test_challenge_match_defaults_to_frozen_with_the_toggle(data):  # noqa: F811
     app = _app(data)
     _, snap = _live(data)
-    body, _, _, saved, active, toggle, style = _detail(app)(
+    body, _, _, saved, active, toggle, style, _ = _detail(app)(
         challenge(snap), "1X2", "/lab", [], None, {})  # fmt: skip
     text = jtext(body)
     assert toggle == [] and style is SHOWN and saved == active == challenge(snap)
@@ -138,7 +149,7 @@ def test_latest_mode_is_research_only_and_back_restores_frozen(data, monkeypatch
     _, snap = _live(data)
     frozen = challenge(snap)
     monkeypatch.setattr(appmod, "_triggered", lambda: "lab-latest")
-    body, _, _, saved, active, toggle, style = update(frozen, "BTTS", "/lab", ON, frozen, {})
+    body, _, _, saved, active, toggle, style, _ = update(frozen, "BTTS", "/lab", ON, frozen, {})
     text = jtext(body)
     assert toggle == ON and style is SHOWN and active == {**frozen, "latest": True} == saved
     assert "Latest available data" in text and "Research only" in text
@@ -147,7 +158,7 @@ def test_latest_mode_is_research_only_and_back_restores_frozen(data, monkeypatch
     assert _named(app, "match_lab_panel")(active, {}, {}, None, "/lab") is None
     assert _named(app, "screener_strip")({}, "/lab", active) is None
     # back to frozen: the same match and context, the panel again
-    body, _, _, saved, active, toggle, _ = update(frozen, "BTTS", "/lab", [], saved, {})
+    body, _, _, saved, active, toggle, _, _ = update(frozen, "BTTS", "/lab", [], saved, {})
     assert toggle == [] and active == frozen and saved == frozen
     assert "Weekly Challenge snapshot" in jtext(body)
     assert cb.competitive(active) and not cb.competitive({**frozen, "latest": True})
@@ -159,7 +170,7 @@ def test_research_origin_never_shows_the_toggle(data, monkeypatch):  # noqa: F81
     assert EPL_FIX in {f.fixture_id for f in snap.fixtures}  # also a challenge match
     research = {"fixture": EPL_FIX, "ctx": "research"}
     monkeypatch.setattr(appmod, "_triggered", lambda: "lab-latest")
-    body, _, _, _, active, toggle, style = _detail(app)(research, "1X2", "/lab", ON, research,
+    body, _, _, _, active, toggle, style, _ = _detail(app)(research, "1X2", "/lab", ON, research,
                                                         {})  # fmt: skip
     assert style == appmod.HIDDEN_STYLE and toggle == [] and active == research
     assert "Latest available data" in jtext(body)
@@ -213,7 +224,9 @@ def test_toggle_does_not_depend_on_an_independent_model(data, monkeypatch):  # n
     monkeypatch.setattr(svc, "live", lambda: bare)  # frozen without Goal Model estimates
     frozen, _ = lab_context.resolve_target(svc, data, challenge(bare))
     assert frozen.kind == "round" and frozen.r["goal_model"]["available"] is False  # B or C
-    _, _, _, _, active, toggle, style = _detail(app)(challenge(bare), "1X2", "/lab", [], None, {})
+    _, _, _, _, active, toggle, style, _ = _detail(app)(
+        challenge(bare), "1X2", "/lab", [], None, {}
+    )
     assert style is SHOWN and toggle == [] and active == challenge(bare)
 
 
@@ -230,7 +243,7 @@ def test_missing_latest_data_never_falls_back_to_frozen(data, monkeypatch):  # n
         return (None, None, None) if fid == EPL_FIX else real(fid, basis)
 
     monkeypatch.setattr(data, "detail", gone)
-    body, _, _, saved, active, toggle, style = _detail(app)(None, "1X2", "/lab", ON, latest, {})
+    body, _, _, saved, active, toggle, style, _ = _detail(app)(None, "1X2", "/lab", ON, latest, {})
     text = jtext(body)
     assert "Latest data is not available for this match" in text and calls["n"]
     assert "Weekly Challenge snapshot" not in text and active is None
@@ -244,7 +257,7 @@ def test_expired_challenge_context_fails_safely_in_both_modes(data):  # noqa: F8
     _, snap = _live(data)
     for t in (challenge(snap, round="old-round"), {**challenge(snap, round="old"), "latest": True},
               challenge(snap, fp="changed")):  # fmt: skip
-        body, _, _, _, active, toggle, style = _detail(app)(t, "1X2", "/lab", [], None, {})
+        body, _, _, _, active, toggle, style, _ = _detail(app)(t, "1X2", "/lab", [], None, {})
         assert "no longer available" in jtext(body) and active is None
         assert style == appmod.HIDDEN_STYLE  # no toggle for an invalid challenge context
 

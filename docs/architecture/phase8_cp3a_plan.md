@@ -6,8 +6,9 @@
   - **CP3A-1** (routes and navigation) is **formally accepted** (27 Nov 2026; `e7c2aae`, `951a33a`; §10.1);
   - **CP3A-2** is **formally accepted** (27 Nov 2026; `2bd1e4f`, `5d63f7a`; §10.3);
   - **CP3A-3** is **formally accepted** (27 Nov 2026; `4e08e71`, closure `1648381`; §10.4, §10.5);
-  - **CP3A-4** (frozen/latest analytical context and isolation) is implemented with closure refinements, awaiting review (§10.6, §10.7);
-  - **CP3A-4B onwards are not authorised.**
+  - **CP3A-4** is **formally accepted** (owner, after ChatGPT's review; `57d6bc9`, `8af420f`, `fb1873d`; §10.6, §10.7);
+  - **CP3A-4B** (ML-01 correction and cumulative testing) is implemented, awaiting review (§10.8);
+  - **CP3A-5 onwards are not authorised.**
 
 Decisions this plan implements: [`phase8_implementation.md`](phase8_implementation.md) §15 (governs), with §11 OD-4 where not superseded.
 
@@ -357,6 +358,32 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
     - complete the scheduled full cumulative local suite and CI, including real Supabase Auth coverage;
     - no screenshot jobs alongside regression runs;
   - Your View: frozen and latest adjustments cannot move between contexts (separate keys and rows; `adjust` writes the context named by the `lab-active` value it was sent with, and `update_detail` sets the analysis and `lab-active` in one response). The toggle is one more trigger of the existing ML-01 stale-store race (an in-flight rebuild can restore an earlier adjustment within one context); recommended for the CP3A-4B ML-01 fix and its regression test.
+
+### 10.8 CP3A-4B as implemented (ML-01 and cumulative testing)
+
+- **CP3A-4 accepted:** `57d6bc9` (implementation), `8af420f` (closure refinements), `fb1873d` (lost-toggle correction). Limitations carried here: ML-01, both intermittent browser tests, the full suite, CI and real Supabase Auth.
+- **ML-01 root cause (established):**
+  - every rebuild of the analysis (`update_detail`, after a match, market or frozen/latest change, or a return to the tab) renders the Your View inputs from `lab-store` *as it was when the rebuild was requested*;
+  - when the rebuilt inputs mount, Dash calls `adjust` with every input listed as changed (26 inputs, observed in the browser); `adjust` took the first (`ctx-home-slider`) as a user edit and saved it;
+  - so an edit still in flight when a rebuild was requested (its response applied before the rebuild's) was overwritten by the older rendered value, in the browser store and, for signed-in participants, in the account (`lab_persist.save`);
+  - affected paths: `update_detail` → mount → `adjust`, for match, market, frozen/latest and tab-return rebuilds. A signed-in rebuild could also write an older copy of the store back (`lab-store` from hydration).
+  - Dash 4.5 behaviour confirmed from the renderer and in the browser: a Your View action taken *while* a rebuild is pending is held and merged into the mount call (listed first); an executing call of the same callback is dropped when a newer one is requested; responses whose outputs were replaced are dropped.
+- **Second cause found during the investigation (rapid successive changes):** each slider step sends its own `adjust` request computed from the store as it was when sent; under load those responses can be applied out of order, the older last, undoing the newer edit; and every response wrote the moved slider back, so a late echo also moved the slider back and later steps started from the older value (steps lost).
+- **Correction (smallest that removes both causes; no new architecture, no persistence or calculation change):**
+  - the store carries a revision (`_rev`, raised by every saved edit); `update_detail` records which context and revision it rendered (`lab-rendered`);
+  - a rebuild's mount call (recognised exactly: it lists both reset buttons, which no participant action does) is never treated as the first input's edit:
+    - rendered from the current store, the inputs equal the stored state, so nothing happens, unless an input differs: that is a participant's edit Dash merged into the call, and only it is applied;
+    - rendered from an older store, it re-shows the stored state of the context shown, never saving and never writing the store, so its own late response cannot hide a newer edit;
+    - a reset click merged into the call (listed first) is applied, as before;
+  - Your View edits run one at a time: a gate rendered with the inputs (`{"type": "lab-gate"}`, a client-side mirror of `lab-store`) is an input of `adjust`, so Dash holds a new edit until the previous one's store update is applied, and merges held edits into one with the latest values; `adjust` ignores the gate's own trigger;
+  - an edit made with a slider no longer writes that slider back (its box and every derived value still update; text boxes keep their server formatting);
+  - hydration writes the store only when the account actually changes it;
+  - model identity and compatibility rules, calculations, contexts and storage keys are unchanged; a cross-match "late response" guard was tried and removed (Dash 4.5 drops responses whose outputs were replaced, and the guard's dependency chain delayed edits).
+- **Regression evidence:** callback-level tests (rebuild after a concurrent reset, unchanged store, never saving, merged click, merged edit, edit revision, frozen/latest isolation, hydration) and a delayed-response browser test. Before the correction the browser test fails (Section B back to `+0.25` after the rebuild and after returning to the tab; a merged clear lost); after it, all pass. Three existing assertions that the moved slider is echoed back now assert that it is not (`no_update`), with its box assertions unchanged.
+- **Intermittent browser tests:**
+  - `test_ui_edge_refine.py::test_browser_outcome_colours_section_d_and_sliders` (box `+0.15`, breakdown `+0.10`): **cause established** — out-of-order concurrent edit responses (above). Reproduced deterministically once the slider echo was removed (the echo had masked it as lost steps); with four CPUs saturated the pre-fix code failed 6/10 and the corrected code passes 10/10. A test synchronisation fix also waits for the breakdown's expected state before reading it (assertion unchanged);
+  - `test_phase8_cp2b1.py::test_browser_match_lab_states_and_adjustments` (B's input not `2.50` within 30 s): **cause not conclusively established.** Ruled out: a late previous-match response painting the next match (Dash drops it; pre-fix passed with A's adjust delayed 2.5 s) and CPU load alone (12/12 pre-fix passes saturated). Its wait is for the expected state, so the failure was a real end state; the mechanisms found (mount overwrite, out-of-order edits) are the ones that can produce one, and both are corrected. Corrected code: 10/10 passes saturated.
+- **Delayed-response browser coverage (permanent, `test_phase8_cp3a4b.py`):** ML-01 itself, a merged clear, rapid successive slider steps, a market change during a pending toggle, rapid switching, tab restoration, reopening a challenge match (frozen) and unchanged picks and draft; 5/5 passes with four CPUs saturated.
 
 ## 11. Testing and browser acceptance (proportionate)
 

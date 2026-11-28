@@ -13,6 +13,7 @@ are never written to the server and are invisible to other users.
 
 from __future__ import annotations
 
+import json
 import math
 from datetime import date, timedelta
 from pathlib import Path
@@ -281,6 +282,9 @@ def build_shell(data: ScreenerData, service: ChallengeService | None = None) -> 
             dcc.Store(id="lab-target", storage_type="session"),
             dcc.Store(id="lab-request", storage_type="memory"),
             dcc.Store(id="lab-active", storage_type="memory"),
+            # ML-01 (CP3A-4B): which context and store revision the Match Lab inputs were
+            # last rebuilt from
+            dcc.Store(id="lab-rendered", storage_type="memory"),
             dcc.Store(id="ch-mounted", storage_type="memory"),
             html.Div(id="ch-root"),
             dcc.Store(id="ch-session", storage_type="session"),
@@ -872,6 +876,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Output("lab-active", "data"),
         Output("lab-latest", "value"),
         Output("lab-latest-wrap", "style"),
+        Output("lab-rendered", "data"),
         Input("lab-request", "data"),
         Input("lab-market", "value"),
         Input("url", "pathname"),
@@ -896,7 +901,7 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         trigger = _triggered()
         if norm_path(path) != LAB:
             if "url" in trigger:
-                return None, None, no_update, no_update, None, no_update, no_update
+                return None, None, no_update, no_update, None, no_update, no_update, None
             raise PreventUpdate
         want = lab_want(request, target, latest, trigger)
         lc, problem = lab_context.resolve_target(service, data, want)
@@ -908,20 +913,23 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
             # an unavailable latest view keeps its target (and toggle) so the participant
             # can turn it off; anything else fails safely as before
             keep = keep if problem == lab_context.LATEST_MISSING else no_update
-            return lab_message(problem), None, no_update, keep, None, toggle, show
+            return lab_message(problem), None, no_update, keep, None, toggle, show, None
         fid = want["fixture"]
         new_lab = no_update
         if lc.r is not None:
             hydrated = lab_persist.load(service, lab, lc)
-            if hydrated is not None:
-                lab, new_lab = hydrated, hydrated
+            # ML-01: write the store only when the account actually changed it - this
+            # request's copy of the store may already be older than the browser's
+            if hydrated is not None and hydrated != lab:
+                lab = new_lab = {**hydrated, "_rev": revision(lab) + 1}
         r = lc.r
         _, ov, official = data.detail(fid)
         ov = lc.odds if lc.odds is not None else ov  # frozen: the snapshot's odds only
         adj = stored_adjustment(lab, lc.key, r)
         notice = adjustment_notice(lab, lc.key, r)
         body, ref = split_detail(render_detail(r, ov, official, market, data, adj, notice))
-        return body, ref, new_lab, keep, want, toggle, show
+        rendered = {"key": lc.key, "rev": revision(lab)}
+        return body, ref, new_lab, keep, want, toggle, show, rendered
 
     @app.callback(
         Output("lab-store", "data"),
@@ -953,19 +961,33 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         Input({"type": "cat-slider", "cat": ALL, "side": ALL}, "value"),
         Input("ctx-home-slider", "value"),
         Input("ctx-away-slider", "value"),
+        Input({"type": "lab-gate", "k": ALL}, "data"),
         State("lab-active", "data"),
         State("lab-market", "value"),
         State("lab-store", "data"),
+        State("lab-rendered", "data"),
         prevent_initial_call=True,
     )
     def adjust(*args):
         """Sections B, C and D: update this fixture's state for the context shown
         (frozen Weekly Challenge snapshot or latest data) and recalculate all seven
         probabilities. The model baseline is never modified. A signed-in
-        participant's numbers are saved to that context only (Phase 6C.3)."""
-        active, market, lab = args[-3:]
-        if not active or not ctx.triggered:
-            raise PreventUpdate
+        participant's numbers are saved to that context only (Phase 6C.3).
+
+        ML-01 (CP3A-4B): a rebuild of the analysis mounts new inputs, and Dash then
+        calls this with every input listed as changed (``is_mount``). That is not an edit: the
+        rebuilt values came from the store as it was when the rebuild was requested,
+        which may be older than the store now (an edit still in flight when the
+        rebuild was requested). Such a call only re-shows the stored state of the
+        context shown - never saves, never writes the store - and does nothing when
+        the store has not moved on since the rebuild (revision unchanged), so its own
+        late response cannot hide a newer edit. Saved edits raise the store's
+        revision (``_rev``). A reset click made while a rebuild was pending arrives
+        merged into the rebuild's call, listed first, and is applied."""
+        active, market, lab, rendered = args[-4:]
+        gate = isinstance(ctx.triggered_id, dict) and ctx.triggered_id.get("type") == "lab-gate"
+        if not active or not ctx.triggered or gate:
+            raise PreventUpdate  # the gate only orders edits; it is not an edit
         lc, _ = lab_context.resolve_target(service, data, active)
         r = lc.r if lc else None
         _, ov, _ = data.detail(active["fixture"])
@@ -974,12 +996,32 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         if r is None or starting_point(r) is None:
             raise PreventUpdate
         trig = ctx.triggered_id
+        # a click made while a rebuild was pending reaches us merged into the rebuilt
+        # inputs' call, listed first (its n_clicks already reset by the new button)
         value = ctx.triggered[0].get("value")
-        state, messages = lab_update(r, trig, value, stored_adjustment(lab, lc.key, r))
-        lab = store_adjustment(lab, lc.key, r, None if is_empty(state) else state)
-        lab, problem = lab_persist.save(service, lab, lc, state)
-        if problem:
-            messages = [*messages, problem]
+        restore = False
+        if is_mount(ctx.triggered) and trig not in RESET_BUTTONS:  # a rebuild's inputs
+            stored = normalise_state(stored_adjustment(lab, lc.key, r))
+            if (rendered and rendered.get("key") == lc.key
+                    and rendered.get("rev") == revision(lab)):  # fmt: skip
+                # rendered from this very store: any input that differs from it is a
+                # participant's edit merged into this call; otherwise nothing to do
+                edit = merged_edit(ctx.triggered, r, stored)
+                if edit is None:
+                    raise PreventUpdate  # the inputs already show the stored state
+                trig, value = edit
+            else:
+                restore = True  # rendered from an older store: re-show this one
+        if restore:
+            state, messages = stored, []
+            new_store = no_update
+        else:
+            state, messages = lab_update(r, trig, value, stored_adjustment(lab, lc.key, r))
+            lab = store_adjustment(lab, lc.key, r, None if is_empty(state) else state)
+            lab, problem = lab_persist.save(service, lab, lc, state)
+            if problem:
+                messages = [*messages, problem]
+            new_store = {**lab, "_rev": revision(lab) + 1}
         b = breakdown(baseline_rounded(r), state)
         h, a = b["home"]["final"], b["away"]["final"]
         cat_out = [
@@ -989,11 +1031,20 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
         sum_out = [category_summary(state, o["id"]["cat"]) for o in ctx.outputs_list[8]]
         out, compare = lab_outputs(r, market, ov, state, messages)
         base = starting_point(r)["estimated_goals"]
+        values = _keep_own_slider(trig, {
+            "lab-home-slider": h,
+            "lab-away-slider": a,
+            "ctx-home-slider": slider_value(state["context"]["home"], CONTEXT_MAX),
+            "ctx-away-slider": slider_value(state["context"]["away"], CONTEXT_MAX),
+        }, [
+            slider_value(state["cats"][o["id"]["cat"]][o["id"]["side"]], CATEGORY_MAX)
+            for o in ctx.outputs_list[14]
+        ], [o["id"] for o in ctx.outputs_list[14]])  # fmt: skip
         return (
-            lab,
-            h,
+            new_store,
+            values["lab-home-slider"],
             goals2(h),
-            a,
+            values["lab-away-slider"],
             goals2(a),
             slider_max(base["home"], h),
             slider_max(base["away"], a),
@@ -1004,13 +1055,98 @@ def register_callbacks(app: Dash, data: ScreenerData, service=None) -> None:
             signed_text(state["context"]["home"]),
             signed_text(state["context"]["away"]),
             context_summary(state),
-            [
-                slider_value(state["cats"][o["id"]["cat"]][o["id"]["side"]], CATEGORY_MAX)
-                for o in ctx.outputs_list[14]
-            ],
-            slider_value(state["context"]["home"], CONTEXT_MAX),
-            slider_value(state["context"]["away"], CONTEXT_MAX),
+            values["cat-sliders"],
+            values["ctx-home-slider"],
+            values["ctx-away-slider"],
         )
+
+    # ML-01 (CP3A-4B), rapid successive changes: the gate (rendered with the Your View
+    # inputs) is an input of adjust, so Dash
+    # holds a new edit until the previous one's store update has been applied (and
+    # merges held edits into one with the latest values); adjust ignores the gate's
+    # own trigger. Concurrent edits computed
+    # from the same older store could otherwise be applied out of order, the older
+    # last, undoing the newer.
+    app.clientside_callback(
+        """function(store, ids) {
+            // the gate is rendered with the Your View inputs: none, nothing to order
+            return (ids || []).map(function () { return Date.now(); });
+        }""",
+        Output({"type": "lab-gate", "k": ALL}, "data"),
+        Input("lab-store", "data"),
+        State({"type": "lab-gate", "k": ALL}, "id"),
+        prevent_initial_call=True,
+    )
+
+
+RESET_BUTTONS = ("lab-reset", "ctx-clear")  # never first in a rebuild's own call
+
+
+def is_mount(triggered) -> bool:
+    """The call Dash makes when a rebuild's Your View inputs mount: it lists every input
+    as changed, both reset buttons included - which no participant action does."""
+    ids = {str(t.get("prop_id", "")).rsplit(".", 1)[0] for t in triggered or []}
+    return {"lab-reset", "ctx-clear"} <= ids
+
+
+def merged_edit(triggered, r: dict, state: dict):
+    """In a rebuild's call made from the current store, the (input id, value) of the
+    first input whose value differs from that stored state - a participant's edit Dash
+    merged into the call - or None."""
+    b = breakdown(baseline_rounded(r), state)
+    h, a = b["home"]["final"], b["away"]["final"]
+    shown = {
+        "lab-home-slider": h, "lab-home-input": goals2(h),
+        "lab-away-slider": a, "lab-away-input": goals2(a),
+        "ctx-home": signed_text(state["context"]["home"]),
+        "ctx-away": signed_text(state["context"]["away"]),
+        "ctx-home-slider": slider_value(state["context"]["home"], CONTEXT_MAX),
+        "ctx-away-slider": slider_value(state["context"]["away"], CONTEXT_MAX),
+    }  # fmt: skip
+    for t in triggered:
+        prop = str(t.get("prop_id", ""))
+        key, _, attr = prop.rpartition(".")
+        if attr != "value":
+            continue
+        if key.startswith("{"):
+            ident = json.loads(key)
+            cat = state["cats"][ident["cat"]][ident["side"]]
+            expected = (slider_value(cat, CATEGORY_MAX) if ident["type"] == "cat-slider"
+                        else adjustment_text(cat))  # fmt: skip
+        elif key in shown:
+            ident, expected = key, shown[key]
+        else:
+            continue
+        if not _same_value(t.get("value"), expected):
+            return ident, t.get("value")
+    return None
+
+
+def _same_value(got, expected) -> bool:
+    if isinstance(expected, str):
+        return str(got) == expected
+    try:
+        return abs(float(got) - float(expected)) < 1e-9
+    except (TypeError, ValueError):
+        return False
+
+
+def _keep_own_slider(trig, sliders: dict, cats: list, cat_ids: list) -> dict:
+    """ML-01 (CP3A-4B), rapid successive changes: an edit made with a slider does not
+    write that slider back. The browser already holds its newest value, and under load
+    this response can arrive after further steps, which writing back would undo (the
+    next step would then start from the older value). Its box and every derived value
+    are still updated; text boxes keep their server formatting."""
+    out = dict(sliders)
+    if isinstance(trig, str) and trig in out:
+        out[trig] = no_update
+    out["cat-sliders"] = [no_update if i == trig else v for i, v in zip(cat_ids, cats, strict=True)]
+    return out
+
+
+def revision(lab) -> int:
+    """The Match Lab store's revision (ML-01): raised by every saved Your View change."""
+    return int((lab or {}).get("_rev") or 0)
 
 
 def _triggered() -> frozenset:

@@ -151,7 +151,8 @@ def test_adjust_callback_keyed_by_fixture_and_isolated(data):
     # a second user's (empty) store is unaffected: state lives in each browser only
     _trigger("lab-reset.n_clicks", 1)
     out2 = _call(func, data, {}, value=1)
-    assert out2[0] == {}
+    # no Your View state at all (only ML-01's revision bookkeeping, CP3A-4B)
+    assert {k: v for k, v in out2[0].items() if k != "_rev"} == {}
     layout = create_app(data).server.test_client().get("/_dash-layout").get_data(as_text=True)
     assert '"id":"lab-store"' in layout and '"storage_type":"memory"' in layout
 
@@ -528,7 +529,8 @@ def _call(func, data, lab, value):
     ]
     ctxv["triggered_inputs"][0]["value"] = value
     args = (None, None, None, None, 0, [], [], None, None, None, 0, [], None, None)
-    return func(*args, {"fixture": EPL_FIX, "ctx": "research"}, "BTTS", lab)  # CP3A-3 target
+    target = {"fixture": EPL_FIX, "ctx": "research"}  # CP3A-3
+    return func(*args, None, target, "BTTS", lab, None)  # gate input, rendered (CP3A-4B)
 
 
 def test_section_c_structure_and_education(data):

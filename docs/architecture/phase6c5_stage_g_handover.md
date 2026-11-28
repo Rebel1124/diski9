@@ -140,7 +140,7 @@ supporting read and integrity services — is **accepted and complete** (G-1).
 | D-38 Official activation requirements | Official series start | before Official |
 | Hosted Supabase authentication acceptance | hosting | before hosting |
 | Relevant Phase 6C.3 backlog items | 6C.6 / later | per backlog |
-| ML-01 Match Lab stale-adjustment race (C.3) | targeted maintenance fix | **before private beta** |
+| ML-01 Match Lab stale-adjustment race (C.3) | targeted maintenance fix | **before private beta** — **resolved in Phase 8 CP3A-4B** (`phase8_cp3a_plan.md` §10.8) |
 | Accepted signed-in page-load limitation | documented | none |
 | Match Lab test stability | resolved in F4 (test synchronisation; 40/40 under load); monitor in CI | none |
 

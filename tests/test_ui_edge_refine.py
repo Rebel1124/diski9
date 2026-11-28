@@ -15,7 +15,7 @@ import time
 from pathlib import Path
 
 import pytest
-from dash import html
+from dash import html, no_update
 
 from diski9.app import create_app
 from diski9.app.app import lab_update, results_payload
@@ -202,7 +202,9 @@ def _slider_out(out):
 def test_context_slider_and_box_share_one_value(data, adjust):
     out = _cb(data, "ctx-home-slider.value", 0.35, {})
     box_h, box_a, sl_h, sl_a, _ = _slider_out(out)
-    assert (box_h, sl_h, box_a, sl_a) == ("+0.35", 0.35, "0.00", 0.0)  # slider -> box
+    # slider -> box; the moved slider is not written back (ML-01, CP3A-4B: it already
+    # holds the participant's newest value, which a late echo could undo)
+    assert (box_h, sl_h, box_a, sl_a) == ("+0.35", no_update, "0.00", 0.0)
     lab = out[0]
     out = _cb(data, "ctx-home.value", "-0,40", lab)  # box -> slider (decimal comma)
     box_h, _, sl_h, _, _ = _slider_out(out)
@@ -228,7 +230,8 @@ def test_category_slider_counts_once_and_reconciles_with_manual(data, adjust):
         for i, k in enumerate((k, s) for k in CATEGORY_KEYS for s in ("home", "away"))
         if k == ("tactics", "home")
     ][0]
-    assert sliders[idx] == 0.5 and out[7][idx] == "0.50"  # slider and its box agree
+    # its box follows; the moved slider itself is not written back (ML-01, CP3A-4B)
+    assert sliders[idx] is no_update and out[7][idx] == "0.50"
     assert out[1] == round(base["home"] + 0.5, 2)  # final estimate: once, not twice
     # a Section D override reconciles the manual part; the slider stays put
     out = _cb(data, "lab-home-input.value", 3.0, out[0])
@@ -239,9 +242,9 @@ def test_category_slider_counts_once_and_reconciles_with_manual(data, adjust):
     assert out[1] == round(3.0 - 0.3, 2)
     # negative values, then zero
     out = _cb(data, key, -1.25, out[0])
-    assert out[7][idx] == "-1.25" and out[14][idx] == -1.25
+    assert out[7][idx] == "-1.25" and out[14][idx] is no_update
     out = _cb(data, key, 0, out[0])
-    assert out[7][idx] == "0.00" and out[14][idx] == 0.0
+    assert out[7][idx] == "0.00" and out[14][idx] is no_update
     # out-of-range typed value is refused safely
     out = _cb(data, {"type": "cat-adj", "cat": "tactics", "side": "home"}, "2.5", out[0])
     assert out[7][idx] == "0.00" and out[14][idx] == 0.0
@@ -343,6 +346,10 @@ const { chromium } = require('playwright');
     for (let i = 0; i < 3; i++) await p.keyboard.press('ArrowRight');
     await p.waitForFunction(() => document.querySelector('#ctx-home').value === '+0.15', null, { timeout: 10000 });
     r.boxAfterSlider = await p.locator('#ctx-home').inputValue();
+    // the breakdown is part of the same update: wait for that state too (CP3A-4B), the
+    // assertion below still fails if it never shows the new adjustment
+    await p.waitForFunction(() => document.querySelector('.breakdown').innerText.includes('+0.15'),
+      null, { timeout: 10000 }).catch(() => {});
     r.breakdownAfterSlider = await p.locator('.breakdown').innerText();
     const box = p.locator('#ctx-home');
     await box.fill('-0.40'); await box.press('Enter');
