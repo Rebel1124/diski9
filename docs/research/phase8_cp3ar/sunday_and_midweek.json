@@ -1,0 +1,172 @@
+{
+ "generated": "2026-11-28T11:19:03+00:00",
+ "time_zone": "SAST (UTC+2); windows Fri 00:00 SAST to Mon 00:00 SAST",
+ "weeks": 147,
+ "sunday": {
+  "6L": {
+   "schedule_qualified_weeks": 120,
+   "sun_1000_sast": {
+    "median_fixtures": 19.0,
+    "p10_fixtures": 14.0,
+    "p25_fixtures": 17.0,
+    "weeks_lt9_fixtures": 4,
+    "weeks_proxy_assessable": 108,
+    "weeks_proxy_feasible": 94,
+    "conditional_feasibility": 0.87,
+    "feasible_share_of_qualified_weeks": 0.783
+   },
+   "sun_1200_sast": {
+    "median_fixtures": 19.0,
+    "p10_fixtures": 14.0,
+    "p25_fixtures": 17.0,
+    "weeks_lt9_fixtures": 4,
+    "weeks_proxy_assessable": 108,
+    "weeks_proxy_feasible": 94,
+    "conditional_feasibility": 0.87,
+    "feasible_share_of_qualified_weeks": 0.783
+   },
+   "sun_1400_sast": {
+    "median_fixtures": 17.0,
+    "p10_fixtures": 13.0,
+    "p25_fixtures": 15.0,
+    "weeks_lt9_fixtures": 4,
+    "weeks_proxy_assessable": 108,
+    "weeks_proxy_feasible": 91,
+    "conditional_feasibility": 0.843,
+    "feasible_share_of_qualified_weeks": 0.758
+   },
+   "sun_1500_sast": {
+    "median_fixtures": 14.0,
+    "p10_fixtures": 10.0,
+    "p25_fixtures": 11.75,
+    "weeks_lt9_fixtures": 6,
+    "weeks_proxy_assessable": 106,
+    "weeks_proxy_feasible": 80,
+    "conditional_feasibility": 0.755,
+    "feasible_share_of_qualified_weeks": 0.667
+   },
+   "sun_1600_sast": {
+    "median_fixtures": 11.0,
+    "p10_fixtures": 8.0,
+    "p25_fixtures": 9.0,
+    "weeks_lt9_fixtures": 20,
+    "weeks_proxy_assessable": 92,
+    "weeks_proxy_feasible": 61,
+    "conditional_feasibility": 0.663,
+    "feasible_share_of_qualified_weeks": 0.508
+   },
+   "sun_1800_sast": {
+    "median_fixtures": 6.0,
+    "p10_fixtures": 4.0,
+    "p25_fixtures": 4.75,
+    "weeks_lt9_fixtures": 108,
+    "weeks_proxy_assessable": 10,
+    "weeks_proxy_feasible": 4,
+    "conditional_feasibility": 0.4,
+    "feasible_share_of_qualified_weeks": 0.033
+   }
+  },
+  "6L+PSL_upper_bound": {
+   "schedule_qualified_weeks": 122,
+   "sun_1000_sast": {
+    "median_fixtures": 20.0,
+    "p10_fixtures": 14.0,
+    "p25_fixtures": 18.0,
+    "weeks_lt9_fixtures": 5,
+    "weeks_proxy_assessable": 109,
+    "weeks_proxy_feasible": 99,
+    "conditional_feasibility": 0.908,
+    "feasible_share_of_qualified_weeks": 0.811
+   },
+   "sun_1200_sast": {
+    "median_fixtures": 20.0,
+    "p10_fixtures": 14.0,
+    "p25_fixtures": 18.0,
+    "weeks_lt9_fixtures": 5,
+    "weeks_proxy_assessable": 109,
+    "weeks_proxy_feasible": 99,
+    "conditional_feasibility": 0.908,
+    "feasible_share_of_qualified_weeks": 0.811
+   },
+   "sun_1400_sast": {
+    "median_fixtures": 18.0,
+    "p10_fixtures": 13.0,
+    "p25_fixtures": 16.0,
+    "weeks_lt9_fixtures": 5,
+    "weeks_proxy_assessable": 109,
+    "weeks_proxy_feasible": 97,
+    "conditional_feasibility": 0.89,
+    "feasible_share_of_qualified_weeks": 0.795
+   },
+   "sun_1500_sast": {
+    "median_fixtures": 15.0,
+    "p10_fixtures": 10.0,
+    "p25_fixtures": 12.0,
+    "weeks_lt9_fixtures": 7,
+    "weeks_proxy_assessable": 107,
+    "weeks_proxy_feasible": 85,
+    "conditional_feasibility": 0.794,
+    "feasible_share_of_qualified_weeks": 0.697
+   },
+   "sun_1600_sast": {
+    "median_fixtures": 11.0,
+    "p10_fixtures": 8.0,
+    "p25_fixtures": 9.25,
+    "weeks_lt9_fixtures": 19,
+    "weeks_proxy_assessable": 96,
+    "weeks_proxy_feasible": 64,
+    "conditional_feasibility": 0.667,
+    "feasible_share_of_qualified_weeks": 0.525
+   },
+   "sun_1800_sast": {
+    "median_fixtures": 6.0,
+    "p10_fixtures": 4.0,
+    "p25_fixtures": 4.25,
+    "weeks_lt9_fixtures": 110,
+    "weeks_proxy_assessable": 10,
+    "weeks_proxy_feasible": 4,
+    "conditional_feasibility": 0.4,
+    "feasible_share_of_qualified_weeks": 0.033
+   }
+  }
+ },
+ "midweek": {
+  "domestic_only_mon_thu": {
+   "median": 12,
+   "p10": 0.0,
+   "min": 0,
+   "weeks_zero": 34,
+   "weeks_lt_10": 68
+  },
+  "uefa_main_stage_mon_thu": {
+   "median": 0,
+   "p10": 0.0,
+   "min": 0,
+   "weeks_zero": 93,
+   "weeks_lt_10": 106
+  },
+  "A_mon_thu": {
+   "median": 16,
+   "p10": 0.0,
+   "min": 0,
+   "weeks_zero": 34,
+   "weeks_lt_10": 58
+  },
+  "B_rolling_7d_from_mon_0800": {
+   "median": 76,
+   "p10": 0.0,
+   "min": 0,
+   "weeks_zero": 19,
+   "weeks_lt_10": 21
+  },
+  "C_mon_thu_with_weekend_fallback": {
+   "median": 31,
+   "p10": 0.0,
+   "min": 0,
+   "weeks_zero": 19,
+   "weeks_lt_10": 21
+  },
+  "approach_C_fallback_weeks": 58,
+  "note": "UEFA = schedule availability only; eligible market-implied coverage unknown"
+ }
+}

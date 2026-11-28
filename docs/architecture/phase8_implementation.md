@@ -1403,3 +1403,45 @@ Inventory taken from the code on 27 Nov 2026. "WC" means Challenge Mode ON and "
   - Goal Model 1.1 retained (the 18/90 configuration made 1X2 log loss worse by +0.0038). Decision register: reassessment §J.
 - **Revised sequence:** CP3A-R reassessment → ChatGPT review and owner decisions → implement only approved CP3A-R items → CP3B → CP2B.2 → CP4 → Phase 9. A Phase 8 product scope freeze follows the agreed CP3A-R scope. Phase 6 remains paused.
 
+### 15.16 CP3A-R owner decisions and CP3A-R.1 (owner, 28 Nov 2026)
+
+- **ChatGPT reviewed the CP3A-R reassessment** (`539b4de`). The owner accepted its direction except the Beta recommendation: **flexible Friday–Sunday participation is a core MVP requirement.** Option S is not pursued.
+- **Approved requirements** (register P8-CP3AR1; not yet authorised for implementation):
+  - rolling Friday–Sunday entry over a Friday–Sunday universe (no Monday fixtures);
+  - Friday 08:00 SAST opening (starting assumption) and the 15-minute buffer;
+  - latest available eligible pricing and dynamic A3 buckets;
+  - irrevocable single submissions with editable drafts;
+  - immutable submission-time analytical records, **including Your View**;
+  - no new per-entry operator refund or correction; existing round-level controls kept.
+- **Goal Model 1.1 retained** (`k_s` 12, `k_t` 96). The 18/90 configuration is rejected and item 7 is closed.
+- **UX directions approved:**
+  - Research only and frozen/latest toggles removed;
+  - automatic experience;
+  - "Home" tab;
+  - two-card homepage, side by side on desktop and stacked on small screens;
+  - Training Ground, My Challenge and Leaderboard available all week;
+  - European football research only.
+  - Card wording, lifecycle messages and the research window still need design approval.
+- **Privacy direction (reconfirmed):** current-round competitor selections and provisional competitive performance stay private until the round has completed settlement and results are published. Participants always see their own portfolio.
+- **CP3A-R.1 authorised:** a tightly scoped architecture refinement covering:
+  - Architecture R (immutable price editions) against L (latest pricing with immutable individual submissions);
+  - pricing, freshness and confirmation methodology;
+  - Sunday cutoff;
+  - research window;
+  - homepage matrix;
+  - implementation plan.
+  
+  Research and documentation only. Findings: [`phase8_cp3ar1_refinement.md`](phase8_cp3ar1_refinement.md).
+- **Sequence:** CP3A-R.1 → ChatGPT review → owner approval of architecture, methodology, scope and acceptance criteria → **MVP Weekly Challenge scope freeze** → CP3A-R implementation → CP3B → CP2B.2 → CP4 → Master Roadmap. Phase 6 remains paused.
+- **CP3A-R.1 delivered** (under review, not accepted). Recommendations:
+  - Architecture **R**, implemented as a snapshot ("edition") per successful weekend sweep;
+  - a fixed Sunday 14:00 SAST entry close;
+  - freshness of provider ≤ 24 h plus our observation ≤ 6 h;
+  - 3-hourly weekend refresh;
+  - a value-digest re-review;
+  - `submission_views` for Your View records;
+  - a rolling 7-day research list;
+  - implementation R1–R5, 66–90 h active.
+  
+  Decision register: refinement §12.
+

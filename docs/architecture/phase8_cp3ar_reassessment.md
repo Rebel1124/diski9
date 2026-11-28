@@ -2,6 +2,17 @@
 
 *28 Nov 2026. Research and recommendations only. Nothing here is approved or implemented.*
 
+> **Superseded in part by CP3A-R.1** ([`phase8_cp3ar1_refinement.md`](phase8_cp3ar1_refinement.md)), 28 Nov 2026:
+> - the owner chose rolling Friday–Sunday entry (Option R product experience), so Option S is not pursued;
+> - six statements below are corrected in refinement §2:
+>   - the stale-pricing conclusion;
+>   - PSL never being challenge-eligible;
+>   - the "120 opening weeks" wording;
+>   - odds captures existing only for 15–17 Nov;
+>   - the proxy described as pessimistic;
+>   - the "no schema change" wording for Option S.
+> - Goal Model findings (§E) are accepted unchanged.
+
 - Authorisation: record [§15.15](phase8_implementation.md).
 - The decision currently in force is P8-FROZEN (record §15.2), reopened for investigation only.
 - Every number below comes from local data, source inspection or documents already on record. No provider request, protected database access or production change was made.

@@ -85,6 +85,12 @@ statistically significant.
 It must not encourage increased risk-taking (no streak pressure, no "chase" prompts,
 no framing of past results as a reason to stake differently).
 
+*CP3A-R decision (owner, 28 Nov 2026): the MVP will preserve submission-time Your View
+estimates, adjustments and the market and model values shown at submission, so this
+feature can later be built on stored history. The analytics interface itself stays
+deferred. Also deferred: per-entry operator refund or correction (not added for MVP;
+round-level controls remain).*
+
 ## Phase 8 deferred register (recorded 27 Nov 2026; not committed, not in the MVP)
 
 *Restored at Phase 8 CP3A-5 (28 Nov 2026): this file was emptied by mistake in the
