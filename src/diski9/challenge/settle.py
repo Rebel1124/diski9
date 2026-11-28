@@ -24,6 +24,7 @@ Key properties, each covered by tests:
 
 from __future__ import annotations
 
+from bisect import bisect_left
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -409,6 +410,31 @@ def resolve_fixture(
         notes.append("operator correction without verified completion by the cutoff")
     alerts.append(Alert("catch_all_void", fixture_id, str(at_cutoff.id), {"status": st}))
     return done("V1-catch-all", deciding=at_cutoff)
+
+
+def v3_breakpoints(observations: Iterable[Observation], evaluated_at: datetime) -> tuple:
+    """Every instant :func:`resolve_fixture` can compare with its V3 reference
+    (``deadline_at``), for the observations it would consider at ``evaluated_at``:
+    receipt times, scheduled kickoffs, provider first-half times and verified actual
+    kickoffs. Each comparison has the form ``t < deadline_at`` (or its complement), so
+    two references with the same number of breakpoints strictly earlier
+    (:func:`v3_class`) give the same resolution, all other inputs equal. A superset
+    is always safe; rolling-entry settlement uses this to resolve a fixture once per
+    class instead of once per submission time (Phase 8 R1)."""
+    points = set()
+    for o in observations:
+        if o.observed_at > evaluated_at:
+            continue
+        for t in (o.observed_at, o.scheduled_kickoff, o.provider_first_half_at,
+                  o.actual_kickoff_at):  # fmt: skip
+            if t is not None:
+                points.add(t)
+    return tuple(sorted(points))
+
+
+def v3_class(breakpoints: tuple, reference: datetime) -> int:
+    """The number of breakpoints strictly earlier than ``reference``."""
+    return bisect_left(breakpoints, reference)
 
 
 # ------------------------------------------------------------------ entries

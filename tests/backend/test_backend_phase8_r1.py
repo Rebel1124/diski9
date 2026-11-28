@@ -72,7 +72,8 @@ def op(engine):
 
 
 # ------------------------------------------------------------------ helpers
-def rolling_schedule(engine, *, close_at=None, buffer: int = 15, publish_rule=None) -> str:
+def rolling_schedule(engine, *, close_at=None, buffer: int = 15, publish_rule=None,
+                     settle_hours: int = rolling.ROLLING_SETTLE_CUTOFF_HOURS) -> str:  # fmt: skip
     """A rolling-entry schedule on its own code (copied from the current weekend row).
     ``close_at``: the entry close as a weekday and time in UTC (tests run on any day);
     the production rule (Sunday 14:00 SAST) is covered by the pure tests."""
@@ -97,19 +98,25 @@ def rolling_schedule(engine, *, close_at=None, buffer: int = 15, publish_rule=No
             window_rule=rolling.ROLLING_WINDOW_RULE,
             publish_rule=publish_rule,
             deadline_buffer_minutes=buffer,
+            settle_cutoff_hours=settle_hours,
         )
         conn.execute(sa.insert(round_schedules).values(**row))
     return code
 
 
 def publish_rolling(engine, op, *, close_in=timedelta(days=1), first_kickoff_in=timedelta(hours=1),
-                    seed=2026, publish_rule=None):  # fmt: skip
+                    seed=2026, publish_rule=None, settle_hours=None):  # fmt: skip
     """Create and publish a development rolling-entry round. Returns (view, snapshot,
     entry close)."""
     with transaction(engine) as conn:
         now = db_now(conn)
     close = (now + close_in).replace(microsecond=0)
-    code = rolling_schedule(engine, close_at=close, publish_rule=publish_rule)
+    code = rolling_schedule(
+        engine,
+        close_at=close,
+        publish_rule=publish_rule,
+        settle_hours=settle_hours or rolling.ROLLING_SETTLE_CUTOFF_HOURS,
+    )
     rcode = unique("dev-r1")
     with transaction(engine) as conn:
         cfg = conn.execute(
@@ -168,6 +175,37 @@ def test_historical_round_keeps_the_common_deadline(engine, op):
     view, snap = publish_dev(engine, op)
     assert view.rules_version == "settle/v1"
     assert view.deadline_at == snap.earliest_kickoff - timedelta(minutes=15)
+    # unchanged 48-hour settlement allowance from the latest kickoff
+    latest = max(f.kickoff for f in snap.fixtures)
+    assert view.settle_cutoff_at == latest + timedelta(hours=48)
+
+
+def test_rolling_cutoff_when_the_last_kickoff_is_before_the_close(engine, op):
+    # 20 fixtures 2 h apart from +1 h: the last kicks off at +39 h, the close is +2 days
+    view, snap, close = publish_rolling(engine, op, close_in=timedelta(days=2), seed=3105)
+    latest = max(f.kickoff for f in snap.fixtures)
+    assert latest < close
+    assert view.settle_cutoff_at == close + timedelta(hours=24)
+
+
+def test_rolling_cutoff_when_the_last_kickoff_is_after_the_close(engine, op):
+    view, snap, close = publish_rolling(engine, op, close_in=timedelta(days=1), seed=3106)
+    latest = max(f.kickoff for f in snap.fixtures)
+    assert latest > close
+    assert view.settle_cutoff_at == latest + timedelta(hours=24)
+
+
+def test_rolling_schedule_with_another_settlement_allowance_is_refused(engine, op):
+    with pytest.raises(PublicationRefused, match="settlement allowance must be 24 hours"):
+        publish_rolling(engine, op, settle_hours=48, seed=3107)
+
+
+def test_settlement_cutoff_is_fixed_at_publication(engine, op):
+    view, _, _ = publish_rolling(engine, op, seed=3108)
+    # set once (app_0003/app_0006 guard)
+    with pytest.raises(sa.exc.DBAPIError), transaction(engine) as conn:
+        conn.execute(sa.text("UPDATE app.rounds SET settle_cutoff_at = settle_cutoff_at "
+                                 "+ interval '1 hour' WHERE id = :r"), {"r": view.id})  # fmt: skip
 
 
 def test_rolling_publication_fails_safe_on_a_bad_or_past_entry_close(engine, op):
@@ -518,6 +556,12 @@ def test_published_results_become_visible_through_finalisation(engine, op, priva
         r = conn.execute(sa.text("SELECT * FROM app.rounds WHERE id = :r"),
                          {"r": w["round"]}).one()  # fmt: skip
         earliest = st.earliest_finalisation(conn, r)
+        last = st.last_material_change(conn, w["round"])
+    # finalisation never precedes cutoff + the unchanged 24-hour correction window
+    assert r.correction_window_hours == 24
+    assert earliest == max(r.settle_cutoff_at, last) + timedelta(hours=24)
+    early = co.finalise_round(engine, op, w["round"], as_of=earliest - timedelta(seconds=1))
+    assert not early.finalised and "correction window" in early.reason
     out = co.finalise_round(engine, op, w["round"], as_of=earliest)
     assert out.finalised, out.reason
     lb.clear_cache()

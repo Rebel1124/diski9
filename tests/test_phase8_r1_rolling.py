@@ -98,3 +98,99 @@ def test_friday_fixture_stays_selectable_on_friday_and_closes_before_kickoff():
     saturday_noon = datetime(2026, 12, 5, 12, 0, tzinfo=SAST)
     assert rolling.closed_fixtures(kick, [10, 11], friday_morning, 15) == []
     assert rolling.closed_fixtures(kick, [10, 11], saturday_noon, 15) == [10]
+
+
+# ------------------------------------------------------------------ R1 review refinements
+def test_settlement_cutoff_is_the_later_of_latest_kickoff_and_close_plus_24_hours():
+    close = datetime(2026, 12, 6, 12, 0, tzinfo=UTC)  # Sunday 14:00 SAST
+    h = rolling.ROLLING_SETTLE_CUTOFF_HOURS
+    assert h == 24
+    before = datetime(2026, 12, 6, 11, 0, tzinfo=UTC)  # last match Sunday 13:00 SAST
+    after = datetime(2026, 12, 6, 15, 30, tzinfo=UTC)  # last match Sunday 17:30 SAST
+    assert rolling.settle_cutoff(before, close, h) == close + timedelta(hours=24)
+    assert rolling.settle_cutoff(after, close, h) == after + timedelta(hours=24)
+    # Monday 17:30 SAST, so the earliest finalisation (cutoff + the unchanged 24 h
+    # correction window, with no later material change) is Tuesday 17:30 SAST
+    cutoff = rolling.settle_cutoff(after, close, h)
+    assert cutoff.astimezone(SAST).strftime("%a %H:%M") == "Mon 17:30"
+    assert (cutoff + timedelta(hours=24)).astimezone(SAST).strftime("%a %H:%M") == "Tue 17:30"
+
+
+def test_an_unknown_or_malformed_time_zone_fails_safe():
+    start = datetime(2026, 12, 3, 22, 0, tzinfo=UTC)
+    for tz in ("Mars/Phobos", "Not a zone", "../etc/passwd", "", 42, None):
+        rule = {"entry_close": {"weekday": "sunday", "time": "14:00", "tz": tz}}
+        with pytest.raises(rolling.RollingRuleError):
+            rolling.entry_close(rule, start)
+
+
+def _obs(i, at, status, ko, **kw):
+    from diski9.challenge.settle import Observation
+
+    return Observation(i, kw.pop("source", "api-football"), at, status, ko, **kw)
+
+
+def test_settlement_boundaries_at_the_24_hour_cutoff():
+    """The existing cutoff rules applied at a rolling cutoff: completed by the cutoff
+    settles; still unfinished or rescheduled past it is void; later evidence never
+    changes that."""
+    from diski9.challenge.settle import resolve_fixture
+
+    close = datetime(2026, 12, 6, 12, 0, tzinfo=UTC)
+    ko = datetime(2026, 12, 6, 15, 30, tzinfo=UTC)
+    cutoff = rolling.settle_cutoff(ko, close, rolling.ROLLING_SETTLE_CUTOFF_HOURS)
+    ref = close - timedelta(days=1)  # a Saturday submission
+    after = cutoff + timedelta(minutes=1)
+
+    def res(observations, at=after):
+        return resolve_fixture(1, observations, [("1X2", "HOME")], deadline_at=ref,
+                               settle_cutoff_at=cutoff, evaluated_at=at)  # fmt: skip
+
+    done = _obs(1, cutoff - timedelta(seconds=1), "FT", ko, ft_home=1, ft_away=0)
+    assert res([done]).rule == "settle"
+    suspended = _obs(2, ko + timedelta(hours=1), "SUSP", ko)
+    assert res([suspended]).rule == "V4"
+    moved = _obs(3, ko - timedelta(hours=2), "NS", cutoff + timedelta(hours=1))
+    assert res([moved]).rule == "V1"
+    late = _obs(4, cutoff + timedelta(seconds=30), "FT", ko, ft_home=1, ft_away=0)
+    assert res([suspended, late]).verdicts[0].verdict == "void"  # late result: still void
+    assert res([suspended], at=cutoff - timedelta(minutes=1)).rule == "pending"
+
+
+def test_resolution_is_constant_within_a_v3_class():
+    """The settlement refinement resolves a fixture once per V3 class: every reference
+    in a class must give exactly the resolution of any other reference in it."""
+    import random
+
+    from diski9.challenge.settle import resolve_fixture, v3_breakpoints, v3_class
+
+    rng = random.Random(8)
+    base = datetime(2026, 12, 4, 6, 0, tzinfo=UTC)
+    cutoff = base + timedelta(days=4)
+    evaluated = cutoff + timedelta(hours=1)
+    sel = [("1X2", "HOME"), ("BTTS", "BTTS_YES")]
+    for trial in range(300):
+        ko = base + timedelta(minutes=rng.randrange(0, 3 * 1440))
+        obs, t = [], base
+        for i in range(rng.randrange(1, 6)):
+            t = t + timedelta(minutes=rng.randrange(1, 900))
+            status = rng.choice(["NS", "1H", "HT", "FT", "PST", "SUSP"])
+            sched = ko + timedelta(minutes=rng.choice([0, 0, -120, 90]))
+            kw = {"ft_home": 1, "ft_away": 1} if status == "FT" else {}
+            if rng.random() < 0.2:
+                kw["provider_first_half_at"] = sched + timedelta(minutes=rng.randrange(-60, 60))
+            obs.append(_obs(trial * 10 + i, t, status, sched, **kw))
+        if rng.random() < 0.15:
+            obs.append(_obs(trial * 10 + 9, t + timedelta(minutes=5), "FT", ko, source="operator",
+                            ft_home=2, ft_away=0,
+                            actual_kickoff_at=ko + timedelta(minutes=rng.randrange(-90, 30))))  # fmt: skip
+        bp = v3_breakpoints(obs, evaluated)
+        groups: dict[int, list] = {}
+        for _ in range(12):
+            ref = base + timedelta(seconds=rng.randrange(0, int(2.5 * 86400)))
+            r = resolve_fixture(7, obs, sel, deadline_at=ref, settle_cutoff_at=cutoff,
+                                evaluated_at=evaluated)  # fmt: skip
+            sig = (r.rule, r.verdicts, r.score, r.deciding_observation_id, r.alerts, r.notes)
+            groups.setdefault(v3_class(bp, ref), []).append(sig)
+        for sigs in groups.values():
+            assert all(s == sigs[0] for s in sigs), (trial, sigs)

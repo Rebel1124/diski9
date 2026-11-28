@@ -606,14 +606,14 @@ def publish_round(
 
 
 def settle_cutoff(snapshot: RoundSnapshot, sched, deadline: datetime) -> datetime:
-    """The fixed settlement cutoff: latest kickoff plus the schedule's settlement hours.
-    For a rolling-entry round the reference is never earlier than the entry close, so
-    the cutoff always follows the deadline (only matters if every fixture kicked off
-    more than ``settle_cutoff_hours`` before the close; historical rounds unchanged)."""
-    ref = snapshots.latest_kickoff(snapshot)
+    """The fixed settlement cutoff, set once at publication (the database refuses any
+    later change). Historical rounds: latest kickoff plus the schedule's
+    ``settle_cutoff_hours`` (48). Rolling entry: the later of the latest kickoff and
+    the entry close, plus ``settle_cutoff_hours`` (24, owner decision)."""
+    latest = snapshots.latest_kickoff(snapshot)
     if rolling.is_rolling(sched.rules_version):
-        ref = max(ref, deadline)
-    return ref + timedelta(hours=sched.settle_cutoff_hours)
+        return rolling.settle_cutoff(latest, deadline, sched.settle_cutoff_hours)
+    return latest + timedelta(hours=sched.settle_cutoff_hours)
 
 
 @dataclass(frozen=True)
@@ -650,6 +650,14 @@ def _evaluate_publication(r, sched, snap: RoundSnapshot, source, now, max_age) -
         except rolling.RollingRuleError as exc:
             return _PublicationCheck(
                 f"The rolling-entry schedule is misconfigured: {exc}", {}, config, report
+            )
+        if sched.settle_cutoff_hours != rolling.ROLLING_SETTLE_CUTOFF_HOURS:
+            return _PublicationCheck(
+                "The rolling-entry schedule is misconfigured: its settlement allowance must "
+                f"be {rolling.ROLLING_SETTLE_CUTOFF_HOURS} hours.",
+                {"settle_cutoff_hours": sched.settle_cutoff_hours},
+                config,
+                report,
             )
         if not r.window_start_at < deadline <= r.window_end_at:
             return _PublicationCheck(

@@ -43,6 +43,8 @@ from ...challenge.settle import (
     evaluate_round,
     resolve_fixture,
     settle_entry,
+    v3_breakpoints,
+    v3_class,
 )
 from ..auth.permissions import Capability, Principal
 from ..db import db_now, transaction
@@ -368,23 +370,33 @@ def compute(
     entry_results = {}
     entry_rules: dict[UUID, dict[int, str]] = {}
     extra_alerts: dict[str, Alert] = {}
-    per_reference: dict[tuple[int, datetime], Resolution] = {}
+    # rolling entry: a fixture's resolution changes only at its V3 breakpoints, so it
+    # is resolved once per (fixture, class) rather than once per submission time
+    breakpoints: dict[int, tuple] = {}
+    per_class: dict[tuple[int, int], Resolution] = {}
     config = get_config(r.config_version)  # the round's own version; unknown versions fail
     for entry_id, (sub, legs, states) in locked.items():
         own = verdicts
         if entry_rolling:
             ref = times[entry_id]
-            own = dict(verdicts)
+            own = {}  # this entry's nine legs only
             for leg in legs:
-                if ref == reference[leg.fixture_id]:
+                fid = leg.fixture_id
+                k = (fid, leg.market, leg.outcome)
+                own[k] = verdicts[k]
+                if ref == reference[fid]:
                     continue  # the round-level resolution already used this time
-                key = (leg.fixture_id, ref)
-                if key not in per_reference:
-                    per_reference[key] = resolve(leg.fixture_id, selected[leg.fixture_id], ref)
-                res = per_reference[key]
+                if fid not in breakpoints:
+                    breakpoints[fid] = v3_breakpoints(by_fixture.get(fid, []), evaluated_at)
+                cls = v3_class(breakpoints[fid], ref)
+                if cls == v3_class(breakpoints[fid], reference[fid]):
+                    continue  # same class as the round-level resolution
+                if (fid, cls) not in per_class:
+                    per_class[(fid, cls)] = resolve(fid, selected[fid], ref)
+                res = per_class[(fid, cls)]
                 v = res.verdict_for(leg.market, leg.outcome)
-                own[(leg.fixture_id, leg.market, leg.outcome)] = v.verdict
-                if v.verdict != verdicts[(leg.fixture_id, leg.market, leg.outcome)]:
+                own[k] = v.verdict
+                if v.verdict != verdicts[k]:
                     entry_rules.setdefault(entry_id, {})[leg.position] = v.rule
                 for a in res.alerts:
                     extra_alerts.setdefault(a.fingerprint, a)

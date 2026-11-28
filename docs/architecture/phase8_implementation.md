@@ -1506,3 +1506,50 @@ Inventory taken from the code on 27 Nov 2026. "WC" means Challenge Mode ON and "
 - **Not run (by the agreed strategy):** the full local suite and full CI (intermediate full CI after R2; full suite and CI at R5).
 - **Not done:** no schema migration, no provider request, no protected or hosted database access, no hosted activation, no new dependency, no deployment.
 - **Status:** R1 complete, awaiting ChatGPT's independent review and owner acceptance. R2 not started. Phase 6 remains paused.
+
+### 15.19 R1 independent review and targeted refinements (owner, 28 Nov 2026)
+
+ChatGPT reviewed `24d7adb` and found R1 satisfactory and within scope. The owner approved four targeted refinements before formal R1 acceptance. They are review fixes, not a new checkpoint.
+
+**1. Settlement allowance 24 h for rolling-entry rounds (P8-SC24, owner-approved refinement of P8-SCOPE)**
+- **Method:** cutoff = later of the latest fixture kickoff and the entry close (Sunday 14:00 SAST), plus 24 h (`rolling.settle_cutoff`). The 24 comes from the schedule's existing `settle_cutoff_hours`; publication refuses a rolling schedule with any other value (the future activation migration must set 24). Historical rounds: latest kickoff + 48 h, unchanged.
+- **Interactions (checked in code):**
+  - *Database constraints:* `deadline_at < settle_cutoff_at` holds by construction (cutoff ≥ close + 24 h). `settle_cutoff_at` is set once (app_0003/app_0006 trigger), so later editions cannot extend it; a test confirms an update is refused.
+  - *Results polling:* unchanged. The reconciler imports results for locked and settling rounds until finalisation and runs a settlement at the first tick after the cutoff. Evidence recorded after the cutoff never changes the cutoff decisions; a late final result raises `late_notification`.
+  - *Postponed, suspended, rescheduled:* the existing rules apply at the earlier cutoff. Not completed by the cutoff means void: `V1` if postponed or rescheduled past the cutoff, `V4` if abandoned or suspended, `V1-catch-all` if nothing recorded. A Sunday evening match now has until Monday evening, about a day less than before.
+  - *Earliest finalisation:* max(cutoff, last material change) + the unchanged 24 h correction window. For a Sunday 17:30 SAST last kickoff: cutoff Monday 17:30, earliest finalisation Tuesday 17:30 SAST, a day earlier than under 48 h.
+  - *Publication before the cutoff:* **not possible.** `finalise_round` refuses before the earliest finalisation, which can never precede cutoff + correction window, even when every fixture is resolved. Before then participants see only their own provisional row (rolling privacy).
+  - *Championships and rewards:* run at finalisation (score set publication), so they simply happen a day earlier. No change to their logic.
+
+**2. Entry-level settlement performance**
+- **Assessment:** in `24d7adb` each rolling entry copied the whole round verdict dictionary and resolved each of its legs again for its own submission time. With unique timestamps the cache hardly ever hit (one entry per entry-leg pair), so cost and memory grew about 9 × entries.
+- **Refinement (small, no new framework):** `resolve_fixture` compares the reference only through `t < reference` tests on four observation times. `settle.v3_breakpoints` lists those times, and a fixture's resolution is constant between them (`v3_class`). Rolling settlement now resolves a fixture once per class, and each entry gets a dictionary of only its nine legs. Round-level verdicts, alerts (merged by fingerprint), evidence precedence, corrections and the historical path are unchanged. A pure property test (300 random observation histories, operator corrections included) checks that every reference in a class gives an identical resolution.
+- **Comparison** (pure functions, 20 fixtures, 4 observations each, unique submission times Friday 08:00 to Sunday 14:00; `tracemalloc` on, so absolute times are inflated):
+
+| Entries | Historical | R1 (`24d7adb`) | Refined | Resolutions cached (R1 → refined) |
+|---|---|---|---|---|
+| 100 | 64 ms | 130 ms | 64 ms | 880 → 53 |
+| 1,000 | 632 ms | 1,418 ms | 622 ms | 8,980 → 88 |
+| 10,000 | 5.9 s, 0.4 MB | 16.4 s, 66 MB | 6.3 s, 0.1 MB | 89,980 → 100 |
+
+  The refined rolling path matches the historical one; `settle_entry` dominates as before. Larger-scale acceptance remains in the existing operational roadmap.
+
+**3. Submission time: an explicit R2 acceptance criterion** (refinement §14.12)
+- R2 must show that the authoritative submission time is taken at the submission row insert after every lock; that the database enforces the entry close and each fixture cutoff against it; and that V3 uses it.
+- Regression scenario: an earlier-than-scheduled actual kickoff between transaction start and submission insert is void for that entry. R1 is unchanged (no trigger, no migration).
+
+**4. Malformed schedule configuration**
+- `rolling.entry_close` already caught an unknown zone (`ZoneInfoNotFoundError` is a `KeyError`). It now names the error explicitly; an unknown, malformed or non-text time zone raises `RollingRuleError`, so publication refuses as for any other misconfigured rule. A test covers it.
+
+**Tests** (disposable cluster `diski9_r1_test`)
+
+| Command | Result |
+|---|---|
+| `uv run pytest -q tests/backend/test_backend_phase8_r1.py tests/test_phase8_r1_rolling.py` | **35 passed** (was 27; new: last kickoff before and after the close, historical 48 h, refusal of a 48 h rolling schedule, cutoff fixed at publication, finalisation boundary one second before and at the earliest time, 24 h cutoff boundaries for completed, suspended, rescheduled and late results, malformed time zones, V3-class equivalence) |
+| Directly affected regressions, `-p no:randomly`: `test_settle_rules`, `test_settle_entry`, settlement, settlement ops, settlement security, corrections, participant results, weekly results, scenarios, championship corrections, rounds, schedule display, config binding, entries | **232 passed**, 0 failed, 0 skipped |
+| `uv run ruff check src tests`; `uv run ruff format --check src tests` | clean |
+
+- No existing assertion changed. The full local suite and full CI were not run (intermediate full CI after R2).
+- The disposable PostgreSQL server stopped once between runs (container idle); it was restarted and every result above comes from completed runs after the restart.
+
+**Boundaries:** no schema migration, provider request, protected or hosted database access, hosted activation, dependency, infrastructure change, deployment, merge, tag or release. R2 not started. Phase 6 remains paused.

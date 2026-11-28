@@ -11,6 +11,8 @@ Rolling-entry rounds (approved CP3A-R.1, §9 and §14 of
 
 * window Friday 00:00 to Monday 00:00 SAST (the schedule's ``window_rule``);
 * scheduled publication Friday 08:00 SAST, still a manual action (``publish_rule``);
+* settlement cutoff: the later of the latest kickoff and the entry close, plus 24
+  hours (``settle_cutoff_hours``; historical rounds: latest kickoff plus 48 hours);
 * one fixed entry close, Sunday 14:00 SAST (``publish_rule["entry_close"]``), stored
   as ``rounds.deadline_at`` at publication and enforced by the existing deadline
   checks (service and database);
@@ -33,7 +35,7 @@ from __future__ import annotations
 
 from datetime import datetime, time, timedelta
 from typing import Any
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 ROLLING_RULES_VERSION = "rolling/v1"
 SAST = "Africa/Johannesburg"
@@ -52,6 +54,10 @@ ROLLING_PUBLISH_RULE: dict[str, Any] = {
     "entry_close": {"weekday": "sunday", "time": "14:00", "tz": SAST},
 }
 ROLLING_FIXTURE_CUTOFF_MINUTES = 15  # the schedule's deadline_buffer_minutes
+# Owner decision (R1 review, 28 Nov 2026): rolling-entry rounds allow 24 hours for
+# settlement (historical rounds keep 48). Held in the schedule's existing
+# settle_cutoff_hours; publication refuses a rolling schedule with any other value.
+ROLLING_SETTLE_CUTOFF_HOURS = 24
 
 
 class RollingRuleError(ValueError):
@@ -79,7 +85,8 @@ def entry_close(publish_rule: dict[str, Any], window_start: datetime) -> datetim
             raise ValueError(spec["time"])
         at = time(*parts)
         weekday = WEEKDAYS.index(spec["weekday"])
-    except (KeyError, ValueError, TypeError, AttributeError) as exc:
+    except (ZoneInfoNotFoundError, KeyError, ValueError, TypeError, AttributeError) as exc:
+        # an unknown or malformed time zone, weekday or time: refuse, never guess
         raise RollingRuleError(f"Invalid entry_close rule: {spec!r}") from exc
     if window_start.tzinfo is None:
         raise RollingRuleError("The window start must be timezone-aware.")
@@ -89,6 +96,13 @@ def entry_close(publish_rule: dict[str, Any], window_start: datetime) -> datetim
     if close < window_start:
         close = datetime.combine(day + timedelta(days=7), at, tz)
     return close
+
+
+def settle_cutoff(latest_kickoff: datetime, close: datetime, hours: int) -> datetime:
+    """The fixed settlement cutoff of a rolling-entry round: the later of the latest
+    fixture kickoff and the entry close, plus ``hours`` (the schedule's
+    ``settle_cutoff_hours``, 24 for rolling entry). Set once at publication."""
+    return max(latest_kickoff, close) + timedelta(hours=hours)
 
 
 def fixture_cutoff(kickoff: datetime, buffer_minutes: int) -> datetime:
@@ -115,10 +129,12 @@ __all__ = [
     "ROLLING_FIXTURE_CUTOFF_MINUTES",
     "ROLLING_PUBLISH_RULE",
     "ROLLING_RULES_VERSION",
+    "ROLLING_SETTLE_CUTOFF_HOURS",
     "ROLLING_WINDOW_RULE",
     "RollingRuleError",
     "closed_fixtures",
     "entry_close",
     "fixture_cutoff",
     "is_rolling",
+    "settle_cutoff",
 ]
