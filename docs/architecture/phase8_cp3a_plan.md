@@ -7,7 +7,7 @@
   - **CP3A-2** is **formally accepted** (27 Nov 2026; `2bd1e4f`, `5d63f7a`; §10.3);
   - **CP3A-3** is **formally accepted** (27 Nov 2026; `4e08e71`, closure `1648381`; §10.4, §10.5);
   - **CP3A-4** is **formally accepted** (owner, after ChatGPT's review; `57d6bc9`, `8af420f`, `fb1873d`; §10.6, §10.7);
-  - **CP3A-4B** (ML-01 correction and cumulative testing) is implemented, awaiting review (§10.8);
+  - **CP3A-4B** (ML-01 correction and cumulative testing) is implemented and verified (full local suite 2513/2513; CI run #175 success), awaiting review (§10.8);
   - **CP3A-5 onwards are not authorised.**
 
 Decisions this plan implements: [`phase8_implementation.md`](phase8_implementation.md) §15 (governs), with §11 OD-4 where not superseded.
