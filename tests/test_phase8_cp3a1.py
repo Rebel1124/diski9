@@ -204,7 +204,7 @@ const fs = require('fs');
     await p.waitForSelector('text=Demonstration round.');
     const picks = p.locator("[id*='\"t\":\"pick\"']");
     await picks.first().waitFor();
-    await picks.nth(0).click(); await p.waitForTimeout(300); await p.waitForLoadState('networkidle');
+    await picks.nth(0).click(); await p.waitForFunction(() => (document.querySelector('.ch-total') || {}).innerText === '1/9');  // the pick applied (CI #178)
     r.totalBefore = await p.locator('.ch-total').first().innerText();
     // the Match Lab tab (client-side navigation)
     await p.locator('#site-nav-links .nav-link', { hasText: 'Match Lab' }).click();
