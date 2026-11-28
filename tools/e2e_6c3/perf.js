@@ -67,7 +67,7 @@ const median = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floo
     const timed = tracker(p);
     if (user) { await L.signIn(p, user, run === 0); }
     log('run ' + run);
-    add('challenge_load', await timedLoad(p, BASE + '/challenge'));
+    add('challenge_load', await timedLoad(p, BASE + '/'));
     if (MODE === 'demo') {
       await timed(async () => p.locator('button[id*="\\"m\\":\\"demo\\""]').first().click());
     }
@@ -84,8 +84,9 @@ const median = a => { const s = [...a].sort((x, y) => x - y); return s[Math.floo
     if (run === 0) {
       add('screener_load', await timedLoad(p, `${BASE}/`));
       add('match_lab_open', await timed(async () => p.locator('[id*="\\"type\\":\\"row\\""]').nth(1).click()));
-      const uni = p.locator('.universe label', { hasText: 'All upcoming' });
-      if (await uni.count()) add('context_switch', await timed(async () => uni.click()));
+      // CP3A-5: the context switch is the Match Lab's latest-data toggle (challenge matches)
+      const uni = p.locator('#lab-latest input[type=checkbox]');
+      if (await uni.isVisible().catch(() => false)) add('context_switch', await timed(async () => uni.click()));
       const inp = await L.labInput(p, 'home');
       log('lab input ' + await inp.count());
       if (await inp.count()) {

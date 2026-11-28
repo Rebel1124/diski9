@@ -103,7 +103,7 @@ async function account(browser, tag, role) {
   const R1 = `dev-e2e4-${RUN}-a`;
   out.R1open = devOpen(R1, 4, 40);
   await p.waitForTimeout(3500);
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   for (let i = 0; i < 14 && (await L.total(p)) < 9; i++) await L.pickEnabled(p, 1);
   await p.locator('button[id*="\\"to\\":\\"review\\""]').first().click(); await L.settle(p, 2000);
   await p.locator('[id*="\\"t\\":\\"submit\\""]').first().click(); await L.settle(p, 2500);
@@ -222,7 +222,7 @@ async function account(browser, tag, role) {
   out.journeys.J10_previous_entry = has(t, 'Most recent entry') && has(t, R4) && has(t, R5)
     && has(t, 'Round void');
   await layouts(p, 'j10_previous_entry', '.ch-prev-entry');
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   for (let i = 0; i < 14 && (await L.total(p)) < 9; i++) await L.pickEnabled(p, 1);
   const wc = await p.locator('body').innerText();
   out.journeys.J12_analysis = ['Market', 'Diski 9', 'Your View'].every(x => wc.includes(x));

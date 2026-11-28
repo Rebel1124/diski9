@@ -7,8 +7,8 @@
   - **CP3A-2** is **formally accepted** (27 Nov 2026; `2bd1e4f`, `5d63f7a`; §10.3);
   - **CP3A-3** is **formally accepted** (27 Nov 2026; `4e08e71`, closure `1648381`; §10.4, §10.5);
   - **CP3A-4** is **formally accepted** (owner, after ChatGPT's review; `57d6bc9`, `8af420f`, `fb1873d`; §10.6, §10.7);
-  - **CP3A-4B** (ML-01 correction and cumulative testing) is implemented and verified (full local suite 2513/2513; CI run #175 success), awaiting review (§10.8);
-  - **CP3A-5 onwards are not authorised.**
+  - **CP3A-4B** (ML-01 correction and cumulative testing) is **formally accepted** (owner, 28 Nov 2026, after ChatGPT's independent review and verification of CI run #175; `1c68238`, docs `d06efac`; §10.8). ML-01 is closed as resolved;
+  - **CP3A-5** (final integration and acceptance) is authorised and implemented, awaiting review (§10.9).
 
 Decisions this plan implements: [`phase8_implementation.md`](phase8_implementation.md) §15 (governs), with §11 OD-4 where not superseded.
 
@@ -385,6 +385,22 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
   - `test_phase8_cp2b1.py::test_browser_match_lab_states_and_adjustments` (B's input not `2.50` within 30 s): **cause not conclusively established.** Ruled out: a late previous-match response painting the next match (Dash drops it; pre-fix passed with A's adjust delayed 2.5 s) and CPU load alone (12/12 pre-fix passes saturated). Its wait is for the expected state, so the failure was a real end state; the mechanisms found (mount overwrite, out-of-order edits) are the ones that can produce one, and both are corrected. Corrected code: 10/10 passes saturated.
 - **Delayed-response browser coverage (permanent, `test_phase8_cp3a4b.py`):** ML-01 itself, a merged clear, rapid successive slider steps, a market change during a pending toggle, rapid switching, tab restoration, reopening a challenge match (frozen) and unchanged picks and draft; 5/5 passes with four CPUs saturated.
 
+### 10.9 CP3A-5 as implemented (final integration and acceptance)
+
+- **CP3A-4B accepted** by the owner after ChatGPT's independent review and verification of CI run #175 (`1c68238`, docs `d06efac`); ML-01 closed; the unconfirmed cause of the second intermittent browser test is an accepted residual uncertainty (§15.14 of the record).
+- **Integration checkpoint, no new features.** No application code changed in CP3A-5. Changes: one permanent integrated acceptance test, the authorised test-warning fix, the legacy acceptance script routes, a restored documentation register, screenshots and records.
+- **Integrated acceptance test (permanent, `tests/backend/test_backend_phase8_cp3a5.py`):** the whole application as one server on **real PostgreSQL** (a published development round, drafts, entries, saved Your View) with **real sign-in through a local Supabase Auth server** (GoTrue v2.198.0, the CI version) and controlled football data built relative to now (fresh prices; the round's matches take their latest-data analysis from controlled fixtures, their frozen analysis from the published snapshot). Five journeys:
+  1. **guest at 390, 768 and 1280 px:** the five tabs and the active tab; the homepage card (open status and deadline, championship, fixture window, collapsed How to play, no European card); Research only OFF by default for an open round, its tooltip, the button wording in both states; the competitive list's Minimum Market Probability filter and pages; a challenge match opening frozen with the toggle off, the frozen bookmaker reference and the selection panel; latest data without selection controls and with the research-only note; back to the list; the research list and a research match (latest data, no toggle, no panel); Research only kept across the round trip; My Challenge, Training Ground and Leaderboard; old addresses (`/challenge?…` keeps its query, `/?fixture=` goes to `/lab?fixture=`), an invalid link, a challenge link to another round and an unknown path all safe; **no horizontal overflow and no browser errors at any width**;
+  2. **guest to account (1280 px):** two picks and a frozen Your View adjustment as a guest, sign-in with Supabase Auth and onboarding, the keep choice, the adoption review and saving to the account;
+  3. **signed in (1280 px):** the adopted frozen adjustment; the latest-data context starting from its own empty Your View and saved separately; a market change keeping latest mode; no selection controls or progress strip in latest mode; back to frozen with the frozen adjustment and the chosen market; a selection made from the frozen Match Lab; the builder's page kept across a Match Lab round trip; the portfolio completed, reviewed (market, Diski 9 and Your View probabilities) and submitted; My Challenge shows the confirmed entry; Leaderboard;
+  4. **another device (390 and 768 px):** after a fresh sign-in, the account restores both contexts' Your View (frozen `+0.30`, latest `-0.20`) and the confirmed entry; then the entry is withdrawn from My Challenge (1280 px);
+  5. **after the deadline / no challenge:** a locked round shows "Entries closed. Awaiting match results.", Research only defaults OFF, every pick button is disabled, the Match Lab panel says entries are closed with no selection buttons, and latest data still works; with no published round the card says "No Weekly Challenge available this week. You can still research upcoming matches.", Research only defaults ON, the research list and Match Lab work, an old challenge link shows the safe message, and the builder (Research only OFF) shows its existing no-round message.
+- **Lifecycle and research coverage elsewhere (unchanged, part of the full suite):** the five status messages, a final round with no successor, the schedule-read failure as temporary unavailability, the defaults and explicit session choice (`test_phase8_cp3a2.py`, `test_backend_phase8_cp3a2.py`); international breaks and insufficient pools: publication refused for too few fixtures, leagues or bookmaker groups (`test_backend_rounds.py`), the prepared draft lapsing unassigned (`test_backend_prepare.py::test_published_and_lapsed_states`), championship slots taken only by published rounds (`test_backend_championships.py`, capacity and edge tests). No break calendar or scheduling mechanism was added.
+- **Analytical integrity and ML-01:** the permanent CP2B.1, CP3A-3, CP3A-4 and CP3A-4B tests (States A/B/C, independent versus market-implied, frozen snapshot integrity, context-specific reference, edge and EV restrictions, separate frozen/latest Your View, delayed-response coverage including stale rebuilds, rapid slider steps, frozen/latest switching, a market change during a pending toggle, new challenge openings defaulting to frozen and tab restoration) all run in the full suite unchanged.
+- **Legacy acceptance scripts (`tools/e2e_6c3`, `e2e_6c4`, `e2e_6c5`):** `/challenge` → `/`; the nav link `a[href="/challenge"]` → `a[href="/"]`; the navigation check uses Leaderboard and Portfolio Build; `openFixture` opens a challenge match through the builder's own Match Lab link (frozen) instead of `/?fixture=`; the removed universe control is mapped to the Match Lab's "Use latest available data" toggle (`universe()`, `perf.js`). Syntax-checked; not re-run end to end (they need their historical local environment; the integrated test above supersedes them for CP3A).
+- **Warning correction:** `tests/test_app.py` escapes the backslashes of the browser-test regular expression in its (non-raw) Python string; the JavaScript received is unchanged (`/\/lab\?/`), and compiling the file with warnings as errors succeeds.
+- **Visual review (390, 768, 1280 px):** no horizontal overflow, clipped controls or browser errors found; representative screenshots in `docs/screenshots/phase8_cp3a5/` (earlier CP3A screenshots remain representative for their pages). One minor observation, not changed: at 390 px the Your View value box can clip the last digit of a signed value (`+0.30`); pre-existing, proposed for CP3B's Match Lab presentation work.
+
 ## 11. Testing and browser acceptance (proportionate)
 
 - **Route and label tests:** tab order and labels (including Training Ground), the redirects, `/lab`, `/learn`, the active tab and unknown paths (CP3A-1).
@@ -424,10 +440,10 @@ The owner rejected the secondary text link in favour of a compact toggle inside 
 - **Risks:**
   - the re-pointed route callbacks and `allow_duplicate` outputs: covered by route and browser tests;
   - the extra Match Lab toggle could confuse users: mitigated by the frozen default and the explanatory text;
-  - the historical acceptance scripts in `tools/e2e_*` still open `/challenge`; they keep working through the redirect.
+  - the historical acceptance scripts in `tools/e2e_*` opened `/challenge`; updated to the CP3A routes and controls in CP3A-5 (§10.9).
 - **Decided (Part B):** the Research only defaults (§6).
 - **Outstanding from CP3A-1:**
   - direct Match Lab deep-link fixture restoration: CP3A-3;
   - Training Ground educational content: CP3B;
-  - legacy acceptance script routes: CP3A-5;
-  - signed-in participant browser acceptance: CP3A-5.
+  - legacy acceptance script routes: done in CP3A-5 (§10.9);
+  - signed-in participant browser acceptance: done in CP3A-5 (§10.9).

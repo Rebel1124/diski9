@@ -75,7 +75,7 @@ async function cards(page) {
     await signIn(page, acc.you);
 
     // 1. demonstration button spacing (before = the same page without the new class)
-    await page.goto(BASE + '/challenge'); await settle(page, 2500);
+    await page.goto(BASE + '/'); await settle(page, 2500);
     const after = await gaps(page);
     if (!after) note(`${wname} demo spacing`, ['no notice / button / How to play on the page']);
     else {

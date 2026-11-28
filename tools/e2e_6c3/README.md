@@ -39,3 +39,10 @@ Run with `NODE_PATH=$(npm root -g) node <script>`:
 `{"email": "…"}`.
 
 Screenshots go to `docs/screenshots/phase6c3/`.
+
+**Phase 8 CP3A-5 (routes):** Portfolio Build is `/` (the old `/challenge` still redirects)
+and the Match Lab is `/lab`. `openFixture` now opens a challenge match through the
+builder's own Match Lab link (the frozen context) instead of `/?fixture=`, and the removed
+Weekly Challenge / All upcoming universe control is mapped to the Match Lab's "Use latest
+available data" toggle (`universe()`). The CP3A journeys themselves are covered by
+`tests/backend/test_backend_phase8_cp3a5.py`.

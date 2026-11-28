@@ -10,7 +10,7 @@ const SHOT = require('path').resolve(__dirname, '../../docs/screenshots/phase6c3
   const errors = []; p.on('pageerror', e => errors.push(String(e)));
   await L.signIn(p, u);
   // Journey A: partial portfolio
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   out.A_picked = await L.pickEnabled(p, 4);
   out.A_save = await L.text(p, '.ch-save-state');
   await p.screenshot({ path: SHOT + 'builder_saved_desktop.png' });
@@ -46,7 +46,7 @@ const SHOT = require('path').resolve(__dirname, '../../docs/screenshots/phase6c3
   // sign out and back in (Journey A step 7 too)
   await L.signOut(p);
   await L.signIn(p, u, false);
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   out.A_afterSignIn = await L.selected(p);
   await L.openFixture(p, fid);
   out.G_frozenAfterSignIn = await L.estimate(p, 'home');

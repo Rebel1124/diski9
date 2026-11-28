@@ -811,7 +811,7 @@ def test_browser_selection_highlight(data):
           const rows = await ids(p);
           out.initial = await sel(p);
           await p.locator('tr.row').nth(2).click();
-          await p.waitForURL(/\/lab\?/);
+          await p.waitForURL(/\\/lab\\?/);
           await p.waitForSelector('.detail-header h2', {{ state: 'visible' }});
           const thirdTitle = await p.locator('.detail-header h2').innerText();
           await p.locator('#lab-back').click();
@@ -819,7 +819,7 @@ def test_browser_selection_highlight(data):
           await p.waitForFunction(() => document.querySelectorAll('tr.row.selected').length === 1);
           out.afterThird = await sel(p); out.third = rows[2];
           await p.locator('tr.row').nth(4).click();
-          await p.waitForURL(/\/lab\?/);
+          await p.waitForURL(/\\/lab\\?/);
           await p.waitForFunction((t) => document.querySelector('.detail-header h2') && document.querySelector('.detail-header h2').innerText !== t, thirdTitle);
           out.detail = await p.locator('.detail-header h2').innerText();
           await p.locator('#lab-back').click();

@@ -56,7 +56,7 @@ async function timeMe(p, selector, runs = 5) {
   out.open = sh(`uv run diski9 round dev-open --by-email ${boss.u.email} --deadline-minutes 3 --spacing-minutes 1 --code ${R}`).trim().split('\n').pop();
   const p = pat.p;
   await p.waitForTimeout(3500);
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   for (let i = 0; i < 14 && (await L.total(p)) < 9; i++) await L.pickEnabled(p, 1);
   await p.locator('button[id*="\\"to\\":\\"review\\""]').first().click(); await L.settle(p, 2000);
   await p.locator('[id*="\\"t\\":\\"submit\\""]').first().click(); await L.settle(p, 2500);
@@ -84,7 +84,7 @@ async function timeMe(p, selector, runs = 5) {
   out.timings.corrections_cli_total_ms = Date.now() - t0;
   out.corrections = pend.length;
   // the page stays open; in-app navigation must show the authoritative result
-  await p.locator('a[href="/challenge"]').first().click(); await L.settle(p, 1500);
+  await p.locator('a[href="/"]').first().click(); await L.settle(p, 1500);
   const s = Date.now();
   await p.locator('a[href="/challenge/me"]').first().click();
   await p.locator('.ch-res-summary').first().waitFor();

@@ -158,7 +158,7 @@ const P = (w, n) => ({ desktop: 'desktop', tablet: 'tablet', m390: 'mobile', m32
     const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 2 });
     const p = await ctx.newPage(); watch(p);
     await signIn(p, acc.you);
-    await p.goto(BASE + '/challenge'); await settle(p, 2500);
+    await p.goto(BASE + '/'); await settle(p, 2500);
     const demo = p.getByText('Try the demonstration round');
     if (await demo.count()) { await demo.click(); await settle(p, 4000); }
     await shotOf(p, '.ch-fx', 'reference_build_portfolio_cards', 10);

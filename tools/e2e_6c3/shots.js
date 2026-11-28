@@ -30,12 +30,12 @@ async function shoot(p, name, sel) {
   p.on('pageerror', e => errors.push(String(e)));
   const u = await L.createUser('shots');
   await L.signIn(p, u);
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   const picked = await L.pickEnabled(p, 4);
   out.texts.strip = await L.text(p, '.ch-status-strip');
   await shoot(p, 'challenge_frozen_info', null);
   const fid = Number(picked[0].split('|')[0]);
-  // Match Lab, frozen (opened from the Weekly Challenge universe)
+  // Match Lab, frozen (opened from the published round's builder link)
   await L.openFixture(p, fid);
   out.texts.frozenTag = await L.text(p, '.lab-context');
   out.texts.dataContextFrozen = await L.text(p, '#data-context');
@@ -46,7 +46,7 @@ async function shoot(p, name, sel) {
   out.texts.frozenAfterReload = await L.estimate(p, 'home');
   out.texts.frozenBase = base.toFixed(2);
   await shoot(p, 'match_lab_frozen_header', '.lab-context');
-  // Match Lab, latest data (All Upcoming Fixtures)
+  // Match Lab, latest data (the "Use latest available data" toggle, CP3A-4)
   await L.universe(p, 'All upcoming');
   out.texts.liveTag = await L.text(p, '.lab-context');
   out.texts.dataContextLive = await L.text(p, '#data-context');

@@ -80,11 +80,22 @@ async function setEstimate(page, side, value) {
 }
 async function estimate(page, side) { return (await labInput(page, side)).inputValue(); }
 async function openFixture(page, fid) {
-  await page.goto(`${BASE}/?fixture=${fid}`);
+  // Phase 8 CP3A-5: the Match Lab is /lab and every link names its context. A challenge
+  // fixture opens through the builder's own Match Lab link (ctx=challenge with the
+  // published round: the frozen context, as `/?fixture=` with the Weekly Challenge
+  // universe selected used to); a fixture not in the builder opens with latest data.
+  await page.goto(`${BASE}/`); await settle(page, 2500);
+  const link = page.locator(`a[href^="/lab?fixture=${fid}&ctx=challenge"]`).first();
+  const href = (await link.count()) ? await link.getAttribute('href') : `/lab?fixture=${fid}`;
+  await page.goto(BASE + href);
   await settle(page, 3000);
 }
 async function universe(page, label) {
-  await page.locator('.universe label', { hasText: label }).click();
+  // Phase 8 CP3A-5: the Challenge Mode universe control was removed (CP3A-3/4); for a
+  // challenge match its role is taken by the Match Lab toggle "Use latest available
+  // data" (on = 'All upcoming', the latest-data context; off = 'Weekly Challenge').
+  const box = page.locator('#lab-latest input[type=checkbox]');
+  if ((await box.isChecked()) !== /all upcoming/i.test(label)) await box.click();
   await settle(page, 2000);
 }
 async function signOut(page) {

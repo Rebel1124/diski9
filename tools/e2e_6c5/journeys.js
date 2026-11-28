@@ -293,7 +293,7 @@ async function guestJourney(page, wname) {
 
 async function navigation(page, wname) {
   const p = [];
-  for (const [href, want_] of [['/leaderboards', 'Leaderboards'], ['/challenge/me', 'My Challenge'], ['/challenge', 'Weekly Challenge']]) {
+  for (const [href, want_] of [['/leaderboards', 'Leaderboard'], ['/challenge/me', 'My Challenge'], ['/', 'Portfolio Build']]) {
     const r = await page.goto(BASE + href); await settle(page, 1500);
     if (!r || r.status() !== 200) p.push(`${href} status ${r && r.status()}`);
     const t = await page.evaluate(() => document.body.innerText);

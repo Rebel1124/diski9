@@ -26,7 +26,7 @@ async function cardText(p) { return (await p.locator(card).count()) ? p.locator(
   const p = await c.newPage();
   p.on('pageerror', e => errors.push(String(e)));
   await L.signIn(p, u);
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   out.roundShown = (await L.text(p, '.ch-status-strip')).slice(0, 160);
   for (let i = 0; i < 12 && (await L.total(p)) < 9; i++) await L.pickEnabled(p, 1);
   await p.locator('button[id*="\\"to\\":\\"review\\""]').first().click(); await L.settle(p, 2000);
@@ -54,7 +54,7 @@ async function cardText(p) { return (await p.locator(card).count()) ? p.locator(
   await p.locator(card).first().scrollIntoViewIfNeeded(); await p.evaluate(() => window.scrollBy(0, -72));
   await p.screenshot({ path: SHOT + 'locked_entry_desktop.png' });
   // current-round draft change must not alter the locked card
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   out.currentRound = (await L.text(p, '.ch-status-strip')).slice(0, 160);
   await L.pickEnabled(p, 2);
   await p.goto(L.BASE + '/challenge/me'); await L.settle(p, 2500);

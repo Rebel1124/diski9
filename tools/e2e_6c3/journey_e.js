@@ -13,7 +13,7 @@ async function confirmFull(browser, tag) {
   const c = await browser.newContext({ viewport: { width: 1360, height: 900 } });
   const p = await c.newPage();
   await L.signIn(p, u);
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   for (let i = 0; i < 12 && (await L.total(p)) < 9; i++) await L.pickEnabled(p, 1);
   await p.locator('button[id*="\\"to\\":\\"review\\""]').first().click(); await L.settle(p, 2000);
   await p.locator('[id*="\\"t\\":\\"submit\\""]').first().click(); await L.settle(p, 2500);
@@ -33,7 +33,7 @@ async function confirmFull(browser, tag) {
   // wait for the deadline (database clock)
   execSync(`until [ "$(psql -h 127.0.0.1 -p 5433 -U postgres -d diski9_e2e -Atc "select now() >= deadline_at from app.rounds where code='dev-lock-e2e7'")" = t ]; do sleep 2; done`, { shell: '/bin/bash' });
   await p.waitForTimeout(3500);  // the page's round cache is refreshed every few seconds
-  await p.goto(L.BASE + '/challenge'); await L.settle(p, 2500);
+  await p.goto(L.BASE + '/'); await L.settle(p, 2500);
   out.afterDeadlineStatus = await L.text(p, '.ch-ribbon');
   await p.screenshot({ path: SHOT + 'deadline_passed_desktop.png' });
   await p.goto(L.BASE + '/challenge/me'); await L.settle(p, 2000);
