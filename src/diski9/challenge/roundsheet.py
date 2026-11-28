@@ -305,6 +305,8 @@ def build_live_snapshot(
                             mc.sources,
                             _aware(mc.latest_observation),
                             row.competition_id,
+                            oldest_observation_at=_aware(mc.oldest_observation),
+                            provider_updated_at=_aware(mc.oldest_provider_updated_at),
                         )
                     )
             if not chosen:

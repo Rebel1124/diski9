@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 import pytest
-from pg_helpers import unique
+from pg_helpers import make_round, unique
 from sqlalchemy import create_engine, pool, text
 from svc_helpers import principal, publish_dev
 
@@ -66,7 +66,7 @@ def _publish(engine, op, config, *, development=True):
 # ------------------------------------------------------------------ migration
 def test_fresh_installation_makes_a3_active_and_copies_every_attribute(fresh_url):
     migrate.upgrade(fresh_url)
-    assert migrate.current(fresh_url) == "app_0009"
+    assert migrate.current(fresh_url) == migrate.head()
     eng = _eng(fresh_url)
     try:
         with transaction(eng) as conn:
@@ -89,7 +89,10 @@ def test_upgrade_keeps_broad60_rounds_and_drafts_and_new_rounds_bind_a3(fresh_ur
     eng = _eng(fresh_url)
     try:
         op = principal(eng, role="operator")
-        published, _ = _publish(eng, op, BROAD60_432_V1)
+        # a broad60 round published before app_0009, written at repository level as the
+        # code of that time did (today's services target the head schema, app_0010+)
+        with transaction(eng) as conn:
+            published_id, _, _ = make_round(conn)
         with transaction(eng) as conn:
             now = db_now(conn)
         draft = svc.create_round(eng, op, code=unique("dev-a3d"), window_start=now,
@@ -97,12 +100,12 @@ def test_upgrade_keeps_broad60_rounds_and_drafts_and_new_rounds_bind_a3(fresh_ur
         with transaction(eng) as conn:
             before = _rounds(conn)
         migrate.upgrade(fresh_url)
-        assert migrate.current(fresh_url) == "app_0009"
+        assert migrate.current(fresh_url) == migrate.head()
         with transaction(eng) as conn:
             assert _rounds(conn) == before  # nothing rebound or changed
             v2_id = _weekend(conn)[2]["id"]
             ids = dict(conn.execute(text("SELECT id, schedule_id FROM app.rounds")).all())
-        assert ids[published.id] == v2_id and ids[draft.id] == v2_id
+        assert ids[published_id] == v2_id and ids[draft.id] == v2_id
         # the pre-migration draft still publishes under its own row: broad60
         snap = dev_snapshot(draft.code, now, now + timedelta(hours=2, minutes=15),
                             config=BROAD60_432_V1)  # fmt: skip
@@ -199,7 +202,7 @@ def test_downgrade_restores_v2_and_refuses_once_a3_is_referenced(fresh_url):
             before = _weekend(conn)
         with pytest.raises(Exception, match="forward-only"):
             migrate.downgrade(fresh_url, "app_0008")
-        assert migrate.current(fresh_url) == "app_0009"
+        assert migrate.current(fresh_url) == "app_0009"  # app_0010 downgraded; app_0009 refused
         with transaction(eng) as conn:
             assert _weekend(conn) == before
     finally:

@@ -25,6 +25,7 @@ KNOWN_JOBS = (
     "scheduler.prepare_readiness",
     "scheduler.prepare_refresh",
     "scheduler.prepare_screener",
+    "scheduler.prepare_edition",  # Phase 8 R2
     "ops.notify",
     "lock",
     "publish",

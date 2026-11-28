@@ -1553,3 +1553,80 @@ ChatGPT reviewed `24d7adb` and found R1 satisfactory and within scope. The owner
 - The disposable PostgreSQL server stopped once between runs (container idle); it was restarted and every result above comes from completed runs after the restart.
 
 **Boundaries:** no schema migration, provider request, protected or hosted database access, hosted activation, dependency, infrastructure change, deployment, merge, tag or release. R2 not started. Phase 6 remains paused.
+
+### 15.20 R1 accepted and closed; R2 authorised (owner, 28 Nov 2026)
+
+- ChatGPT independently reviewed `24d7adb` (R1) and `ede294b` (review refinements). The owner **formally accepted R1** (register P8-R1-ACCEPT): the rolling lifecycle, fixed entry close, fixture cutoff, irrevocable submissions, entry-level V3, provisional privacy, historical compatibility, the settlement performance refinement, the 24-hour rolling settlement allowance, malformed-schedule handling and the focused evidence. No further R1 refinements.
+- The authoritative submission timestamp remains an explicit **R2 obligation** (refinement §14.12).
+- **R2 Price Editions and Freshness authorised:** the single consolidated migration (development and execution against newly created disposable databases only), the edition lifecycle, consumer resolution, the competitive refresh schedule, freshness enforcement, atomic confirmation with database-level rolling checks, the review fingerprint, the R3 analytical-record foundation, and one intermediate full CI on the exact R2 commit. No hosted migration or activation, provider requests, cap changes, dependencies, infrastructure or CI changes, deployment, merge, tags or releases. Phase 6 remains paused.
+
+### 15.21 R2 Price Editions and Freshness (implementation, 28 Nov 2026)
+
+**Migration `app_0010`** (`migrations_app/versions/app_0010_price_editions.py`; the single consolidated R2 migration; executed only on newly created disposable test databases)
+- `round_snapshots.edition` (existing snapshots become edition 1); `UNIQUE (round_id)` replaced by `UNIQUE (round_id, edition)`. Snapshot ids and every reference to them are unchanged.
+- Edition guard (BEFORE INSERT on `round_snapshots`): edition 1 once, while the round is a draft (publication, unchanged); later editions only consecutive, for an open `rolling/v1` round, before its close by `clock_timestamp()`.
+- `snapshot_rows_guard` replaced: edition 1 rows only while a draft (unchanged); later-edition rows only in the transaction that created that edition (`xmin` of the edition row), while the round is open and before its close; later-edition fixtures must belong to edition 1 (the published universe).
+- `snapshot_offers.oldest_observation_at` (new) and the existing `provider_updated_at`: the oldest contributing observation and provider timestamps. Historical rows keep NULL; nothing is invented.
+- `submission_deadline_guard` replaced: for `rolling/v1` rounds `submitted_at := clock_timestamp()` at insert (after every lock), which must be before the close, and the submission must use the round's current edition. Other rounds: unchanged (transaction timestamp, common deadline).
+- New `rolling_selection_guard` (BEFORE INSERT on `submission_selections`, rolling rounds only): kickoff in the submission's own edition later than `submitted_at` + the schedule buffer, and every copied value (odds, market and model probability, bucket, groups) equal to the edition's eligible offer.
+- New insert-only `submission_views` (R3 foundation; see the R2/R3 boundary below), with RLS and runtime grants like other history tables.
+- **Downgrade** refuses with nothing changed while any rolling-entry data exists (a later edition, a `rolling/v1` round or a `submission_views` row); otherwise it restores the `app_0009` structures exactly. Evidence on other rounds' offers is dropped with its column (unused by their methodology and outside every fingerprint, so their snapshots still verify).
+- **No activation:** the migration writes no schedule row.
+
+**Editions** (`services/editions.py`, `services/snapshots.py`)
+- `publish_edition`: the candidate is built outside any transaction. Publication then takes the round `FOR NO KEY UPDATE` (conflicting with confirmation's `FOR SHARE`), re-checks rules, status, close, source, round and configuration, candidate age and the universe, allocates `max(edition) + 1`, and inserts the edition, fixtures and offers in one short transaction (audited). Any failure writes nothing. An empty candidate is refused: the current edition stays and its prices age out by their own timestamps.
+- `build_candidate`: `build_live_snapshot` from the football store with the round's own configuration, window and competitions, then `restrict_to_universe` (universe fixtures not yet started; offers whose oldest observation is already over 6 h are left out). Nothing is ever added.
+- **Consumers.** Edition 1 (`CACHE.get`, `universe_id`): round identity and fingerprint, results polling and correction membership (`snapshot_id_of`), ops reports, Your View round context, history names. Current edition (`CACHE.current`, `rounds.current_snapshot`): builder (`persist.published`), draft validation, adoption (rolling), review, confirmation. The submission's own edition: lock-time validity and every copied value (settlement, scoring, history). The cache is keyed by (round, snapshot id); which edition is current is always read from the database. Edition 1 and the current edition are resolved by snapshot id order (ids follow edition order), which also works on older schemas.
+
+**Freshness** (refinement §14.3, §14.12)
+- The consensus layer now reports the **oldest** contributing observation and provider timestamps per market (`MarketConsensus.oldest_observation`, `oldest_provider_updated_at`). The builder carries them on each outcome, and editions store them per offer.
+- `offer_problem`: missing evidence, observation over 6 h or provider update over 24 h (both inclusive), measured at the actual time. Edition creation time, as-of time and scheduled or attempted refresh times are never used.
+- A partial sweep cannot freshen unrefreshed prices: each quote keeps its own last observation, and an unfetched fixture keeps its older timestamps.
+- `availability` / `round_availability`: whether a valid 4-3-2 portfolio can still be built from usable offers (eligible, fresh, before cutoff). It reports `paused` otherwise and recovers with a fresh edition. Research is unaffected.
+- Historical rounds: no new freshness rule is applied.
+
+**Confirmation** (`services/entries.py`): READ COMMITTED. Round `FOR SHARE`, then entry `FOR UPDATE`, then the current edition, then the idempotency check, close and finality, version checks, server-side selection validation, fixture cutoff, freshness (`PriceExpired`) and review fingerprint (`ReviewChanged`, naming positions). Finally the atomic insert with `snapshot_id` = the current edition. All accepted values are copied from the edition at full precision. Client values are ignored (drafts keep only keys). The rolling request identity is the selections plus the review fingerprint, so a retry returns the stored submission after a later edition or the close; a reused key with another payload is refused. Confirmation never reads the football store.
+
+**Review fingerprint** (`services/review.py`, `review/v1`): one canonical item per position: fixture, market, outcome, odds (2 dp), market probability (% to 1 dp), A3 bucket, model source and methodology identity (`goal_model`, the round's `model_version`), model probability (% to 1 dp) and a `view` slot. Items are hashed with SHA-256, and the fingerprint is SHA-256 of `review/v1` and the nine item digests. The client returns only the digests it accepted. Unchanged values, unrelated fixtures or offers and new edition numbers never require re-review.
+
+**R2/R3 analytical boundary (P8-YV)**
+- *Complete in R2:* the `submission_views` structure (personal vs fallback; baseline at creation or last explicit revision with identity; saved absolute estimated goals; latest baseline with identity; methodology; personal probability; fallback probability and source; database checks that a fallback never carries personal values); the fingerprint `view` slot; Your View round context pinned to edition 1, so a saved view never moves with later editions.
+- *Dependent on R3:* revised Your View storage and editing (absolute estimates, baseline-changed notice, revise or reset), populating the `view` slot, and writing `submission_views` in the confirmation transaction. End-to-end Your View acceptance is not claimed.
+
+**Competitive refresh** (`jobs/refresh.py`): for an open `rolling/v1` round, `competitive_slots` gives every 3 h from Friday 06:15 SAST, strictly before the close: 19 slots, the last Sunday 12:15 SAST, overnight included. Only slots since the manual publication are worked, and only for leagues with fixtures still to come in the universe. The planner lists exactly one `scheduler.prepare_edition` step per closed sweep. `jobs/edition_step.py` runs it from preparation, outside the refresh module's E.1b boundary (refresh never touches competition data), and it builds and writes the next edition or records the refusal. The existing reservation, class (`preparation`), caps (300 preparation, 450 per 24 h, 20 per tick), pacing, cooldown, continuation and partial-sweep closure apply unchanged. Historical rounds still stop at publication. Not active in any hosted environment (scheduler off by default; no rolling schedule row).
+
+**Legitimate test changes** (requirements that changed; no assertion weakened)
+- Head-revision assertions now follow `migrate.head()` (`app_0010`) in the migration, upgrade-path, A3 and concurrency tests. The A3 downgrade refusal keeps the literal `app_0009`: `app_0010` downgrades and then `app_0009` refuses, which is exactly what it asserts.
+- `test_backend_a3_active.py`: its pre-`app_0009` round is written at repository level (as the code of that time did). Today's services target the head schema, because migrations run before new code is deployed.
+- R1 test helper: rolling confirmations now review first and send the accepted item digests (the R2 requirement).
+
+**Defects found and fixed during R2** (before any commit)
+- The snapshot cache keyed only by snapshot id collided across the separate databases some tests use, since identity values repeat between databases (19 development-championship failures). It is now keyed by (round UUID, snapshot id).
+- The edition step was first placed in `jobs/refresh.py`, crossing that module's tested E.1b boundary. It was moved to `jobs/edition_step.py`.
+
+**R2 tests** (disposable PostgreSQL 16; databases `diski9_r1_test`, `diski9_r2_test` and the separate upgrade database)
+
+| Command | Result |
+|---|---|
+| `uv run pytest -q tests/backend/test_backend_phase8_r2.py` | **34 passed** (editions, guards, atomicity, consumers, history, copied values and precision, database refusals, actual-clock submission time, 6 h / 24 h boundaries, missing and oldest evidence, no artificial freshness, pause and recovery, review fingerprint, edition/confirmation races both ways, concurrent writers and confirmations, idempotent retry after edition and close, lock wait across the fixture cutoff, the R1 kickoff-between-start-and-insert scenario, 19 competitive slots, caps, planner, historical refresh, store-built candidate, consensus oldest evidence, edition step job) |
+| `uv run pytest -q tests/backend/test_backend_phase8_r2_migration.py` (with the migration, upgrade-path, A3, schedule-safeguard and runtime-role files) | **51 passed** (populated upgrade keeps snapshots and references, edition 1, nothing invented, no activation; safe downgrade restores `UNIQUE (round_id)`; refusal with rolling data) |
+| R1 files: `test_backend_phase8_r1.py`, `test_phase8_r1_rolling.py` | 35 passed (unchanged assertions; helper reviews first) |
+| Full local suite: `uv run pytest -q -p no:randomly --ignore=tests/test_a3_guidance_browser.py tests` | **2526 passed, 0 failed, 58 skipped** (35 min). Skips need a real Supabase Auth server, an interactive terminal or operator CLI infrastructure; CI provides these |
+| `uv run ruff check src tests migrations_app`; `uv run ruff format --check` | clean |
+
+**Performance and storage** (disposable database, synthetic 70-fixture round, 490 offers ≈ a full weekend; `perf.py` in the session scratchpad, not committed)
+- `publish_edition`: median 73 ms, maximum 108 ms. This is the whole transaction, so the round lock is held about as long, and confirmations wait at most about 0.1 s during a write.
+- Storage: about 102 KiB per 490-offer edition (tables plus indexes), about 2 MB for 19 weekend editions, about 100 MB a year.
+- `review_portfolio`: median 4 ms. `confirm_entry` (whole transaction): median 81 ms, maximum 129 ms.
+- Candidate build from the real football store could not be measured: the local store copy holds no current odds (0 offers). Build time stays an operational validation obligation (R5 and the first supervised hosted weekend).
+
+**Deviations from the design**
+- Editions use the existing set-once and history mechanisms. Edition 1 and the current edition are resolved by snapshot id order (equivalent to edition order) so reads also work on pre-`app_0010` schemas.
+- Freshness evidence is excluded from snapshot fingerprints, so historical fingerprints are unchanged and a downgrade never invalidates stored snapshots.
+- An empty candidate is refused rather than written as an empty edition.
+- Development snapshots carry synthetic evidence (observed once at build time).
+
+**Limitations**
+- The R4 participant interface (review screen, pause message, draft flags) is not built. Services and data are ready.
+- Hosted request use, Sunday coverage and real build time remain operational validation obligations.
+- Adoption of a rolling-round guest draft re-validates against the current edition instead of matching a fingerprint.

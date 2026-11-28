@@ -17,8 +17,8 @@ Rolling-entry rounds (approved CP3A-R.1, §9 and §14 of
   as ``rounds.deadline_at`` at publication and enforced by the existing deadline
   checks (service and database);
 * each selected fixture must kick off more than ``deadline_buffer_minutes`` (15)
-  after the confirmation time (service level in R1; a database trigger follows in
-  R2 with the edition migration);
+  after the confirmation time (service level since R1; since R2 also the database,
+  against the authoritative ``clock_timestamp()`` submission time, ``app_0010``);
 * one irrevocable final submission per participant: no replacement, withdrawal or
   resubmission. Drafts stay editable until submission;
 * settlement rule V3 uses **each entry's own submission time** as its reference

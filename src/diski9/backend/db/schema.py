@@ -392,6 +392,8 @@ round_snapshots = Table(
     Column("feasibility", JSONB, nullable=False),
     Column("source_job_run_id", BigInteger, nullable=True),
     Column("created_at", DateTime(timezone=True), nullable=False),
+    # Phase 8 R2 (app_0010): 1 = the published snapshot; later editions reprice it
+    Column("edition", Integer, nullable=False, server_default=text("1")),
 )
 
 round_status_history = Table(
@@ -559,6 +561,8 @@ snapshot_offers = Table(
     Column("bookmaker_groups", Integer, nullable=True),
     Column("latest_observation_at", DateTime(timezone=True), nullable=True),
     Column("provider_updated_at", DateTime(timezone=True), nullable=True),
+    # Phase 8 R2 (app_0010): oldest contributing observation (NULL for historical offers)
+    Column("oldest_observation_at", DateTime(timezone=True), nullable=True),
     Column("eligible", Boolean, nullable=False),
     Column("bucket", Text, nullable=True),
     Column("ineligible_reason", Text, nullable=True),
@@ -578,6 +582,29 @@ submission_selections = Table(
     Column("consensus_odds", Numeric(8, 2, asdecimal=True), nullable=False),
     Column("market_prob", Double, nullable=False),
     Column("bookmaker_groups", Integer, nullable=False),
+)
+
+# Phase 8 R2 (app_0010): submission-time analytical records (populated from R3, P8-YV)
+submission_views = Table(
+    "submission_views",
+    metadata,
+    Column("submission_id", UUID(as_uuid=True), primary_key=True),
+    Column("position", SmallInteger, primary_key=True),
+    Column("view_kind", Text, nullable=False),
+    Column("baseline_source", Text, nullable=False),
+    Column("methodology", Text, nullable=True),
+    Column("original_baseline_home", Double, nullable=True),
+    Column("original_baseline_away", Double, nullable=True),
+    Column("original_baseline_identity", JSONB, nullable=True),
+    Column("saved_goals_home", Double, nullable=True),
+    Column("saved_goals_away", Double, nullable=True),
+    Column("latest_baseline_home", Double, nullable=True),
+    Column("latest_baseline_away", Double, nullable=True),
+    Column("latest_baseline_identity", JSONB, nullable=True),
+    Column("personal_prob", Double, nullable=True),
+    Column("fallback_prob", Double, nullable=True),
+    Column("fallback_source", Text, nullable=True),
+    Column("created_at", DateTime(timezone=True), nullable=False),
 )
 
 submissions = Table(
@@ -713,6 +740,7 @@ HISTORY = frozenset(
         "snapshot_fixtures",
         "snapshot_offers",
         "submission_selections",
+        "submission_views",
         "submissions",
         "terms_acceptances",
     ]

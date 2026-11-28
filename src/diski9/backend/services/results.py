@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from sqlalchemy import Engine, select
+from sqlalchemy import func as sa_func
 
 from ...challenge.settle import FINAL_PLAYED, NO_GENUINE_RESULT
 from ...ingestion.results_fetch import canonical_hash, evidence_fields
@@ -89,7 +90,8 @@ def round_row(conn, round_id: UUID, *, for_update: bool = False):
 
 def snapshot_id_of(conn, round_id: UUID) -> int:
     sid = conn.execute(
-        select(round_snapshots.c.id).where(round_snapshots.c.round_id == round_id)
+        # edition 1, the published universe (R2): the round's first snapshot id
+        select(sa_func.min(round_snapshots.c.id)).where(round_snapshots.c.round_id == round_id)
     ).scalar_one_or_none()
     if sid is None:
         raise NotFound("This round has no published snapshot.")

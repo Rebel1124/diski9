@@ -219,7 +219,9 @@ def save_draft(
         r = _round(conn, round_id, for_share=True)
         if not _editable(r, db_now(conn)):
             raise RoundClosed("This round is closed; your saved draft can no longer change.")
-        snap = snapshots.CACHE.get(conn, round_id)
+        # the latest edition (R2): a draft is validated against current prices; a saved
+        # draft is never changed when a later edition omits one of its selections
+        _, _, snap = snapshots.CACHE.current(conn, round_id)
         cfg = conn.execute(
             select(rounds.c.config_version).where(rounds.c.id == round_id)
         ).scalar_one()

@@ -32,6 +32,7 @@ SCHEDULER_JOBS = (
     "scheduler.prepare_readiness",
     "scheduler.prepare_refresh",  # Stage E.1b
     "scheduler.prepare_screener",
+    "scheduler.prepare_edition",  # Phase 8 R2
 )
 STEP_JOBS = SCHEDULER_JOBS[1:]
 PROVIDER_JOBS = ("scheduler.results", "scheduler.results_full")
@@ -368,7 +369,8 @@ def _collect(engine: Engine, *, environment: str, finalise_warning: timedelta) -
                 first_ko = conn.execute(
                     text(
                         "SELECT min(f.kickoff_at_publish) FROM app.snapshot_fixtures f JOIN "
-                        "app.round_snapshots s ON s.id = f.snapshot_id WHERE s.round_id = :r"
+                        "app.round_snapshots s ON s.id = f.snapshot_id WHERE s.id = (SELECT "
+                        "min(id) FROM app.round_snapshots WHERE round_id = :r)"
                     ),
                     {"r": r.id},
                 ).scalar_one()

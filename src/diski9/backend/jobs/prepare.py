@@ -580,6 +580,10 @@ def run_preparation(run, report) -> None:
                 select(rounds_t.c.status).where(rounds_t.c.code == week.code)
             ).scalar_one_or_none()
         refresh.run_refresh(run, report, week, status)
+        # Phase 8 R2: a closed competitive sweep of an open rolling round -> one edition
+        from . import edition_step
+
+        edition_step.run_editions(run, report, week, status)
     # readiness after creation and refresh, from the state they left
     more, _ = plan(run.engine, run.cfg)
     if any(step == "prepare_readiness" for step, _ in more):

@@ -22,9 +22,9 @@ def test_downgrade_removes_everything_and_upgrade_recreates_it(fresh_url):
         assert conn.execute(text("SELECT to_regnamespace('app')")).scalar() is None
     assert migrate.current(pg_url) is None
     migrate.upgrade(pg_url)
-    assert migrate.current(pg_url) == migrate.head() == "app_0009"
+    assert migrate.current(pg_url) == migrate.head() == "app_0010"
     migrate.upgrade(pg_url)  # repeat: no-op, no error
-    assert migrate.current(pg_url) == "app_0009"
+    assert migrate.current(pg_url) == "app_0010"
     eng.dispose()
 
 

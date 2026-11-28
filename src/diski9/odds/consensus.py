@@ -109,6 +109,10 @@ class MarketConsensus:
     latest_observation: datetime | None = None
     # Provider feed timestamp: fixture/league-level, NOT a bookmaker price-change time.
     provider_updated_at: datetime | None = None
+    # Phase 8 R2: the oldest contributing observation and provider timestamps (the
+    # competitive freshness evidence: a price is only as fresh as its oldest source).
+    oldest_observation: datetime | None = None
+    oldest_provider_updated_at: datetime | None = None
 
     @property
     def displayable(self) -> bool:
@@ -255,6 +259,12 @@ def market_consensus(
             (_observed_at(q, as_of, fixture_observed_at) for q in used), default=None
         ),
         provider_updated_at=max(
+            (p for q in used if (p := _provider_at(q, as_of)) is not None), default=None
+        ),
+        oldest_observation=min(
+            (_observed_at(q, as_of, fixture_observed_at) for q in used), default=None
+        ),
+        oldest_provider_updated_at=min(
             (p for q in used if (p := _provider_at(q, as_of)) is not None), default=None
         ),
     )

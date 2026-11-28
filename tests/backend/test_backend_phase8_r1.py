@@ -47,7 +47,7 @@ from diski9.backend.devdata import dev_snapshot
 from diski9.backend.repositories import results as results_repo
 from diski9.backend.repositories import rounds as rounds_repo
 from diski9.backend.services import corrections as co
-from diski9.backend.services import drafts, rolling
+from diski9.backend.services import drafts, review, rolling
 from diski9.backend.services import entries as es
 from diski9.backend.services import leaderboards as lb
 from diski9.backend.services import participant_results as pr
@@ -147,6 +147,10 @@ def save(engine, p, view, keys, version=0):
 
 
 def confirm(engine, p, view, d, version=0, **kw):
+    """Confirm as a participant would: rolling rounds first review the portfolio and
+    send back the item digests they accepted (R2)."""
+    if "reviewed" not in kw and view.rules_version == rolling.ROLLING_RULES_VERSION:
+        kw["reviewed"] = list(review.review_portfolio(engine, p, view.id).digests)
     return es.confirm_entry(engine, p, view.id, draft_version=d.version,
                             expected_entry_version=version,
                             idempotency_key=kw.pop("k", key()), **kw)  # fmt: skip

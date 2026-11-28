@@ -211,7 +211,11 @@ def _resolve(conn: Connection, ctx: Context, cache: dict | None = None) -> _Reso
         head = conn.execute(
             select(round_snapshots.c.id, rounds.c.model_version, rounds.c.status)
             .join(rounds, rounds.c.id == round_snapshots.c.round_id)
+            # edition 1: R2 keeps round-context Your View on the published snapshot, so a
+            # saved view never moves with later price editions (P8-YV; reworked in R3)
             .where(round_snapshots.c.round_id == ctx.round_id)
+            .order_by(round_snapshots.c.id)  # ids follow edition order: the first is edition 1
+            .limit(1)
         ).one_or_none()
         if head is None or head.status == "draft":
             raise NotFound("This round has no published snapshot.")

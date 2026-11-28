@@ -150,9 +150,11 @@ def _view(conn: Connection, round_id: UUID) -> RoundView:
     if r is None:
         raise NotFound("No such round.")
     snap = conn.execute(
-        select(round_snapshots.c.fingerprint, round_snapshots.c.as_of).where(
-            round_snapshots.c.round_id == round_id
-        )
+        # edition 1 (the published snapshot): ids are allocated in edition order (R2)
+        select(round_snapshots.c.fingerprint, round_snapshots.c.as_of)
+        .where(round_snapshots.c.round_id == round_id)
+        .order_by(round_snapshots.c.id)
+        .limit(1)
     ).one_or_none()
     fp, as_of = (snap.fingerprint, snap.as_of) if snap else (None, None)
     series = conn.execute(
@@ -262,9 +264,16 @@ def round_config(conn: Connection, round_id: UUID) -> ChallengeConfig:
 
 
 def published_snapshot(engine: Engine, round_id: UUID) -> RoundSnapshot:
-    """The frozen snapshot of a published round (cached per process)."""
+    """The frozen snapshot of a published round: edition 1 (cached per process)."""
     with read_only(engine) as conn:
         return snapshots.CACHE.get(conn, round_id)
+
+
+def current_snapshot(engine: Engine, round_id: UUID) -> RoundSnapshot:
+    """The round's latest edition (Phase 8 R2): the competitive prices the builder,
+    review and confirmation use. For a historical round this is edition 1."""
+    with read_only(engine) as conn:
+        return snapshots.CACHE.current(conn, round_id)[2]
 
 
 # ------------------------------------------------------------------ schedule

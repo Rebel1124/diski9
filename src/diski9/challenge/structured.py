@@ -107,6 +107,11 @@ class ChallengeOutcome:
     latest_observation_at: datetime | None
     league_id: int | None = None
     label: str = ""
+    # Phase 8 R2 freshness evidence (rolling-entry editions): the oldest observation and
+    # the oldest provider update among the contributing quotes. Not part of any
+    # fingerprint; None for historical snapshots (their methodology does not use it).
+    oldest_observation_at: datetime | None = None
+    provider_updated_at: datetime | None = None
 
     @property
     def key(self) -> tuple:
@@ -145,6 +150,9 @@ def make_outcome(
     latest_observation_at,
     league_id=None,
     label: str = "",
+    *,
+    oldest_observation_at=None,
+    provider_updated_at=None,
 ) -> ChallengeOutcome:
     """Validate and build one round-sheet outcome."""
     if (
@@ -191,9 +199,14 @@ def make_outcome(
         raise ChallengeInputError(f"{who}: latest_observation_at must be a timezone-aware datetime")
     if league_id is not None and (isinstance(league_id, bool) or not isinstance(league_id, int)):
         raise ChallengeInputError(f"{who}: league_id must be an integer")
+    for name, v in (("oldest_observation_at", oldest_observation_at),
+                    ("provider_updated_at", provider_updated_at)):  # fmt: skip
+        if v is not None and (not isinstance(v, datetime) or v.tzinfo is None):
+            raise ChallengeInputError(f"{who}: {name} must be a timezone-aware datetime")
     return ChallengeOutcome(
-        fixture_id, m, o, pm, odds, pmod, g, latest_observation_at, league_id, label
-    )
+        fixture_id, m, o, pm, odds, pmod, g, latest_observation_at, league_id, label,
+        oldest_observation_at, provider_updated_at,
+    )  # fmt: skip
 
 
 def _check_snapshot(snapshot_at: datetime) -> None:

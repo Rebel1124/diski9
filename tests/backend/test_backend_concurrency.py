@@ -18,6 +18,7 @@ from diski9.backend.db import (
     check_health,
     db_now,
     make_app_engine,
+    migrate,
     read_only,
     transaction,
 )
@@ -230,7 +231,7 @@ def test_sessions_run_in_utc_with_timeouts(engine):
 
 def test_health_check(engine):
     health = check_health(engine)
-    assert health["ok"] and health["schema_revision"] == "app_0009"
+    assert health["ok"] and health["schema_revision"] == migrate.head()
 
 
 def test_connection_errors_never_reveal_the_password(pg_url):

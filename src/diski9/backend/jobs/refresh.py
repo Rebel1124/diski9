@@ -28,6 +28,19 @@ readiness, under the same lock, ownership checks and time budget:
 It writes only the football store and its own ``job_runs`` rows: no competition
 service, no actor, no publication. A completed sweep never means READY; the E.1a
 readiness evaluation (the Stage E validator) decides that.
+
+**Competitive refresh (Phase 8 R2, rolling entry only).** For an *open* round on
+rules ``rolling/v1`` the planner works the approved competitive slots instead of
+stopping at publication: every 3 hours from Friday 06:15 SAST (the publication
+preparation sweep) to Sunday 12:15 SAST, overnight included, 19 in all, and never at
+or after the entry close (Sunday 14:00 SAST). Only slots after the manual publication
+are worked, for the leagues that still have fixtures to come in the published
+universe. The planner then lists **one** edition step per closed sweep
+(``scheduler.prepare_edition``), which :mod:`.edition_step` runs from preparation
+(outside this module's boundary): the candidate is built from the football store and
+written as the next immutable edition, or refused with the reason recorded. The same
+request reservation, classes, caps, pacing and continuation apply; nothing is
+increased. Historical rounds are unchanged (refresh stops at publication).
 """
 
 from __future__ import annotations
@@ -49,7 +62,11 @@ from .locking import LockLost
 
 PREPARE_REFRESH = "scheduler.prepare_refresh"
 PREPARE_SCREENER = "scheduler.prepare_screener"
-REFRESH_JOBS = (PREPARE_REFRESH, PREPARE_SCREENER)
+PREPARE_EDITION = "scheduler.prepare_edition"  # Phase 8 R2 (== editions.EDITION_JOB)
+REFRESH_JOBS = (PREPARE_REFRESH, PREPARE_SCREENER, PREPARE_EDITION)
+# competitive slots (rolling entry): from the window start (Friday 00:00 SAST)
+COMPETITIVE_FIRST = timedelta(hours=6, minutes=15)  # Friday 06:15 SAST
+COMPETITIVE_EVERY = timedelta(hours=3)
 STREAM = "beta"
 LEAGUE_ORDER = (39, 40, 140, 61, 78, 135, 288, 289)
 MAX_LEAGUE_NEED = 4  # fixtures 1 + odds 1–3 pages (planning estimate; every attempt
@@ -125,6 +142,18 @@ def slots(week, cfg: SchedulerConfig) -> list[Slot]:
     return sorted(set(out), key=lambda s: s.at)
 
 
+def competitive_slots(window_start: datetime, close: datetime) -> list[Slot]:
+    """The rolling-entry competitive sweep slots: every 3 hours from Friday 06:15 SAST
+    (window start + 6 h 15 min) while strictly before the entry close. For schedule
+    v4 (window Friday 00:00 SAST, close Sunday 14:00 SAST): 19 slots, Friday 06:15 to
+    Sunday 12:15 SAST, overnight included."""
+    out, at = [], window_start + COMPETITIVE_FIRST
+    while at < close:
+        out.append(Slot(at, "competitive"))
+        at += COMPETITIVE_EVERY
+    return out
+
+
 def current_and_previous(week, cfg: SchedulerConfig, now: datetime
                          ) -> tuple[Slot | None, Slot | None]:  # fmt: skip
     """The slot to work now (none after the grace) and the slot before it."""
@@ -168,9 +197,9 @@ class SweepState:
         return f"{len(self.done)}/{self.total}"
 
 
-def sweep_state(conn, week, slot: Slot) -> SweepState:
+def sweep_state(conn, week, slot: Slot, names: list[int] | None = None) -> SweepState:
     key = slot.key(week.code)
-    names = leagues()
+    names = leagues() if names is None else names
     st = SweepState(key, slot, len(names))
     jr = job_runs.c
     since = _restore_filter(conn)
@@ -264,18 +293,22 @@ def data_label(closed: dict | None) -> str:
 # ------------------------------------------------------------------ planning
 @dataclass(frozen=True)
 class Planned:
-    kind: str  # league | screener
+    kind: str  # league | screener | edition
     slot: Slot
     league: int | None = None
     close_as: str | None = None  # complete | partial (screener)
 
     @property
     def step(self) -> str:
-        return "prepare_refresh" if self.kind == "league" else "prepare_screener"
+        return {"league": "prepare_refresh", "edition": "prepare_edition"}.get(
+            self.kind, "prepare_screener"
+        )
 
     def detail(self, code: str) -> str:
         if self.kind == "league":
             return f"league {self.league} for {self.slot.label}"
+        if self.kind == "edition":
+            return f"price edition after the {self.slot.label} sweep"
         return f"Screener cache; closes the {self.slot.label} sweep as {self.close_as}"
 
 
@@ -284,6 +317,10 @@ def plan(conn, cfg: SchedulerConfig, week, round_status: str | None,
     """The refresh work due now and a one-line reason when there is none."""
     if not enabled(cfg):
         return [], "refresh off"
+    if round_status == "open":
+        rr = _round_row(conn, week.code)
+        if rr is not None and rr.rules_version == ROLLING_RULES_VERSION:
+            return plan_competitive(conn, cfg, week, rr, now, real)
     if round_status not in (None, "draft"):
         return [], f"week already {round_status}; refresh stops at publication"
     cur, prev = current_and_previous(week, cfg, now)
@@ -304,6 +341,84 @@ def plan(conn, cfg: SchedulerConfig, week, round_status: str | None,
         return steps + [Planned("screener", cur, close_as="partial")], ""
     waiting = []
     for league in leagues():
+        if league in cs.done:
+            continue
+        until = _backoff_until(cs, league, cfg)
+        if until is not None and real < until:
+            waiting.append(league)
+            continue
+        steps.append(Planned("league", cur, league))
+    if not steps and waiting:
+        return steps, f"leagues {waiting} back off after failures in this slot"
+    return steps, ""
+
+
+ROLLING_RULES_VERSION = "rolling/v1"  # the rolling-entry rules version (Phase 8 R1)
+
+
+def _round_row(conn, code: str):
+    return conn.execute(
+        text("SELECT id, rules_version, status, published_at, deadline_at, window_start_at "
+             "FROM app.rounds WHERE code = :c"), {"c": code}
+    ).one_or_none()  # fmt: skip
+
+
+def competitive_leagues(conn, round_id, now: datetime) -> list[int]:
+    """Leagues with fixtures still to kick off in the round's published universe
+    (edition 1), in the usual league order: only these are requested."""
+    rows = conn.execute(
+        text("SELECT DISTINCT f.competition_id FROM app.snapshot_fixtures f "
+             "JOIN app.round_snapshots s ON s.id = f.snapshot_id "
+             "WHERE s.round_id = :r AND s.edition = 1 AND f.kickoff_at_publish > :now"),
+        {"r": round_id, "now": now},
+    ).scalars().all()  # fmt: skip
+    wanted = {int(c) for c in rows}
+    return [c for c in leagues() if c in wanted]
+
+
+def _edition_attempted(conn, code: str, key: str) -> bool:
+    jr = job_runs.c
+    return conn.execute(
+        select(sa_func.count()).where(jr.job == PREPARE_EDITION, jr.scope == code,
+                                      jr.args["slot"].astext == key,
+                                      jr.status.in_(("succeeded", "failed", "skipped")),
+                                      *_restore_filter(conn))
+    ).scalar_one() > 0  # fmt: skip
+
+
+def plan_competitive(conn, cfg: SchedulerConfig, week, rr, now: datetime,
+                     real: datetime) -> tuple[list[Planned], str]:  # fmt: skip
+    """Competitive refresh of an open rolling-entry round (R2): the current slot after
+    publication, its leagues with fixtures to come, then one edition step."""
+    if now >= rr.deadline_at:
+        return [], "competitive refresh stops at the entry close"
+    due = [s for s in competitive_slots(rr.window_start_at, rr.deadline_at)
+           if rr.published_at <= s.at <= now]  # fmt: skip
+    if not due:
+        return [], "no competitive slot since publication yet"
+    names = competitive_leagues(conn, rr.id, now)
+    steps: list[Planned] = []
+    if len(due) > 1:
+        prev = due[-2]
+        ps = sweep_state(conn, week, prev, names)
+        if ps.done and not ps.closed:
+            steps.append(Planned("screener", prev, close_as="partial"))
+        elif ps.closed and not _edition_attempted(conn, week.code, prev.key(week.code)):
+            steps.append(Planned("edition", prev))
+    cur = due[-1]
+    if not names:
+        return steps, "no fixtures left to price"
+    cs = sweep_state(conn, week, cur, names)
+    if cs.closed:
+        if not _edition_attempted(conn, week.code, cur.key(week.code)):
+            return steps + [Planned("edition", cur)], ""
+        return steps, f"{cur.label} sweep {cs.closed} ({cs.counts}); edition attempted"
+    if len([d for d in cs.done if d in names]) >= len(names):
+        return steps + [Planned("screener", cur, close_as="complete")], ""
+    if cs.done and cs.first_at is not None and now >= cs.first_at + cfg.refresh_partial_after:
+        return steps + [Planned("screener", cur, close_as="partial")], ""
+    waiting = []
+    for league in names:
         if league in cs.done:
             continue
         until = _backoff_until(cs, league, cfg)
@@ -603,7 +718,7 @@ def run_refresh(run, report, week, round_status: str | None) -> None:
     cfg = run.cfg
     caps = locking.Caps(cfg.max_requests_per_tick, cfg.max_requests_per_day,
                         cfg.nonessential_per_day, cfg.results_reserve)  # fmt: skip
-    attempted: set[tuple[str, int | None]] = set()
+    attempted: set[tuple[str, str, int | None]] = set()
     for _ in range(4 * len(leagues()) + 4):
         if run.rate_limited:
             report.steps.append(StepReport(week.code, STREAM, "prepare_refresh",
@@ -614,11 +729,14 @@ def run_refresh(run, report, week, round_status: str | None) -> None:
             now, real = _now(conn), db_now(conn)
             todo, why = plan(conn, cfg, week, round_status, now, real)
             slowest = _slowest(conn)
-        todo = [p for p in todo if (p.slot.key(week.code), p.league) not in attempted]
+        # edition steps run outside this module (``jobs.edition_step``, after the sweep):
+        # the refresh code itself never touches competition data
+        todo = [p for p in todo if p.kind != "edition"
+                and (p.slot.key(week.code), p.kind, p.league) not in attempted]  # fmt: skip
         if not todo:
             return
         p = todo[0]
-        attempted.add((p.slot.key(week.code), p.league))
+        attempted.add((p.slot.key(week.code), p.kind, p.league))
         if p.kind == "screener":
             report.steps.append(_screener_step(run, week, p.slot, p.close_as or "partial"))
             continue

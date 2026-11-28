@@ -89,7 +89,18 @@ def dev_snapshot(
                 model = min(0.99, max(0.01, prob + rng.uniform(-0.04, 0.04)))
                 outs.append(
                     make_outcome(
-                        fid, market, outcome, prob, _odds(prob), model, 5, observed, league
+                        fid,
+                        market,
+                        outcome,
+                        prob,
+                        _odds(prob),
+                        model,
+                        5,
+                        observed,
+                        league,
+                        # synthetic freshness evidence: every price observed once, then
+                        oldest_observation_at=observed,
+                        provider_updated_at=observed,
                     )
                 )
     window = (first_kickoff - timedelta(days=1), first_kickoff + spacing * fixtures + timedelta(1))
@@ -179,7 +190,21 @@ def mirror_snapshot(
             total = sum(raw.values())
             for o in MARKET_ORDER[m]:
                 p = raw[o] / total
-                outs.append(make_outcome(f["id"], m, o, p, _odds(p), model[o], 5, observed, league))
+                outs.append(
+                    make_outcome(
+                        f["id"],
+                        m,
+                        o,
+                        p,
+                        _odds(p),
+                        model[o],
+                        5,
+                        observed,
+                        league,
+                        oldest_observation_at=observed,
+                        provider_updated_at=observed,
+                    )
+                )
         if fixtures and len(fx) == fixtures:
             break
     if not fx:

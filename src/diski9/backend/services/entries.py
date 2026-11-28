@@ -28,12 +28,23 @@ refused (:class:`SubmissionFinal`); a retried request with the same key still
 returns the stored entry. Each selected fixture must kick off more than the
 schedule's buffer (15 minutes) after ``clock_timestamp()`` read after the locks
 (:class:`FixtureClosed`). Earlier rules versions are unchanged.
+
+**Price editions (R2).** A rolling confirmation uses the round's *current* edition,
+resolved after the round lock (an edition writer needs a conflicting lock, so the
+edition cannot change before the commit). Every selected price must be fresh at the
+actual time (:func:`~.editions.offer_problem`, :class:`PriceExpired`) and the
+participant's reviewed items must match (:mod:`~.review`, :class:`ReviewChanged`).
+The request identity is the reviewed selections and review fingerprint, so a retry
+returns the stored submission even after a new edition or the close. The database
+sets ``submitted_at`` to ``clock_timestamp()`` at insert and checks the close, the
+current edition, each fixture's cutoff and every copied value (``app_0010``).
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -66,7 +77,8 @@ from ..db.schema import (
 from ..repositories import portfolios as repo
 from ..repositories import rounds as rounds_repo
 from . import drafts as drafts_svc
-from . import rolling, snapshots
+from . import editions, rolling, snapshots
+from . import review as review_svc
 from .common import (
     NotFound,
     RoundClosed,
@@ -93,6 +105,22 @@ class SubmissionFinal(ServiceError):
     be replaced, withdrawn or submitted again."""
 
     code = "submission_final"
+
+
+class PriceExpired(ValidationFailed):
+    """Rolling entry (R2): a selected price's evidence is too old at the actual
+    confirmation time (observation over 6 h or provider update over 24 h) or missing.
+    ``issues`` names the positions; nothing was written and the draft is unchanged."""
+
+    code = "price_expired"
+
+
+class ReviewChanged(ServiceError):
+    """Rolling entry (R2): a reviewed value of the participant's own selections
+    changed in the current edition. ``details`` lists the changed positions and the
+    current review; the participant must review again. Nothing was written."""
+
+    code = "review_changed"
 
 
 class FixtureClosed(ValidationFailed):
@@ -251,6 +279,35 @@ def _check_fixture_cutoffs(conn: Connection, r, snap, fixture_ids) -> None:
         )
 
 
+def _check_rolling_review(conn, snap, config, model_version, outcomes, reviewed, round_id, uid):
+    """Rolling entry (R2): every selected price must be fresh at the actual time, and
+    the participant's reviewed items must equal the current edition's (display
+    precision; accepted values are still copied at full precision)."""
+    now = conn.execute(text("SELECT clock_timestamp()")).scalar_one()
+    stale = [
+        {"reason": why, "position": pos, "fixture_id": o.fixture_id}
+        for pos, o in enumerate(outcomes)
+        if (why := editions.offer_problem(o, now)) is not None
+    ]
+    if stale:
+        raise PriceExpired(
+            "Some prices in your portfolio are out of date; review your portfolio again "
+            "once prices refresh, or choose other predictions.",
+            stale,
+        )
+    current = [review_svc.digest(i) for i in review_svc.items_for(outcomes, config,
+                                                                  model_version or "")]  # fmt: skip
+    reviewed = list(reviewed or [])
+    changed = review_svc.changed_positions(reviewed, current)
+    if changed:
+        raise ReviewChanged(
+            "Prices for some of your predictions have changed since you reviewed them. "
+            "Please review your portfolio again.",
+            details={"positions": changed, "current": current,
+                     "fingerprint": review_svc.fingerprint(current)},
+        )  # fmt: skip
+
+
 def _lock_or_create_entry(conn: Connection, round_id: UUID, user_id: UUID):
     conn.execute(
         pg_insert(entries)
@@ -275,6 +332,18 @@ def _inputs_hash(round_id: UUID, fingerprint: str, sels: list[dict]) -> str:
     return hashlib.sha256(blob.encode()).hexdigest()
 
 
+def _rolling_inputs_hash(round_id: UUID, sels: list[dict], reviewed: Sequence[str]) -> str:
+    """Rolling entry: the request identity is the reviewed selections and the review
+    fingerprint, never the edition, so a retried request still matches after a later
+    edition, the close or the expiry of its prices."""
+    blob = json.dumps(
+        {"round": str(round_id), "selections": sels,
+         "review": review_svc.fingerprint(list(reviewed or []))},
+        separators=(",", ":"), sort_keys=True,
+    )  # fmt: skip
+    return hashlib.sha256(blob.encode()).hexdigest()
+
+
 def _states(ev) -> list[dict]:
     return [{"wins": list(s.wins), "p": s.probability, "gross": str(s.gross)} for s in ev.states]
 
@@ -289,9 +358,13 @@ def confirm_entry(
     expected_entry_version: int,
     idempotency_key: str,
     replace: bool = False,
+    reviewed: Sequence[str] | None = None,
 ) -> EntryView:
     """Confirm the saved draft (first entry, re-entry after withdrawal, or - with
-    ``replace=True`` - replacement of the active entry)."""
+    ``replace=True`` - replacement of the active entry). Rolling entry (R2):
+    ``reviewed`` is the nine item digests of :func:`~.review.review_portfolio` the
+    participant accepted; the confirmation uses the current edition, read after the
+    locks, and refuses expired prices or changed reviewed values."""
     authorize(principal, Capability.SUBMIT_ENTRY)
     key = _key(idempotency_key)
     uid = principal.user_id
@@ -299,14 +372,21 @@ def confirm_entry(
         require_active(conn, uid)
         r = _lock_round(conn, round_id)
         e = _lock_or_create_entry(conn, round_id, uid)
-        snap = snapshots.CACHE.get(conn, round_id)
+        # the current edition, resolved after the round lock: an edition writer needs a
+        # conflicting lock, so this edition cannot change before the commit (R2)
+        snap_id, _, snap = snapshots.CACHE.current(conn, round_id)
+        is_rolling = _rolling(r)
         draft = conn.execute(
             select(portfolio_drafts).where(
                 portfolio_drafts.c.user_id == uid, portfolio_drafts.c.round_id == round_id
             )
         ).one_or_none()
         sels = list(draft.selections) if draft is not None else []
-        digest = _inputs_hash(round_id, snap.fingerprint, sels)
+        digest = (
+            _rolling_inputs_hash(round_id, sels, reviewed or [])
+            if is_rolling
+            else _inputs_hash(round_id, snap.fingerprint, sels)
+        )
         prior = repo.find_submission_by_key(conn, uid, key)
         if prior is not None:  # a retried or duplicated request
             if prior.round_id == round_id and prior.inputs_hash == digest:
@@ -315,7 +395,6 @@ def confirm_entry(
                 "This request was already used for a different portfolio. Please try again."
             )
         _check_open(conn, r)
-        is_rolling = _rolling(r)
         if is_rolling and (replace or e.current_submission_id is not None or e.version > 0):
             # one final submission: any earlier submission (or a replace request) ends it
             raise SubmissionFinal(FINAL_MESSAGE, details=_entry_view(conn, round_id, uid))
@@ -346,6 +425,8 @@ def confirm_entry(
         outcomes = drafts_svc.validate_selections(snap, parsed, config)
         if is_rolling:
             _check_fixture_cutoffs(conn, r, snap, [o.fixture_id for o in outcomes])
+            _check_rolling_review(conn, snap, config, cfg_version.model_version, outcomes,
+                                  reviewed, round_id, uid)  # fmt: skip
         try:
             portfolio = validate_portfolio(outcomes, snap.snapshot_at, config, pool=snap.outcomes)
         except PortfolioValidationError as exc:
@@ -367,9 +448,6 @@ def confirm_entry(
             ).scalar_one()
             + 1
         )
-        snap_id = conn.execute(
-            text("SELECT id FROM app.round_snapshots WHERE round_id = :r"), {"r": round_id}
-        ).scalar_one()
         rows = []
         for pos, o in enumerate(portfolio.selections):
             rows.append(

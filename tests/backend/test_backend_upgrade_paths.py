@@ -41,7 +41,7 @@ def _counts(url):
 
 def test_fresh_installation_reaches_head(fresh_url):
     migrate.upgrade(fresh_url)
-    assert migrate.current(fresh_url) == migrate.head() == "app_0009"
+    assert migrate.current(fresh_url) == migrate.head() == "app_0010"
     with _eng(fresh_url).connect() as conn:
         rule = conn.execute(
             text(
@@ -63,7 +63,7 @@ def test_upgrade_from_phase_6c2_keeps_accounts_and_your_view(fresh_url):
             {"u": uid, "s": json.dumps(STATE)},
         )  # fmt: skip
     migrate.upgrade(fresh_url)
-    assert migrate.current(fresh_url) == "app_0009"
+    assert migrate.current(fresh_url) == migrate.head()
     with eng.connect() as conn:
         row = conn.execute(
             text("SELECT context_kind, snapshot_id, version, model_context, state "
@@ -214,7 +214,7 @@ def test_upgrade_to_competition_results_keeps_data_and_downgrade_is_honest(fresh
     with eng.connect() as conn:
         rows_before = conn.execute(text("SELECT * FROM app.entries ORDER BY id")).all()
     migrate.upgrade(fresh_url)
-    assert migrate.current(fresh_url) == "app_0009" and _app_counts(fresh_url) == before
+    assert migrate.current(fresh_url) == migrate.head() and _app_counts(fresh_url) == before
     with eng.connect() as conn:
         assert conn.execute(text("SELECT * FROM app.entries ORDER BY id")).all() == rows_before
         tables = set(

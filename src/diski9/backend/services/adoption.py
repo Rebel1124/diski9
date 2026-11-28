@@ -34,7 +34,7 @@ from ..auth.permissions import Capability, Principal, authorize
 from ..db import db_now, read_only, transaction
 from ..db.schema import portfolio_drafts, rounds
 from . import drafts as drafts_svc
-from . import snapshots
+from . import rolling, snapshots
 from . import your_view as yv
 from .common import (
     NotFound,
@@ -102,15 +102,22 @@ def _draft_item(conn: Connection, uid: UUID, guest: Mapping | None) -> AdoptionI
     except (TypeError, ValueError):
         return AdoptionItem("draft", "draft", "rejected", REASONS["other_round"])
     r = conn.execute(
-        select(rounds.c.status, rounds.c.deadline_at).where(rounds.c.id == rid)
+        select(rounds.c.status, rounds.c.deadline_at, rounds.c.rules_version).where(
+            rounds.c.id == rid
+        )
     ).one_or_none()
     if r is None or r.status == "draft":
         return AdoptionItem("draft", "draft", "rejected", REASONS["no_round"])
     if r.status != "open" or db_now(conn) >= r.deadline_at:
         return AdoptionItem("draft", f"draft:{rid}", "rejected", REASONS["round_closed"])
-    snap = snapshots.CACHE.get(conn, rid)
-    if guest.get("fingerprint") != snap.fingerprint:
-        return AdoptionItem("draft", f"draft:{rid}", "rejected", REASONS["other_round"])
+    if rolling.is_rolling(r.rules_version):
+        # rolling entry (R2): prices move between editions, so the guest's selections
+        # are re-validated against the current edition instead of matching a fingerprint
+        _, _, snap = snapshots.CACHE.current(conn, rid)
+    else:
+        snap = snapshots.CACHE.get(conn, rid)
+        if guest.get("fingerprint") != snap.fingerprint:
+            return AdoptionItem("draft", f"draft:{rid}", "rejected", REASONS["other_round"])
     try:
         sels = drafts_svc.parse_selections(guest["selections"])
         drafts_svc.validate_selections(snap, sels, snap.config)
@@ -262,7 +269,7 @@ def _save_draft_in(conn: Connection, uid: UUID, guest: Mapping, expected: int) -
         .with_for_update()
     )
     drafts_svc.ensure_before_deadline(conn, r)
-    snap = snapshots.CACHE.get(conn, rid)
+    _, _, snap = snapshots.CACHE.current(conn, rid)  # edition 1 for historical rounds
     sels = drafts_svc.parse_selections(guest["selections"])
     drafts_svc.validate_selections(snap, sels, snap.config)
     if expected == 0:

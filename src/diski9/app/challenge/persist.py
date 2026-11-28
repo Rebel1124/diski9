@@ -99,7 +99,8 @@ class Backend:
 
         try:
             view = rsvc.current_round(self.engine, include_development=self.show_development)
-            found = (view, rsvc.published_snapshot(self.engine, view.id)) if view else None
+            # the latest edition (Phase 8 R2; edition 1 for every historical round)
+            found = (view, rsvc.current_snapshot(self.engine, view.id)) if view else None
             error = False
         except Exception:  # noqa: BLE001 - shown as "temporarily unavailable"
             found, error = None, True

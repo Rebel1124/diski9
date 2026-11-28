@@ -133,11 +133,13 @@ def insert_snapshot(
     offers: Iterable[Mapping[str, Any]],
     params_hash: str | None = None,
     job_run_id: int | None = None,
+    edition: int = 1,
 ) -> int:
     snap_id = conn.execute(
         insert(round_snapshots)
         .values(
             round_id=round_id,
+            **({"edition": edition} if edition != 1 else {}),  # 1: the column default
             as_of=as_of,
             fingerprint=fingerprint,
             model_version=model_version,
